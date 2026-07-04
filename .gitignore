@@ -1,0 +1,31 @@
+# Dependencies — worden bij elke build opnieuw geïnstalleerd via npm install
+node_modules/
+
+# Build-output — wordt door de CI/CD-workflow gegenereerd, hoort niet in de repo
+dist/
+build/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Environment-bestanden — kunnen secrets bevatten, NOOIT committen
+.env
+.env.*
+!.env.example
+
+# Azure Functions lokale instellingen — bevat connection strings en API-keys!
+local.settings.json
+
+# Azure Functions build-artefacten
+bin/
+obj/
+
+# Editor- en OS-rommel
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Vite cache
+.vite/
