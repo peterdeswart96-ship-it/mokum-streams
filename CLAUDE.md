@@ -40,3 +40,21 @@ Automatisering van YouTube-livestreams voor Mokum Pool & Darts (Amsterdam). Opdr
 - Uploadcapaciteit + aantal gelijktijdige streams
 - OAuth-toegang Google-account, kanaalverificatie
 - Definitieve integratie-afspraken met Sander (Boei17)
+<!-- ===== WIKI-SCHEMA — PLAK NIET VERWIJDEREN ===== -->
+
+## Projectwiki (kennisbank)
+
+Dit project heeft een door de LLM onderhouden wiki in `wiki/`. De wiki is het
+langetermijngeheugen van het project: besluiten, architectuur, conventies,
+actuele status en geleerde lessen.
+
+**Kernregel: raadpleeg ALTIJD `wiki/` voordat je vragen beantwoordt over de
+architectuur, patronen, besluiten of geschiedenis van dit project. Lees eerst
+`wiki/index.md` om te zien welke pagina's er zijn, en open daarna de relevante
+pagina's. Raadpleeg ook altijd `wiki/api-contract.md` bij vragen over de
+API-afspraken tussen frontend- en backend-sessie.**
+
+Zie `wiki/index.md` voor de volledige catalogus en `CLAUDE.md` in de
+wiki-root voor de volledige spelregels.
+
+<!-- ===== EINDE WIKI-SCHEMA ===== -->
