@@ -31,3 +31,6 @@ Thumbs.db
 .vite/
 
 wiki/
+
+# Lokale log van post-commit wiki-update hook
+.claude/wiki-update.log
