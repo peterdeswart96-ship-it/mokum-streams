@@ -28,16 +28,18 @@ hoofdletters) op alle vier de instanties:
 | `Modern` | `Cuescore logo` | het Cuescore-logo (zeshoek op de tafel) — géén sponsor |
 | `score` | `Scorebord` | het scorebord van **deze** tafel (groot, onderaan) |
 | `cs score` | `Scores andere tafels` | overzicht met scores van **andere** tafels (rechtsboven) |
-| `Image Slideshow` (alleen Tafel 3) | `Sponsor slideshow` | ⚠️ bevestigen: op alle tafels gewenst? |
+| `Image Slideshow` (nu alleen Tafel 3) | `Sponsor slideshow` | roterende sponsorafbeelding (wisselt door alle sponsors) — **aanbevolen op alle tafels** voor uniformiteit |
 
 **Overig gelijk:** obs-websocket aan (eigen poort 4455/4456/4457/4458 + wachtwoord),
 stream key = de herbruikbare liveStream van díe tafel, zelfde output (bijv. 1080p
 ~5000 kbps).
 
-> De agent schakelt de overlays + de stream. `Scorebord` (eigen tafel) en
-> `Scores andere tafels` zijn **verschillende** dingen → logisch als **aparte
-> schakelaars** in het dashboard. De code (`commandQueue.OVERLAY_BRON` + het
-> planning-record `overlays`) breiden we hierop uit zodra de namen vaststaan.
+> **Dashboard-schakelaars (voorstel):** `Sponsors`, `Sponsor slideshow`,
+> `Scorebord`, `Scores andere tafels`, `Cuescore logo` — elk los aan/uit. De
+> `Camera` staat altijd aan (geen schakelaar). Ik generaliseer daarvoor het
+> overlay-model: `config/tables.json` bevat de lijst overlaybronnen en het
+> planning-record `overlays` wordt een map `{ naam: aan/uit }`. Zo kan elke
+> overlay vanuit het dashboard geschakeld worden zonder hardcoding.
 
 ## Tafelnummer zichtbaar maken (jouw punt)
 Nu staat nergens welk tafelnummer het is (de taakbalk toont "Profile: Naamloos").
