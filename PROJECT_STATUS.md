@@ -1,43 +1,74 @@
 # Mokum Streams — Project Status
 
-> Gegenereerd op: 04-07-2026 15:30
+> Bijgewerkt op: 08-07-2026 19:20
 > Repo: https://github.com/peterdeswart96-ship-it/mokum-streams
+
 ## Over dit project
 
-Automatisering YouTube-livestreams Mokum Pool & Darts
+Automatisering YouTube-livestreams Mokum Pool & Darts (4 cameratafels: 1, 3, 15, 16).
+
+## Fase
+
+Fase 1 (intake & ontwerp) afgerond → **fase 2 (MVP) in volle gang**. De
+backend-fundering staat: YouTube-wrapper, Cuescore-lees, planning-model v2
+(import → planning.json → broadcasts) en admin-endpoints. Alles op `develop`,
+CI groen (42 unit-tests).
+
 ## Deployment Status
 
-- ✅ **develop** — Merge pull request #4 from peterdeswart96-ship-it/feature/workflows (04-07-2026 11:56)
+- **develop** — laatste: `a9d6297` admin-endpoints voor het dashboard (08-07-2026)
+- Backend-deploy naar Azure: **placeholder** — Function App bestaat nog niet (volgende infra-stap)
+- Frontend: nog geen skeleton (#12)
+
+## Gesloten deze sessie (08-07)
+
+- **#5** Google Cloud-project (YouTube Data API v3)
+- **#6** OAuth-koppeling — app in productie, refresh-token in Key Vault `kv-mokum-streams`
+- **#7** Backend map-skeleton (Azure Functions v4)
+- **#15** Cuescore-lees module (optie B) — live geverifieerd
 
 ## Open Issues
 
-**Totaal open: 8 issues**
+**Totaal open: 5 issues**
 
-### 🔴 Hoge prioriteit
+### 🔴 Hoge prioriteit — code klaar, open tot echte run
 
-- **#11** End-to-end test: geplande stream gaat automatisch live en stopt `prioriteit:hoog, type:feature, area:backend, fase:2-mvp`
-- **#9** Azure Function: broadcast aanmaken op basis van schema (liveBroadcasts.insert) `prioriteit:hoog, type:feature, area:backend, fase:2-mvp`
-- **#8** YouTube API-wrapper module bouwen (liveBroadcasts + liveStreams) `prioriteit:hoog, type:feature, area:backend, fase:2-mvp`
-- **#7** Backend map-skeleton opzetten (Azure Functions v4, Node.js) `prioriteit:hoog, type:chore, area:backend, fase:2-mvp`
-- **#6** OAuth-koppeling opzetten met YouTube-kanaal van Mokum `prioriteit:hoog, type:chore, area:infra, fase:1-intake`
-- **#5** Google Cloud-project aanmaken voor YouTube API-credentials `prioriteit:hoog, type:chore, area:infra, fase:1-intake`
+- **#8** YouTube API-wrapper (liveBroadcasts + liveStreams) — code + tests klaar; echte API-call tegen kanaal nog te doen
+- **#9** Broadcast-Function op basis van planning — code + tests klaar; echte run met streamID-seed nog te doen
+- **#11** End-to-end test: geplande stream gaat automatisch live en stopt
 
 ### 🟡 Normale prioriteit
 
-- **#12** Frontend map-skeleton opzetten (React + Vite + Tailwind) `prioriteit:normaal, type:chore, area:frontend, fase:3-uitrol`
-- **#10** OBS-agent skeleton (Node.js Windows-service, obs-websocket) `prioriteit:normaal, type:feature, area:agent, fase:2-mvp`
+- **#10** OBS-agent skeleton — code + tests klaar; tegen echte OBS draaien + Windows-service
+- **#12** Frontend map-skeleton (React + Vite + Tailwind)
 
-## Recente Commits
+## Recente Commits (develop)
 
-- `3720d96` chore: initi├½le commit met .gitignore (Node + Azure Functions) (04-07-2026 10:53)
+- `a9d6297` feat: admin-endpoints voor het dashboard (planning + defaults + config)
+- `390acc6` feat: #9 leest nu planning.json i.p.v. schedule.json (planning-model v2)
+- `cb713a7` docs: API-contract v0.5 — type + camera-toewijzing + doorlopende events
+- `7af5d5e` feat: Cuescore-import + planning-store (planning-model v2, deel 1)
+- `1e00950` feat: OBS-agent skeleton met obs-websocket + overlay-toggles (#10)
+- `f0fbcdd` feat: broadcast-Function (timer) op basis van schema (#9)
+
+## Belangrijkste openstaande punten
+
+- **Ad-hoc streams + agent-commandowachtrij** (`/api/admin/streams/start` → `/api/agent/commands`)
+- **Per-avond-logica voor competities** (leagues zijn doorlopende Cuescore-tournaments — zie wiki/gaps.md #14/#16)
+- **Echte run**: Azure Function App + storage aanmaken, streamID's seeden in `config/tables.json`
+- **Dashboard (#12)** + live-pagina (fase 3/4)
+
+## Openstaand richting derden
+
+- Sander (Boei17): website-integratie-blok uitvragen (fase 4)
+- Nick: OBS-mappen staan in OneDrive — verplaatsen aanraden (wiki/gaps.md #9)
+- Cuescore-link naar een teamcompetitie ontvangen (voorbeeld: leagues/?c=1000231)
 
 ## Claude Project Sync
 
-Upload deze bestanden naar het Claude project na elke sessie:
+Upload na deze sessie naar het Claude project:
 
 - [ ] `PROJECT_STATUS.md` (dit bestand)
-- [ ] Aangepaste frontend bestanden (zie recente commits)
-- [ ] Aangepaste backend bestanden (zie recente commits)
-
-> Tip: gebruik `Haal-Projectbestanden-Op.ps1` om bestanden automatisch op te halen.
-
+- [ ] `docs/api-contract.md` (v0.5)
+- [ ] `docs/sessies/2026-07-08-handover.md`
+- [ ] Aangepaste backend-/agent-bestanden (zie recente commits)
