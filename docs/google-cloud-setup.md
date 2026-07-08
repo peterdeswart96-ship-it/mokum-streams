@@ -9,8 +9,10 @@ Zie `docs/projectplan.md` §3.2 (YouTube Live Streaming API — waarom een Googl
 Cloud-project nodig is als "sleutelkast" voor de credentials) en §3.4
 (beveiliging — waarom tokens en keys nooit in code of repo staan).
 
-Status: afgerond voor issue #5. Volgende stap: issue #6 (OAuth-koppeling +
-refresh-token).
+Status: **issue #5 én #6 afgerond** (bijgewerkt 2026-07-08). Google Cloud-project,
+YouTube Data API v3, OAuth-consentscherm op **In production**, en een geldig
+refresh-token via het eigenaaraccount `pooleninmokum@gmail.com` — opgeslagen in
+Azure Key Vault `kv-mokum-streams`. Volgende stap: fase 2 (backend-skeleton #7).
 
 ## Wat is aangemaakt
 
@@ -20,13 +22,14 @@ refresh-token).
 - **API ingeschakeld:** YouTube Data API v3. Dit is de API waarmee we
   liveStreams (vaste stream keys) en liveBroadcasts (uitzendingen) beheren.
 - **OAuth-consentscherm:** naam "Mokum Streams Automation", User type
-  **External**, publishing status **Testing**.
+  **External**, publishing status **In production** (was Testing; omgezet bij #6
+  zodat het refresh-token niet na ~7 dagen verloopt).
 - **Scopes:** `youtube` en `youtube.readonly`.
-- **Test user:** peterdeswart96@gmail.com (in Testing-modus mag alleen een
-  geregistreerde test-user inloggen; zie "Aandachtspunten").
+- **OAuth-flow doorlopen met:** het eigenaaraccount `pooleninmokum@gmail.com`
+  (het kanaal-account). Hiermee is het refresh-token opgehaald.
 - **OAuth-client:** desktop-client met naam `mokum-streams-desktop-client`
-  (type Desktop app — geschikt voor de eenmalige lokale OAuth-flow waarmee we in
-  issue #6 een refresh-token ophalen).
+  (type Desktop app — gebruikt voor de eenmalige lokale OAuth-flow die het
+  refresh-token opleverde).
 
 ## Waar staan de secrets
 
@@ -37,42 +40,41 @@ C:\Projects\mokum-streams-secrets\
 ```
 
 Deze map is bewust géén onderdeel van de git-repo. Client-ID, client-secret en
-(straks) het refresh-token worden hier lokaal bewaard. Conform projectplan §3.4
+het refresh-token worden hier lokaal bewaard. Conform projectplan §3.4
 en CLAUDE.md-regel 4 staan er **nooit** credentialwaarden in code, repo, logging
-of chat. Voor productie verhuizen de secrets naar Azure (Key Vault of
-versleutelde app settings).
+of chat.
+
+**Voor productie (afgerond bij #6):** de secrets staan in Azure Key Vault
+**`kv-mokum-streams`** (resource group `rg-mokum-streams`), als secrets
+`youtube-client-id`, `youtube-client-secret` en `youtube-refresh-token`. De
+Azure Functions-backend leest ze straks daaruit (managed identity / app
+settings-referentie).
 
 > Let op: dit document bevat bewust geen client-ID, client-secret of tokens —
 > alleen de verwijzing naar de map hierboven.
 
 ## Publishing status en gevolgen
 
-De app staat op **Testing** (niet "In production"). Gevolgen:
+De app staat op **In production**. Gevolgen:
 
-- Alleen geregistreerde test-users kunnen de OAuth-flow doorlopen.
-- Refresh-tokens in Testing-modus kunnen na circa 7 dagen verlopen. Zolang we in
-  Testing zitten is dat een aandachtspunt voor de koppeling; bij structureel
-  gebruik zetten we de app op "In production" (eventueel met verificatie) zodat
-  het refresh-token stabiel blijft. Besluit hoort bij issue #6 / fase 2.
+- Elk Google-account kan de OAuth-flow doorlopen; geen test-userlijst meer nodig.
+- Het refresh-token verloopt **niet** meer na ~7 dagen (dat was het Testing-
+  probleem), dus de geautomatiseerde koppeling blijft stabiel werken.
 
-## Volgende stap — issue #6
+## OAuth-koppeling — afgerond (issue #6)
 
-Met deze credentials kan de OAuth-koppeling worden opgezet:
+Uitgevoerd op 2026-07-08:
 
-1. Eenmalige OAuth-flow doorlopen met het Mokum-Google-account en de scopes
-   hierboven, om een **refresh-token** te verkrijgen.
-2. Refresh-token versleuteld opslaan (lokaal in de secrets-map, later in Azure).
-3. Testcall: kanaalgegevens van UCXb_CDaEhEO8CImYTvHalTw ophalen ter bevestiging.
-4. Kanaalverificatie en "insluiten van livestreams" controleren (projectplan §7).
-
-Details en acceptatiecriteria: zie issue #6 (OAuth-koppeling opzetten met
-YouTube-kanaal van Mokum).
+1. ✅ Eenmalige OAuth-flow doorlopen met `pooleninmokum@gmail.com` → **refresh-token** verkregen.
+2. ✅ Refresh-token opgeslagen in Key Vault `kv-mokum-streams` (zie "Waar staan de secrets").
+3. ✅ Testcall bevestigde toegang tot kanaal `UCXb_CDaEhEO8CImYTvHalTw`.
+4. ⚠️ **Nog te doen vóór de end-to-end test (#11):** in YouTube Studio
+   controleren of het kanaal **geverifieerd** is (telefoon) en of **"insluiten
+   van livestreams"** aanstaat — beide vereist voor livestreamen/embedden, kan
+   tot 24u duren (projectplan §7). Bij de intake was dit nog "weet ik niet".
 
 ## Aandachtspunten
 
-- **Test-user vereist in Testing-modus:** wil een ander Google-account de flow
-  doorlopen, dan moet dat eerst als test-user worden toegevoegd in het
-  consentscherm.
 - **Scope-wijziging = opnieuw toestemmen:** breiden we de scopes later uit (bijv.
   voor schrijfacties op broadcasts), dan is een nieuwe OAuth-toestemming nodig.
 - **Google Cloud vs. hosting:** het project draait niets in Google Cloud; het is
@@ -82,3 +84,6 @@ YouTube-kanaal van Mokum).
 
 - 2026-07-04: eerste versie — Google Cloud-project, YouTube Data API v3,
   OAuth-consentscherm (Testing) en desktop-client gedocumenteerd (issue #5).
+- 2026-07-08: OAuth-koppeling afgerond (#6) — app op In production, refresh-token
+  via `pooleninmokum@gmail.com` in Key Vault `kv-mokum-streams`. Kanaalverificatie/
+  embed-instelling nog te controleren.

@@ -6,9 +6,13 @@ Projectspecifieke instructies voor Claude Code werkend in deze repo.
 Automatisering van YouTube-livestreams voor Mokum Pool & Darts (Amsterdam). Opdrachtgevers: Nick & Mark. Website beheerd door Boei17 (Sander). Zie `docs/projectplan.md` voor het volledige ontwerp en `docs/SKILL-mokum-streams.md` voor de referentie op hoog niveau.
 
 ## Vaste feiten
-- YouTube-kanaal: @MokumPoolDarts (UCXb_CDaEhEO8CImYTvHalTw)
+- YouTube-kanaal: @MokumPoolDarts (UCXb_CDaEhEO8CImYTvHalTw); account `pooleninmokum@gmail.com` (Peter heeft beheerderstoegang). Niet gemonetiseerd.
 - Titeltemplate broadcasts: `Tafel {nr} '{sponsor}' {toernooinaam}`
-- 4 tafels met camera in een zaal van 16 pooltafels — echte zaalnummering aanhouden
+- Tafels met camera: **1, 3, 15, 16** (zaal telt 16 pooltafels — echte zaalnummering aanhouden). NB: oude demo gebruikte 7/9/12/15 als voorbeeld — dat is achterhaald.
+- Sponsornamen komen uit **Cuescore** (niet handmatig); voeden het `{sponsor}`-veld in de titel
+- Eerste vaste toernooi (testcase fase 2/3): **Di 19:30 — Fluke ranking — tafel 1 & 3** (toernooinaam mag uit Cuescore)
+- Zaalopstelling: één pc, **meerdere OBS-instanties** (elk eigen websocket-poort + wachtwoord), upload 120 Mbps bekabeld, pc mag 24/7 aan
+- Infra: resource group `rg-mokum-streams`, Key Vault `kv-mokum-streams` (youtube-client-id/-secret/-refresh-token), Google Cloud-project `mokum-streams`
 - Owner GitHub: peterdeswart96-ship-it
 - Productie: mokum-streams.pdscloud.nl (via GitHub Pages)
 
@@ -34,12 +38,14 @@ Automatisering van YouTube-livestreams voor Mokum Pool & Darts (Amsterdam). Opdr
 - Authenticatie dashboard (fase 3): Entra External ID (zoals CV Optimizer)
 - Website-integratie (fase 4): JS-widget via Boei17, geen iframe
 - Video-id's komen uit eigen backend; kanaal-embed alleen als fallback
+- Handmatige controle + noodstop gewenst → dashboardknoppen + **Stream Deck** (budget akkoord)
+- Remote beheer OBS-pc: **Tailscale** (veilige netwerklaag, geen poorten open) + RustDesk/Chrome Remote Desktop voor het scherm. NB: klassieke Windows-RDP vergrendelt de console-sessie en kan OBS-capture/NVENC verstoren — kies een tool die de console spiegelt.
 
-## Openstaand (fase 1)
-- Welke 4 tafelnummers hebben camera + sponsornamen per tafel
-- Uploadcapaciteit + aantal gelijktijdige streams
-- OAuth-toegang Google-account, kanaalverificatie
-- Definitieve integratie-afspraken met Sander (Boei17)
+## Openstaand (na intake 2026-07-08)
+- ~~Kanaalverificatie + livestreamen~~ ✅ bevestigd (2026-07-08): Feature eligibility niveau 1/2/3 allemaal "Enabled" — livestreamen mag, geen wachttijd. "Insluiten toestaan" per broadcast programmatisch zetten bij #9.
+- Website-integratie (blok 6): apart uitvragen bij Sander (Boei17) — integratievorm, paginalocatie/menu, huisstijltokens, caching/CDN, SEO
+- Exacte Cuescore-bron/mapping voor sponsors per tafel
+- Retentiebeleid oude streams (nu handmatig verwijderen, later evt. automatiseren)
 <!-- ===== WIKI-SCHEMA — PLAK NIET VERWIJDEREN ===== -->
 
 ## Projectwiki (kennisbank)
