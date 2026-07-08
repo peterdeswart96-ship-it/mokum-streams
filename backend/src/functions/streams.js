@@ -44,10 +44,13 @@ app.http('adminStreamStart', {
 
     const title = buildBroadcastTitle({ tafel: tafelNr, toernooinaam: body.title || '' });
     const start = new Date().toISOString();
+    // Voor een veilige test kun je privacy: "unlisted" (of "private") meesturen;
+    // standaard is de stream "public".
+    const privacyStatus = ['unlisted', 'private', 'public'].includes(body.privacy) ? body.privacy : 'public';
 
     let broadcast;
     try {
-      broadcast = await createBroadcast({ title, scheduledStartTime: start });
+      broadcast = await createBroadcast({ title, scheduledStartTime: start, privacyStatus });
       await bindBroadcast({ broadcastId: broadcast.id, streamId: table.streamId });
     } catch (e) {
       context.log(`[FOUT] ad-hoc broadcast tafel ${tafelNr}: ${e.message}`);
