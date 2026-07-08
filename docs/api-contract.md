@@ -3,7 +3,7 @@
 Enige waarheid voor de koppelvlakken tussen frontend/widget, backend en (later) de
 agent. Wijzigen? Eerst dit bestand bijwerken (met datum + reden onderaan), dan code.
 
-Status: CONCEPT v0.3 — velden worden definitief in fase 2.
+Status: CONCEPT v0.4 — velden worden definitief in fase 2.
 
 ## Conventies
 - Alle velden camelCase. Tijden in ISO 8601 met tijdzone (Europe/Amsterdam
@@ -34,11 +34,13 @@ GET /api/schedule?days=7
 Antwoord: { "items": [ { "date", "startTime", "tournamentName", "tableNumbers": [..] } ] }
 
 ## Beheer (dashboard, auth vereist)
-GET  /api/admin/config          -> tafelconfig, array van { tableNumber, streamId }
-GET  /api/admin/schedule        -> volledig schema incl. terugkerende regels (zie hieronder)
-POST /api/admin/schedule        -> regel toevoegen/wijzigen
-POST /api/admin/streams/start   -> body: { "tableNumber": 15 }  (handmatig ingrijpen)
-POST /api/admin/streams/stop    -> body: { "tableNumber": 15 }
+GET  /api/admin/config              -> tafelconfig, array van { tableNumber, streamId }
+GET  /api/admin/planning?days=14    -> geplande toernooien (Cuescore-import + instellingen)
+POST /api/admin/planning/{id}       -> instellingen van één toernooi wijzigen
+GET  /api/admin/defaults            -> standaard-instellingen (één set, zie hieronder)
+POST /api/admin/defaults            -> standaard-instellingen wijzigen
+POST /api/admin/streams/start       -> body: { "tableNumber": 15, "title"?: "..." } (ad-hoc, vrije camera)
+POST /api/admin/streams/stop        -> body: { "tableNumber": 15 }
 
 Tafelconfig (GET /api/admin/config) — array:
 {
@@ -46,23 +48,68 @@ Tafelconfig (GET /api/admin/config) — array:
   "streamId": "<herbruikbare liveStream-id>"   // NIET de stream key zelf (die is secret)
 }
 
-Schema-regel (GET/POST /api/admin/schedule) — array van terugkerende regels:
+## Planning-model v2 (kern van het dashboard)
+De backend **importeert ALLE geplande Mokum-toernooien uit Cuescore** en bewaart
+per toernooi onze instellingen/overrides. Elk geïmporteerd toernooi krijgt de
+**standaard-instellingen** (alles aan) en is per stuk aan te passen of uit te
+zetten. Het dashboard toont dit overzicht (met filters) en kan per toernooi
+bijsturen.
+
+Planning-record (GET /api/admin/planning → `{ "items": [ ... ] }`):
 {
-  "id": "di-fluke",
-  "dagVanDeWeek": 2,            // 1=ma ... 7=zo
-  "startTijd": "19:30",        // lokale tijd, Europe/Amsterdam
-  "tafels": [1, 3],
-  "toernooinaam": "Fluke ranking",  // fallback als Cuescore (nog) geen naam geeft
-  "leadMinuten": 15,           // hoeveel eerder de broadcast wordt aangemaakt
-  "actief": true
+  "tournamentId": 75880960,                 // Cuescore-id, of "adhoc-<uuid>" bij handmatig
+  "name": "Fluke ranking 9ball Seizoen 3 #22",
+  "date": "2026-07-14",
+  "source": "cuescore" | "adhoc",
+  "plannedStart": "2026-07-14T17:30:00Z",   // uit Cuescore (.starttime), alleen-lezen
+  "plannedStop":  "2026-07-14T21:00:00Z",   // uit Cuescore (.stoptime), kan null zijn
+  "enabled": true,                          // streamen we dit toernooi?
+  "startOverride": null,                    // handmatige start (anders plannedStart)
+  "stopOverride":  null,                    // handmatige stop (anders auto op Cuescore-finale)
+  "preRollMinuten": 10,                     // hoeveel eerder starten met "begint zo"-scherm
+  "tafels": [1, 3],                         // welke camera's (echte zaalnummers)
+  "overlays": { "sponsors": true, "scoreboard": true }
+}
+POST /api/admin/planning/{id} — body met te wijzigen velden (enabled, startOverride,
+stopOverride, preRollMinuten, tafels, overlays); retour = bijgewerkt record.
+
+Regels:
+- **Effectieve start** = `startOverride` ?? `plannedStart`; de stream begint
+  `preRollMinuten` eerder met de "begint zo"-scène.
+- **Effectieve stop** = `stopOverride` ?? auto op Cuescore-finale (toernooi
+  `status = "Finished"`).
+- **Bij import** krijgt elk toernooi de **standaard-instellingen** (`enabled=true`,
+  alle camera's, overlays aan, `preRollMinuten=10`). Al aangepaste velden van een
+  bestaand record blijven behouden (import overschrijft geen handmatige keuzes).
+- **tafels:** standaard alle geconfigureerde camera's; per toernooi aanpasbaar.
+  (Cuescore geeft de cameratoewijzing pas ná de loting, dus we vertrouwen daar
+  vooraf niet op — de gebruiker bepaalt/bevestigt het in het dashboard.)
+
+Standaard-instellingen (GET/POST /api/admin/defaults) — één set, toegepast bij
+import:
+{
+  "enabled": true,
+  "tafels": [1, 3, 15, 16],          // standaard alle camera's
+  "preRollMinuten": 10,
+  "overlays": { "sponsors": true, "scoreboard": true }
 }
 
+Ad-hoc stream (POST /api/admin/streams/start met een vrije camera):
+- `tableNumber` verplicht; `title` optioneel (default `Tafel {nr}`).
+- Een tafel is "vrij" als er nu geen geplande/lopende stream op draait.
+
 ## Interne opslag (Blob JSON — geen publiek endpoint, maar wel de bron voor /api/live)
-- `config/tables.json`    — tafelconfig (zie GET /api/admin/config)
-- `config/schedule.json`  — terugkerende regels (zie GET /api/admin/schedule)
+- `config/tables.json`      — tafelconfig (zie GET /api/admin/config)
+- `config/defaults.json`    — standaard-instellingen (één set, toegepast bij import)
+- `planning.json`           — planning-records (Cuescore-import + overrides + ad-hoc)
 - `broadcasts/<datum>.json` — per aangemaakte broadcast:
   { "tableNumber", "videoId", "broadcastId", "title", "scheduledStart" }
   Dit voedt GET /api/live (koppelt tafel -> videoId + titel + status).
+
+> Migratienoot: het simpele `config/schedule.json` (terugkerende regels uit #9)
+> wordt vervangen door `config/defaults.json` (templates) + `planning.json`
+> (werkelijke planning). De broadcast-Function (#9) gaat straks `planning.json`
+> lezen i.p.v. `schedule.json`.
 
 ## Agent (fase 2, auth vereist)
 De lokale OBS-agent maakt alleen **uitgaande** HTTPS-verbindingen: hij pollt
@@ -105,3 +152,14 @@ Body:
   `startStream`/`stopStream`/`setOverlay` (overlay/scoreboard aan-uit) en een
   status-post met `verwerkteCommandoIds` + per-tafel obsConnected/streaming/bitrate.
   Reden: OBS-agent skeleton + de per-tafel overlays (Sponsors, Cuescore-scoreboard).
+- 2026-07-08: v0.4 — planning-model v2 (uitgebreid einddoel). **Alle** Mokum-
+  toernooien uit Cuescore geïmporteerd; elk krijgt de standaard-instellingen
+  (enabled=true, alle camera's, overlays aan, preRoll 10 min) en is per stuk
+  aan/uit/aanpasbaar (planning-record: enabled, start/stop-override, preRollMinuten,
+  tafels, overlay-switches). Eén set standaard-instellingen (`config/defaults.json`)
+  i.p.v. per-weekdag-templates. Ad-hoc streams via `/api/admin/streams/start`
+  (vrije camera, optionele titel, default `Tafel {nr}`). Nieuwe opslag
+  `config/defaults.json` + `planning.json` (vervangt `config/schedule.json`).
+  Endpoints `/api/admin/planning[/{id}]` en `/api/admin/defaults`. Bevestigd door
+  Peter (8 juli): import-alles, standaard alle camera's, scorebord + sponsors aan,
+  preRoll 10 min, ad-hoc titel `Tafel {nr}`.
