@@ -11,6 +11,7 @@ jobs:
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
       backend: ${{ steps.filter.outputs.backend }}
+      agent: ${{ steps.filter.outputs.agent }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -21,6 +22,8 @@ jobs:
               - 'frontend/**'
             backend:
               - 'backend/**'
+            agent:
+              - 'agent/**'
 
   test-frontend:
     needs: detect-changes
@@ -52,3 +55,18 @@ jobs:
           npm ci
           npm test
           npm run build --if-present
+
+  test-agent:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.agent == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install en test
+        working-directory: agent
+        run: |
+          npm ci
+          npm test

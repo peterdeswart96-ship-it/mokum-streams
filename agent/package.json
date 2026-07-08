@@ -1,0 +1,17 @@
+{
+  "name": "mokum-streams-agent",
+  "version": "0.1.0",
+  "description": "Lokale OBS-agent voor Mokum Streams: stuurt meerdere portable OBS-instanties aan (start/stop stream, overlays) via obs-websocket en haalt commando's op bij de Azure-backend (alleen uitgaande HTTPS).",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "obs-websocket-js": "^5.0.6"
+  }
+}

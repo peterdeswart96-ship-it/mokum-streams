@@ -1,0 +1,11 @@
+{
+  "backendUrl": "https://<function-app>.azurewebsites.net",
+  "agentToken": "ZET-IN-ENV-AGENT_TOKEN",
+  "pollIntervalMs": 5000,
+  "tables": [
+    { "tableNumber": 1,  "sceneName": "Scène", "obs": { "host": "127.0.0.1", "port": 4455, "password": "ZET-IN-ENV-OBS_PASSWORD_TAFEL_1" } },
+    { "tableNumber": 3,  "sceneName": "Scène", "obs": { "host": "127.0.0.1", "port": 4456, "password": "" } },
+    { "tableNumber": 15, "sceneName": "Scène", "obs": { "host": "127.0.0.1", "port": 4457, "password": "" } },
+    { "tableNumber": 16, "sceneName": "Scène", "obs": { "host": "127.0.0.1", "port": 4458, "password": "" } }
+  ]
+}

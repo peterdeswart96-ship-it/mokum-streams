@@ -18,6 +18,9 @@ npm-debug.log*
 # Azure Functions lokale instellingen — bevat connection strings en API-keys!
 local.settings.json
 
+# Agent lokale config — bevat OBS-wachtwoorden en agent-token, NOOIT committen
+agent/agent-config.json
+
 # Azure Functions build-artefacten
 bin/
 obj/
