@@ -13,20 +13,31 @@ met Nick.
 - Nu wijken de namen per instantie af (screenshot: `gO`, `sPON`, `bUFFAL`,
   `KaMUI`) — dat willen we gelijktrekken.
 
-## Standaard per instantie (identiek — behalve het tafelnummer)
-| Onderdeel | Standaard (op elke instantie gelijk) |
-|---|---|
-| **Sponsors-groep** | `Sponsors` |
-| **Scoreboard (Cuescore)** | `cs score` |
-| **Sponsorlogo's** | `Buffalo`, `Kamui`, `GO Customs`, `Mokum`, `Modern` (consistente casing) |
-| **Camerabron** | `Camera` (of laat staan — de agent raakt de camera niet aan) |
-| **Scène** | zelfde naam op alle, bijv. `Tafel` |
-| **obs-websocket** | aan; **eigen poort** per instantie (4455 / 4456 / 4457 / 4458) + eigen wachtwoord |
-| **Stream key** | de herbruikbare liveStream van díe tafel (`Mokum Streams — Tafel N`) |
-| **Output** | zelfde resolutie/bitrate op alle (bijv. 1080p, ~5000 kbps) |
+## Standaard-bronnamen (identiek op elke instantie)
+Nu lopen de namen uiteen (`gO`/`Go`, `sPON`/`Sponsors`, `bUFFALO`/`Buffalo`,
+`KaMUI`/`Kamui`). Voorstel voor één duidelijke set — **exact gelijk** (incl.
+hoofdletters) op alle vier de instanties:
 
-> De agent schakelt alleen de **overlays** (`Sponsors`, `cs score`) en de stream;
-> als die twee namen overal gelijk zijn, werkt de default zonder per-tafel config.
+| Huidige naam (varianten) | → Standaardnaam | Wat het is |
+|---|---|---|
+| `Tafel N` | `Camera` | de tafelcamera (agent raakt 'm niet aan) |
+| `Sponsors` / `sPON` (groep) | `Sponsors` | **groep** met alle sponsorlogo's — agent toggelt deze |
+| `Buffalo` / `bUFFALO` | `Sponsor - Buffalo` | sponsorlogo (in de groep) |
+| `Kamui` / `KaMUI` | `Sponsor - Kamui` | sponsorlogo |
+| `gO` / `Go` | `Sponsor - GO Customs` | sponsorlogo |
+| `Modern` | `Sponsor - Modern` | sponsorlogo (⚠️ bevestigen: is dit een sponsor?) |
+| `cs score` | `Scorebord` | Cuescore-scorebord (browser-source) — agent toggelt deze |
+| `score` | `Scorebord handmatig` | ⚠️ bevestigen: wat is dit t.o.v. `cs score`? |
+| `Image Slideshow` (alleen Tafel 3) | `Sponsor slideshow` | ⚠️ bevestigen: op alle tafels gewenst? |
+
+**Overig gelijk:** obs-websocket aan (eigen poort 4455/4456/4457/4458 + wachtwoord),
+stream key = de herbruikbare liveStream van díe tafel, zelfde output (bijv. 1080p
+~5000 kbps).
+
+> De agent schakelt alleen **`Sponsors`** (groep) en **`Scorebord`** + de stream.
+> Als die twee namen overal gelijk zijn, werkt de default zonder per-tafel config.
+> Onze code-default (`commandQueue.OVERLAY_BRON`) stemmen we hierop af zodra de
+> namen vaststaan.
 
 ## Tafelnummer zichtbaar maken (jouw punt)
 Nu staat nergens welk tafelnummer het is (de taakbalk toont "Profile: Naamloos").
