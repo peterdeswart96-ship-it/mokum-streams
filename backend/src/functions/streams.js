@@ -56,6 +56,7 @@ app.http('adminStreamStart', {
 
     store[String(tafelNr)] = {
       tableNumber: tafelNr,
+      tournamentName: body.title || '',
       videoId: broadcast.id,
       broadcastId: broadcast.id,
       title,

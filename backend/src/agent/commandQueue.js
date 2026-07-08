@@ -3,6 +3,22 @@
 
 const GELDIGE_TYPES = new Set(['startStream', 'stopStream', 'setOverlay']);
 
+// Standaard OBS-bronnamen voor de overlays (zie screenshot Tafel 1). Per tafel te
+// overrijden via config/tables.json (overlaySources).
+const OVERLAY_BRON = { sponsors: 'Sponsors', scoreboard: 'cs score' };
+
+// Bouwt de commando's om een tafel te starten: OBS laten zenden + de overlays
+// (sponsors/scorebord) op de gewenste stand zetten. Zonder id/tijd — die voegt de
+// function-laag toe.
+function startCommandsFor(record, tableNumber, overlayBron = OVERLAY_BRON) {
+  const ov = (record && record.overlays) || {};
+  return [
+    { type: 'startStream', tableNumber },
+    { type: 'setOverlay', tableNumber, sourceName: overlayBron.sponsors, enabled: ov.sponsors !== false },
+    { type: 'setOverlay', tableNumber, sourceName: overlayBron.scoreboard, enabled: ov.scoreboard !== false },
+  ];
+}
+
 // Verwijdert de commando's die de agent als verwerkt heeft bevestigd.
 function removeProcessed(commands, verwerkteIds) {
   const set = new Set(verwerkteIds || []);
@@ -21,4 +37,4 @@ function isTableBusy(broadcastsStore, tableNumber) {
   return !!(s[String(tableNumber)] || s[tableNumber]);
 }
 
-module.exports = { GELDIGE_TYPES, removeProcessed, enqueue, isTableBusy };
+module.exports = { GELDIGE_TYPES, OVERLAY_BRON, startCommandsFor, removeProcessed, enqueue, isTableBusy };

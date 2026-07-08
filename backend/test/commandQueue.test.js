@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { removeProcessed, enqueue, isTableBusy } = require('../src/agent/commandQueue');
+const { removeProcessed, enqueue, isTableBusy, startCommandsFor } = require('../src/agent/commandQueue');
 
 test('removeProcessed haalt bevestigde commando-ids uit de wachtrij', () => {
   const q = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
@@ -20,4 +20,19 @@ test('isTableBusy herkent een bezette tafel in de dagstore', () => {
   assert.strictEqual(isTableBusy(store, '1'), true);
   assert.strictEqual(isTableBusy(store, 3), false);
   assert.strictEqual(isTableBusy({}, 1), false);
+});
+
+test('startCommandsFor levert startStream + overlays op de gewenste stand', () => {
+  const cmds = startCommandsFor({ overlays: { sponsors: true, scoreboard: false } }, 3);
+  assert.deepStrictEqual(cmds, [
+    { type: 'startStream', tableNumber: 3 },
+    { type: 'setOverlay', tableNumber: 3, sourceName: 'Sponsors', enabled: true },
+    { type: 'setOverlay', tableNumber: 3, sourceName: 'cs score', enabled: false },
+  ]);
+});
+
+test('startCommandsFor: overlays standaard aan als niet opgegeven', () => {
+  const cmds = startCommandsFor({}, 1);
+  assert.strictEqual(cmds[1].enabled, true);
+  assert.strictEqual(cmds[2].enabled, true);
 });
