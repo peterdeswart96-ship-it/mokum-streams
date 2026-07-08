@@ -39,8 +39,9 @@ GET  /api/admin/planning?days=14    -> geplande toernooien (Cuescore-import + in
 POST /api/admin/planning/{id}       -> instellingen van één toernooi wijzigen
 GET  /api/admin/defaults            -> standaard-instellingen (één set, zie hieronder)
 POST /api/admin/defaults            -> standaard-instellingen wijzigen
-POST /api/admin/streams/start       -> body: { "tableNumber": 15, "title"?: "..." } (ad-hoc, vrije camera)
+POST /api/admin/streams/start       -> body: { "tableNumber": 15, "title"?: "...", "privacy"?: "public|unlisted|private" } (ad-hoc, vrije camera)
 POST /api/admin/streams/stop        -> body: { "tableNumber": 15 }
+POST /api/admin/setup/streams       -> eenmalig: herbruikbare liveStream per tafel (idempotent) → schrijft config/tables.json; body (optioneel) { "cameras": [1,3,15,16] }
 
 Tafelconfig (GET /api/admin/config) — array:
 {
