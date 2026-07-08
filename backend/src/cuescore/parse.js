@@ -107,6 +107,8 @@ function normalizeMatch(m) {
     // table.name is het fysieke tafelnummer (als string) zodra toegewezen.
     table: m.table && m.table.name != null ? String(m.table.name) : null,
     roundName: m.roundName || '',
+    start: m.starttime || null, // geplande wedstrijdtijd (voor league-per-avond)
+    stop: m.stoptime || null,
     playerA: m.playerA ? { id: m.playerA.playerId, name: m.playerA.name } : null,
     playerB: m.playerB ? { id: m.playerB.playerId, name: m.playerB.name } : null,
     scoreA: m.scoreA,
