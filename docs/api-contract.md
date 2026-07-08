@@ -3,7 +3,7 @@
 Enige waarheid voor de koppelvlakken tussen frontend/widget, backend en (later) de
 agent. Wijzigen? Eerst dit bestand bijwerken (met datum + reden onderaan), dan code.
 
-Status: CONCEPT v0.2 — velden worden definitief in fase 2.
+Status: CONCEPT v0.3 — velden worden definitief in fase 2.
 
 ## Conventies
 - Alle velden camelCase. Tijden in ISO 8601 met tijdzone (Europe/Amsterdam
@@ -64,9 +64,33 @@ Schema-regel (GET/POST /api/admin/schedule) — array van terugkerende regels:
   { "tableNumber", "videoId", "broadcastId", "title", "scheduledStart" }
   Dit voedt GET /api/live (koppelt tafel -> videoId + titel + status).
 
-## Agent (fase 2, auth vereist) — richting, nog uit te werken
-GET  /api/agent/commands        -> openstaande commandos (polling)
-POST /api/agent/status          -> OBS-status, streamstatus, bitrate per tafel
+## Agent (fase 2, auth vereist)
+De lokale OBS-agent maakt alleen **uitgaande** HTTPS-verbindingen: hij pollt
+commando's op en stuurt status terug. Auth via een agent-token (Bearer).
+
+GET /api/agent/commands  -> openstaande commando's (polling)
+Antwoord:
+{
+  "commands": [
+    { "id": "c1", "type": "startStream", "tableNumber": 1 },
+    { "id": "c2", "type": "stopStream",  "tableNumber": 3 },
+    { "id": "c3", "type": "setOverlay",  "tableNumber": 1, "sourceName": "cs score", "enabled": true }
+  ]
+}
+- `type`: `startStream` | `stopStream` | `setOverlay`.
+- `setOverlay` zet een OBS-bron (overlay/scoreboard) aan of uit (`enabled`).
+- De agent bevestigt verwerkte commando's via de status-post (`verwerkteCommandoIds`),
+  zodat de backend ze niet opnieuw stuurt.
+
+POST /api/agent/status  -> OBS-/streamstatus per tafel + bevestigingen
+Body:
+{
+  "agentTime": "2026-07-08T18:00:00Z",
+  "verwerkteCommandoIds": ["c1", "c2"],
+  "tables": [
+    { "tableNumber": 1, "obsConnected": true, "streaming": true, "bitrateKbps": 5200 }
+  ]
+}
 
 ## Wijzigingslog
 - 2026-07-04: eerste concept v0.1 (Peter + Claude).
@@ -77,3 +101,7 @@ POST /api/agent/status          -> OBS-status, streamstatus, bitrate per tafel
   gedocumenteerd (tables/schedule/broadcasts) als bron voor /api/live. Reden:
   ontwerp #9 (broadcast-Function) + intake-besluit dat de titel 1-op-1 uit Cuescore
   komt.
+- 2026-07-08: v0.3 — agent-protocol geconcretiseerd (t.b.v. #10). Commands
+  `startStream`/`stopStream`/`setOverlay` (overlay/scoreboard aan-uit) en een
+  status-post met `verwerkteCommandoIds` + per-tafel obsConnected/streaming/bitrate.
+  Reden: OBS-agent skeleton + de per-tafel overlays (Sponsors, Cuescore-scoreboard).
