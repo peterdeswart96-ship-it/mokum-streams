@@ -25,7 +25,7 @@ hoofdletters) op alle vier de instanties:
 | `Buffalo` / `bUFFALO` | `Sponsor - Buffalo` | sponsorlogo (in de groep) |
 | `Kamui` / `KaMUI` | `Sponsor - Kamui` | sponsorlogo |
 | `gO` / `Go` | `Sponsor - GO Customs` | sponsorlogo |
-| `Modern` | `Sponsor - Modern` | sponsorlogo (⚠️ bevestigen: is dit een sponsor?) |
+| `Modern` | `Cuescore logo` | het Cuescore-logo (zeshoek op de tafel) — géén sponsor |
 | `cs score` | `Scorebord` | Cuescore-scorebord (browser-source) — agent toggelt deze |
 | `score` | `Scorebord handmatig` | ⚠️ bevestigen: wat is dit t.o.v. `cs score`? |
 | `Image Slideshow` (alleen Tafel 3) | `Sponsor slideshow` | ⚠️ bevestigen: op alle tafels gewenst? |
