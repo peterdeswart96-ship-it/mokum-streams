@@ -21,6 +21,14 @@ function buildBroadcastTitle({ tafel, sponsor, toernooinaam }) {
 
 // --- API-aanroepen ------------------------------------------------------------
 
+// Lijst van bestaande liveStreams van het kanaal (voor idempotente seed).
+// Retour: [{ id, title }]. De stream key (streamName) laten we hier bewust weg.
+async function listLiveStreams() {
+  const yt = await getYouTubeClient();
+  const res = await yt.liveStreams.list({ part: ['id', 'snippet'], mine: true, maxResults: 50 });
+  return (res.data.items || []).map((s) => ({ id: s.id, title: (s.snippet && s.snippet.title) || '' }));
+}
+
 // Maakt een herbruikbare liveStream (vaste stream key) aan. Per tafel doen we
 // dit één keer; OBS wordt met de key geconfigureerd en we hergebruiken het
 // streamId voor elke nieuwe broadcast.
@@ -89,6 +97,7 @@ async function getBroadcastStatus(broadcastId) {
 
 module.exports = {
   buildBroadcastTitle,
+  listLiveStreams,
   createReusableLiveStream,
   createBroadcast,
   bindBroadcast,
