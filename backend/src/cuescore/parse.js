@@ -94,6 +94,15 @@ function isFinalFinished(tournament) {
   );
 }
 
+// Zoekt in een lijst genormaliseerde toernooien het toernooi waarvan de naam de
+// zoekterm bevat (case-insensitief). Gebruikt om een schema-regel ("Fluke
+// ranking") te koppelen aan de volledige actuele Cuescore-naam.
+function findTournamentByName(tournaments, needle) {
+  const n = (needle || '').toLowerCase().trim();
+  if (!n) return null;
+  return (tournaments || []).find((t) => (t.name || '').toLowerCase().includes(n)) || null;
+}
+
 module.exports = {
   DATUM_RE,
   TOERNOOI_LINK_RE,
@@ -104,4 +113,5 @@ module.exports = {
   normalizeTournament,
   findTableMatch,
   isFinalFinished,
+  findTournamentByName,
 };

@@ -58,7 +58,8 @@ async function createBroadcast({
     requestBody: {
       snippet: { title, description, scheduledStartTime },
       status: { privacyStatus, selfDeclaredMadeForKids: false },
-      contentDetails: { enableAutoStart, enableAutoStop },
+      // enableEmbed: insluiten op de website toestaan (nodig voor de live-pagina/widget).
+      contentDetails: { enableAutoStart, enableAutoStop, enableEmbed: true },
     },
   });
   return res.data; // { id (= videoId), snippet, status, ... }

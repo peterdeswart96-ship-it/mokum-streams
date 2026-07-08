@@ -4,6 +4,7 @@ const {
   normalizeTournament,
   findTableMatch,
   isFinalFinished,
+  findTournamentByName,
 } = require('./parse');
 
 // Netwerklaag voor de eigen Cuescore-lees (besluit: optie B, zie wiki/decisions.md).
@@ -30,6 +31,15 @@ async function getTournament(id) {
   if (!res.ok) throw new Error(`Cuescore toernooi ${id} gaf ${res.status}`);
   const data = await res.json();
   return normalizeTournament(data);
+}
+
+// Haalt alle toernooien van vandaag op (genormaliseerd). Handig om een schema-
+// regel op naam te koppelen aan de actuele Cuescore-naam.
+async function getTodaysTournaments({ now = new Date() } = {}) {
+  const ids = await getTodaysTournamentIds({ now });
+  const out = [];
+  for (const id of ids) out.push(await getTournament(id));
+  return out;
 }
 
 // Zoekt over alle toernooien van vandaag naar het toernooi dat nú op de gegeven
