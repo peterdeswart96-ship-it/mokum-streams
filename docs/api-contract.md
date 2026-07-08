@@ -3,7 +3,7 @@
 Enige waarheid voor de koppelvlakken tussen frontend/widget, backend en (later) de
 agent. Wijzigen? Eerst dit bestand bijwerken (met datum + reden onderaan), dan code.
 
-Status: CONCEPT v0.4 — velden worden definitief in fase 2.
+Status: CONCEPT v0.5 — velden worden definitief in fase 2.
 
 ## Conventies
 - Alle velden camelCase. Tijden in ISO 8601 met tijdzone (Europe/Amsterdam
@@ -59,6 +59,7 @@ Planning-record (GET /api/admin/planning → `{ "items": [ ... ] }`):
 {
   "tournamentId": 75880960,                 // Cuescore-id, of "adhoc-<uuid>" bij handmatig
   "name": "Fluke ranking 9ball Seizoen 3 #22",
+  "type": "tournament" | "competition",     // competition = doorlopend (league), meerdaagse span
   "date": "2026-07-14",
   "source": "cuescore" | "adhoc",
   "plannedStart": "2026-07-14T17:30:00Z",   // uit Cuescore (.starttime), alleen-lezen
@@ -77,13 +78,21 @@ Regels:
 - **Effectieve start** = `startOverride` ?? `plannedStart`; de stream begint
   `preRollMinuten` eerder met de "begint zo"-scène.
 - **Effectieve stop** = `stopOverride` ?? auto op Cuescore-finale (toernooi
-  `status = "Finished"`).
+  `status = "Finished"`). **Voor `competition` (doorlopend)** vuurt dat pas aan
+  seizoenseinde → per avond stoppen op matches-van-vandaag-klaar of stoptijd (nog
+  uit te werken).
+- **`type`:** `competition` als de Cuescore-span (`plannedStop − plannedStart`)
+  meerdaags is (league); anders `tournament`. Leagues komen via dezelfde import
+  binnen (staan ook op de org-toernooien-pagina); de streameenheid is dan de
+  **wedstrijden per avond**.
 - **Bij import** krijgt elk toernooi de **standaard-instellingen** (`enabled=true`,
   alle camera's, overlays aan, `preRollMinuten=10`). Al aangepaste velden van een
   bestaand record blijven behouden (import overschrijft geen handmatige keuzes).
-- **tafels:** standaard alle geconfigureerde camera's; per toernooi aanpasbaar.
-  (Cuescore geeft de cameratoewijzing pas ná de loting, dus we vertrouwen daar
-  vooraf niet op — de gebruiker bepaalt/bevestigt het in het dashboard.)
+- **Camera-toewijzing (bevestigd):** het systeem **leidt automatisch af** uit
+  Cuescore's tafeltoewijzing per wedstrijd welke tafel bij welk event hoort
+  (vanavond), met **handmatige override** in het dashboard. Vóór de loting is er
+  nog geen toewijzing → standaard alle camera's / handmatig. Een tafel = één event
+  tegelijk (conflict-waarschuwing bij overlap).
 
 Standaard-instellingen (GET/POST /api/admin/defaults) — één set, toegepast bij
 import:
@@ -163,3 +172,10 @@ Body:
   Endpoints `/api/admin/planning[/{id}]` en `/api/admin/defaults`. Bevestigd door
   Peter (8 juli): import-alles, standaard alle camera's, scorebord + sponsors aan,
   preRoll 10 min, ad-hoc titel `Tafel {nr}`.
+- 2026-07-08: v0.5 — planning-record krijgt `type` (`tournament` | `competition`).
+  Competities (leagues) komen via dezelfde import binnen (staan ook op de org-
+  pagina) maar zijn **doorlopend** (meerdaagse span) → streameenheid = wedstrijden
+  per avond; auto-stop per avond i.p.v. `status=Finished`. Camera-toewijzing bij
+  overlappende events wordt **automatisch afgeleid uit Cuescore's tafeltoewijzing
+  per wedstrijd** met handmatige override (bevestigd Peter). Per-avond-afleiding +
+  dashboard nog uit te werken.
