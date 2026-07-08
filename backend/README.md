@@ -10,11 +10,12 @@ Zie het API-contract in [`../docs/api-contract.md`](../docs/api-contract.md) en 
 architectuur in de wiki (`wiki/architecture.md`).
 
 ## Status
-Dit is het **map-skeleton** (issue #7). Er zit nog maar één functie in als
-levensteken: `GET /api/health`. De echte functies volgen:
+Skeleton (#7) staat; de **YouTube-wrapper (#8)** is toegevoegd. Nog te doen:
 
-- #8 — YouTube API-wrapper (`liveBroadcasts` + `liveStreams`)
+- #8 — YouTube API-wrapper (`liveBroadcasts` + `liveStreams`) — **code aanwezig**,
+  echte API-call tegen het kanaal nog te testen
 - #9 — broadcast aanmaken op basis van het schema (`liveBroadcasts.insert`)
+- #15 — Cuescore-lees module (titel + auto-stop)
 - #10 — agent-koppeling (OBS-websocket, meerdere portable instanties)
 - #11 — end-to-end test (testcase: Fluke ranking, di 19:30, tafel 1 & 3)
 
@@ -25,9 +26,22 @@ backend/
 ├─ package.json                 # dependencies + scripts, main = src/functions/*.js
 ├─ local.settings.json.example  # voorbeeld; kopieer naar local.settings.json (NIET committen)
 ├─ .funcignore                  # wat NIET meegaat bij deploy
-└─ src/functions/
-   └─ health.js                 # GET /api/health — levensteken
+├─ src/
+│  ├─ functions/
+│  │  └─ health.js              # GET /api/health — levensteken
+│  └─ youtube/                  # YouTube Live Streaming API-wrapper (#8)
+│     ├─ secrets.js             # OAuth-secrets uit Key Vault (of env-vars lokaal)
+│     ├─ client.js             # geauthenticeerde googleapis-client (refresh-token)
+│     └─ broadcasts.js          # liveStreams/liveBroadcasts + buildBroadcastTitle
+└─ test/
+   └─ broadcasts.test.js        # unit-tests (node --test)
 ```
+
+## Secrets (YouTube OAuth)
+De wrapper leest `youtube-client-id` / `-secret` / `-refresh-token`. In Azure uit
+Key Vault `kv-mokum-streams` (via managed identity); lokaal uit env-vars
+`YOUTUBE_CLIENT_ID` / `YOUTUBE_CLIENT_SECRET` / `YOUTUBE_REFRESH_TOKEN` (zet ze in
+`local.settings.json`, die is gitignored). Nooit secrets in code of repo.
 
 In het v4-model registreert elke functie zichzelf via `app.http(...)` /
 `app.timer(...)`; er zijn géén losse `function.json`-bestanden meer.

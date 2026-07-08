@@ -1,0 +1,95 @@
+const { getYouTubeClient } = require('./client');
+
+// Wrapper rond de YouTube Live Streaming API (liveStreams + liveBroadcasts).
+// Dit is de kern van de automatisering: per tafel één herbruikbare stream key,
+// per uitzending een broadcast met autoStart/autoStop. Zie wiki/architecture.md.
+
+// --- Pure hulpfunctie (geen netwerk → unit-testbaar) --------------------------
+
+// Bouwt de broadcast-titel volgens het vaste template:
+//   Tafel {nr} '{sponsor}' {toernooinaam}
+// Zonder sponsor laten we de quotes weg (dan is er niets om te tonen).
+function buildBroadcastTitle({ tafel, sponsor, toernooinaam }) {
+  if (tafel === undefined || tafel === null || tafel === '') {
+    throw new Error('tafel is verplicht voor de broadcast-titel');
+  }
+  const naam = (toernooinaam || '').trim();
+  const sp = (sponsor || '').trim();
+  const sponsorDeel = sp ? ` '${sp}'` : '';
+  return `Tafel ${tafel}${sponsorDeel} ${naam}`.trim();
+}
+
+// --- API-aanroepen ------------------------------------------------------------
+
+// Maakt een herbruikbare liveStream (vaste stream key) aan. Per tafel doen we
+// dit één keer; OBS wordt met de key geconfigureerd en we hergebruiken het
+// streamId voor elke nieuwe broadcast.
+// LET OP: het teruggegeven object bevat cdn.ingestionInfo.streamName = de stream
+// key. Dat is een secret; nooit loggen of in de repo zetten.
+async function createReusableLiveStream({ title }) {
+  const yt = await getYouTubeClient();
+  const res = await yt.liveStreams.insert({
+    part: ['snippet', 'cdn', 'contentDetails'],
+    requestBody: {
+      snippet: { title },
+      cdn: { frameRate: 'variable', ingestionType: 'rtmp', resolution: 'variable' },
+      contentDetails: { isReusable: true },
+    },
+  });
+  return res.data; // { id, cdn: { ingestionInfo: { streamName, ingestionAddress } }, ... }
+}
+
+// Maakt een broadcast (uitzending) aan met autoStart/autoStop, zodat YouTube
+// vanzelf live gaat zodra OBS beeld stuurt en vanzelf stopt als OBS ophoudt.
+async function createBroadcast({
+  title,
+  description = '',
+  scheduledStartTime,
+  enableAutoStart = true,
+  enableAutoStop = true,
+  privacyStatus = 'public',
+}) {
+  if (!title) throw new Error('title is verplicht');
+  if (!scheduledStartTime) throw new Error('scheduledStartTime is verplicht (ISO 8601)');
+
+  const yt = await getYouTubeClient();
+  const res = await yt.liveBroadcasts.insert({
+    part: ['snippet', 'status', 'contentDetails'],
+    requestBody: {
+      snippet: { title, description, scheduledStartTime },
+      status: { privacyStatus, selfDeclaredMadeForKids: false },
+      contentDetails: { enableAutoStart, enableAutoStop },
+    },
+  });
+  return res.data; // { id (= videoId), snippet, status, ... }
+}
+
+// Koppelt een broadcast aan de vaste stream key (liveStream) van een tafel.
+async function bindBroadcast({ broadcastId, streamId }) {
+  if (!broadcastId || !streamId) throw new Error('broadcastId en streamId zijn verplicht');
+  const yt = await getYouTubeClient();
+  const res = await yt.liveBroadcasts.bind({
+    id: broadcastId,
+    streamId,
+    part: ['id', 'contentDetails'],
+  });
+  return res.data;
+}
+
+// Leest de lifecycle-status van een broadcast:
+// created | ready | testing | live | complete | revoked.
+async function getBroadcastStatus(broadcastId) {
+  if (!broadcastId) throw new Error('broadcastId is verplicht');
+  const yt = await getYouTubeClient();
+  const res = await yt.liveBroadcasts.list({ id: [broadcastId], part: ['status', 'snippet'] });
+  const item = res.data.items && res.data.items[0];
+  return item ? item.status.lifeCycleStatus : null;
+}
+
+module.exports = {
+  buildBroadcastTitle,
+  createReusableLiveStream,
+  createBroadcast,
+  bindBroadcast,
+  getBroadcastStatus,
+};
