@@ -59,10 +59,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Install en build
+      - name: Install, test en build
         working-directory: backend
         run: |
           npm ci
+          npm test
           npm run build --if-present
       - name: Placeholder deploy-stap
         run: echo "Backend-deploy naar Azure Functions komt in fase 2 wanneer de Function App bestaat."
