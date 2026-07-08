@@ -1,0 +1,17 @@
+{
+  "name": "mokum-streams-backend",
+  "version": "0.1.0",
+  "description": "Azure Functions-backend voor Mokum Streams: YouTube-broadcasts plannen/aanmaken (timer) en de HTTP-API voor dashboard, live-pagina en agent.",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "src/functions/*.js",
+  "scripts": {
+    "start": "func start",
+    "test": "echo \"Nog geen tests (komt vanaf #8)\" && exit 0"
+  },
+  "dependencies": {
+    "@azure/functions": "^4.5.1"
+  }
+}
