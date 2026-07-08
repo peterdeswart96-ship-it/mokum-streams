@@ -1,30 +1,28 @@
 const { app } = require('@azure/functions');
 const { readJson, writeJson } = require('../storage/blob');
-const { dueRules, tafelsNogTeMaken, zaalDelen, scheduledStartISO } = require('../schedule/schedule');
-const { getTodaysTournaments, findTournamentByName } = require('../cuescore');
+const { zaalDelen, tafelsNogTeMaken } = require('../schedule/schedule');
+const { dueRecords, effectiveStart } = require('../planning/planning');
 const { buildBroadcastTitle, createBroadcast, bindBroadcast } = require('../youtube/broadcasts');
 
-// Timer-Function (#9): maakt vooruit de YouTube-broadcasts aan voor toernooien die
-// binnenkort starten. Draait elke 5 minuten. Idempotent: een tafel die vandaag al
-// een broadcast heeft, wordt overgeslagen.
+// Timer-Function (#9): maakt vooruit de YouTube-broadcasts aan voor planning-records
+// die binnenkort starten. Leest planning.json (Cuescore-import + per-toernooi
+// instellingen, zie importPlanning.js + api-contract v0.5). Idempotent per tafel/dag.
 //
-// Flow per due-regel:
-//   1. toernooinaam bepalen (Cuescore-naam die de regel-naam bevat; anders de
-//      naam uit de regel als fallback)
-//   2. titel bouwen (Tafel {nr} {toernooinaam})
-//   3. broadcast aanmaken + binden aan de vaste stream key van de tafel
-//   4. resultaat opslaan in broadcasts/<datum>.json (bron voor /api/live)
+// - Alleen `enabled` records; doorlopende competities worden (nog) overgeslagen
+//   (die krijgen per-avond-logica; zie wiki/gaps.md #14/#16).
+// - Titel = de (Cuescore-)naam van het toernooi; scheduledStart = effectieve start.
+// - Per gekozen tafel een broadcast, gebonden aan de vaste stream key.
 
 const CRON_ELKE_5_MIN = '0 */5 * * * *';
 
 async function verwerk(now, context) {
   const tables = (await readJson('config/tables.json', [])) || [];
-  const schedule = (await readJson('config/schedule.json', [])) || [];
+  const planning = (await readJson('planning.json', [])) || [];
   const tableById = new Map(tables.map((t) => [Number(t.tableNumber), t]));
 
-  const teDoen = dueRules(schedule, now);
-  if (teDoen.length === 0) {
-    context.log('Geen schema-regels aan de beurt.');
+  const due = dueRecords(planning, now);
+  if (due.length === 0) {
+    context.log('Geen planning-records aan de beurt.');
     return;
   }
 
@@ -32,22 +30,11 @@ async function verwerk(now, context) {
   const broadcastsPad = `broadcasts/${datum}.json`;
   const store = (await readJson(broadcastsPad, {})) || {};
 
-  // Cuescore-toernooien van vandaag één keer ophalen (voor de titel).
-  let toernooienVandaag = [];
-  try {
-    toernooienVandaag = await getTodaysTournaments({ now });
-  } catch (e) {
-    context.log(`[WAARSCHUWING] Cuescore ophalen mislukt, val terug op regel-namen: ${e.message}`);
-  }
-
-  for (const regel of teDoen) {
-    const tafels = tafelsNogTeMaken(regel, store);
-    if (tafels.length === 0) continue;
-
-    // Titel-toernooinaam: de actuele Cuescore-naam die de regel-naam bevat, anders de regel.
-    const match = findTournamentByName(toernooienVandaag, regel.toernooinaam);
-    const toernooinaam = (match && match.name) || regel.toernooinaam || '';
-    const start = scheduledStartISO(now, regel.startTijd);
+  for (const rec of due) {
+    const toernooinaam = rec.name || '';
+    const start = effectiveStart(rec);
+    // Idempotent: sla tafels over die vandaag al een broadcast hebben.
+    const tafels = tafelsNogTeMaken({ tafels: rec.tafels || [] }, store);
 
     for (const tafelNr of tafels) {
       const table = tableById.get(Number(tafelNr));
@@ -74,6 +61,11 @@ async function verwerk(now, context) {
   }
 
   await writeJson(broadcastsPad, store);
+
+  const leagues = planning.filter((r) => (r.type || '') === 'competition' && r.enabled !== false).length;
+  if (leagues > 0) {
+    context.log(`[INFO] ${leagues} doorlopende competitie(s) overgeslagen — per-avond-logica volgt (#14/#16).`);
+  }
 }
 
 app.timer('createBroadcasts', {

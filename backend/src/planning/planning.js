@@ -17,12 +17,53 @@ function afgeleideDatum(start) {
   return typeof start === 'string' && /^\d{4}-\d{2}-\d{2}/.test(start) ? start.slice(0, 10) : null;
 }
 
+// True als het event meerdaags is (span > ~1 dag) → een doorlopende competitie/league.
+function isMeerdaags(start, stop) {
+  if (!start || !stop) return false;
+  const a = Date.parse(start);
+  const b = Date.parse(stop);
+  if (Number.isNaN(a) || Number.isNaN(b)) return false;
+  return b - a > 26 * 3600 * 1000;
+}
+
+// Bepaalt het type op basis van de geplande span.
+function bepaalType(startOfRecord, stop) {
+  const start = stop === undefined ? (startOfRecord.plannedStart ?? startOfRecord.start) : startOfRecord;
+  const eind = stop === undefined ? (startOfRecord.plannedStop ?? startOfRecord.stop) : stop;
+  return isMeerdaags(start, eind) ? 'competition' : 'tournament';
+}
+
+// Effectieve start = handmatige override, anders de geplande start.
+function effectiveStart(record) {
+  return record.startOverride || record.plannedStart || null;
+}
+
+// Is een planning-record "nu" aan de beurt om een broadcast te maken?
+// Alleen enkeldaagse (`tournament`) events; doorlopende competities krijgen
+// per-avond-logica (nog te bouwen) en geven hier false.
+function planningDue(record, now, { graceMinuten = 30 } = {}) {
+  if (!record || record.enabled === false) return false;
+  const type = record.type || bepaalType(record);
+  if (type === 'competition') return false;
+  const startIso = effectiveStart(record);
+  const start = startIso ? Date.parse(startIso) : NaN;
+  if (Number.isNaN(start)) return false;
+  const preRoll = (record.preRollMinuten == null ? 10 : record.preRollMinuten) * 60000;
+  const nu = now.getTime();
+  return nu >= start - preRoll && nu <= start + graceMinuten * 60000;
+}
+
+function dueRecords(records, now, opts) {
+  return (records || []).filter((r) => planningDue(r, now, opts));
+}
+
 // Maakt een nieuw planning-record voor een geïmporteerd toernooi met de defaults.
 function defaultRecord(tournament, defaults = STANDAARD_DEFAULTS) {
   const ov = defaults.overlays || {};
   return {
     tournamentId: tournament.id,
     name: tournament.name || '',
+    type: bepaalType(tournament.start, tournament.stop),
     date: tournament.date || afgeleideDatum(tournament.start),
     source: 'cuescore',
     plannedStart: tournament.start || null,
@@ -53,11 +94,14 @@ function mergePlanning(existing, imported, defaults = STANDAARD_DEFAULTS) {
     if (!oud) {
       resultaat.push(defaultRecord(t, defaults));
     } else {
+      const nieuweStart = t.start != null ? t.start : oud.plannedStart;
+      const nieuweStop = t.stop != null ? t.stop : oud.plannedStop;
       resultaat.push({
         ...oud,
         name: t.name || oud.name,
-        plannedStart: t.start != null ? t.start : oud.plannedStart,
-        plannedStop: t.stop != null ? t.stop : oud.plannedStop,
+        type: bepaalType(nieuweStart, nieuweStop), // afgeleid, altijd verversen
+        plannedStart: nieuweStart,
+        plannedStop: nieuweStop,
         date: oud.date || afgeleideDatum(t.start),
         source: 'cuescore',
       });
@@ -70,4 +114,14 @@ function mergePlanning(existing, imported, defaults = STANDAARD_DEFAULTS) {
   return resultaat;
 }
 
-module.exports = { STANDAARD_DEFAULTS, afgeleideDatum, defaultRecord, mergePlanning };
+module.exports = {
+  STANDAARD_DEFAULTS,
+  afgeleideDatum,
+  isMeerdaags,
+  bepaalType,
+  effectiveStart,
+  planningDue,
+  dueRecords,
+  defaultRecord,
+  mergePlanning,
+};
