@@ -26,18 +26,19 @@ hoofdletters) op alle vier de instanties:
 | `Kamui` / `KaMUI` | `Sponsor - Kamui` | sponsorlogo |
 | `gO` / `Go` | `Sponsor - GO Customs` | sponsorlogo |
 | `Modern` | `Cuescore logo` | het Cuescore-logo (zeshoek op de tafel) — géén sponsor |
-| `cs score` | `Scorebord` | Cuescore-scorebord (browser-source) — agent toggelt deze |
-| `score` | `Scorebord handmatig` | ⚠️ bevestigen: wat is dit t.o.v. `cs score`? |
+| `score` | `Scorebord onder` | het grote scorebord onderaan (het normale) |
+| `cs score` | `Scorebord rechtsboven` | extra, kleiner scorebord rechtsboven |
 | `Image Slideshow` (alleen Tafel 3) | `Sponsor slideshow` | ⚠️ bevestigen: op alle tafels gewenst? |
 
 **Overig gelijk:** obs-websocket aan (eigen poort 4455/4456/4457/4458 + wachtwoord),
 stream key = de herbruikbare liveStream van díe tafel, zelfde output (bijv. 1080p
 ~5000 kbps).
 
-> De agent schakelt alleen **`Sponsors`** (groep) en **`Scorebord`** + de stream.
-> Als die twee namen overal gelijk zijn, werkt de default zonder per-tafel config.
-> Onze code-default (`commandQueue.OVERLAY_BRON`) stemmen we hierop af zodra de
-> namen vaststaan.
+> De agent schakelt de overlays + de stream. Er zijn **twee** scoreborden
+> (`Scorebord onder` + `Scorebord rechtsboven`) — nog te bepalen of de
+> dashboard-schakelaar "scorebord" ze **allebei** bedient of dat we **twee aparte
+> schakelaars** willen. De code-default (`commandQueue.OVERLAY_BRON`) + het
+> planning-record (`overlays`) stemmen we daar op af zodra dit vaststaat.
 
 ## Tafelnummer zichtbaar maken (jouw punt)
 Nu staat nergens welk tafelnummer het is (de taakbalk toont "Profile: Naamloos").
