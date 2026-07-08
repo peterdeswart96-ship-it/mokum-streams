@@ -15,6 +15,21 @@ const TOERNOOI_LINK_RE = /\/tournament\/[^/]+\/(\d+)/g;
 // Herkent de finale-ronde (zoals in run.ps1).
 const FINALE_RE = /^final$|^finale$/i;
 
+// Maandnamen → nummer, voor het parsen van "July 8, 2026".
+const MAAND = {
+  January: 1, February: 2, March: 3, April: 4, May: 5, June: 6,
+  July: 7, August: 8, September: 9, October: 10, November: 11, December: 12,
+};
+
+// "July 8, 2026" → "2026-07-08" (puur, geen tijdzone-gedoe). Null bij onbekend.
+function cuescoreDateToISO(dateStr) {
+  const m = /^([A-Z][a-z]+) (\d{1,2}), (\d{4})$/.exec((dateStr || '').trim());
+  if (!m || !MAAND[m[1]]) return null;
+  const mm = String(MAAND[m[1]]).padStart(2, '0');
+  const dd = String(parseInt(m[2], 10)).padStart(2, '0');
+  return `${m[3]}-${mm}-${dd}`;
+}
+
 // Formatteert een datum naar het formaat dat op de Cuescore-pagina staat
 // ("July 8, 2026"), in de zaal-tijdzone. en-US geeft de maandnaam voluit en de
 // dag zonder voorloopnul, wat overeenkomt met DATUM_RE (\d{1,2}).
@@ -28,22 +43,57 @@ function formatCuescoreDate(date, timeZone = 'Europe/Amsterdam') {
 }
 
 // Haalt de toernooi-ID's van vandaag uit de HTML van de toernooien-pagina.
-// Voor elke datumkop die gelijk is aan `todayStr` nemen we een venster van 2000
-// tekens erna en pakken daaruit de toernooi-links. Zelfde (bewust simpele)
-// heuristiek als run.ps1; zie de kanttekening in wiki/gaps.md.
+// Filtert de per-datum-groepen op de datumkop `todayStr` ("July 8, 2026").
 function parseTodaysTournamentIds(html, todayStr) {
   const ids = [];
+  for (const groep of parseTournamentsByDate(html)) {
+    if (groep.date !== todayStr) continue;
+    for (const id of groep.ids) if (!ids.includes(id)) ids.push(id);
+  }
+  return ids;
+}
+
+// Groepeert alle toernooi-links per datumkop op de toernooien-pagina.
+// Elk datumblok loopt tot de VOLGENDE datumkop (of einde), zodat ids niet naar
+// een verkeerde datum lekken. → [{ date: "July 8, 2026", datum: "2026-07-08", ids: [..] }, ...]
+function parseTournamentsByDate(html) {
+  const koppen = [];
   DATUM_RE.lastIndex = 0;
   let m;
   while ((m = DATUM_RE.exec(html)) !== null) {
-    if (m[1].trim() !== todayStr) continue;
-    const start = m.index + m[0].length;
-    const blok = html.substring(start, start + 2000);
-    let t;
+    koppen.push({ dateStr: m[1].trim(), kopStart: m.index, kopEind: m.index + m[0].length });
+  }
+
+  const uit = [];
+  for (let i = 0; i < koppen.length; i++) {
+    const van = koppen[i].kopEind;
+    const tot = i + 1 < koppen.length ? koppen[i + 1].kopStart : html.length;
+    const blok = html.substring(van, tot);
+    const ids = [];
     TOERNOOI_LINK_RE.lastIndex = 0;
+    let t;
     while ((t = TOERNOOI_LINK_RE.exec(blok)) !== null) {
       const id = parseInt(t[1], 10);
       if (!ids.includes(id)) ids.push(id);
+    }
+    uit.push({ date: koppen[i].dateStr, datum: cuescoreDateToISO(koppen[i].dateStr), ids });
+  }
+  return uit;
+}
+
+// Toernooi-ID's vanaf vandaag tot `days` dagen vooruit (voor de planning-import).
+function upcomingTournamentIds(html, now, { days = 14, tz = 'Europe/Amsterdam' } = {}) {
+  const vandaagISO = cuescoreDateToISO(formatCuescoreDate(now, tz));
+  const grens = new Date(`${vandaagISO}T00:00:00Z`);
+  grens.setUTCDate(grens.getUTCDate() + days);
+  const grensISO = grens.toISOString().slice(0, 10);
+
+  const ids = [];
+  for (const groep of parseTournamentsByDate(html)) {
+    if (!groep.datum) continue;
+    // 'YYYY-MM-DD' vergelijkt lexicografisch = chronologisch.
+    if (groep.datum >= vandaagISO && groep.datum <= grensISO) {
+      for (const id of groep.ids) if (!ids.includes(id)) ids.push(id);
     }
   }
   return ids;
@@ -72,6 +122,8 @@ function normalizeTournament(data) {
     name: data.name || '',
     status: data.status || '',
     finished: data.status === 'Finished',
+    start: data.starttime || null, // geplande starttijd (uit Cuescore)
+    stop: data.stoptime || null,   // geplande eindtijd (kan null zijn)
     matches,
   };
 }
@@ -107,8 +159,11 @@ module.exports = {
   DATUM_RE,
   TOERNOOI_LINK_RE,
   FINALE_RE,
+  cuescoreDateToISO,
   formatCuescoreDate,
   parseTodaysTournamentIds,
+  parseTournamentsByDate,
+  upcomingTournamentIds,
   normalizeMatch,
   normalizeTournament,
   findTableMatch,

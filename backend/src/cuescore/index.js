@@ -1,6 +1,7 @@
 const {
   formatCuescoreDate,
   parseTodaysTournamentIds,
+  upcomingTournamentIds,
   normalizeTournament,
   findTableMatch,
   isFinalFinished,
@@ -42,6 +43,19 @@ async function getTodaysTournaments({ now = new Date() } = {}) {
   return out;
 }
 
+// Haalt alle geplande Mokum-toernooien op van vandaag tot `days` dagen vooruit
+// (genormaliseerd, incl. geplande start/stop). Voor de planning-import.
+async function getUpcomingTournaments({ orgStub = ORG_STUB, now = new Date(), days = 14 } = {}) {
+  const url = `https://cuescore.com/${orgStub}/tournaments`;
+  const res = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+  if (!res.ok) throw new Error(`Cuescore toernooien-pagina gaf ${res.status}`);
+  const html = await res.text();
+  const ids = upcomingTournamentIds(html, now, { days });
+  const out = [];
+  for (const id of ids) out.push(await getTournament(id));
+  return out;
+}
+
 // Zoekt over alle toernooien van vandaag naar het toernooi dat nú op de gegeven
 // tafel speelt. Retourneert { tournament, match } of null.
 async function findTableTournament(tableNumber, { now = new Date() } = {}) {
@@ -63,9 +77,12 @@ async function isTournamentFinished(id) {
 module.exports = {
   getTodaysTournamentIds,
   getTournament,
+  getTodaysTournaments,
+  getUpcomingTournaments,
   findTableTournament,
   isTournamentFinished,
   // pure helpers ook exporteren voor hergebruik/tests
   findTableMatch,
   isFinalFinished,
+  findTournamentByName,
 };
