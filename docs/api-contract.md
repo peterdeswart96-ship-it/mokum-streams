@@ -114,6 +114,8 @@ Ad-hoc stream (POST /api/admin/streams/start met een vrije camera):
 - `broadcasts/<datum>.json` — per aangemaakte broadcast:
   { "tableNumber", "videoId", "broadcastId", "title", "scheduledStart" }
   Dit voedt GET /api/live (koppelt tafel -> videoId + titel + status).
+- `commands.json`           — openstaande agent-commando's (wachtrij voor GET /api/agent/commands)
+- `status.json`             — laatst gerapporteerde agent-status (uit POST /api/agent/status)
 
 > Migratienoot: het simpele `config/schedule.json` (terugkerende regels uit #9)
 > wordt vervangen door `config/defaults.json` (templates) + `planning.json`
