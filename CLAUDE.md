@@ -7,9 +7,8 @@ Automatisering van YouTube-livestreams voor Mokum Pool & Darts (Amsterdam). Opdr
 
 ## Vaste feiten
 - YouTube-kanaal: @MokumPoolDarts (UCXb_CDaEhEO8CImYTvHalTw); account `pooleninmokum@gmail.com` (Peter heeft beheerderstoegang). Niet gemonetiseerd.
-- Titeltemplate broadcasts: `Tafel {nr} '{sponsor}' {toernooinaam}`
+- Titeltemplate broadcasts: `Tafel {nr} {toernooinaam}` — toernooinaam = de **volledige naam uit Cuescore** (bevat soms zelf al een sponsor, soms niet). **Geen apart sponsorveld** (besluit 8 juli).
 - Tafels met camera: **1, 3, 15, 16** (zaal telt 16 pooltafels — echte zaalnummering aanhouden). NB: oude demo gebruikte 7/9/12/15 als voorbeeld — dat is achterhaald.
-- Sponsornamen komen uit **Cuescore** (niet handmatig); voeden het `{sponsor}`-veld in de titel
 - Eerste vaste toernooi (testcase fase 2/3): **Di 19:30 — Fluke ranking — tafel 1 & 3** (toernooinaam mag uit Cuescore)
 - Zaalopstelling: één pc, **meerdere OBS-instanties** (elk eigen websocket-poort + wachtwoord), upload 120 Mbps bekabeld, pc mag 24/7 aan
 - Infra: resource group `rg-mokum-streams`, Key Vault `kv-mokum-streams` (youtube-client-id/-secret/-refresh-token), Google Cloud-project `mokum-streams`
