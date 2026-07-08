@@ -1,6 +1,6 @@
 # Mokum Streams — Project Status
 
-> Bijgewerkt op: 08-07-2026 19:20
+> Bijgewerkt op: 08-07-2026 19:56
 > Repo: https://github.com/peterdeswart96-ship-it/mokum-streams
 
 ## Over dit project
@@ -9,15 +9,17 @@ Automatisering YouTube-livestreams Mokum Pool & Darts (4 cameratafels: 1, 3, 15,
 
 ## Fase
 
-Fase 1 (intake & ontwerp) afgerond → **fase 2 (MVP) in volle gang**. De
-backend-fundering staat: YouTube-wrapper, Cuescore-lees, planning-model v2
-(import → planning.json → broadcasts) en admin-endpoints. Alles op `develop`,
-CI groen (42 unit-tests).
+Fase 1 (intake & ontwerp) afgerond → **fase 2 (MVP): volledige software-keten
+gebouwd**. De **automatische keten is compleet**: Cuescore-import → planning →
+broadcast + startcommando's → agent/OBS → YouTube live → auto-stop. Plus
+ad-hoc bediening, publieke endpoints, dashboard-skeleton en seed. Alles op
+`develop`, CI groen (**60 unit-tests**). Wat rest is de **echte run** (Azure +
+agent op de OBS-pc) en niet-functionele zaken (auth, live-pagina).
 
 ## Deployment Status
 
-- **develop** — laatste: `a9d6297` admin-endpoints voor het dashboard (08-07-2026)
-- Backend-deploy naar Azure: **placeholder** — Function App bestaat nog niet (volgende infra-stap)
+- **develop** — laatste: `c0cc1b6` unlisted-optie + testrunbook (08-07-2026)
+- Backend-deploy naar Azure: **placeholder** — Function App bestaat nog niet (zie `docs/azure-setup.md`)
 - Frontend: nog geen skeleton (#12)
 
 ## Gesloten deze sessie (08-07)
@@ -51,12 +53,22 @@ CI groen (42 unit-tests).
 - `1e00950` feat: OBS-agent skeleton met obs-websocket + overlay-toggles (#10)
 - `f0fbcdd` feat: broadcast-Function (timer) op basis van schema (#9)
 
+## Sinds 19:20 toegevoegd (deze sessie)
+
+- ✅ Ad-hoc streams + agent-commandowachtrij (`/api/agent/commands|status`, `/api/admin/streams/start|stop`)
+- ✅ Per-avond-logica voor competities (leagues)
+- ✅ Dashboard-skeleton (#12, React/Vite/Tailwind)
+- ✅ Seed-endpoint stream keys + `docs/azure-setup.md`
+- ✅ Start-automatisering (startStream + overlays), publieke `/api/live` + `/api/schedule`, **auto-stop**
+- ✅ Unlisted-optie + `docs/test-runbook.md` (gefaseerde test)
+
 ## Belangrijkste openstaande punten
 
-- **Ad-hoc streams + agent-commandowachtrij** (`/api/admin/streams/start` → `/api/agent/commands`)
-- **Per-avond-logica voor competities** (leagues zijn doorlopende Cuescore-tournaments — zie wiki/gaps.md #14/#16)
-- **Echte run**: Azure Function App + storage aanmaken, streamID's seeden in `config/tables.json`
-- **Dashboard (#12)** + live-pagina (fase 3/4)
+- **Echte run**: Azure Function App + storage aanmaken (`docs/azure-setup.md`), agent op de OBS-pc, streamID's seeden → sluit #8/#9/#10/#11
+- **Auth**: Entra External ID i.p.v. de token-placeholder
+- **Pre-roll scène-wissel** + camera-conflict-detectie in het dashboard
+- **Live-pagina/widget** (fase 4, met Sander)
+- **Overlay-bronnamen per tafel** (verschillen per OBS-instantie) invullen in `config/tables.json`
 
 ## Openstaand richting derden
 
