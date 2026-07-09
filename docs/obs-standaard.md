@@ -46,6 +46,10 @@ Namen in het **Engels** (afgesproken 2026-07-09); het **tafel-token blijft
 > - **Verwijder** de statische `Sponsor - Buffalo`, `- Kamui`, `- GO Customs`.
 > - **Ontgroep** `Sponsors` (rechtsklik groep → *Ungroup*) — er blijft dan alleen
 >   `Sponsor slideshow` over.
+> - **Afbeeldingen:** gebruik **transparante PNG-logo's** (geen screenshots met
+>   zwarte achtergrond) en zet ze in **één vaste map** (bv.
+>   `C:\Users\poole\Mokum-Sponsors\`), niet verspreid over OneDrive/Downloads
+>   (sync-risico, gaps #9). Verwijs alle 4 de slideshows naar diezelfde bestanden.
 > Elke instantie moet uiteindelijk **dezelfde set + dezelfde namen** hebben.
 
 ### Scoreboard-bron (browser-source) — URL per tafel
