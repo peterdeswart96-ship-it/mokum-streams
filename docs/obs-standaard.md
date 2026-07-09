@@ -24,7 +24,7 @@ Namen in het **Engels** (afgesproken 2026-07-09); het **tafel-token blijft
 | Doel | Standaardnaam | Wat het is |
 |---|---|---|
 | eigen scorebord (`score`) | `Scoreboard` | scorebord van **deze** tafel (onder); toont "Next match will start shortly" als er geen wedstrijd loopt |
-| andere tafels (`cs score`) | `Scoreboard other tables` | roterende scores van **andere** tafels uit het toernooi (rechtsboven); leeg zonder toernooi |
+| andere tafels (`cs score`) | `Scores other tables` | roterende scores van **andere** tafels uit het toernooi (rechtsboven); leeg zonder toernooi |
 | Cuescore-logo (`Modern`) | `Cuescore logo` | het Cuescore-logo (zeshoek op de tafel) |
 | sponsoring | `Sponsors` | **groep** met alle sponsoring — één dashboard-schakelaar |
 | — logo (`Buffalo`) | `Sponsor - Buffalo` | statisch sponsorlogo (in de groep) |
@@ -58,7 +58,7 @@ De `Scoreboard` is een **Browser-source** naar het Cuescore-overlay-tool, met de
   `…?t=61403803`, 1280×720, plak de Custom CSS.
 - **Check de andere instanties:** elke `Scoreboard` moet naar **zijn eigen**
   tafel-id wijzen (niet die van een andere tafel).
-- De `Scoreboard other tables` (voorheen `cs score`) gebruikt vermoedelijk een
+- De `Scores other tables` (voorheen `cs score`) gebruikt vermoedelijk een
   andere URL (org-/toernooibreed) — stuur die Properties ook even door zodat we
   'm kennen.
 
@@ -67,7 +67,7 @@ stream key = de herbruikbare liveStream van díe tafel, zelfde output (bijv. 108
 ~5000 kbps).
 
 > **Dashboard-schakelaars:** `Sponsors` (hele groep), `Scoreboard`,
-> `Scoreboard other tables`, `Cuescore logo` — elk los aan/uit. `Camera` staat
+> `Scores other tables`, `Cuescore logo` — elk los aan/uit. `Camera` staat
 > altijd aan (geen schakelaar). Ik generaliseer het overlay-model:
 > `config/tables.json` bevat de lijst overlaybronnen en het planning-record
 > `overlays` wordt een map `{ naam: aan/uit }` — zo is elke overlay vanuit het
@@ -82,7 +82,7 @@ toggelt één schakelaar alle logo's tegelijk.
 ```
 Scène (Tafel N)
 ├─ Scoreboard                (deze tafel; "Next match will start shortly" als idle)
-├─ Scoreboard other tables   (andere tafels, rechtsboven)
+├─ Scores other tables   (andere tafels, rechtsboven)
 ├─ Cuescore logo             (zeshoek op de tafel)
 ├─ Sponsors   [groep]        ← dashboard-schakelaar
 │   ├─ Sponsor - Buffalo
@@ -94,6 +94,20 @@ Scène (Tafel N)
 
 **Tip:** noem de bronnen precies zoals ze straks in het dashboard heten
 (dashboard-label = bronnaam), dan matcht het uitleg-/overzichtscherm 1-op-1.
+
+## Kleurcodering (optioneel, aanrader)
+Rechtsklik een bron → **Set Colour** om ze per categorie te kleuren. Op alle 4 de
+instanties **dezelfde kleuren** → de lijst is meteen scanbaar en uniform. Voorstel:
+
+| Categorie | Bronnen | Kleur |
+|---|---|---|
+| Scoreborden | `Scoreboard`, `Scores other tables` | blauw |
+| Logo | `Cuescore logo` | paars |
+| Sponsoring | `Sponsors` (groep) + logo's + slideshow | geel/oranje |
+| Camera | `Camera Tafel N` | groen |
+
+> Kleur is puur visueel in OBS (geen invloed op de stream of de agent) — maar wel
+> handig bij het bedienen en checken.
 
 ## Tafelnummer zichtbaar maken (jouw punt)
 Nu staat nergens welk tafelnummer het is (de taakbalk toont "Profile: Naamloos").
@@ -116,10 +130,11 @@ Drie lagen, van belangrijk naar optioneel:
 Per OBS-instantie (Tafel 1, 3, 15, 16), in deze volgorde:
 1. **Profile → Rename** → `Tafel N`  •  **Scene Collection → Rename** → `Tafel N`
    (→ tafelnummer zichtbaar in taakbalk/titelbalk).
-2. **Bronnen hernoemen** naar de standaard (dubbelklik bron → Rename): `Scorebord`,
-   `Scores andere tafels`, `Cuescore logo`, `Sponsors` (groep) met daarin
-   `Sponsor - Buffalo`/`- Kamui`/`- GO Customs`, `Sponsor slideshow`, `Camera`.
-   Casing exact gelijk op alle instanties, en zet de **volgorde** zoals hierboven.
+2. **Bronnen hernoemen** naar de standaard (dubbelklik bron → Rename): `Scoreboard`,
+   `Scores other tables`, `Cuescore logo`, `Sponsors` (groep) met daarin
+   `Sponsor - Buffalo`/`- Kamui`/`- GO Customs` + `Sponsor slideshow`, en
+   `Camera Tafel N`. Casing exact gelijk, en zet de **volgorde** zoals hierboven
+   (Camera helemaal onderaan). Optioneel: kleurcodering (zie boven).
 3. **obs-websocket aanzetten**: Tools → WebSocket Server Settings → *Enable*,
    eigen poort (bijv. 1→4455, 3→4456, 15→4457, 16→4458), wachtwoord noteren.
 4. (Optioneel) tekstbron `Tafelnummer` = "Tafel N" toevoegen.
