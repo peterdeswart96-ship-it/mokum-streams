@@ -172,6 +172,17 @@ Per OBS-instantie (Tafel 1, 3, 15, 16), in deze volgorde:
 Ik noteer per instantie de poort + de exacte bronnamen; die gebruiken we straks in
 `config/tables.json` + `agent-config.json`.
 
+## Backup / template (aanrader — doe dit ná het inrichten)
+- **Scene Collection → Export** per instantie → `.json` met scenes + bronnen +
+  transforms. Dat is je **template + backup**. Bewaar op een vaste plek
+  (bijv. `C:\Mokum-OBS-backup\`).
+- **Hergebruik als template:** importeer de `.json`, pas dan alleen de twee
+  tafel-specifieke dingen aan: de **camerabron** (video-device) en de
+  **Scoreboard-URL** (`?t=<tableId>` — 1=61403749, 3=61403764, 15=61403800,
+  16=61403803).
+- **Profile → Export** bewaart de output-/encoder-instellingen.
+- Extra vangnet: kopieer de hele **portable-map** (1-op-1 backup).
+
 ## Meteen meenemen (aanraders)
 - **"Begint zo"-scène** per instantie (zelfde naam, bijv. `Begint zo`) voor de
   **pre-roll** — dan kan de agent straks bij de start van "begint zo" naar de
