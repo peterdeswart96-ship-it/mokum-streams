@@ -5,13 +5,14 @@ agent-aansturing uniform (dezelfde bronnamen op elke tafel), minder foutgevoelig
 en makkelijker te onderhouden. Doen **vóór** de eerste test/uitrol, in overleg
 met Nick.
 
-> **Status (2026-07-09): bronnen hernoemd + gestructureerd op alle 4 instanties.**
-> Doelstructuur per instantie: `Scoreboard`, `Scores other tables`, `Cuescore logo`,
-> `Sponsor slideshow` (alle sponsors roterend — logo's/groep vervallen, besluit 09-07),
-> `Camera Tafel N` (onderaan). Tafel 16 kreeg het ontbrekende `Scoreboard` erbij.
-> **Nog te doen:** sponsors bundelen in de slideshow (logo's/groep eruit),
-> profiel/scene-collection hernoemen naar `Tafel N`, obs-websocket aanzetten
-> (poort + wachtwoord per instantie), optioneel kleurcodering.
+> **Status (2026-07-09): OBS-inrichting AFGEROND op alle 4 instanties.** ✅
+> Elke instantie identiek: `Scoreboard`, `Scores other tables`, `Cuescore logo`,
+> `Sponsor slideshow` (alle sponsors roterend uit één map; statische logo's + groep
+> verwijderd), `Camera Tafel N`. Uniform: namen, kleuren, posities/transforms,
+> profiel/scene = `Tafel N`, Scoreboard-URL per tafel. Batch-launcher
+> (`start-alle-obs.bat`) werkt. Tafel 16 kreeg het ontbrekende `Scoreboard`.
+> **Nog te doen:** backup (Scene Collection → Export), **obs-websocket aanzetten**
+> (poort 4455/4456/4457/4458 + wachtwoord per instantie) → dan Fase 1-test.
 
 ## Waarom standaardiseren
 - **Eén set bronnamen** → de agent gebruikt overal dezelfde namen; onze
