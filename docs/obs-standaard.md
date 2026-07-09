@@ -41,6 +41,28 @@ stream key = de herbruikbare liveStream van díe tafel, zelfde output (bijv. 108
 > planning-record `overlays` wordt een map `{ naam: aan/uit }`. Zo kan elke
 > overlay vanuit het dashboard geschakeld worden zonder hardcoding.
 
+## Aanbevolen structuur & volgorde in de Sources-lijst
+In OBS bepaalt de volgorde de **z-volgorde**: **bovenaan = bovenop**, onderaan =
+achtergrond. Zet dus de camera onderaan en de overlays erboven. Stop de
+sponsorlogo's **in de `Sponsors`-groep** (nesten) — dan is de lijst kort en
+toggelt één schakelaar alle logo's tegelijk.
+
+```
+Scène "Tafel N"
+├─ Scorebord                (eigen tafel, onder)
+├─ Scores andere tafels     (rechtsboven)
+├─ Cuescore logo            (zeshoek op de tafel)
+├─ Sponsors   [groep]       ← agent-schakelaar "Sponsors"
+│   ├─ Sponsor - Buffalo
+│   ├─ Sponsor - Kamui
+│   └─ Sponsor - GO Customs
+├─ Sponsor slideshow        (roterende sponsors)
+└─ Camera                   (achtergrond, onderaan)
+```
+
+**Tip:** noem de bronnen precies zoals ze straks in het dashboard heten
+(dashboard-label = bronnaam), dan matcht het uitleg-/overzichtscherm 1-op-1.
+
 ## Tafelnummer zichtbaar maken (jouw punt)
 Nu staat nergens welk tafelnummer het is (de taakbalk toont "Profile: Naamloos").
 Drie lagen, van belangrijk naar optioneel:
@@ -62,9 +84,10 @@ Drie lagen, van belangrijk naar optioneel:
 Per OBS-instantie (Tafel 1, 3, 15, 16), in deze volgorde:
 1. **Profile → Rename** → `Tafel N`  •  **Scene Collection → Rename** → `Tafel N`
    (→ tafelnummer zichtbaar in taakbalk/titelbalk).
-2. **Bronnen hernoemen** naar de standaard (dubbelklik bron → Rename): `Sponsors`,
-   `cs score`, `Buffalo`, `Kamui`, `GO Customs`, `Modern`. Casing exact gelijk op
-   alle instanties.
+2. **Bronnen hernoemen** naar de standaard (dubbelklik bron → Rename): `Scorebord`,
+   `Scores andere tafels`, `Cuescore logo`, `Sponsors` (groep) met daarin
+   `Sponsor - Buffalo`/`- Kamui`/`- GO Customs`, `Sponsor slideshow`, `Camera`.
+   Casing exact gelijk op alle instanties, en zet de **volgorde** zoals hierboven.
 3. **obs-websocket aanzetten**: Tools → WebSocket Server Settings → *Enable*,
    eigen poort (bijv. 1→4455, 3→4456, 15→4457, 16→4458), wachtwoord noteren.
 4. (Optioneel) tekstbron `Tafelnummer` = "Tafel N" toevoegen.
@@ -81,7 +104,14 @@ Ik noteer per instantie de poort + de exacte bronnamen; die gebruiken we straks 
   sync-/vergrendelingsproblemen.
 
 ## Aansluiting op de code
-- De agent-default overlaynamen staan in `backend/src/agent/commandQueue.js`
-  (`OVERLAY_BRON = { sponsors: 'Sponsors', scoreboard: 'cs score' }`). Als je de
-  bronnen zo noemt, is er **geen per-tafel override** nodig. Een afwijkende naam
-  kan altijd nog per tafel in `config/tables.json` (`overlaySources`).
+- De agent toggelt overlays op **bronnaam**. Zodra de namen vaststaan werk ik het
+  overlay-model bij: `config/tables.json` krijgt de lijst overlaybronnen
+  (`Sponsors`, `Sponsor slideshow`, `Scorebord`, `Scores andere tafels`,
+  `Cuescore logo`) en het planning-record `overlays` wordt een map
+  `{ naam: aan/uit }`. Nu staat er nog `OVERLAY_BRON = { sponsors: 'Sponsors',
+  scoreboard: 'cs score' }` in `backend/src/agent/commandQueue.js` — die pas ik aan
+  op de definitieve namen.
+- **Dashboard-overzicht/uitleg (jouw wens):** we kunnen per overlay **naam +
+  beschrijving + een thumbnail/foto** tonen. Jouw foto's van wat elke overlay doet
+  zijn daar perfecte input voor — ik maak er een "overlay-catalogus" van die het
+  dashboard rendert.
