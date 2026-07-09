@@ -3,9 +3,11 @@
 
 const GELDIGE_TYPES = new Set(['startStream', 'stopStream', 'setOverlay']);
 
-// Standaard OBS-bronnamen voor de overlays (zie screenshot Tafel 1). Per tafel te
-// overrijden via config/tables.json (overlaySources).
-const OVERLAY_BRON = { sponsors: 'Sponsors', scoreboard: 'cs score' };
+// Standaard OBS-bronnamen voor de overlays na standaardisatie van alle 4 instanties
+// (zie docs/obs-standaard.md + api-contract v0.6). Per tafel te overrijden via
+// config/tables.json (overlaySources). NB: 'Scores other tables' en 'Cuescore logo'
+// zijn vaste branding en worden niet per broadcast getoggeld.
+const OVERLAY_BRON = { sponsors: 'Sponsor slideshow', scoreboard: 'Scoreboard' };
 
 // Bouwt de commando's om een tafel te starten: OBS laten zenden + de overlays
 // (sponsors/scorebord) op de gewenste stand zetten. Zonder id/tijd — die voegt de

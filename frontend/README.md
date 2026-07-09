@@ -1,13 +1,13 @@
 # frontend — Mokum Streams (dashboard)
 
 Beheer-dashboard (React + Vite + **Tailwind CSS v3**), gehost via GitHub Pages.
-Leunt op de admin-endpoints van de backend (`/api/admin/planning`, zie
+Leunt op de admin-endpoints van de backend (`/api/manage/planning`, zie
 [`../docs/api-contract.md`](../docs/api-contract.md)).
 
 ## Status
 **Skeleton** (issue #12): een werkend planning-overzicht met filters en per
 toernooi schakelaars voor **streamen**, **camera's** (1/3/15/16) en **overlays**
-(sponsors/scorebord). Wijzigingen gaan via `POST /api/admin/planning/{id}`.
+(sponsors/scorebord). Wijzigingen gaan via `POST /api/manage/planning/{id}`.
 Nog te doen: auth (Entra External ID), ad-hoc start/stop-knoppen, live-status.
 
 ## Mapstructuur

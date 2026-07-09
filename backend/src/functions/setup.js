@@ -10,7 +10,7 @@ const { isAdmin } = require('../admin/auth');
 // titel). De stream key zelf komt hier NIET in de respons/opslag (secret) — die
 // lees je één keer uit YouTube Studio om OBS mee te configureren.
 //
-// POST /api/admin/setup/streams   body (optioneel) { "cameras": [1,3,15,16] }
+// POST /api/manage/setup/streams   body (optioneel) { "cameras": [1,3,15,16] }
 
 const CAMERAS = [1, 3, 15, 16];
 const json = (status, body) => ({ status, jsonBody: body });
@@ -18,7 +18,7 @@ const json = (status, body) => ({ status, jsonBody: body });
 app.http('adminSetupStreams', {
   methods: ['POST'],
   authLevel: 'anonymous',
-  route: 'admin/setup/streams',
+  route: 'manage/setup/streams',
   handler: async (request, context) => {
     if (!isAdmin(request)) return json(401, { error: 'niet geautoriseerd' });
 

@@ -34,16 +34,16 @@ GET /api/schedule?days=7
 Antwoord: { "items": [ { "date", "startTime", "tournamentName", "tableNumbers": [..] } ] }
 
 ## Beheer (dashboard, auth vereist)
-GET  /api/admin/config              -> tafelconfig, array van { tableNumber, streamId }
-GET  /api/admin/planning?days=14    -> geplande toernooien (Cuescore-import + instellingen)
-POST /api/admin/planning/{id}       -> instellingen van één toernooi wijzigen
-GET  /api/admin/defaults            -> standaard-instellingen (één set, zie hieronder)
-POST /api/admin/defaults            -> standaard-instellingen wijzigen
-POST /api/admin/streams/start       -> body: { "tableNumber": 15, "title"?: "...", "privacy"?: "public|unlisted|private" } (ad-hoc, vrije camera)
-POST /api/admin/streams/stop        -> body: { "tableNumber": 15 }
-POST /api/admin/setup/streams       -> eenmalig: herbruikbare liveStream per tafel (idempotent) → schrijft config/tables.json; body (optioneel) { "cameras": [1,3,15,16] }
+GET  /api/manage/config              -> tafelconfig, array van { tableNumber, streamId }
+GET  /api/manage/planning?days=14    -> geplande toernooien (Cuescore-import + instellingen)
+POST /api/manage/planning/{id}       -> instellingen van één toernooi wijzigen
+GET  /api/manage/defaults            -> standaard-instellingen (één set, zie hieronder)
+POST /api/manage/defaults            -> standaard-instellingen wijzigen
+POST /api/manage/streams/start       -> body: { "tableNumber": 15, "title"?: "...", "privacy"?: "public|unlisted|private" } (ad-hoc, vrije camera)
+POST /api/manage/streams/stop        -> body: { "tableNumber": 15 }
+POST /api/manage/setup/streams       -> eenmalig: herbruikbare liveStream per tafel (idempotent) → schrijft config/tables.json; body (optioneel) { "cameras": [1,3,15,16] }
 
-Tafelconfig (GET /api/admin/config) — array:
+Tafelconfig (GET /api/manage/config) — array:
 {
   "tableNumber": 15,
   "streamId": "<herbruikbare liveStream-id>"   // NIET de stream key zelf (die is secret)
@@ -56,7 +56,7 @@ per toernooi onze instellingen/overrides. Elk geïmporteerd toernooi krijgt de
 zetten. Het dashboard toont dit overzicht (met filters) en kan per toernooi
 bijsturen.
 
-Planning-record (GET /api/admin/planning → `{ "items": [ ... ] }`):
+Planning-record (GET /api/manage/planning → `{ "items": [ ... ] }`):
 {
   "tournamentId": 75880960,                 // Cuescore-id, of "adhoc-<uuid>" bij handmatig
   "name": "Fluke ranking 9ball Seizoen 3 #22",
@@ -72,7 +72,7 @@ Planning-record (GET /api/admin/planning → `{ "items": [ ... ] }`):
   "tafels": [1, 3],                         // welke camera's (echte zaalnummers)
   "overlays": { "sponsors": true, "scoreboard": true }
 }
-POST /api/admin/planning/{id} — body met te wijzigen velden (enabled, startOverride,
+POST /api/manage/planning/{id} — body met te wijzigen velden (enabled, startOverride,
 stopOverride, preRollMinuten, tafels, overlays); retour = bijgewerkt record.
 
 Regels:
@@ -95,7 +95,7 @@ Regels:
   nog geen toewijzing → standaard alle camera's / handmatig. Een tafel = één event
   tegelijk (conflict-waarschuwing bij overlap).
 
-Standaard-instellingen (GET/POST /api/admin/defaults) — één set, toegepast bij
+Standaard-instellingen (GET/POST /api/manage/defaults) — één set, toegepast bij
 import:
 {
   "enabled": true,
@@ -104,12 +104,12 @@ import:
   "overlays": { "sponsors": true, "scoreboard": true }
 }
 
-Ad-hoc stream (POST /api/admin/streams/start met een vrije camera):
+Ad-hoc stream (POST /api/manage/streams/start met een vrije camera):
 - `tableNumber` verplicht; `title` optioneel (default `Tafel {nr}`).
 - Een tafel is "vrij" als er nu geen geplande/lopende stream op draait.
 
 ## Interne opslag (Blob JSON — geen publiek endpoint, maar wel de bron voor /api/live)
-- `config/tables.json`      — tafelconfig (zie GET /api/admin/config)
+- `config/tables.json`      — tafelconfig (zie GET /api/manage/config)
 - `config/defaults.json`    — standaard-instellingen (één set, toegepast bij import)
 - `planning.json`           — planning-records (Cuescore-import + overrides + ad-hoc)
 - `broadcasts/<datum>.json` — per aangemaakte broadcast:
@@ -133,11 +133,17 @@ Antwoord:
   "commands": [
     { "id": "c1", "type": "startStream", "tableNumber": 1 },
     { "id": "c2", "type": "stopStream",  "tableNumber": 3 },
-    { "id": "c3", "type": "setOverlay",  "tableNumber": 1, "sourceName": "cs score", "enabled": true }
+    { "id": "c3", "type": "setOverlay",  "tableNumber": 1, "sourceName": "Sponsor slideshow", "enabled": true }
   ]
 }
 - `type`: `startStream` | `stopStream` | `setOverlay`.
 - `setOverlay` zet een OBS-bron (overlay/scoreboard) aan of uit (`enabled`).
+- **Overlay-switch → OBS-bronnaam** (definitieve inrichting, zie `docs/obs-standaard.md`):
+  `overlays.sponsors` → bron **`Sponsor slideshow`**; `overlays.scoreboard` → bron
+  **`Scoreboard`** (het grote eigen scorebord). De bronnen **`Scores other tables`**
+  en **`Cuescore logo`** zijn vaste branding (staan-aan in de scène) en worden
+  vooralsnog niet per broadcast getoggeld. Per tafel te overrijden via
+  `config/tables.json` (`overlaySources`).
 - De agent bevestigt verwerkte commando's via de status-post (`verwerkteCommandoIds`),
   zodat de backend ze niet opnieuw stuurt.
 
@@ -169,10 +175,10 @@ Body:
   (enabled=true, alle camera's, overlays aan, preRoll 10 min) en is per stuk
   aan/uit/aanpasbaar (planning-record: enabled, start/stop-override, preRollMinuten,
   tafels, overlay-switches). Eén set standaard-instellingen (`config/defaults.json`)
-  i.p.v. per-weekdag-templates. Ad-hoc streams via `/api/admin/streams/start`
+  i.p.v. per-weekdag-templates. Ad-hoc streams via `/api/manage/streams/start`
   (vrije camera, optionele titel, default `Tafel {nr}`). Nieuwe opslag
   `config/defaults.json` + `planning.json` (vervangt `config/schedule.json`).
-  Endpoints `/api/admin/planning[/{id}]` en `/api/admin/defaults`. Bevestigd door
+  Endpoints `/api/manage/planning[/{id}]` en `/api/manage/defaults`. Bevestigd door
   Peter (8 juli): import-alles, standaard alle camera's, scorebord + sponsors aan,
   preRoll 10 min, ad-hoc titel `Tafel {nr}`.
 - 2026-07-08: v0.5 — planning-record krijgt `type` (`tournament` | `competition`).
@@ -182,3 +188,17 @@ Body:
   overlappende events wordt **automatisch afgeleid uit Cuescore's tafeltoewijzing
   per wedstrijd** met handmatige override (bevestigd Peter). Per-avond-afleiding +
   dashboard nog uit te werken.
+- 2026-07-09: v0.6 — overlay-switches gekoppeld aan de **definitieve OBS-bronnamen**
+  na standaardisatie van alle 4 instanties: `sponsors` → `Sponsor slideshow`,
+  `scoreboard` → `Scoreboard`. `Scores other tables` en `Cuescore logo` zijn vaste
+  branding (niet per broadcast getoggeld). Reden: OBS-inrichting afgerond + Fase 1-test
+  geslaagd (agent stuurt overlay aan/uit via obs-websocket). Alleen bronnaam-mapping
+  gewijzigd; de record-velden (`sponsors`/`scoreboard`) blijven ongewijzigd.
+- 2026-07-09: v0.7 — **beheer-endpoints hernoemd van `/api/admin/*` naar `/api/manage/*`**.
+  Reden: `admin` is een **gereserveerde route-prefix** in Azure Functions (de host
+  gebruikt `/admin/*` voor z'n ingebouwde beheer-API), waardoor alle functies met een
+  `admin/...`-route werden geweigerd met "The specified route conflicts with one or more
+  built in routes" → HTTP 404. Lokaal gereproduceerd met `func start`. Alleen de URL-prefix
+  wijzigt (`config`/`planning`/`planning/{id}`/`defaults`/`streams/start`/`streams/stop`/
+  `setup/streams`); payloads, functienamen en de interne `isAdmin`-auth blijven gelijk.
+  Frontend (`frontend/src/api.js`) meegewijzigd.

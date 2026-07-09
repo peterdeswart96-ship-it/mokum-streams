@@ -42,11 +42,11 @@ Nu één keer echt live, maar **niet publiek**:
    - **Bestaande key hergebruiken** (minst invasief): zoek via YouTube Studio /
      `liveStreams.list` het `streamId` van de key die de instantie al gebruikt en
      zet dat in `config/tables.json`.
-   - **Nieuwe key seeden:** `POST /api/admin/setup/streams`, lees de nieuwe key in
+   - **Nieuwe key seeden:** `POST /api/manage/setup/streams`, lees de nieuwe key in
      YouTube Studio en zet die in de OBS-instantie (Stream-instellingen).
 2. Start ad-hoc **unlisted**:
    ```powershell
-   curl -X POST "<backend>/api/admin/streams/start" `
+   curl -X POST "<backend>/api/manage/streams/start" `
      -H "Authorization: Bearer <ADMIN_TOKEN>" -H "Content-Type: application/json" `
      -d '{ "tableNumber": 3, "title": "Test", "privacy": "unlisted" }'
    ```
@@ -54,7 +54,7 @@ Nu één keer echt live, maar **niet publiek**:
    **unlisted live** op het kanaal. Controleer ook `GET /api/live`.
 3. Stoppen:
    ```powershell
-   curl -X POST "<backend>/api/admin/streams/stop" `
+   curl -X POST "<backend>/api/manage/streams/stop" `
      -H "Authorization: Bearer <ADMIN_TOKEN>" -H "Content-Type: application/json" `
      -d '{ "tableNumber": 3 }'
    ```

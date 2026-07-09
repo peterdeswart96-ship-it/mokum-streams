@@ -19,22 +19,22 @@ async function leesBody(request) {
   }
 }
 
-// GET /api/admin/config — tafelconfig
+// GET /api/manage/config — tafelconfig
 app.http('adminConfig', {
   methods: ['GET'],
   authLevel: 'anonymous',
-  route: 'admin/config',
+  route: 'manage/config',
   handler: async (request) => {
     if (!isAdmin(request)) return unauthorized();
     return json(200, (await readJson('config/tables.json', [])) || []);
   },
 });
 
-// GET /api/admin/planning — alle planning-records
+// GET /api/manage/planning — alle planning-records
 app.http('adminPlanningList', {
   methods: ['GET'],
   authLevel: 'anonymous',
-  route: 'admin/planning',
+  route: 'manage/planning',
   handler: async (request) => {
     if (!isAdmin(request)) return unauthorized();
     const items = (await readJson('planning.json', [])) || [];
@@ -42,11 +42,11 @@ app.http('adminPlanningList', {
   },
 });
 
-// POST /api/admin/planning/{id} — instellingen van één toernooi wijzigen
+// POST /api/manage/planning/{id} — instellingen van één toernooi wijzigen
 app.http('adminPlanningUpdate', {
   methods: ['POST'],
   authLevel: 'anonymous',
-  route: 'admin/planning/{id}',
+  route: 'manage/planning/{id}',
   handler: async (request) => {
     if (!isAdmin(request)) return unauthorized();
     const patch = await leesBody(request);
@@ -66,22 +66,22 @@ app.http('adminPlanningUpdate', {
   },
 });
 
-// GET /api/admin/defaults — standaard-instellingen
+// GET /api/manage/defaults — standaard-instellingen
 app.http('adminDefaultsGet', {
   methods: ['GET'],
   authLevel: 'anonymous',
-  route: 'admin/defaults',
+  route: 'manage/defaults',
   handler: async (request) => {
     if (!isAdmin(request)) return unauthorized();
     return json(200, (await readJson('config/defaults.json', STANDAARD_DEFAULTS)) || STANDAARD_DEFAULTS);
   },
 });
 
-// POST /api/admin/defaults — standaard-instellingen wijzigen
+// POST /api/manage/defaults — standaard-instellingen wijzigen
 app.http('adminDefaultsUpdate', {
   methods: ['POST'],
   authLevel: 'anonymous',
-  route: 'admin/defaults',
+  route: 'manage/defaults',
   handler: async (request) => {
     if (!isAdmin(request)) return unauthorized();
     const patch = await leesBody(request);

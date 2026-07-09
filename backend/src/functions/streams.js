@@ -20,11 +20,11 @@ async function leesBody(request) {
   }
 }
 
-// POST /api/admin/streams/start — body { tableNumber, title? }
+// POST /api/manage/streams/start — body { tableNumber, title? }
 app.http('adminStreamStart', {
   methods: ['POST'],
   authLevel: 'anonymous',
-  route: 'admin/streams/start',
+  route: 'manage/streams/start',
   handler: async (request, context) => {
     if (!isAdmin(request)) return json(401, { error: 'niet geautoriseerd' });
     const body = await leesBody(request);
@@ -76,11 +76,11 @@ app.http('adminStreamStart', {
   },
 });
 
-// POST /api/admin/streams/stop — body { tableNumber }
+// POST /api/manage/streams/stop — body { tableNumber }
 app.http('adminStreamStop', {
   methods: ['POST'],
   authLevel: 'anonymous',
-  route: 'admin/streams/stop',
+  route: 'manage/streams/stop',
   handler: async (request) => {
     if (!isAdmin(request)) return json(401, { error: 'niet geautoriseerd' });
     const body = await leesBody(request);

@@ -55,7 +55,7 @@ agent op de OBS-pc) en niet-functionele zaken (auth, live-pagina).
 
 ## Sinds 19:20 toegevoegd (deze sessie)
 
-- ✅ Ad-hoc streams + agent-commandowachtrij (`/api/agent/commands|status`, `/api/admin/streams/start|stop`)
+- ✅ Ad-hoc streams + agent-commandowachtrij (`/api/agent/commands|status`, `/api/manage/streams/start|stop`)
 - ✅ Per-avond-logica voor competities (leagues)
 - ✅ Dashboard-skeleton (#12, React/Vite/Tailwind)
 - ✅ Seed-endpoint stream keys + `docs/azure-setup.md`

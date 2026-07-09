@@ -12,6 +12,6 @@ async function req(path, opts) {
   return res.json();
 }
 
-export const getPlanning = () => req('/api/admin/planning');
+export const getPlanning = () => req('/api/manage/planning');
 export const updatePlanning = (id, patch) =>
-  req(`/api/admin/planning/${id}`, { method: 'POST', body: JSON.stringify(patch) });
+  req(`/api/manage/planning/${id}`, { method: 'POST', body: JSON.stringify(patch) });

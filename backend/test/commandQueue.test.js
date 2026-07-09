@@ -26,8 +26,8 @@ test('startCommandsFor levert startStream + overlays op de gewenste stand', () =
   const cmds = startCommandsFor({ overlays: { sponsors: true, scoreboard: false } }, 3);
   assert.deepStrictEqual(cmds, [
     { type: 'startStream', tableNumber: 3 },
-    { type: 'setOverlay', tableNumber: 3, sourceName: 'Sponsors', enabled: true },
-    { type: 'setOverlay', tableNumber: 3, sourceName: 'cs score', enabled: false },
+    { type: 'setOverlay', tableNumber: 3, sourceName: 'Sponsor slideshow', enabled: true },
+    { type: 'setOverlay', tableNumber: 3, sourceName: 'Scoreboard', enabled: false },
   ]);
 });
 

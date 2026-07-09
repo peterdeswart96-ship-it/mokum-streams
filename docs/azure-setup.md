@@ -16,19 +16,39 @@ $sa   = "mokumstreams$((Get-Random -Max 9999))"   # globaal uniek
 $app  = "mokum-streams-func"
 
 az storage account create -n $sa -g $rg -l $loc --sku Standard_LRS
-az functionapp create -n $app -g $rg -l $loc `
+# NB: bij een Consumption-plan alléén --consumption-plan-location (geen -l/--location
+# ernaast, anders: "unrecognized arguments"). Gebruik --runtime-version 22:
+# Node 20 = EOL (create weigert), en de door de CLI aangeraden Node 24 wordt op
+# Linux Consumption NIET ondersteund (linuxFxVersion blijft "Error" → 503). 22 = LTS.
+# Zet de runtime bij voorkeur hier bij create (pipe-vrij); linuxFxVersion achteraf
+# wijzigen ('Node|22') is op Windows PowerShell lastig want de pipe bereikt az (.cmd)
+# niet — desnoods de app deleten + opnieuw create met --runtime-version 22.
+az functionapp create -n $app -g $rg `
   --storage-account $sa `
-  --runtime node --runtime-version 20 `
-  --functions-version 4 --consumption-plan-location $loc `
+  --consumption-plan-location $loc `
+  --runtime node --runtime-version 22 `
+  --functions-version 4 `
   --os-type Linux
 ```
 
 ## 2. Managed identity + Key Vault-toegang (YouTube-secrets)
 ```powershell
 az functionapp identity assign -n $app -g $rg
-$pid = az functionapp identity show -n $app -g $rg --query principalId -o tsv
-az keyvault set-policy -n kv-mokum-streams --object-id $pid --secret-permissions get list
+# NB: níet $pid gebruiken — dat is een read-only automatische PowerShell-variabele.
+$principalId = az functionapp identity show -n $app -g $rg --query principalId -o tsv
+az keyvault set-policy -n kv-mokum-streams --object-id $principalId --secret-permissions get list
 ```
+> `kv-mokum-streams` staat op **RBAC** (`--enable-rbac-authorization`), dus
+> `set-policy` faalt met "Cannot set policies to a vault with '--enable-rbac-authorization'".
+> Gebruik een roltoewijzing (kan 1-2 min propageren):
+> ```powershell
+> $kvId = az keyvault show -n kv-mokum-streams --query id -o tsv
+> az role assignment create `
+>   --role "Key Vault Secrets User" `
+>   --assignee-object-id $principalId `
+>   --assignee-principal-type ServicePrincipal `
+>   --scope $kvId
+> ```
 
 ## 3. App settings
 ```powershell
@@ -56,7 +76,7 @@ Controleer: `https://$app.azurewebsites.net/api/health` geeft `{"status":"ok"}`.
 ## 5. Stream keys seeden (eenmalig)
 Maakt per cameratafel een herbruikbare liveStream en schrijft `config/tables.json`:
 ```powershell
-curl -X POST "https://$app.azurewebsites.net/api/admin/setup/streams" `
+curl -X POST "https://$app.azurewebsites.net/api/manage/setup/streams" `
   -H "Authorization: Bearer <ADMIN_TOKEN>"
 # → { tables: [{tableNumber, streamId}], hergebruikt, aangemaakt }
 ```
@@ -72,12 +92,12 @@ Zie `agent/README.md`. Vul `agent-config.json`:
 Installeer als Windows-service (NSSM/node-windows).
 
 ## 7. Eerste echte test (#11)
-1. Zet in het dashboard (of via `POST /api/admin/planning/{id}`) één toernooi
+1. Zet in het dashboard (of via `POST /api/manage/planning/{id}`) één toernooi
    **enabled** op één tafel, of gebruik een **ad-hoc** stream:
-   `POST /api/admin/streams/start` body `{ "tableNumber": 1 }`.
+   `POST /api/manage/streams/start` body `{ "tableNumber": 1 }`.
 2. De agent start de OBS-instantie → YouTube gaat via `enableAutoStart` live.
 3. Controleer de livestream op het kanaal en `GET /api/live`.
-4. Stoppen: `POST /api/admin/streams/stop` → agent `StopStream` → `enableAutoStop`.
+4. Stoppen: `POST /api/manage/streams/stop` → agent `StopStream` → `enableAutoStop`.
 
 ## 8. CI-deploy activeren (optioneel, later)
 Vervang in `.github/workflows/deploy-prod.yml` de placeholder-stap door:
