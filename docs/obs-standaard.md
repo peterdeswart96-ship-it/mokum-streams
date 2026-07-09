@@ -20,7 +20,7 @@ hoofdletters) op alle vier de instanties:
 
 | Huidige naam (varianten) | → Standaardnaam | Wat het is |
 |---|---|---|
-| `Tafel N` | `Camera` | de tafelcamera (agent raakt 'm niet aan) |
+| `Tafel N` | `Camera Tafel N` | de tafelcamera — mag het tafelnummer houden (agent raakt 'm niet aan); enige bewuste per-tafel-naam |
 | `Sponsors` / `sPON` (groep) | `Sponsors` | **groep** met alle sponsorlogo's — agent toggelt deze |
 | `Buffalo` / `bUFFALO` | `Sponsor - Buffalo` | sponsorlogo (in de groep) |
 | `Kamui` / `KaMUI` | `Sponsor - Kamui` | sponsorlogo |
@@ -57,7 +57,7 @@ Scène "Tafel N"
 │   ├─ Sponsor - Kamui
 │   └─ Sponsor - GO Customs
 ├─ Sponsor slideshow        (roterende sponsors)
-└─ Camera                   (achtergrond, onderaan)
+└─ Camera Tafel N           (achtergrond, onderaan — enige per-tafel-naam)
 ```
 
 **Tip:** noem de bronnen precies zoals ze straks in het dashboard heten
