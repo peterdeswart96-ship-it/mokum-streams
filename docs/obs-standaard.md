@@ -5,6 +5,13 @@ agent-aansturing uniform (dezelfde bronnamen op elke tafel), minder foutgevoelig
 en makkelijker te onderhouden. Doen **vóór** de eerste test/uitrol, in overleg
 met Nick.
 
+> **Status (2026-07-09): bronnen hernoemd + gestructureerd op alle 4 instanties.**
+> Elke instantie heeft nu: `Scoreboard`, `Scores other tables`, `Cuescore logo`,
+> groep `Sponsors` (met `Sponsor - Buffalo/Kamui/GO Customs` + `Sponsor slideshow`),
+> `Camera Tafel N` (onderaan). Tafel 16 kreeg het ontbrekende `Scoreboard` erbij.
+> **Nog te doen:** profiel/scene-collection hernoemen naar `Tafel N`, obs-websocket
+> aanzetten (poort + wachtwoord per instantie), optioneel kleurcodering.
+
 ## Waarom standaardiseren
 - **Eén set bronnamen** → de agent gebruikt overal dezelfde namen; onze
   standaard-overlaynamen (`Sponsors`, `cs score`) kloppen dan op elke tafel en er
