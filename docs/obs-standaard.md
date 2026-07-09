@@ -100,6 +100,19 @@ Scène (Tafel N)
 **Tip:** noem de bronnen precies zoals ze straks in het dashboard heten
 (dashboard-label = bronnaam), dan matcht het uitleg-/overzichtscherm 1-op-1.
 
+## Positie & grootte van overlays gelijktrekken
+De plaatsing verschilt nu per instantie. Maak 'm identiek:
+- **Browser-overlays** (`Scoreboard`, `Scores other tables`): de webpagina positioneert
+  de graphic zelf binnen een transparant vlak → zet de bron op **Fit to screen**
+  (rechtsklik → *Transform → Fit to screen*, of Ctrl+F). Dan vult 'ie het beeld en
+  staat 'ie op alle 4 automatisch gelijk.
+- **Afbeelding-overlays** (`Cuescore logo`, `Sponsor slideshow`): rechtsklik →
+  *Transform → **Edit Transform*** (Ctrl+E) en zet dezelfde **Position** +
+  **Bounding Box Size** op alle 4. Noteer de waarden zodat het reproduceerbaar is.
+- **Let op (24e2cfb-vervolg):** Tafel 15 miste het `Scoreboard`-beeld — check de
+  browser-URL (`?t=61403800` voor tafel 15) + *Fit to screen* als 'ie buiten beeld
+  staat.
+
 ## Kleurcodering (optioneel, aanrader)
 Rechtsklik een bron → **Set Colour** om ze per categorie te kleuren. Op alle 4 de
 instanties **dezelfde kleuren** → de lijst is meteen scanbaar en uniform. Voorstel:
