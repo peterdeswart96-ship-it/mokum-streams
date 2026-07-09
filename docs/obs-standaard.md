@@ -18,28 +18,40 @@ Nu lopen de namen uiteen (`gO`/`Go`, `sPON`/`Sponsors`, `bUFFALO`/`Buffalo`,
 `KaMUI`/`Kamui`). Voorstel voor één duidelijke set — **exact gelijk** (incl.
 hoofdletters) op alle vier de instanties:
 
-| Huidige naam (varianten) | → Standaardnaam | Wat het is |
+Namen in het **Engels** (afgesproken 2026-07-09); het **tafel-token blijft
+`Tafel N`** zoals in de YouTube-titel.
+
+| Doel | Standaardnaam | Wat het is |
 |---|---|---|
-| `Tafel N` | `Camera Tafel N` | de tafelcamera — mag het tafelnummer houden (agent raakt 'm niet aan); enige bewuste per-tafel-naam |
-| `Sponsors` / `sPON` (groep) | `Sponsors` | **groep** met alle sponsorlogo's — agent toggelt deze |
-| `Buffalo` / `bUFFALO` | `Sponsor - Buffalo` | sponsorlogo (in de groep) |
-| `Kamui` / `KaMUI` | `Sponsor - Kamui` | sponsorlogo |
-| `gO` / `Go` | `Sponsor - GO Customs` | sponsorlogo |
-| `Modern` | `Cuescore logo` | het Cuescore-logo (zeshoek op de tafel) — géén sponsor |
-| `score` | `Scorebord` | het scorebord van **deze** tafel (groot, onderaan) |
-| `cs score` | `Scores andere tafels` | overzicht met scores van **andere** tafels (rechtsboven) |
-| `Image Slideshow` (nu alleen Tafel 3) | `Sponsor slideshow` | roterende sponsorafbeelding (wisselt door alle sponsors) — **aanbevolen op alle tafels** voor uniformiteit |
+| eigen scorebord (`score`) | `Scoreboard` | scorebord van **deze** tafel (onder); toont "Next match will start shortly" als er geen wedstrijd loopt |
+| andere tafels (`cs score`) | `Scoreboard other tables` | roterende scores van **andere** tafels uit het toernooi (rechtsboven); leeg zonder toernooi |
+| Cuescore-logo (`Modern`) | `Cuescore logo` | het Cuescore-logo (zeshoek op de tafel) |
+| sponsoring | `Sponsors` | **groep** met alle sponsoring — één dashboard-schakelaar |
+| — logo (`Buffalo`) | `Sponsor - Buffalo` | statisch sponsorlogo (in de groep) |
+| — logo (`Kamui`) | `Sponsor - Kamui` | statisch sponsorlogo |
+| — logo (`Go`) | `Sponsor - GO Customs` | statisch sponsorlogo |
+| — slideshow (`Sponsors`/`Image Slideshow`) | `Sponsor slideshow` | roterende sponsorafbeelding (Mokum/GO) — in de groep |
+| camera (`Tafel N`) | `Camera Tafel N` | de tafelcamera (achtergrond) |
+
+> **Bestaande bronnen verschillen per instantie — let op bij het toepassen:**
+> - De bron die nu `Sponsors` heet (o.a. Tafel 1) is eigenlijk de **slideshow** →
+>   hernoem naar `Sponsor slideshow`, maak dan een **nieuwe groep** `Sponsors` en
+>   sleep de logo's + slideshow erin.
+> - **Tafel 16 mist `Scoreboard`** (`score`) → toevoegen (browser-source; kopieer de
+>   URL/instellingen van een tafel die 'm wél heeft — de URL is vermoedelijk
+>   per-tafel).
+> - Elke instantie moet uiteindelijk **dezelfde set + dezelfde namen** hebben.
 
 **Overig gelijk:** obs-websocket aan (eigen poort 4455/4456/4457/4458 + wachtwoord),
 stream key = de herbruikbare liveStream van díe tafel, zelfde output (bijv. 1080p
 ~5000 kbps).
 
-> **Dashboard-schakelaars (voorstel):** `Sponsors`, `Sponsor slideshow`,
-> `Scorebord`, `Scores andere tafels`, `Cuescore logo` — elk los aan/uit. De
-> `Camera` staat altijd aan (geen schakelaar). Ik generaliseer daarvoor het
-> overlay-model: `config/tables.json` bevat de lijst overlaybronnen en het
-> planning-record `overlays` wordt een map `{ naam: aan/uit }`. Zo kan elke
-> overlay vanuit het dashboard geschakeld worden zonder hardcoding.
+> **Dashboard-schakelaars:** `Sponsors` (hele groep), `Scoreboard`,
+> `Scoreboard other tables`, `Cuescore logo` — elk los aan/uit. `Camera` staat
+> altijd aan (geen schakelaar). Ik generaliseer het overlay-model:
+> `config/tables.json` bevat de lijst overlaybronnen en het planning-record
+> `overlays` wordt een map `{ naam: aan/uit }` — zo is elke overlay vanuit het
+> dashboard te schakelen zonder hardcoding.
 
 ## Aanbevolen structuur & volgorde in de Sources-lijst
 In OBS bepaalt de volgorde de **z-volgorde**: **bovenaan = bovenop**, onderaan =
@@ -48,16 +60,16 @@ sponsorlogo's **in de `Sponsors`-groep** (nesten) — dan is de lijst kort en
 toggelt één schakelaar alle logo's tegelijk.
 
 ```
-Scène "Tafel N"
-├─ Scorebord                (eigen tafel, onder)
-├─ Scores andere tafels     (rechtsboven)
-├─ Cuescore logo            (zeshoek op de tafel)
-├─ Sponsors   [groep]       ← agent-schakelaar "Sponsors"
+Scène (Tafel N)
+├─ Scoreboard                (deze tafel; "Next match will start shortly" als idle)
+├─ Scoreboard other tables   (andere tafels, rechtsboven)
+├─ Cuescore logo             (zeshoek op de tafel)
+├─ Sponsors   [groep]        ← dashboard-schakelaar
 │   ├─ Sponsor - Buffalo
 │   ├─ Sponsor - Kamui
-│   └─ Sponsor - GO Customs
-├─ Sponsor slideshow        (roterende sponsors)
-└─ Camera Tafel N           (achtergrond, onderaan — enige per-tafel-naam)
+│   ├─ Sponsor - GO Customs
+│   └─ Sponsor slideshow     (roterend Mokum/GO)
+└─ Camera Tafel N            (achtergrond, onderaan)
 ```
 
 **Tip:** noem de bronnen precies zoals ze straks in het dashboard heten
