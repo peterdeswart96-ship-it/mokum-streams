@@ -22,6 +22,11 @@ test('isTableBusy herkent een bezette tafel in de dagstore', () => {
   assert.strictEqual(isTableBusy({}, 1), false);
 });
 
+test('isTableBusy: een gestopte entry geeft de tafel weer vrij', () => {
+  const store = { '1': { videoId: 'v', stopped: true } };
+  assert.strictEqual(isTableBusy(store, 1), false);
+});
+
 test('startCommandsFor levert startStream + overlays op de gewenste stand', () => {
   const cmds = startCommandsFor({ overlays: { sponsors: true, scoreboard: false } }, 3);
   assert.deepStrictEqual(cmds, [

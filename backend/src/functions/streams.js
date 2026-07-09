@@ -93,6 +93,15 @@ app.http('adminStreamStop', {
     const cmd = { id: crypto.randomUUID(), type: 'stopStream', tableNumber: tafelNr, createdAt: new Date().toISOString() };
     await writeJson('commands.json', enqueue(commands, cmd));
 
+    // Markeer de dag-entry als gestopt zodat de camera weer vrij is voor een nieuwe start.
+    const { datum } = zaalDelen(new Date());
+    const broadcastsPad = `broadcasts/${datum}.json`;
+    const store = (await readJson(broadcastsPad, {})) || {};
+    if (store[String(tafelNr)]) {
+      store[String(tafelNr)].stopped = true;
+      await writeJson(broadcastsPad, store);
+    }
+
     return json(200, { command: cmd });
   },
 });

@@ -33,10 +33,12 @@ function enqueue(commands, nieuwe) {
   return [...(commands || []), ...lijst];
 }
 
-// Is een tafel vandaag al bezet? (er staat al een broadcast in de dagstore)
+// Is een tafel vandaag al bezet? Een entry telt alleen als bezet zolang 'ie niet
+// gestopt is — een gestopte/afgelopen stream geeft de camera weer vrij.
 function isTableBusy(broadcastsStore, tableNumber) {
   const s = broadcastsStore || {};
-  return !!(s[String(tableNumber)] || s[tableNumber]);
+  const entry = s[String(tableNumber)] || s[tableNumber];
+  return !!(entry && !entry.stopped);
 }
 
 module.exports = { GELDIGE_TYPES, OVERLAY_BRON, startCommandsFor, removeProcessed, enqueue, isTableBusy };
