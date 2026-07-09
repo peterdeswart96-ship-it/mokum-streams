@@ -42,6 +42,26 @@ Namen in het **Engels** (afgesproken 2026-07-09); het **tafel-token blijft
 >   per-tafel).
 > - Elke instantie moet uiteindelijk **dezelfde set + dezelfde namen** hebben.
 
+### Scoreboard-bron (browser-source) — URL per tafel
+De `Scoreboard` is een **Browser-source** naar het Cuescore-overlay-tool, met de
+**Cuescore tableId** in de URL. Instellingen: **1280×720**, Custom CSS
+`body { background-color: rgba(0,0,0,0); margin: 0px auto; overflow: hidden; }`.
+
+| Tafel | Cuescore tableId | Scoreboard-URL |
+|---|---|---|
+| 1 | 61403749 | `https://pixelgrid.github.io/miscuescore/?t=61403749` |
+| 3 | 61403764 | `https://pixelgrid.github.io/miscuescore/?t=61403764` |
+| 15 | 61403800 | `https://pixelgrid.github.io/miscuescore/?t=61403800` |
+| 16 | 61403803 | `https://pixelgrid.github.io/miscuescore/?t=61403803` |
+
+- **Tafel 16 toevoegen:** `+` → *Browser* → naam `Scoreboard` → URL
+  `…?t=61403803`, 1280×720, plak de Custom CSS.
+- **Check de andere instanties:** elke `Scoreboard` moet naar **zijn eigen**
+  tafel-id wijzen (niet die van een andere tafel).
+- De `Scoreboard other tables` (voorheen `cs score`) gebruikt vermoedelijk een
+  andere URL (org-/toernooibreed) — stuur die Properties ook even door zodat we
+  'm kennen.
+
 **Overig gelijk:** obs-websocket aan (eigen poort 4455/4456/4457/4458 + wachtwoord),
 stream key = de herbruikbare liveStream van díe tafel, zelfde output (bijv. 1080p
 ~5000 kbps).
