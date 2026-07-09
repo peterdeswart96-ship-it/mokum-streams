@@ -6,11 +6,12 @@ en makkelijker te onderhouden. Doen **vóór** de eerste test/uitrol, in overleg
 met Nick.
 
 > **Status (2026-07-09): bronnen hernoemd + gestructureerd op alle 4 instanties.**
-> Elke instantie heeft nu: `Scoreboard`, `Scores other tables`, `Cuescore logo`,
-> groep `Sponsors` (met `Sponsor - Buffalo/Kamui/GO Customs` + `Sponsor slideshow`),
+> Doelstructuur per instantie: `Scoreboard`, `Scores other tables`, `Cuescore logo`,
+> `Sponsor slideshow` (alle sponsors roterend — logo's/groep vervallen, besluit 09-07),
 > `Camera Tafel N` (onderaan). Tafel 16 kreeg het ontbrekende `Scoreboard` erbij.
-> **Nog te doen:** profiel/scene-collection hernoemen naar `Tafel N`, obs-websocket
-> aanzetten (poort + wachtwoord per instantie), optioneel kleurcodering.
+> **Nog te doen:** sponsors bundelen in de slideshow (logo's/groep eruit),
+> profiel/scene-collection hernoemen naar `Tafel N`, obs-websocket aanzetten
+> (poort + wachtwoord per instantie), optioneel kleurcodering.
 
 ## Waarom standaardiseren
 - **Eén set bronnamen** → de agent gebruikt overal dezelfde namen; onze
@@ -33,21 +34,19 @@ Namen in het **Engels** (afgesproken 2026-07-09); het **tafel-token blijft
 | eigen scorebord (`score`) | `Scoreboard` | scorebord van **deze** tafel (onder); toont "Next match will start shortly" als er geen wedstrijd loopt |
 | andere tafels (`cs score`) | `Scores other tables` | roterende scores van **andere** tafels uit het toernooi (rechtsboven); leeg zonder toernooi |
 | Cuescore-logo (`Modern`) | `Cuescore logo` | het Cuescore-logo (zeshoek op de tafel) |
-| sponsoring | `Sponsors` | **groep** met alle sponsoring — één dashboard-schakelaar |
-| — logo (`Buffalo`) | `Sponsor - Buffalo` | statisch sponsorlogo (in de groep) |
-| — logo (`Kamui`) | `Sponsor - Kamui` | statisch sponsorlogo |
-| — logo (`Go`) | `Sponsor - GO Customs` | statisch sponsorlogo |
-| — slideshow (`Sponsors`/`Image Slideshow`) | `Sponsor slideshow` | roterende sponsorafbeelding (Mokum/GO) — in de groep |
+| sponsoring | `Sponsor slideshow` | **ALLE sponsors roterend** in één plek (Image Slide Show). Statische hoeklogo's (`Buffalo`/`Kamui`/`GO Customs`) **vervallen** — rustiger beeld (besluit 09-07). Dashboard-schakelaar heet "Sponsors". |
 | camera (`Tafel N`) | `Camera Tafel N` | de tafelcamera (achtergrond) |
 
-> **Bestaande bronnen verschillen per instantie — let op bij het toepassen:**
-> - De bron die nu `Sponsors` heet (o.a. Tafel 1) is eigenlijk de **slideshow** →
->   hernoem naar `Sponsor slideshow`, maak dan een **nieuwe groep** `Sponsors` en
->   sleep de logo's + slideshow erin.
-> - **Tafel 16 mist `Scoreboard`** (`score`) → toevoegen (browser-source; kopieer de
->   URL/instellingen van een tafel die 'm wél heeft — de URL is vermoedelijk
->   per-tafel).
-> - Elke instantie moet uiteindelijk **dezelfde set + dezelfde namen** hebben.
+> **Sponsor-opzet vereenvoudigd (besluit 09-07):** alle sponsors in één
+> `Sponsor slideshow`, statische hoeklogo's + de `Sponsors`-groep vervallen.
+> Per instantie:
+> - Voeg **alle** sponsorafbeeldingen toe aan `Sponsor slideshow` (Properties →
+>   afbeeldingenlijst) — dezelfde set op alle 4. Noteer eerst de bestandspaden van
+>   de logo's `Sponsor - Buffalo/Kamui/GO Customs` (hun Properties) om te hergebruiken.
+> - **Verwijder** de statische `Sponsor - Buffalo`, `- Kamui`, `- GO Customs`.
+> - **Ontgroep** `Sponsors` (rechtsklik groep → *Ungroup*) — er blijft dan alleen
+>   `Sponsor slideshow` over.
+> Elke instantie moet uiteindelijk **dezelfde set + dezelfde namen** hebben.
 
 ### Scoreboard-bron (browser-source) — URL per tafel
 De `Scoreboard` is een **Browser-source** naar het Cuescore-overlay-tool, met de
@@ -73,29 +72,24 @@ De `Scoreboard` is een **Browser-source** naar het Cuescore-overlay-tool, met de
 stream key = de herbruikbare liveStream van díe tafel, zelfde output (bijv. 1080p
 ~5000 kbps).
 
-> **Dashboard-schakelaars:** `Sponsors` (hele groep), `Scoreboard`,
-> `Scores other tables`, `Cuescore logo` — elk los aan/uit. `Camera` staat
-> altijd aan (geen schakelaar). Ik generaliseer het overlay-model:
+> **Dashboard-schakelaars:** `Sponsors` (= toggelt `Sponsor slideshow`),
+> `Scoreboard`, `Scores other tables`, `Cuescore logo` — elk los aan/uit.
+> `Camera` staat altijd aan (geen schakelaar). Ik generaliseer het overlay-model:
 > `config/tables.json` bevat de lijst overlaybronnen en het planning-record
 > `overlays` wordt een map `{ naam: aan/uit }` — zo is elke overlay vanuit het
 > dashboard te schakelen zonder hardcoding.
 
 ## Aanbevolen structuur & volgorde in de Sources-lijst
 In OBS bepaalt de volgorde de **z-volgorde**: **bovenaan = bovenop**, onderaan =
-achtergrond. Zet dus de camera onderaan en de overlays erboven. Stop de
-sponsorlogo's **in de `Sponsors`-groep** (nesten) — dan is de lijst kort en
-toggelt één schakelaar alle logo's tegelijk.
+achtergrond. Camera onderaan, overlays erboven. Sinds besluit 09-07 zit **alle
+sponsoring in één `Sponsor slideshow`** (geen aparte logo's/groep meer):
 
 ```
 Scène (Tafel N)
 ├─ Scoreboard                (deze tafel; "Next match will start shortly" als idle)
-├─ Scores other tables   (andere tafels, rechtsboven)
+├─ Scores other tables       (andere tafels, rechtsboven)
 ├─ Cuescore logo             (zeshoek op de tafel)
-├─ Sponsors   [groep]        ← dashboard-schakelaar
-│   ├─ Sponsor - Buffalo
-│   ├─ Sponsor - Kamui
-│   ├─ Sponsor - GO Customs
-│   └─ Sponsor slideshow     (roterend Mokum/GO)
+├─ Sponsor slideshow         (ALLE sponsors roterend — dashboard-schakelaar "Sponsors")
 └─ Camera Tafel N            (achtergrond, onderaan)
 ```
 
@@ -110,7 +104,7 @@ instanties **dezelfde kleuren** → de lijst is meteen scanbaar en uniform. Voor
 |---|---|---|
 | Scoreborden | `Scoreboard`, `Scores other tables` | blauw |
 | Logo | `Cuescore logo` | paars |
-| Sponsoring | `Sponsors` (groep) + logo's + slideshow | geel/oranje |
+| Sponsoring | `Sponsor slideshow` | geel/oranje |
 | Camera | `Camera Tafel N` | groen |
 
 > Kleur is puur visueel in OBS (geen invloed op de stream of de agent) — maar wel
