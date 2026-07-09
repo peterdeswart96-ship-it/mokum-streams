@@ -113,6 +113,18 @@ De plaatsing verschilt nu per instantie. Maak 'm identiek:
   browser-URL (`?t=61403800` voor tafel 15) + *Fit to screen* als 'ie buiten beeld
   staat.
 
+**Layout-standaard (toegepast 2026-07-09, referentie = Tafel 1):**
+
+| Overlay | Transform |
+|---|---|
+| `Scoreboard` | **Fit to screen** (Ctrl+F) — vult beeld, webpagina plaatst de stand |
+| `Scores other tables` | **Fit to screen** (Ctrl+F) |
+| `Cuescore logo` | **Fit to screen** — logo staat gecentreerd |
+| `Sponsor slideshow` | **Edit Transform**: Position `0,0` • Size `486×273` • Rotation `0` • Alignment linksboven • Crop 0 |
+| `Camera Tafel N` | **Fit to screen** (achtergrond) |
+
+> Slotje open om te transformeren, daarna weer dicht (voorkomt per ongeluk verslepen).
+
 ## Kleurcodering (optioneel, aanrader)
 Rechtsklik een bron → **Set Colour** om ze per categorie te kleuren. Op alle 4 de
 instanties **dezelfde kleuren** → de lijst is meteen scanbaar en uniform. Voorstel:
