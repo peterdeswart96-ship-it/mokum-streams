@@ -98,6 +98,11 @@ async function main() {
       const { commands } = await api('/api/agent/commands', 'GET', token);
       const done = [];
       for (const cmd of commands) {
+        if (!TABLES[cmd.tableNumber]) {
+          console.log(`[cmd] tafel ${cmd.tableNumber} overgeslagen (niet beheerd door deze agent)`);
+          done.push(cmd.id); // bevestigen → niet eeuwig herproberen
+          continue;
+        }
         try {
           const res = await execute(cmd, password);
           console.log(`[cmd] tafel ${cmd.tableNumber} ${cmd.type} -> ${res}`);

@@ -1,7 +1,7 @@
 const { app } = require('@azure/functions');
 const { readJson, writeJson } = require('../storage/blob');
 const { zaalDelen } = require('../schedule/schedule');
-const { enqueue, isTableBusy } = require('../agent/commandQueue');
+const { enqueue, isTableBusy, startCommandsFor, OVERLAY_BRON } = require('../agent/commandQueue');
 const { buildBroadcastTitle, createBroadcast, bindBroadcast } = require('../youtube/broadcasts');
 const { isAdmin } = require('../admin/auth');
 
@@ -68,11 +68,48 @@ app.http('adminStreamStart', {
     };
     await writeJson(broadcastsPad, store);
 
+    // startStream + setOverlay (op basis van de meegegeven overlays; standaard aan).
     const commands = (await readJson('commands.json', [])) || [];
-    const cmd = { id: crypto.randomUUID(), type: 'startStream', tableNumber: tafelNr, createdAt: start };
-    await writeJson('commands.json', enqueue(commands, cmd));
+    const nieuwe = startCommandsFor({ overlays: body.overlays }, tafelNr).map((c) => ({
+      id: crypto.randomUUID(),
+      createdAt: start,
+      ...c,
+    }));
+    await writeJson('commands.json', enqueue(commands, nieuwe));
 
-    return json(200, { table: store[String(tafelNr)], command: cmd });
+    return json(200, { table: store[String(tafelNr)], commands: nieuwe });
+  },
+});
+
+// POST /api/manage/streams/overlay — overlay(s) live aan/uit op een lopende stream.
+// body { tableNumber, sponsors?: bool, scoreboard?: bool }
+app.http('adminStreamOverlay', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'manage/streams/overlay',
+  handler: async (request) => {
+    if (!isAdmin(request)) return json(401, { error: 'niet geautoriseerd' });
+    const body = await leesBody(request);
+    if (!body) return json(400, { error: 'ongeldige of lege JSON' });
+
+    const tafelNr = Number(body.tableNumber);
+    if (!Number.isInteger(tafelNr)) return json(400, { error: 'tableNumber (geheel getal) is verplicht' });
+
+    const now = new Date().toISOString();
+    const cmds = [];
+    if (typeof body.sponsors === 'boolean') {
+      cmds.push({ type: 'setOverlay', tableNumber: tafelNr, sourceName: OVERLAY_BRON.sponsors, enabled: body.sponsors });
+    }
+    if (typeof body.scoreboard === 'boolean') {
+      cmds.push({ type: 'setOverlay', tableNumber: tafelNr, sourceName: OVERLAY_BRON.scoreboard, enabled: body.scoreboard });
+    }
+    if (!cmds.length) return json(400, { error: 'geef sponsors en/of scoreboard (boolean) op' });
+
+    const withMeta = cmds.map((c) => ({ id: crypto.randomUUID(), createdAt: now, ...c }));
+    const commands = (await readJson('commands.json', [])) || [];
+    await writeJson('commands.json', enqueue(commands, withMeta));
+
+    return json(200, { commands: withMeta });
   },
 });
 

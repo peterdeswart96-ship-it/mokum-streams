@@ -39,8 +39,9 @@ GET  /api/manage/planning?days=14    -> geplande toernooien (Cuescore-import + i
 POST /api/manage/planning/{id}       -> instellingen van één toernooi wijzigen
 GET  /api/manage/defaults            -> standaard-instellingen (één set, zie hieronder)
 POST /api/manage/defaults            -> standaard-instellingen wijzigen
-POST /api/manage/streams/start       -> body: { "tableNumber": 15, "title"?: "...", "privacy"?: "public|unlisted|private" } (ad-hoc, vrije camera)
+POST /api/manage/streams/start       -> body: { "tableNumber": 15, "title"?: "...", "privacy"?: "public|unlisted|private", "overlays"?: { "sponsors": true, "scoreboard": true } } (ad-hoc, vrije camera; enqueuet startStream + setOverlay)
 POST /api/manage/streams/stop        -> body: { "tableNumber": 15 }
+POST /api/manage/streams/overlay     -> body: { "tableNumber": 15, "sponsors"?: bool, "scoreboard"?: bool } (overlay(s) live aan/uit op een lopende stream; enqueuet setOverlay per opgegeven sleutel)
 POST /api/manage/setup/streams       -> eenmalig: herbruikbare liveStream per tafel (idempotent) → schrijft config/tables.json; body (optioneel) { "cameras": [1,3,15,16] }
 
 Tafelconfig (GET /api/manage/config) — array:
@@ -202,3 +203,9 @@ Body:
   wijzigt (`config`/`planning`/`planning/{id}`/`defaults`/`streams/start`/`streams/stop`/
   `setup/streams`); payloads, functienamen en de interne `isAdmin`-auth blijven gelijk.
   Frontend (`frontend/src/api.js`) meegewijzigd.
+- 2026-07-09: v0.8 — dashboard-bediening. `POST /api/manage/streams/start` accepteert nu
+  optioneel `overlays` ({sponsors, scoreboard}) en enqueuet naast `startStream` ook
+  `setOverlay`-commando's (via `startCommandsFor`). Nieuw: `POST /api/manage/streams/overlay`
+  ({tableNumber, sponsors?, scoreboard?}) om overlays **live** op een lopende stream aan/uit
+  te zetten. Reden: dashboard-bedienpaneel (start-wizard met YouTube-titel/privacy/overlays +
+  losse overlay-toggles). Auth blijft placeholder Bearer ADMIN_TOKEN (Entra volgt fase 3).
