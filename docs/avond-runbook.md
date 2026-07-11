@@ -1,74 +1,67 @@
-# Avond-runbook — na de toernooien (11-07 e.v.)
+# Avond-runbook — uitrol na de toernooien
 
-Stappenplan voor als de streams vrij zijn: backend veilig herstarten, kwaliteit
-gelijktrekken, de echte agent op alle 4 tafels, en de acceptatietest (#11). Doe dit
-**buiten toernooitijd** en in overleg met Nick.
+Afvinkbare checklist voor als de streams vrij zijn. Doe dit **buiten toernooitijd** en
+in overleg met Nick. Bijgewerkt **2026-07-11 (avond)**.
 
-## 0. Uitgangspunt
-- De Function App staat **gestopt** (om interferentie tijdens de toernooien te
-  voorkomen). De **live app draait nog de oude code**; de nieuwe code (armed-schakelaar,
-  stopped-fix, agent-robuustheid) staat op `develop` maar is **nog niet gedeployed**.
-- `AUTOMATION_ARMED` staat straks default `false` → de timers doen niets tenzij we 't
-  bewust aanzetten. Handmatige bediening (dashboard) werkt altijd.
+## Al gedaan vandaag ✅
+- Kwaliteit **1080p60 / NVENC / 9000 kbps / Normale latentie** op **alle 4 tafels** (#16 opgelost).
+- **Officiële Cuescore-overlay** (Nederlands, spelersfoto's) op alle 4 + sponsors rechtsboven uitgelijnd.
+- Backend + frontend **één keer gedeployed**; dashboard live op mokum-streams.pdscloud.nl.
+- App draait, timers **uit** (`AzureWebJobs.*.Disabled=true`) + `AUTOMATION_ARMED=false` → slapend.
 
-## 1. Backend VEILIG herstarten + deployen
-> Risico: als je de app "gewoon" start, draait de OUDE code en maken de timers
-> opnieuw broadcasts aan voor geïmporteerde toernooien. Daarom eerst de timer-Functions
-> uitzetten, dán starten, dán de nieuwe code deployen.
+## Nog te doen vanavond
 
-```powershell
-$app="mokum-streams-func"; $rg="rg-mokum-streams"
-# 1a. Timer-Functions tijdelijk uitzetten (host-niveau, los van de code)
-az functionapp config appsettings set -n $app -g $rg --settings `
-  AzureWebJobs.createBroadcasts.Disabled=true `
-  AzureWebJobs.checkStops.Disabled=true `
-  AUTOMATION_ARMED=false
-# 1b. App starten (timers staan uit → veilig)
-az functionapp start -n $app -g $rg
-# 1c. Nieuwe code deployen
-cd backend; func azure functionapp publish $app --javascript
-# 1d. Health check
-Invoke-RestMethod "https://$app.azurewebsites.net/api/health"
-# 1e. Timers weer inschakelen (ze zijn nu gated door AUTOMATION_ARMED=false)
-az functionapp config appsettings set -n $app -g $rg --settings `
-  AzureWebJobs.createBroadcasts.Disabled=false `
-  AzureWebJobs.checkStops.Disabled=false
-```
-Nu draait de nieuwe code, timers **slapend** (armed=false). Dashboard/ad-hoc werkt.
+### 1. Her-deploy (nieuwe code sinds vanmiddag: v0.11 break-overlays + rotatie)
+- [ ] **Backend** (app draait al, timers slapend → simpel opnieuw publishen):
+  ```powershell
+  cd backend; func azure functionapp publish mokum-streams-func
+  Invoke-RestMethod "https://mokum-streams-func.azurewebsites.net/api/health"
+  ```
+- [ ] **Frontend** → merge `develop`→`main` (jij pusht; triggert Pages):
+  ```powershell
+  git checkout main; git merge --ff-only develop; git push origin main; git checkout develop
+  ```
 
-## 2. Streamkwaliteit gelijktrekken (issue #16) — alle 4 tafels
-Per OBS-instantie (zie #16 voor de definitieve config):
-- Video → 1920×1080, **60 fps**
-- Output → bitrate **9000**, NVENC H.264, preset **P6**, Psycho Visual + Look-Ahead aan, CBR, keyframe 2s
-- Camerabron → Scale Filtering **Lanczos**
-- **Load-test:** draai alle 4 tegelijk, check dropped frames / "Encoding overloaded".
-  Rood? → terug naar **1080p30** of preset P4. Liever stabiel 1080p30 dan haperend 1080p60.
+### 2. Kwaliteit-load-test (config staat al goed, alleen stabiliteit checken)
+- [ ] Draai **alle 4 OBS tegelijk** op 1080p60 en kijk naar **dropped frames / "Encoding overloaded"**.
+- [ ] Rood? → één of meer tafels terug naar **1080p30** of preset **P4**. Liever stabiel dan haperend.
+- [ ] Let ook op CPU/GPU met alles aan (relevant voor latere NDI-PiP, zie `break-productie.md`).
 
-## 3. Stream keys per tafel controleren
-Elke OBS-instantie moet de **seeded stream key** van die tafel gebruiken (zodat de
-backend-broadcasts correct binden). In YouTube Studio → *Manage stream keys* staan
-`Mokum Streams — Tafel 1/3/15/16`. Zet de juiste per OBS-instantie (Settings → Stream).
-`config/tables.json` bevat de bijbehorende `streamId`s (via de seed).
+### 3. OBS-opruiming + nieuwe bronnen (per instantie, alle 4)
+- [ ] **Hernoem** `Scoreboard Cuescore` → **`Scoreboard`** en **verwijder** de oude pixelgrid-`Scoreboard`.
+      *(Anders schakelt de dashboardknop "Scorebord" de verkeerde bron — zie obs-standaard.)*
+- [ ] Voeg bron **`Jumbotron`** toe: *Browser*, `https://cuescore.com/venue/table/jumbotron/?venueId=60451687&branchId=1`, 1920×1080, **verborgen**, bovenaan.
+- [ ] Voeg bron **`Pauzemelding`** toe: *Text (GDI+)*, tekst bijv. "We wachten op de volgende wedstrijd…", **verborgen**, bovenaan.
+- [ ] Zet **`Scores other tables`** op de **bovenbalk-plek** (voor de rotatie-ticker) — bron mag verborgen blijven, de agent-rotatie toggelt 'm.
+- [ ] **obs-websocket** aan per instantie (Tools → WebSocket Server Settings → Enable, poort 4455/4456/4457/4458 + wachtwoord noteren) indien nog niet gedaan.
 
-## 4. Echte agent op de OBS-pc (alle 4 tafels)
-De echte agent (`agent/`) i.p.v. het testscriptje. Op de OBS-pc (heeft Node):
-1. Code erheen: `git clone` van de repo, of de `agent/`-map kopiëren.
-2. `cd agent; npm ci`
-3. `Copy-Item agent-config.example.json agent-config.json` (ports 4455–4458 staan al goed; sceneName null = huidige programmascène).
-4. Secrets via env (niet in het bestand):
-   - `$env:AGENT_TOKEN = "<agent-token>"`
-   - `$env:OBS_PASSWORD_TAFEL_1 = "..."` (idem 3/15/16)
-5. `npm start` → "agent gestart — 4 tafel(s), poll elke 3000ms".
-6. Later als Windows-service (NSSM/node-windows) — zie `agent/README.md`.
+### 4. Stream keys per tafel
+- [ ] Elke OBS op de **`Mokum Streams — Tafel N`**-key zetten (Settings → Stream) zodat backend-broadcasts correct binden.
+- [ ] Nicks **dubbele** handmatige `Tafel N`-keys opruimen (in overleg).
 
-## 5. Testen
-- **Ad-hoc (bewezen):** dashboard → + Nieuwe stream → tafel kiezen → unlisted → Start.
-  Agent start OBS → YouTube live. Overlays togglen. Stop. (Werkt al; nu voor 4 tafels.)
-- **#11 acceptatietest (volautomatisch, gepland):** zet `AUTOMATION_ARMED=true`, zorg
-  voor een **testtoernooi in Cuescore** (dummy-spelers) met een starttijd binnen het
-  pre-roll-venster, en kijk of de timer vanzelf de broadcast maakt + de agent start,
-  en na afloop stopt. **Zet `AUTOMATION_ARMED` daarna weer op `false`** tot productie.
+### 5. Echte agent op de OBS-pc (alle 4 tafels)
+- [ ] Code ophalen: `git clone` (of `git pull` als de repo er al staat) — bevat alle code van vandaag.
+- [ ] `cd agent; npm ci`
+- [ ] `Copy-Item agent-config.example.json agent-config.json` (poorten 4455–4458 staan goed; `rotations` staat al ingevuld: `scoresOtherTables` elke 180s, 20s).
+- [ ] Secrets via env (niet in het bestand):
+  ```powershell
+  $env:AGENT_TOKEN = "<agent-token>"
+  $env:OBS_PASSWORD_TAFEL_1 = "..."   # idem 3/15/16
+  ```
+- [ ] `npm start` → agent pollt de backend, meldt status (dashboard toont dan live kwaliteit + overlay-standen), en draait de rotatie.
+- [ ] Later als **Windows-service** (NSSM/node-windows) — zie `agent/README.md`.
 
-## 6. Opruimen
-- Oude test-/auto-broadcasts op het kanaal (unlisted/leeg) verwijderen via YouTube Studio.
-- Deze sessie samenvatten in de wiki-log.
+### 6. Verifiëren
+- [ ] **Dashboard**: tafels tonen live status + **1080p60** + overlay-standen; toggles werken (incl. Jumbotron/Pauzemelding).
+- [ ] **Rotatie**: `Scores other tables` verschijnt periodiek in de bovenbalk.
+- [ ] **Ad-hoc start**: dashboard → + Nieuwe stream → unlisted → Start → agent start OBS → YouTube live → Stop.
+- [ ] **#11 acceptatietest** (volautomatisch): `AUTOMATION_ARMED=true`, een **testtoernooi in Cuescore** (dummy-spelers, starttijd binnen pre-roll-venster) → timer maakt broadcast + agent start → na afloop stop. **Zet daarna `AUTOMATION_ARMED` weer op `false`.**
+
+### 7. Opruimen
+- [ ] Oude test-/auto-broadcasts (unlisted/leeg) verwijderen via YouTube Studio.
+- [ ] Sessie samenvatten in de wiki-log (`/wiki-update`).
+
+## Belangrijke waarden
+- Function App: `mokum-streams-func` · resource group `rg-mokum-streams`
+- Cuescore venueId `60451687` (branchId 1) · tafel-id's 1=61403749, 3=61403764, 15=61403800, 16=61403803
+- Timers blijven **gated door `AUTOMATION_ARMED`** — vóór scherpzetten de planning nalopen welke toernooien echt automatisch mogen.
