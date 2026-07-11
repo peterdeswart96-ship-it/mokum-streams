@@ -4,6 +4,7 @@ const { zaalDelen } = require('../schedule/schedule');
 const { getTournament } = require('../cuescore');
 const { enqueue } = require('../agent/commandQueue');
 const { shouldStop } = require('../planning/stop');
+const { isArmed } = require('../config/automation');
 
 // Timer-Function: bewaakt lopende broadcasts en stopt ze automatisch wanneer het
 // toernooi klaar is (Cuescore `Finished`), de league-avond op die tafel voorbij is,
@@ -13,6 +14,10 @@ const { shouldStop } = require('../planning/stop');
 const CRON_ELKE_5_MIN = '0 */5 * * * *';
 
 async function verwerk(now, context) {
+  if (!isArmed()) {
+    context.log('[checkStops] AUTOMATION_ARMED != true → slapend; geen automatische stops.');
+    return;
+  }
   const { datum } = zaalDelen(now);
   const pad = `broadcasts/${datum}.json`;
   const store = (await readJson(pad, {})) || {};

@@ -58,12 +58,24 @@ az functionapp config appsettings set -n $app -g $rg --settings `
   CUESCORE_ORG_STUB=mokumpooldarts `
   STORAGE_CONTAINER=mokum-streams `
   ADMIN_TOKEN=<sterk-token> `
-  AGENT_TOKEN=<sterk-token>
+  AGENT_TOKEN=<sterk-token> `
+  AUTOMATION_ARMED=false
 # AzureWebJobsStorage wordt door 'functionapp create' al gezet (wordt ook als
 # STORAGE_CONNECTION-fallback gebruikt door src/storage/blob.js).
 ```
 > De YouTube-OAuth-secrets komen uit Key Vault via de managed identity — géén
 > secrets in app settings of code.
+>
+> **`AUTOMATION_ARMED` (veiligheidsschakelaar):** standaard `false`. Zolang dit niet
+> op `true` staat, doen de timer-Functions **niets** — `createBroadcasts` maakt geen
+> YouTube-broadcasts aan en `checkStops` stopt niets. Geïmporteerde toernooien
+> verschijnen wél in dashboard/schedule. Zet 'm pas op `true` als de agent draait en
+> je écht volautomatisch wilt streamen. Handmatige start/stop via het dashboard
+> (`/api/manage/streams/*`) werkt altijd, los van deze schakelaar.
+> ```powershell
+> az functionapp config appsettings set -n $app -g $rg --settings AUTOMATION_ARMED=true   # scherp
+> az functionapp config appsettings set -n $app -g $rg --settings AUTOMATION_ARMED=false  # slapend
+> ```
 
 ## 4. Backend deployen
 ```powershell

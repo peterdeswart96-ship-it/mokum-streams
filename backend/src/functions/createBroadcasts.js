@@ -6,6 +6,7 @@ const { leagueDueTables } = require('../planning/league');
 const { getTournament } = require('../cuescore');
 const { enqueue, startCommandsFor } = require('../agent/commandQueue');
 const { buildBroadcastTitle, createBroadcast, bindBroadcast } = require('../youtube/broadcasts');
+const { isArmed } = require('../config/automation');
 
 // Timer-Function (#9 + optie 2 + start-automatisering): maakt vooruit de
 // YouTube-broadcasts aan én zet de start-/overlay-commando's voor de agent klaar.
@@ -18,6 +19,10 @@ const { buildBroadcastTitle, createBroadcast, bindBroadcast } = require('../yout
 const CRON_ELKE_5_MIN = '0 */5 * * * *';
 
 async function verwerk(now, context) {
+  if (!isArmed()) {
+    context.log('[createBroadcasts] AUTOMATION_ARMED != true → slapend; geen broadcasts aangemaakt.');
+    return;
+  }
   const tables = (await readJson('config/tables.json', [])) || [];
   const planning = (await readJson('planning.json', [])) || [];
   const tableById = new Map(tables.map((t) => [Number(t.tableNumber), t]));
