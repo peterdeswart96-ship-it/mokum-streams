@@ -18,17 +18,27 @@ Transities o.b.v. de Cuescore-status per tafel:
 - **Fail-safe:** bij een ophaalfout de toestand **niet** wijzigen (voorkomt flapperen bij een
   hapering van Cuescore).
 
-## 🔑 De kern-onbekende: Cuescore live-status per tafel
-We hebben een bron nodig die per **Cuescore-tableId** zegt: *loopt er nu een wedstrijd?*
-(+ welke, + de volgende). Die data zit **precies in de Jumbotron** (alle geplande + lopende
-wedstrijden per tafel).
+## ✅ Cuescore live-status per tafel — bron gevonden (11-07)
+Achterhaald via F12→Network op de Jumbotron. De **matchdata** komt uit de tournament-API:
 
-**Actie (blokker #1):** het **data-endpoint** achter de Jumbotron achterhalen:
-open `cuescore.com/venue/table/jumbotron/?venueId=60451687&branchId=1` → **F12 → Network →
-XHR/Fetch** → ververs → zoek de request die de wedstrijd-data teruggeeft → noteer **URL +
-JSON-vorm** (welk veld = tafelnummer, welk veld = status/"playing").
-- Alternatief: de **Cuescore-API** (`api.cuescore.com`, beta) per toernooi/venue — minder
-  gedocumenteerd; endpoint via support@cuescore.com te bevestigen.
+- **`https://api.cuescore.com/tournament/?lang=nl&id=<tournamentId>`** → veld **`matches`**
+  (array). Per match o.a.:
+  - **`matchstatus`** — `"playing"` | `"finished"` | (pending/not started) — **de sleutel**.
+    Ook **`matchstatusCode`** (2 = finished).
+  - **`table`** — object met **`tableId`** → koppelt de match aan een tafel.
+  - `playerA` / `playerB` (naam, land), `scoreA` / `scoreB`, `raceTo`.
+- `https://api.cuescore.com/venue/table/?tableId=<id>` → alleen **tafel-config** (geen stand) —
+  niet nodig voor A.
+- (De Jumbotron gebruikt daarnaast `venue/events/?venueId=&date=` om te weten welke toernooien
+  vandaag lopen.)
+
+**Reuse:** onze **backend importeert de toernooien van vandaag al** (planning). Dus A hoeft
+alleen per **actief toernooi** de `tournament/?id=`-data te halen en de `matches` te scannen:
+zoek per `table.tableId` de match met `matchstatus == "playing"` → SPELEN; anders → PAUZE.
+De **volgende** wedstrijd = de eerstvolgende pending match op die tafel (voor de pauzemelding).
+
+**tableId ↔ tafelnummer** (uit `docs/obs-standaard.md` / `config/tables.json`):
+1=61403749, 3=61403764, 15=61403800, 16=61403803.
 
 ## Architectuurkeuze: waar draait de logica?
 | | Optie 1 — Agent-side | Optie 2 — Backend-side ⭐ |
@@ -64,7 +74,8 @@ en past beter in het brein.
 - **Ad-hoc stream** (dashboard-start zonder Cuescore-koppeling) → auto-pauze uit; handmatig.
 
 ## Gefaseerd bouwen
-1. **Cuescore live-endpoint achterhalen** (blokker — zie boven).
+1. ✅ **Cuescore live-endpoint achterhalen** — gevonden (`tournament/?id=` → `matches` met
+   `matchstatus` + `table.tableId`).
 2. **Backend:** live-status pollen (timer ~30 s) → per tafel `{ matchActief, currentMatch,
    nextMatch }` afleiden + opslaan + via `/api/live` tonen (dashboard: status + volgende).
 3. **Backend:** op **transitie** `setOverlay`-commando's enqueuen (pauzescherm aan/uit),
