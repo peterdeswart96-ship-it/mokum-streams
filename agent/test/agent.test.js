@@ -35,10 +35,30 @@ test('runOnce voert geldige commando uit en bevestigt alleen die', async () => {
     ['start', 1],
     ['overlay', 1, 'cs score', true],
   ]);
-  // c3 was ongeldig → niet bevestigd
-  assert.deepStrictEqual(posted.verwerkteCommandoIds, ['c1', 'c2']);
+  // c3 was ongeldig → gedropt (wél bevestigd, zodat 'ie niet eeuwig herproberd wordt), niet uitgevoerd
+  assert.deepStrictEqual(posted.verwerkteCommandoIds, ['c1', 'c2', 'c3']);
   assert.strictEqual(posted.tables[0].tableNumber, 1);
   assert.strictEqual(posted.tables[0].bitrateKbps, 5000);
+});
+
+test('runOnce slaat een commando voor een niet-beheerde tafel over en bevestigt het', async () => {
+  const pool = fakePool();
+  let posted = null;
+  const backend = {
+    async fetchCommands() {
+      return [
+        { id: 'a1', type: 'startStream', tableNumber: 1 },   // beheerd
+        { id: 'a2', type: 'startStream', tableNumber: 99 },  // niet in config
+      ];
+    },
+    async postStatus(_cfg, body) { posted = body; },
+  };
+  const config = { tables: [{ tableNumber: 1 }], backendUrl: 'x', agentToken: 'y' };
+
+  await runOnce(config, pool, backend, { log() {} });
+
+  assert.deepStrictEqual(pool.calls, [['start', 1]]);                 // 99 niet uitgevoerd
+  assert.deepStrictEqual(posted.verwerkteCommandoIds, ['a1', 'a2']);  // beide bevestigd (skip = ack)
 });
 
 test('runOnce rapporteert een tafel als offline als de status faalt', async () => {

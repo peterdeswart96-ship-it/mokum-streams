@@ -20,18 +20,26 @@ async function voerCommandoUit(pool, cmd) {
 async function runOnce(config, pool, backend, logger = console) {
   const commands = await backend.fetchCommands(config);
 
-  const beheerdeTafels = new Set((config.tables || []).map((t) => t.tableNumber));
+  const beheerdeTafels = new Set((config.tables || []).map((t) => Number(t.tableNumber)));
   const verwerkteCommandoIds = [];
   for (const cmd of commands) {
+    // Ongeldig commando wordt nooit geldig → bevestigen (droppen) i.p.v. eeuwig herproberen.
     try {
       valideerCommando(cmd);
-      // Commando voor een tafel die deze agent niet beheert → bevestigen (skip),
-      // anders blijft 'ie eeuwig in de wachtrij en herproberen we 'm elke tik.
-      if (!beheerdeTafels.has(cmd.tableNumber)) {
-        verwerkteCommandoIds.push(cmd.id);
-        logger.log(`[SKIP] tafel ${cmd.tableNumber} niet in config — commando ${cmd.id} bevestigd`);
-        continue;
-      }
+    } catch (e) {
+      verwerkteCommandoIds.push(cmd && cmd.id);
+      logger.log(`[DROP] ongeldig commando ${cmd && cmd.id}: ${e.message}`);
+      continue;
+    }
+    // Tafel die deze agent niet beheert → ook bevestigen (skip). Number() voorkomt dat
+    // een type-mismatch (string vs number) alle commando's stil zou overslaan.
+    if (!beheerdeTafels.has(Number(cmd.tableNumber))) {
+      verwerkteCommandoIds.push(cmd.id);
+      logger.log(`[SKIP] tafel ${cmd.tableNumber} niet in config — commando ${cmd.id} bevestigd`);
+      continue;
+    }
+    // Uitvoeringsfout (bijv. OBS tijdelijk onbereikbaar) → NIET bevestigen; volgende tik opnieuw.
+    try {
       await voerCommandoUit(pool, cmd);
       verwerkteCommandoIds.push(cmd.id);
       logger.log(`[OK] ${cmd.type} tafel ${cmd.tableNumber}`);
