@@ -175,7 +175,7 @@ De plaatsing verschilt nu per instantie. Maak 'm identiek:
 | `Scoreboard` | **Fit to screen** (Ctrl+F) — vult beeld, webpagina plaatst de stand |
 | `Scores other tables` | **Fit to screen** (Ctrl+F) |
 | `Cuescore logo` | **Fit to screen** — logo staat gecentreerd |
-| `Sponsor slideshow` | **Edit Transform**: Position `1470,147` • Size `427×240` • Rotation `0` • Alignment linksboven • Crop 0 — **rechtsboven** (herzien 11-07: was linksboven `0,0`; overlapte de `Scores other tables`-header + werd links afgesneden) |
+| `Sponsor slideshow` | **Edit Transform**: **Bounds = `Fit`** • Bounds Size `450×260` • **Bounds-alignment rechtsboven** • **Positional alignment rechtsboven** • Position `1905,15` (2e herziening 11-07). Reden: sponsorlogo's hebben verschillende afmetingen; `Fit` + rechtsboven-uitlijning laat elk logo met dezelfde rechter- + bovenlijn plakken. (1e herz.: van linksboven `0,0` → rechtsboven omdat 'ie de header overlapte + links werd afgesneden.) |
 | `Camera Tafel N` | **Fit to screen** (achtergrond) |
 
 > Slotje open om te transformeren, daarna weer dicht (voorkomt per ongeluk verslepen).
