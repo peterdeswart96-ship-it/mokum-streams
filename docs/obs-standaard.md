@@ -74,8 +74,47 @@ De `Scoreboard` is een **Browser-source** naar het Cuescore-overlay-tool, met de
   'm kennen.
 
 **Overig gelijk:** obs-websocket aan (eigen poort 4455/4456/4457/4458 + wachtwoord),
-stream key = de herbruikbare liveStream van díe tafel, zelfde output (bijv. 1080p
-~5000 kbps).
+stream key = de herbruikbare liveStream van díe tafel, zelfde output (zie
+kwaliteit-standaard hieronder).
+
+### Kwaliteit-standaard (bewezen op Tafel 15 + 16, 2026-07-11)
+Aanleiding: Nick merkte dat KNBB-streams scherper waren. Oorzaak was tweeledig:
+uiteenlopende OBS-output per tafel én YouTube-**latentie** die op laag/ultralaag stond
+(dat begrenst YouTube op ~480p). Onderstaande config gaf een scherp 1080p60-beeld.
+
+**OBS → Settings → Output** (Output Mode = **Advanced**), tab **Streaming**:
+| Instelling | Waarde |
+|---|---|
+| Video Encoder | **NVIDIA NVENC H.264** |
+| Rate Control | **CBR** |
+| Bitrate | **9000 Kbps** |
+| Keyframe Interval | **2 s** |
+| Preset | **P6** (of "Quality") |
+| Tuning | **High Quality** |
+| Multipass Mode | **Two Passes (Quarter Res)** |
+| Profile | **high** |
+| Look-ahead / Psycho Visual Tuning | **aan** |
+
+**OBS → Settings → Video:**
+| Instelling | Waarde |
+|---|---|
+| Base (Canvas) Resolution | **1920×1080** |
+| Output (Scaled) Resolution | **1920×1080** |
+| Downscale Filter | **Lanczos** |
+| Common FPS Values | **60** |
+
+**YouTube (per stream):** **Streamlatentie = Normaal** — *niet* Laag/Ultralaag (die
+begrenzen op ~480p). Dit was dé sleutelbevinding. Vergrendeld zolang een broadcast
+loopt; staat op de herbruikbare keys al goed.
+
+> **Bekend restpunt:** audio ontbreekt nog op de streams (YouTube meldt "audio bitrate
+> 0"). Los op te pakken (gaps #17). Niet blokkerend voor beeldkwaliteit.
+
+> **Handmatig weer live na een afgeronde broadcast** (tot de agent dit doet): maak in
+> YouTube Studio → 📅 Manage → **Schedule Stream → Reuse settings** een nieuwe uitzending
+> op de bestaande key, en doe in OBS **Stop → Start Streaming** zodat YouTube de verse
+> verbinding aan de nieuwe broadcast koppelt (anders blijft 'ie op "Preparing stream"
+> hangen). Met **Auto-start = aan** gaat 'ie dan vanzelf live.
 
 > **Dashboard-schakelaars:** `Sponsors` (= toggelt `Sponsor slideshow`),
 > `Scoreboard`, `Scores other tables`, `Cuescore logo` — elk los aan/uit.
@@ -121,7 +160,7 @@ De plaatsing verschilt nu per instantie. Maak 'm identiek:
 | `Scoreboard` | **Fit to screen** (Ctrl+F) — vult beeld, webpagina plaatst de stand |
 | `Scores other tables` | **Fit to screen** (Ctrl+F) |
 | `Cuescore logo` | **Fit to screen** — logo staat gecentreerd |
-| `Sponsor slideshow` | **Edit Transform**: Position `0,0` • Size `486×273` • Rotation `0` • Alignment linksboven • Crop 0 |
+| `Sponsor slideshow` | **Edit Transform**: Position `1470,147` • Size `427×240` • Rotation `0` • Alignment linksboven • Crop 0 — **rechtsboven** (herzien 11-07: was linksboven `0,0`; overlapte de `Scores other tables`-header + werd links afgesneden) |
 | `Camera Tafel N` | **Fit to screen** (achtergrond) |
 
 > Slotje open om te transformeren, daarna weer dicht (voorkomt per ongeluk verslepen).
