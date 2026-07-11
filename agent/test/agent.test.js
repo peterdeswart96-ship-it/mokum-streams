@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { runOnce } = require('../src/agent');
+const { runOnce, rotatieZichtbaar } = require('../src/agent');
 
 // Fake OBS-pool die de aanroepen registreert i.p.v. echt OBS aan te spreken.
 function fakePool() {
@@ -107,4 +107,51 @@ test('runOnce rapporteert een tafel als offline als de status faalt', async () =
   assert.deepStrictEqual(posted.tables, [
     { tableNumber: 3, obsConnected: false, streaming: false, bitrateKbps: 0 },
   ]);
+});
+
+test('rotatieZichtbaar: aan tijdens de eerste forSec, daarna uit tot de volgende cyclus', () => {
+  const r = { key: 'scoresOtherTables', everySec: 180, forSec: 20 };
+  assert.strictEqual(rotatieZichtbaar(r, 0), true);        // begin cyclus
+  assert.strictEqual(rotatieZichtbaar(r, 19_000), true);   // nog binnen de 20s
+  assert.strictEqual(rotatieZichtbaar(r, 20_000), false);  // net erna
+  assert.strictEqual(rotatieZichtbaar(r, 179_000), false); // eind cyclus
+  assert.strictEqual(rotatieZichtbaar(r, 180_000), true);  // volgende cyclus begint
+});
+
+test('rotatieZichtbaar: onvolledige/nul-config → altijd uit', () => {
+  assert.strictEqual(rotatieZichtbaar({ everySec: 0, forSec: 20 }, 5_000), false);
+  assert.strictEqual(rotatieZichtbaar({ everySec: 180 }, 5_000), false);
+  assert.strictEqual(rotatieZichtbaar({}, 5_000), false);
+});
+
+test('runOnce zet een rotatie-overlay aan wanneer die zichtbaar hoort te zijn', async () => {
+  const pool = fakePool();
+  pool.status = async () => ({ obsConnected: true, streaming: true, bitrateKbps: 9000 });
+  pool.overlayStates = async () => ({ scoresOtherTables: false }); // staat nu uit
+  let posted = null;
+  const backend = { async fetchCommands() { return []; }, async postStatus(_c, b) { posted = b; } };
+  const config = {
+    tables: [{ tableNumber: 3 }],
+    overlaySources: { scoresOtherTables: 'Scores other tables' },
+    rotations: [{ key: 'scoresOtherTables', everySec: 180, forSec: 20 }],
+  };
+  await runOnce(config, pool, backend, { log() {} }, 0); // nowMs=0 → binnen forSec → moet aan
+
+  assert.deepStrictEqual(pool.calls, [['overlay', 3, 'Scores other tables', true]]);
+  assert.strictEqual(posted.tables[0].overlays.scoresOtherTables, true); // gerapporteerde stand bijgewerkt
+});
+
+test('runOnce laat een rotatie-overlay met rust als de stand al klopt', async () => {
+  const pool = fakePool();
+  pool.status = async () => ({ obsConnected: true, streaming: true, bitrateKbps: 9000 });
+  pool.overlayStates = async () => ({ scoresOtherTables: false }); // al uit
+  const backend = { async fetchCommands() { return []; }, async postStatus() {} };
+  const config = {
+    tables: [{ tableNumber: 3 }],
+    overlaySources: { scoresOtherTables: 'Scores other tables' },
+    rotations: [{ key: 'scoresOtherTables', everySec: 180, forSec: 20 }],
+  };
+  await runOnce(config, pool, backend, { log() {} }, 50_000); // buiten forSec → wil uit; is al uit
+
+  assert.deepStrictEqual(pool.calls, []); // geen overbodige OBS-call
 });

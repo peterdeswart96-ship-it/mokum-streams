@@ -16,6 +16,16 @@ const DEFAULT_OVERLAY_SOURCES = {
   pauzemelding: 'Pauzemelding',
 };
 
+// Is een periodieke ("rotatie") overlay nu zichtbaar? true gedurende de eerste
+// `forSec` seconden van elke `everySec`-cyclus op de wandklok. Bijv. everySec=180,
+// forSec=20 → elke 3 minuten 20 seconden aan. Pure functie → testbaar.
+function rotatieZichtbaar(rotation, nowMs) {
+  const everySec = Number(rotation && rotation.everySec) || 0;
+  const forSec = Number(rotation && rotation.forSec) || 0;
+  if (everySec <= 0 || forSec <= 0) return false;
+  return Math.floor(nowMs / 1000) % everySec < forSec;
+}
+
 async function voerCommandoUit(pool, cmd) {
   switch (cmd.type) {
     case 'startStream':
@@ -29,7 +39,7 @@ async function voerCommandoUit(pool, cmd) {
   }
 }
 
-async function runOnce(config, pool, backend, logger = console) {
+async function runOnce(config, pool, backend, logger = console, nowMs = Date.now()) {
   const commands = await backend.fetchCommands(config);
 
   const beheerdeTafels = new Set((config.tables || []).map((t) => Number(t.tableNumber)));
@@ -61,20 +71,40 @@ async function runOnce(config, pool, backend, logger = console) {
   }
 
   const overlaySources = config.overlaySources || DEFAULT_OVERLAY_SOURCES;
+  const rotations = config.rotations || [];
   const tables = [];
   for (const t of config.tables) {
     try {
       const base = await pool.status(t.tableNumber);
       // Overlay-standen alleen uitlezen als er gezonden wordt (anders irrelevant + extra calls).
-      let extra = {};
+      let overlays;
       if (base.streaming && typeof pool.overlayStates === 'function') {
         try {
-          extra = { overlays: await pool.overlayStates(t.tableNumber, overlaySources) };
+          overlays = await pool.overlayStates(t.tableNumber, overlaySources);
         } catch (e) {
           logger.log(`[STATUS] overlay-standen tafel ${t.tableNumber} mislukt: ${e.message}`);
         }
       }
-      tables.push({ tableNumber: t.tableNumber, ...base, ...extra });
+      // Periodieke overlays (rotatie): edge-triggered aan/uit zetten o.b.v. de wandklok.
+      // Hergebruikt de zojuist gelezen overlay-standen zodat we alleen bij een wijziging
+      // een OBS-call doen. Alleen zinvol als er gezonden wordt.
+      if (base.streaming && overlays && rotations.length) {
+        for (const r of rotations) {
+          const bron = overlaySources[r.key];
+          if (!bron) continue;
+          const gewenst = rotatieZichtbaar(r, nowMs);
+          if (overlays[r.key] !== gewenst) {
+            try {
+              await pool.setOverlay(t.tableNumber, bron, gewenst);
+              overlays[r.key] = gewenst; // gerapporteerde stand meteen bijwerken
+              logger.log(`[ROTATIE] tafel ${t.tableNumber} ${bron} -> ${gewenst ? 'aan' : 'uit'}`);
+            } catch (e) {
+              logger.log(`[ROTATIE] ${bron} tafel ${t.tableNumber} mislukt: ${e.message}`);
+            }
+          }
+        }
+      }
+      tables.push({ tableNumber: t.tableNumber, ...base, ...(overlays ? { overlays } : {}) });
     } catch (e) {
       tables.push({ tableNumber: t.tableNumber, obsConnected: false, streaming: false, bitrateKbps: 0 });
     }
@@ -99,4 +129,4 @@ function startLoop(config, pool, backend, logger = console) {
   return setInterval(tick, config.pollIntervalMs);
 }
 
-module.exports = { voerCommandoUit, runOnce, startLoop };
+module.exports = { voerCommandoUit, runOnce, startLoop, rotatieZichtbaar };

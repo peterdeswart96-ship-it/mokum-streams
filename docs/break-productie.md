@@ -39,11 +39,24 @@ tafels. Werkt, maar **10-30s vertraging** + meer CPU + minder strak. NDI heeft d
   pauzemelding) op een timer of **tussen wedstrijden** (Cuescore-API weet wanneer een tafel
   idle is). Vergt mogelijk een `setScene`-commando naast het bestaande `setOverlay`.
 
+## Twee gebruikswensen (Nick/Peter, 11-07)
+- **A. Pauzescherm (tussen wedstrijden):** Jumbotron vol beeld + pauzemelding
+  "we wachten op de volgende wedstrijd", van match-einde tot de volgende start.
+  **Trigger = toestand** (loopt er een wedstrijd?) → vergt Cuescore-API-kennis in de agent.
+- **B. Scores-ticker (tijdens spel):** compacte andere-tafels-scores, **periodiek**, in de
+  zwarte balk bovenin. **Trigger = tijd** ("elke N min, X sec") → de rotatie-feature.
+
 ## Bouwvolgorde (voorstel)
-1. ✅/▶ Jumbotron + pauzemelding als dashboard-schakelaars (overlay-model). — *nu*
-2. Pauzemelding **dashboard-bewerkbaar** maken (gehoste overlay die de backend pollt).
-3. **Resource-meting** op de OBS-pc (4 streams + NDI).
-4. **NDI** installeren + per instantie output aan; break-scène met PiP van de andere tafels.
-5. **Agent-break-rotatie** (timer of tussen-wedstrijden) — evt. `setScene`.
+1. ✅ Jumbotron + pauzemelding als dashboard-schakelaars (overlay-model).
+2. ✅ **Rotatie-feature (B)** — agent toont een bron periodiek. Config in `agent-config.json`:
+   `"rotations": [{ "key": "scoresOtherTables", "everySec": 180, "forSec": 20 }]`. De agent
+   zet de bron edge-triggered aan/uit o.b.v. de wandklok (pure `rotatieZichtbaar`).
+   **Nog doen bij uitrol:** `Scores other tables` positioneren op de bovenbalk-plek.
+3. ▶ **A auto-trigger (Cuescore-API)** — agent leest of er een wedstrijd loopt per tafel;
+   zo niet → Jumbotron + pauzemelding aan tot de volgende start. Volgende bouwsteen.
+4. Pauzemelding **dashboard-bewerkbaar** maken (gehoste overlay die de backend pollt).
+5. **Resource-meting** op de OBS-pc (4 streams + NDI).
+6. **NDI** installeren + per instantie output aan; break-scène met PiP van de andere tafels.
+7. **Agent-break-rotatie** volledig (Jumbotron ↔ PiP ↔ melding) — evt. `setScene`.
 
 Zie ook [[cuescore-overlays]] (Jumbotron + tussen-wedstrijden-modus) en `docs/obs-standaard.md`.
