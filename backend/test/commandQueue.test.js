@@ -27,17 +27,20 @@ test('isTableBusy: een gestopte entry geeft de tafel weer vrij', () => {
   assert.strictEqual(isTableBusy(store, 1), false);
 });
 
-test('startCommandsFor levert startStream + overlays op de gewenste stand', () => {
-  const cmds = startCommandsFor({ overlays: { sponsors: true, scoreboard: false } }, 3);
+test('startCommandsFor levert startStream + alle 4 overlays op de gewenste stand', () => {
+  const cmds = startCommandsFor({ overlays: { sponsors: true, scoreboard: false, cuescoreLogo: false } }, 3);
   assert.deepStrictEqual(cmds, [
     { type: 'startStream', tableNumber: 3 },
     { type: 'setOverlay', tableNumber: 3, sourceName: 'Sponsor slideshow', enabled: true },
     { type: 'setOverlay', tableNumber: 3, sourceName: 'Scoreboard', enabled: false },
+    { type: 'setOverlay', tableNumber: 3, sourceName: 'Scores other tables', enabled: true },
+    { type: 'setOverlay', tableNumber: 3, sourceName: 'Cuescore logo', enabled: false },
   ]);
 });
 
 test('startCommandsFor: overlays standaard aan als niet opgegeven', () => {
   const cmds = startCommandsFor({}, 1);
-  assert.strictEqual(cmds[1].enabled, true);
-  assert.strictEqual(cmds[2].enabled, true);
+  // index 0 = startStream, 1..4 = de vier overlays — alle standaard aan
+  assert.strictEqual(cmds.length, 5);
+  assert.ok(cmds.slice(1).every((c) => c.enabled === true));
 });

@@ -39,9 +39,9 @@ GET  /api/manage/planning?days=14    -> geplande toernooien (Cuescore-import + i
 POST /api/manage/planning/{id}       -> instellingen van één toernooi wijzigen
 GET  /api/manage/defaults            -> standaard-instellingen (één set, zie hieronder)
 POST /api/manage/defaults            -> standaard-instellingen wijzigen
-POST /api/manage/streams/start       -> body: { "tableNumber": 15, "title"?: "...", "privacy"?: "public|unlisted|private", "overlays"?: { "sponsors": true, "scoreboard": true } } (ad-hoc, vrije camera; enqueuet startStream + setOverlay)
+POST /api/manage/streams/start       -> body: { "tableNumber": 15, "title"?: "...", "privacy"?: "public|unlisted|private", "overlays"?: { "sponsors": true, "scoreboard": true, "scoresOtherTables": true, "cuescoreLogo": true } } (ad-hoc, vrije camera; enqueuet startStream + setOverlay per overlay)
 POST /api/manage/streams/stop        -> body: { "tableNumber": 15 }
-POST /api/manage/streams/overlay     -> body: { "tableNumber": 15, "sponsors"?: bool, "scoreboard"?: bool } (overlay(s) live aan/uit op een lopende stream; enqueuet setOverlay per opgegeven sleutel)
+POST /api/manage/streams/overlay     -> body: { "tableNumber": 15, "sponsors"?: bool, "scoreboard"?: bool, "scoresOtherTables"?: bool, "cuescoreLogo"?: bool } (overlay(s) live aan/uit op een lopende stream; enqueuet setOverlay per opgegeven sleutel)
 POST /api/manage/setup/streams       -> eenmalig: herbruikbare liveStream per tafel (idempotent) → schrijft config/tables.json; body (optioneel) { "cameras": [1,3,15,16] }
 
 Tafelconfig (GET /api/manage/config) — array:
@@ -139,12 +139,12 @@ Antwoord:
 }
 - `type`: `startStream` | `stopStream` | `setOverlay`.
 - `setOverlay` zet een OBS-bron (overlay/scoreboard) aan of uit (`enabled`).
-- **Overlay-switch → OBS-bronnaam** (definitieve inrichting, zie `docs/obs-standaard.md`):
-  `overlays.sponsors` → bron **`Sponsor slideshow`**; `overlays.scoreboard` → bron
-  **`Scoreboard`** (het grote eigen scorebord). De bronnen **`Scores other tables`**
-  en **`Cuescore logo`** zijn vaste branding (staan-aan in de scène) en worden
-  vooralsnog niet per broadcast getoggeld. Per tafel te overrijden via
-  `config/tables.json` (`overlaySources`).
+- **Overlay-switch → OBS-bronnaam** (zie `docs/obs-standaard.md`), 4 schakelbare overlays:
+  `overlays.sponsors` → **`Sponsor slideshow`**; `overlays.scoreboard` → **`Scoreboard`**
+  (eigen scorebord); `overlays.scoresOtherTables` → **`Scores other tables`**;
+  `overlays.cuescoreLogo` → **`Cuescore logo`**. Alle vier zijn per broadcast/live
+  schakelbaar (dashboard). `Camera Tafel N` staat altijd aan (geen schakelaar). Per
+  tafel te overrijden via `config/tables.json` (`overlaySources`).
 - De agent bevestigt verwerkte commando's via de status-post (`verwerkteCommandoIds`),
   zodat de backend ze niet opnieuw stuurt.
 
@@ -209,3 +209,13 @@ Body:
   ({tableNumber, sponsors?, scoreboard?}) om overlays **live** op een lopende stream aan/uit
   te zetten. Reden: dashboard-bedienpaneel (start-wizard met YouTube-titel/privacy/overlays +
   losse overlay-toggles). Auth blijft placeholder Bearer ADMIN_TOKEN (Entra volgt fase 3).
+- 2026-07-11: v0.9 — **twee extra schakelbare overlays**: `scoresOtherTables`
+  (`Scores other tables`) en `cuescoreLogo` (`Cuescore logo`). De `overlays`-map op
+  `/api/manage/streams/start` en de body van `/api/manage/streams/overlay` accepteren nu
+  alle vier de sleutels (`sponsors`, `scoreboard`, `scoresOtherTables`, `cuescoreLogo`),
+  elk standaard aan. `startCommandsFor` en het overlay-endpoint itereren nu over de
+  `OVERLAY_BRON`-map i.p.v. hardcoded sponsors/scoreboard (extra overlay = alleen de map
+  uitbreiden). Reden: Nick wilde `Scores other tables` en `Cuescore logo` ook per broadcast
+  kunnen aan/uit zetten (voorheen bewust vaste branding, zie v0.6). `Camera Tafel N` blijft
+  altijd aan (geen schakelaar). Front- en backend meegewijzigd; OBS-standaard ongewijzigd
+  qua bronnamen.

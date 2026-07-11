@@ -3,21 +3,28 @@
 
 const GELDIGE_TYPES = new Set(['startStream', 'stopStream', 'setOverlay']);
 
-// Standaard OBS-bronnamen voor de overlays na standaardisatie van alle 4 instanties
-// (zie docs/obs-standaard.md + api-contract v0.6). Per tafel te overrijden via
-// config/tables.json (overlaySources). NB: 'Scores other tables' en 'Cuescore logo'
-// zijn vaste branding en worden niet per broadcast getoggeld.
-const OVERLAY_BRON = { sponsors: 'Sponsor slideshow', scoreboard: 'Scoreboard' };
+// Standaard OBS-bronnamen voor de 4 schakelbare overlays na standaardisatie van
+// alle 4 instanties (zie docs/obs-standaard.md + api-contract v0.9). Alle vier zijn
+// per broadcast/live te toggelen vanuit het dashboard. 'Camera Tafel N' staat altijd
+// aan (geen schakelaar). Per tafel te overrijden via config/tables.json (overlaySources).
+const OVERLAY_BRON = {
+  sponsors: 'Sponsor slideshow',
+  scoreboard: 'Scoreboard',
+  scoresOtherTables: 'Scores other tables',
+  cuescoreLogo: 'Cuescore logo',
+};
 
-// Bouwt de commando's om een tafel te starten: OBS laten zenden + de overlays
-// (sponsors/scorebord) op de gewenste stand zetten. Zonder id/tijd — die voegt de
-// function-laag toe.
+// Bouwt de commando's om een tafel te starten: OBS laten zenden + elke overlay op de
+// gewenste stand zetten (standaard aan, tenzij expliciet false in record.overlays).
+// Itereert over overlayBron zodat een extra overlay alleen daar hoeft te worden
+// toegevoegd. Zonder id/tijd — die voegt de function-laag toe.
 function startCommandsFor(record, tableNumber, overlayBron = OVERLAY_BRON) {
   const ov = (record && record.overlays) || {};
   return [
     { type: 'startStream', tableNumber },
-    { type: 'setOverlay', tableNumber, sourceName: overlayBron.sponsors, enabled: ov.sponsors !== false },
-    { type: 'setOverlay', tableNumber, sourceName: overlayBron.scoreboard, enabled: ov.scoreboard !== false },
+    ...Object.entries(overlayBron).map(([sleutel, sourceName]) => ({
+      type: 'setOverlay', tableNumber, sourceName, enabled: ov[sleutel] !== false,
+    })),
   ];
 }
 

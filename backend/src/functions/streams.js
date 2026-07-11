@@ -82,7 +82,7 @@ app.http('adminStreamStart', {
 });
 
 // POST /api/manage/streams/overlay — overlay(s) live aan/uit op een lopende stream.
-// body { tableNumber, sponsors?: bool, scoreboard?: bool }
+// body { tableNumber, sponsors?, scoreboard?, scoresOtherTables?, cuescoreLogo? } (bool)
 app.http('adminStreamOverlay', {
   methods: ['POST'],
   authLevel: 'anonymous',
@@ -97,13 +97,12 @@ app.http('adminStreamOverlay', {
 
     const now = new Date().toISOString();
     const cmds = [];
-    if (typeof body.sponsors === 'boolean') {
-      cmds.push({ type: 'setOverlay', tableNumber: tafelNr, sourceName: OVERLAY_BRON.sponsors, enabled: body.sponsors });
+    for (const [sleutel, sourceName] of Object.entries(OVERLAY_BRON)) {
+      if (typeof body[sleutel] === 'boolean') {
+        cmds.push({ type: 'setOverlay', tableNumber: tafelNr, sourceName, enabled: body[sleutel] });
+      }
     }
-    if (typeof body.scoreboard === 'boolean') {
-      cmds.push({ type: 'setOverlay', tableNumber: tafelNr, sourceName: OVERLAY_BRON.scoreboard, enabled: body.scoreboard });
-    }
-    if (!cmds.length) return json(400, { error: 'geef sponsors en/of scoreboard (boolean) op' });
+    if (!cmds.length) return json(400, { error: 'geef minimaal één overlay (sponsors/scoreboard/scoresOtherTables/cuescoreLogo) als boolean op' });
 
     const withMeta = cmds.map((c) => ({ id: crypto.randomUUID(), createdAt: now, ...c }));
     const commands = (await readJson('commands.json', [])) || [];

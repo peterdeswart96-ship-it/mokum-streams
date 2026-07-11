@@ -7,6 +7,16 @@ import {
 const CAMERAS = [1, 3, 15, 16];
 const REFRESH_MS = 5000;
 
+// De 4 schakelbare overlays (sleutel = API-veld, label = wat de gebruiker ziet).
+// Één plek: voeg hier een overlay toe en hij verschijnt in de tafelkaart én de wizard.
+const OVERLAYS = [
+  { key: 'sponsors', label: 'Sponsors' },
+  { key: 'scoreboard', label: 'Scorebord' },
+  { key: 'scoresOtherTables', label: 'Scores andere tafels' },
+  { key: 'cuescoreLogo', label: 'Cuescore-logo' },
+];
+const alleOverlaysAan = () => Object.fromEntries(OVERLAYS.map((o) => [o.key, true]));
+
 // ── Login-poort ────────────────────────────────────────────────────────────
 function Login({ onSaved }) {
   const [val, setVal] = useState('');
@@ -64,8 +74,7 @@ function Badge({ status }) {
 // ── Tafelkaart ─────────────────────────────────────────────────────────────
 function TableCard({ table, onStop, onOverlay, busy }) {
   const actief = table.status === 'live' || table.status === 'scheduled';
-  const [sponsors, setSponsors] = useState(true);
-  const [scoreboard, setScoreboard] = useState(true);
+  const [ov, setOv] = useState(alleOverlaysAan);
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4">
       <div className="flex items-center justify-between mb-2">
@@ -78,10 +87,10 @@ function TableCard({ table, onStop, onOverlay, busy }) {
            className="text-sm text-emerald-700 underline">Bekijk op YouTube ↗</a>
       )}
       <div className="mt-3 flex flex-wrap gap-2">
-        <Toggle on={sponsors} label="Sponsors"
-                onChange={(v) => { setSponsors(v); onOverlay(table.tableNumber, { sponsors: v }); }} />
-        <Toggle on={scoreboard} label="Scorebord"
-                onChange={(v) => { setScoreboard(v); onOverlay(table.tableNumber, { scoreboard: v }); }} />
+        {OVERLAYS.map((o) => (
+          <Toggle key={o.key} on={ov[o.key]} label={o.label}
+                  onChange={(v) => { setOv((s) => ({ ...s, [o.key]: v })); onOverlay(table.tableNumber, { [o.key]: v }); }} />
+        ))}
       </div>
       {actief && (
         <button
@@ -101,15 +110,14 @@ function Wizard({ onClose, onStarted }) {
   const [tafel, setTafel] = useState(CAMERAS[0]);
   const [titel, setTitel] = useState('');
   const [privacy, setPrivacy] = useState('unlisted');
-  const [sponsors, setSponsors] = useState(true);
-  const [scoreboard, setScoreboard] = useState(true);
+  const [ov, setOv] = useState(alleOverlaysAan);
   const [bezig, setBezig] = useState(false);
   const [fout, setFout] = useState('');
 
   async function start() {
     setBezig(true); setFout('');
     try {
-      await startStream({ tableNumber: tafel, title: titel, privacy, overlays: { sponsors, scoreboard } });
+      await startStream({ tableNumber: tafel, title: titel, privacy, overlays: ov });
       onStarted();
     } catch (e) {
       setFout(e.message);
@@ -145,9 +153,11 @@ function Wizard({ onClose, onStarted }) {
         </div>
 
         <label className="block text-sm font-medium mb-1">Overlays</label>
-        <div className="flex gap-2 mb-4">
-          <Toggle on={sponsors} label="Sponsors" onChange={setSponsors} />
-          <Toggle on={scoreboard} label="Scorebord" onChange={setScoreboard} />
+        <div className="flex flex-wrap gap-2 mb-4">
+          {OVERLAYS.map((o) => (
+            <Toggle key={o.key} on={ov[o.key]} label={o.label}
+                    onChange={(v) => setOv((s) => ({ ...s, [o.key]: v }))} />
+          ))}
         </div>
 
         {fout && <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2 mb-3">{fout}</p>}
