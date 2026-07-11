@@ -1,9 +1,10 @@
-# Jumbotron QR-overlay
+# QR-overlay — Live standen
 
-Overlay met een QR-code die naar de **venue-Jumbotron** wijst (alle tafels live).
-Kijkers scannen 'm en zien de standen op hun telefoon. Zelfde op alle 4 tafels.
+Overlay met een QR-code die naar de **Mokum live-standen-pagina** wijst
+(`/standen/` — alle wedstrijden in de zaal, via Cuescore). Kijkers scannen 'm en zien
+de standen op hun telefoon. Zelfde overlay op alle 4 tafels.
 
-QR wijst naar: https://cuescore.com/venue/table/jumbotron/?venueId=60451687&branchId=1
+QR wijst naar: https://mokum-streams.pdscloud.nl/standen/
 
 ## Gebruiken in OBS
 - **Optie A (aanrader):** `qr-jumbotron.html` als **Browser-source** (Local file aanvinken

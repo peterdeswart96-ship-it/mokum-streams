@@ -2,7 +2,7 @@ const QRCode = require('qrcode');
 const fs = require('fs');
 const path = require('path');
 
-const URL = 'https://cuescore.com/venue/table/jumbotron/?venueId=60451687&branchId=1';
+const URL = 'https://mokum-streams.pdscloud.nl/standen/';
 const outDir = 'C:\\Projects\\mokum-streams\\overlays';
 fs.mkdirSync(outDir, { recursive: true });
 
@@ -40,9 +40,9 @@ fs.mkdirSync(outDir, { recursive: true });
   <div class="card">
     <div class="qr"><img src="${dataUrl}" alt="QR Jumbotron"></div>
     <div class="txt">
-      <div class="title">Jumbotron</div>
-      <div class="sub">Standen overige wedstrijden</div>
-      <div class="hint">📱 Scan &amp; bekijk live</div>
+      <div class="title">Live standen</div>
+      <div class="sub">Alle wedstrijden in de zaal</div>
+      <div class="hint">📱 Scan &amp; bekijk op je telefoon</div>
     </div>
   </div>
 </body>
@@ -50,10 +50,11 @@ fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(path.join(outDir, 'qr-jumbotron.html'), html);
 
   // README bij de overlay
-  const readme = `# Jumbotron QR-overlay
+  const readme = `# QR-overlay — Live standen
 
-Overlay met een QR-code die naar de **venue-Jumbotron** wijst (alle tafels live).
-Kijkers scannen 'm en zien de standen op hun telefoon. Zelfde op alle 4 tafels.
+Overlay met een QR-code die naar de **Mokum live-standen-pagina** wijst
+(\`/standen/\` — alle wedstrijden in de zaal, via Cuescore). Kijkers scannen 'm en zien
+de standen op hun telefoon. Zelfde overlay op alle 4 tafels.
 
 QR wijst naar: ${URL}
 
