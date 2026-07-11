@@ -124,9 +124,9 @@ loopt; staat op de herbruikbare keys al goed.
 
 > **Bewust geen geluid (besluit):** de streams hebben opzettelijk **geen audio**
 > ("audio bitrate 0"). Reden: achtergrondmuziek in de zaal live uitzenden zou
-> **Buma/Stemra**-rechten raken. #17 is dus **geen op te lossen bug**. Wil je ooit
+> **Buma/Stemra**-rechten raken — dus **geen op te lossen bug**. Wil je ooit
 > commentaar, dan via een **aparte microfoon** (niet de zaal-audio), zodat er geen
-> muziek meelift.
+> muziek meelift → uitgewerkt in **GitHub-issue #17**.
 
 > **Handmatig weer live na een afgeronde broadcast** (tot de agent dit doet): maak in
 > YouTube Studio → 📅 Manage → **Schedule Stream → Reuse settings** een nieuwe uitzending
