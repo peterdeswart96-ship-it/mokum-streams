@@ -7,19 +7,25 @@ import {
 const CAMERAS = [1, 3, 15, 16];
 const REFRESH_MS = 5000;
 
-// De 4 schakelbare overlays (sleutel = API-veld, label = wat de gebruiker ziet,
-// desc = wat het toont, pos = waar op het beeld). Één plek: voeg hier een overlay
-// toe en hij verschijnt in de tafelkaart, de wizard én het uitleg-overzicht.
+// De schakelbare overlays (sleutel = API-veld, label = wat de gebruiker ziet,
+// desc = wat het toont, pos = waar op het beeld, groep = content|pauze, defaultOn =
+// standaardstand). Één plek: voeg hier een overlay toe en hij verschijnt in de
+// tafelkaart, de wizard én het uitleg-overzicht. Break-overlays (groep 'pauze') staan
+// standaard uit en tonen we alleen tijdens een pauze.
 const OVERLAYS = [
-  { key: 'sponsors', label: 'Sponsors', desc: 'Roterende sponsorlogo’s (slideshow)', pos: 'rechtsboven' },
-  { key: 'scoreboard', label: 'Scorebord', desc: 'Stand van déze tafel: spelers + score (race to …)', pos: 'onderin' },
-  { key: 'scoresOtherTables', label: 'Scores andere tafels', desc: 'Toernooinaam, ronde en tafelnummer', pos: 'linksboven' },
-  { key: 'cuescoreLogo', label: 'Cuescore-logo', desc: 'Het Cuescore-zeshoeklogo op het laken', pos: 'midden op de tafel' },
+  { key: 'sponsors', label: 'Sponsors', desc: 'Roterende sponsorlogo’s (slideshow)', pos: 'rechtsboven', groep: 'content', defaultOn: true },
+  { key: 'scoreboard', label: 'Scorebord', desc: 'Stand van déze tafel: spelers + score (race to …)', pos: 'onderin', groep: 'content', defaultOn: true },
+  { key: 'scoresOtherTables', label: 'Scores andere tafels', desc: 'Toernooinaam, ronde en tafelnummer', pos: 'linksboven', groep: 'content', defaultOn: true },
+  { key: 'cuescoreLogo', label: 'Cuescore-logo', desc: 'Het Cuescore-zeshoeklogo op het laken', pos: 'midden op de tafel', groep: 'content', defaultOn: true },
+  { key: 'jumbotron', label: 'Jumbotron', desc: 'Alle tafels live (Cuescore) — voor tijdens pauzes', pos: 'volledig beeld', groep: 'pauze', defaultOn: false },
+  { key: 'pauzemelding', label: 'Pauzemelding', desc: '“We wachten op de volgende wedstrijd…”', pos: 'volledig beeld', groep: 'pauze', defaultOn: false },
 ];
+const CONTENT_OVERLAYS = OVERLAYS.filter((o) => o.groep === 'content');
+const PAUZE_OVERLAYS = OVERLAYS.filter((o) => o.groep === 'pauze');
 // De camera staat altijd aan (geen schakelaar) — wel tonen in het uitleg-overzicht
 // zodat álle OBS-bronnen verklaard zijn.
 const CAMERA_INFO = { key: 'camera', label: 'Camera', desc: 'Het live camerabeeld van de tafel', pos: 'achtergrond (altijd aan)' };
-const alleOverlaysAan = () => Object.fromEntries(OVERLAYS.map((o) => [o.key, true]));
+const standaardOverlays = () => Object.fromEntries(OVERLAYS.map((o) => [o.key, o.defaultOn]));
 
 // ── Login-poort ────────────────────────────────────────────────────────────
 function Login({ onSaved }) {
@@ -124,9 +130,13 @@ function TableCard({ table, onStop, onOverlay, onPreview, busy }) {
   // Overlay-toggles: lokaal-optimistisch, maar volgen de echte OBS-stand zodra de
   // agent die meldt (table.overlays). Zonder agent-data blijft het lokale gedrag.
   const serverOv = table.overlays;
-  const [ov, setOv] = useState(() => serverOv || alleOverlaysAan());
+  const [ov, setOv] = useState(() => serverOv || standaardOverlays());
   useEffect(() => { if (serverOv) setOv(serverOv); }, [serverOv]);
   const kwaliteit = table.status === 'live' ? fmtKwaliteit(table.quality) : null;
+  const toggle = (o) => (
+    <Toggle key={o.key} on={!!ov[o.key]} label={o.label} title={`${o.desc} — ${o.pos}`}
+            onChange={(v) => { setOv((s) => ({ ...s, [o.key]: v })); onOverlay(table.tableNumber, { [o.key]: v }); }} />
+  );
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4">
       <div className="flex items-center justify-between mb-2">
@@ -140,10 +150,11 @@ function TableCard({ table, onStop, onOverlay, onPreview, busy }) {
            className="text-sm text-emerald-700 underline">Bekijk op YouTube ↗</a>
       )}
       <div className="mt-3 flex flex-wrap gap-2">
-        {OVERLAYS.map((o) => (
-          <Toggle key={o.key} on={ov[o.key]} label={o.label} title={`${o.desc} — ${o.pos}`}
-                  onChange={(v) => { setOv((s) => ({ ...s, [o.key]: v })); onOverlay(table.tableNumber, { [o.key]: v }); }} />
-        ))}
+        {CONTENT_OVERLAYS.map(toggle)}
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <span className="text-xs text-slate-400 uppercase tracking-wide">Pauze</span>
+        {PAUZE_OVERLAYS.map(toggle)}
       </div>
       <div className="mt-3 flex gap-2">
         {table.status === 'live' && table.videoId && (
@@ -173,7 +184,7 @@ function Wizard({ onClose, onStarted }) {
   const [tafel, setTafel] = useState(CAMERAS[0]);
   const [titel, setTitel] = useState('');
   const [privacy, setPrivacy] = useState('unlisted');
-  const [ov, setOv] = useState(alleOverlaysAan);
+  const [ov, setOv] = useState(standaardOverlays);
   const [bezig, setBezig] = useState(false);
   const [fout, setFout] = useState('');
 
@@ -217,8 +228,8 @@ function Wizard({ onClose, onStarted }) {
 
         <label className="block text-sm font-medium mb-1">Overlays</label>
         <div className="flex flex-wrap gap-2 mb-4">
-          {OVERLAYS.map((o) => (
-            <Toggle key={o.key} on={ov[o.key]} label={o.label} title={`${o.desc} — ${o.pos}`}
+          {CONTENT_OVERLAYS.map((o) => (
+            <Toggle key={o.key} on={!!ov[o.key]} label={o.label} title={`${o.desc} — ${o.pos}`}
                     onChange={(v) => setOv((s) => ({ ...s, [o.key]: v }))} />
           ))}
         </div>

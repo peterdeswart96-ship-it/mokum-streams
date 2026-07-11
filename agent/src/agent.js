@@ -12,6 +12,8 @@ const DEFAULT_OVERLAY_SOURCES = {
   scoreboard: 'Scoreboard',
   scoresOtherTables: 'Scores other tables',
   cuescoreLogo: 'Cuescore logo',
+  jumbotron: 'Jumbotron',
+  pauzemelding: 'Pauzemelding',
 };
 
 async function voerCommandoUit(pool, cmd) {

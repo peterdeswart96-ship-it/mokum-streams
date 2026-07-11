@@ -102,7 +102,7 @@ app.http('adminStreamOverlay', {
         cmds.push({ type: 'setOverlay', tableNumber: tafelNr, sourceName, enabled: body[sleutel] });
       }
     }
-    if (!cmds.length) return json(400, { error: 'geef minimaal één overlay (sponsors/scoreboard/scoresOtherTables/cuescoreLogo) als boolean op' });
+    if (!cmds.length) return json(400, { error: `geef minimaal één overlay (${Object.keys(OVERLAY_BRON).join('/')}) als boolean op` });
 
     const withMeta = cmds.map((c) => ({ id: crypto.randomUUID(), createdAt: now, ...c }));
     const commands = (await readJson('commands.json', [])) || [];

@@ -41,9 +41,11 @@ GET  /api/manage/planning?days=14    -> geplande toernooien (Cuescore-import + i
 POST /api/manage/planning/{id}       -> instellingen van één toernooi wijzigen
 GET  /api/manage/defaults            -> standaard-instellingen (één set, zie hieronder)
 POST /api/manage/defaults            -> standaard-instellingen wijzigen
-POST /api/manage/streams/start       -> body: { "tableNumber": 15, "title"?: "...", "privacy"?: "public|unlisted|private", "overlays"?: { "sponsors": true, "scoreboard": true, "scoresOtherTables": true, "cuescoreLogo": true } } (ad-hoc, vrije camera; enqueuet startStream + setOverlay per overlay)
+POST /api/manage/streams/start       -> body: { "tableNumber": 15, "title"?: "...", "privacy"?: "public|unlisted|private", "overlays"?: { "sponsors": true, "scoreboard": true, "scoresOtherTables": true, "cuescoreLogo": true, "jumbotron": false, "pauzemelding": false } } (ad-hoc, vrije camera; enqueuet startStream + setOverlay per overlay)
 POST /api/manage/streams/stop        -> body: { "tableNumber": 15 }
-POST /api/manage/streams/overlay     -> body: { "tableNumber": 15, "sponsors"?: bool, "scoreboard"?: bool, "scoresOtherTables"?: bool, "cuescoreLogo"?: bool } (overlay(s) live aan/uit op een lopende stream; enqueuet setOverlay per opgegeven sleutel)
+POST /api/manage/streams/overlay     -> body: { "tableNumber": 15, "sponsors"?: bool, "scoreboard"?: bool, "scoresOtherTables"?: bool, "cuescoreLogo"?: bool, "jumbotron"?: bool, "pauzemelding"?: bool } (overlay(s) live aan/uit op een lopende stream; enqueuet setOverlay per opgegeven sleutel)
+   NB: content-overlays (sponsors/scoreboard/scoresOtherTables/cuescoreLogo) staan standaard AAN;
+   break-overlays (jumbotron/pauzemelding) staan standaard UIT (alleen tijdens pauzes tonen).
 POST /api/manage/setup/streams       -> eenmalig: herbruikbare liveStream per tafel (idempotent) → schrijft config/tables.json; body (optioneel) { "cameras": [1,3,15,16] }
 
 Tafelconfig (GET /api/manage/config) — array:
@@ -237,3 +239,11 @@ Body:
   beeldkwaliteit en of overlays daadwerkelijk aan/uit staan, i.p.v. alleen lokale
   "fire-and-forget"-toggles. Backend (`buildLiveTables`), agent (`obs.status` +
   overlay-uitlezen) en frontend meegewijzigd.
+- 2026-07-11: v0.11 — **twee break-overlays**: `jumbotron` (`Jumbotron` — alle tafels
+  live via de Cuescore venue-URL) en `pauzemelding` (`Pauzemelding` — tekst/overlay
+  "We wachten op de volgende wedstrijd…"). Beide staan **standaard UIT** (alleen tijdens
+  pauzes tonen), i.t.t. de content-overlays die standaard AAN staan. Backend introduceert
+  `OVERLAY_DEFAULT_OFF` zodat `startCommandsFor` deze bij een start expliciet op `false`
+  zet (tenzij anders gevraagd). Front- en backend + agent-overlaybronnen meegewijzigd.
+  Reden: pauze-beleving (zie `docs/break-productie.md` voor de bredere break-productie
+  incl. NDI-PiP-rotatie, later). `Camera Tafel N` blijft altijd aan.

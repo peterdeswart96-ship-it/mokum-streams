@@ -27,20 +27,27 @@ test('isTableBusy: een gestopte entry geeft de tafel weer vrij', () => {
   assert.strictEqual(isTableBusy(store, 1), false);
 });
 
-test('startCommandsFor levert startStream + alle 4 overlays op de gewenste stand', () => {
-  const cmds = startCommandsFor({ overlays: { sponsors: true, scoreboard: false, cuescoreLogo: false } }, 3);
+test('startCommandsFor levert startStream + alle overlays op de gewenste stand', () => {
+  const cmds = startCommandsFor({ overlays: { sponsors: true, scoreboard: false, cuescoreLogo: false, jumbotron: true } }, 3);
   assert.deepStrictEqual(cmds, [
     { type: 'startStream', tableNumber: 3 },
     { type: 'setOverlay', tableNumber: 3, sourceName: 'Sponsor slideshow', enabled: true },
     { type: 'setOverlay', tableNumber: 3, sourceName: 'Scoreboard', enabled: false },
     { type: 'setOverlay', tableNumber: 3, sourceName: 'Scores other tables', enabled: true },
     { type: 'setOverlay', tableNumber: 3, sourceName: 'Cuescore logo', enabled: false },
+    { type: 'setOverlay', tableNumber: 3, sourceName: 'Jumbotron', enabled: true }, // expliciet aan
+    { type: 'setOverlay', tableNumber: 3, sourceName: 'Pauzemelding', enabled: false }, // break-overlay: standaard uit
   ]);
 });
 
-test('startCommandsFor: overlays standaard aan als niet opgegeven', () => {
+test('startCommandsFor: content-overlays standaard aan, break-overlays standaard uit', () => {
   const cmds = startCommandsFor({}, 1);
-  // index 0 = startStream, 1..4 = de vier overlays — alle standaard aan
-  assert.strictEqual(cmds.length, 5);
-  assert.ok(cmds.slice(1).every((c) => c.enabled === true));
+  const byBron = Object.fromEntries(cmds.filter((c) => c.type === 'setOverlay').map((c) => [c.sourceName, c.enabled]));
+  assert.strictEqual(cmds.length, 7); // startStream + 6 overlays
+  assert.strictEqual(byBron['Sponsor slideshow'], true);
+  assert.strictEqual(byBron['Scoreboard'], true);
+  assert.strictEqual(byBron['Scores other tables'], true);
+  assert.strictEqual(byBron['Cuescore logo'], true);
+  assert.strictEqual(byBron['Jumbotron'], false);      // break-overlay
+  assert.strictEqual(byBron['Pauzemelding'], false);   // break-overlay
 });
