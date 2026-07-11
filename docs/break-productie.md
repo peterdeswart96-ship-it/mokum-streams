@@ -52,8 +52,9 @@ tafels. Werkt, maar **10-30s vertraging** + meer CPU + minder strak. NDI heeft d
    `"rotations": [{ "key": "scoresOtherTables", "everySec": 180, "forSec": 20 }]`. De agent
    zet de bron edge-triggered aan/uit o.b.v. de wandklok (pure `rotatieZichtbaar`).
    **Nog doen bij uitrol:** `Scores other tables` positioneren op de bovenbalk-plek.
-3. ▶ **A auto-trigger (Cuescore-API)** — agent leest of er een wedstrijd loopt per tafel;
-   zo niet → Jumbotron + pauzemelding aan tot de volgende start. Volgende bouwsteen.
+3. ▶ **A auto-trigger (Cuescore-API)** — pauzescherm automatisch tussen wedstrijden.
+   **Ontwerp uitgewerkt in [[pauzescherm-auto]]** (toestandsmachine, architectuurkeuze
+   backend-side, de Cuescore-live-endpoint-blokker, gefaseerd plan).
 4. Pauzemelding **dashboard-bewerkbaar** maken (gehoste overlay die de backend pollt).
 5. **Resource-meting** op de OBS-pc (4 streams + NDI).
 6. **NDI** installeren + per instantie output aan; break-scène met PiP van de andere tafels.
