@@ -7,14 +7,18 @@ import {
 const CAMERAS = [1, 3, 15, 16];
 const REFRESH_MS = 5000;
 
-// De 4 schakelbare overlays (sleutel = API-veld, label = wat de gebruiker ziet).
-// Één plek: voeg hier een overlay toe en hij verschijnt in de tafelkaart én de wizard.
+// De 4 schakelbare overlays (sleutel = API-veld, label = wat de gebruiker ziet,
+// desc = wat het toont, pos = waar op het beeld). Één plek: voeg hier een overlay
+// toe en hij verschijnt in de tafelkaart, de wizard én het uitleg-overzicht.
 const OVERLAYS = [
-  { key: 'sponsors', label: 'Sponsors' },
-  { key: 'scoreboard', label: 'Scorebord' },
-  { key: 'scoresOtherTables', label: 'Scores andere tafels' },
-  { key: 'cuescoreLogo', label: 'Cuescore-logo' },
+  { key: 'sponsors', label: 'Sponsors', desc: 'Roterende sponsorlogo’s (slideshow)', pos: 'rechtsboven' },
+  { key: 'scoreboard', label: 'Scorebord', desc: 'Stand van déze tafel: spelers + score (race to …)', pos: 'onderin' },
+  { key: 'scoresOtherTables', label: 'Scores andere tafels', desc: 'Toernooinaam, ronde en tafelnummer', pos: 'linksboven' },
+  { key: 'cuescoreLogo', label: 'Cuescore-logo', desc: 'Het Cuescore-zeshoeklogo op het laken', pos: 'midden op de tafel' },
 ];
+// De camera staat altijd aan (geen schakelaar) — wel tonen in het uitleg-overzicht
+// zodat álle OBS-bronnen verklaard zijn.
+const CAMERA_INFO = { key: 'camera', label: 'Camera', desc: 'Het live camerabeeld van de tafel', pos: 'achtergrond (altijd aan)' };
 const alleOverlaysAan = () => Object.fromEntries(OVERLAYS.map((o) => [o.key, true]));
 
 // ── Login-poort ────────────────────────────────────────────────────────────
@@ -46,10 +50,11 @@ function Login({ onSaved }) {
 }
 
 // ── Kleine schakelaar ──────────────────────────────────────────────────────
-function Toggle({ on, onChange, label }) {
+function Toggle({ on, onChange, label, title }) {
   return (
     <button
       onClick={() => onChange(!on)}
+      title={title}
       className={`flex items-center gap-2 text-sm px-2 py-1 rounded border ${
         on ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-slate-50 border-slate-300 text-slate-500'
       }`}
@@ -114,7 +119,7 @@ function Overzicht({ tables }) {
 }
 
 // ── Tafelkaart ─────────────────────────────────────────────────────────────
-function TableCard({ table, onStop, onOverlay, busy }) {
+function TableCard({ table, onStop, onOverlay, onPreview, busy }) {
   const actief = table.status === 'live' || table.status === 'scheduled';
   // Overlay-toggles: lokaal-optimistisch, maar volgen de echte OBS-stand zodra de
   // agent die meldt (table.overlays). Zonder agent-data blijft het lokale gedrag.
@@ -136,19 +141,29 @@ function TableCard({ table, onStop, onOverlay, busy }) {
       )}
       <div className="mt-3 flex flex-wrap gap-2">
         {OVERLAYS.map((o) => (
-          <Toggle key={o.key} on={ov[o.key]} label={o.label}
+          <Toggle key={o.key} on={ov[o.key]} label={o.label} title={`${o.desc} — ${o.pos}`}
                   onChange={(v) => { setOv((s) => ({ ...s, [o.key]: v })); onOverlay(table.tableNumber, { [o.key]: v }); }} />
         ))}
       </div>
-      {actief && (
-        <button
-          disabled={busy}
-          onClick={() => onStop(table.tableNumber)}
-          className="mt-3 w-full bg-slate-800 text-white rounded px-3 py-2 text-sm font-medium disabled:opacity-40"
-        >
-          Stop stream
-        </button>
-      )}
+      <div className="mt-3 flex gap-2">
+        {table.status === 'live' && table.videoId && (
+          <button
+            onClick={() => onPreview(table)}
+            className="flex-1 bg-emerald-700 text-white rounded px-3 py-2 text-sm font-medium"
+          >
+            👁 Preview
+          </button>
+        )}
+        {actief && (
+          <button
+            disabled={busy}
+            onClick={() => onStop(table.tableNumber)}
+            className="flex-1 bg-slate-800 text-white rounded px-3 py-2 text-sm font-medium disabled:opacity-40"
+          >
+            Stop stream
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -203,7 +218,7 @@ function Wizard({ onClose, onStarted }) {
         <label className="block text-sm font-medium mb-1">Overlays</label>
         <div className="flex flex-wrap gap-2 mb-4">
           {OVERLAYS.map((o) => (
-            <Toggle key={o.key} on={ov[o.key]} label={o.label}
+            <Toggle key={o.key} on={ov[o.key]} label={o.label} title={`${o.desc} — ${o.pos}`}
                     onChange={(v) => setOv((s) => ({ ...s, [o.key]: v }))} />
           ))}
         </div>
@@ -222,6 +237,56 @@ function Wizard({ onClose, onStarted }) {
   );
 }
 
+// ── Uitleg-overzicht van de overlays ─────────────────────────────────────────
+function OverlayInfo({ onClose }) {
+  const items = [...OVERLAYS, CAMERA_INFO];
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-10" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-lg font-semibold mb-1">Wat tonen de overlays?</h2>
+        <p className="text-sm text-slate-500 mb-4">De grafische lagen over het camerabeeld — en waar ze staan.</p>
+        <ul className="space-y-3">
+          {items.map((o) => (
+            <li key={o.key} className="border-b border-slate-100 pb-3 last:border-0">
+              <div className="flex items-center justify-between">
+                <span className="font-medium">{o.label}</span>
+                <span className="text-xs text-slate-500 bg-slate-100 rounded px-2 py-0.5">{o.pos}</span>
+              </div>
+              <p className="text-sm text-slate-600">{o.desc}</p>
+            </li>
+          ))}
+        </ul>
+        <button onClick={onClose} className="mt-5 w-full border border-slate-300 rounded px-4 py-2">Sluiten</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Live stream-preview (YouTube-embed) ──────────────────────────────────────
+function Preview({ table, onClose }) {
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-10" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl p-4" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-semibold">Tafel {table.tableNumber} — live</h2>
+          <button onClick={onClose} className="text-slate-500 text-sm underline">Sluiten</button>
+        </div>
+        <div className="relative w-full" style={{ paddingTop: '56.25%' }}>
+          <iframe
+            className="absolute inset-0 w-full h-full rounded"
+            src={`https://www.youtube.com/embed/${table.videoId}?autoplay=1&mute=1`}
+            title={`Tafel ${table.tableNumber}`}
+            allow="autoplay; encrypted-media; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+        <a href={`https://youtu.be/${table.videoId}`} target="_blank" rel="noreferrer"
+           className="inline-block mt-3 text-sm text-emerald-700 underline">Openen op YouTube ↗</a>
+      </div>
+    </div>
+  );
+}
+
 // ── App ────────────────────────────────────────────────────────────────────
 export default function App() {
   const [ingelogd, setIngelogd] = useState(!!getToken());
@@ -230,6 +295,8 @@ export default function App() {
   const [wizard, setWizard] = useState(false);
   const [busy, setBusy] = useState(false);
   const [melding, setMelding] = useState('');
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [preview, setPreview] = useState(null);
 
   const laad = useCallback(async () => {
     try {
@@ -267,8 +334,12 @@ export default function App() {
           <h1 className="text-xl font-semibold">Mokum Streams — Bedienpaneel</h1>
           <p className="text-emerald-100 text-sm">Streams starten/stoppen &amp; overlays</p>
         </div>
-        <button onClick={() => { clearToken(); setIngelogd(false); }}
-                className="text-emerald-100 text-sm underline">Uitloggen</button>
+        <div className="flex items-center gap-4">
+          <button onClick={() => setInfoOpen(true)}
+                  className="text-emerald-100 text-sm underline">Uitleg overlays</button>
+          <button onClick={() => { clearToken(); setIngelogd(false); }}
+                  className="text-emerald-100 text-sm underline">Uitloggen</button>
+        </div>
       </header>
 
       <main className="max-w-4xl mx-auto p-6">
@@ -293,6 +364,7 @@ export default function App() {
               <TableCard key={t.tableNumber} table={t} busy={busy}
                 onStop={(n) => actie(() => stopStream(n), `Tafel ${n} gestopt`)}
                 onOverlay={(n, patch) => actie(() => setOverlay({ tableNumber: n, ...patch }), `Overlay tafel ${n} bijgewerkt`)}
+                onPreview={(tafel) => setPreview(tafel)}
               />
             ))}
           </div>
@@ -303,6 +375,8 @@ export default function App() {
         <Wizard onClose={() => setWizard(false)}
                 onStarted={() => { setWizard(false); setMelding('Stream gestart — OBS volgt via de agent.'); laad(); }} />
       )}
+      {infoOpen && <OverlayInfo onClose={() => setInfoOpen(false)} />}
+      {preview && <Preview table={preview} onClose={() => setPreview(null)} />}
     </div>
   );
 }
