@@ -122,6 +122,8 @@ Ad-hoc stream (POST /api/manage/streams/start met een vrije camera):
   Dit voedt GET /api/live (koppelt tafel -> videoId + titel + status).
 - `commands.json`           — openstaande agent-commando's (wachtrij voor GET /api/agent/commands)
 - `status.json`             — laatst gerapporteerde agent-status (uit POST /api/agent/status)
+- `pauze-state.json`        — per tafel de pauzescherm-toestand ({ toestand: 'spelen'|'pauze',
+  sinds, wachtSinds }) voor de auto-trigger (timer `pauzeScherm`, zie v0.12)
 
 > Migratienoot: het simpele `config/schedule.json` (terugkerende regels uit #9)
 > wordt vervangen door `config/defaults.json` (templates) + `planning.json`
@@ -247,3 +249,12 @@ Body:
   zet (tenzij anders gevraagd). Front- en backend + agent-overlaybronnen meegewijzigd.
   Reden: pauze-beleving (zie `docs/break-productie.md` voor de bredere break-productie
   incl. NDI-PiP-rotatie, later). `Camera Tafel N` blijft altijd aan.
+- 2026-07-11: v0.12 — **automatisch pauzescherm (A auto-trigger)**. Nieuwe timer-Function
+  `pauzeScherm` (elke 30s) leest via Cuescore of er per tafel een wedstrijd loopt; zo niet
+  (na 20s debounce) → enqueuet `setOverlay`-commando's die `jumbotron` + `pauzemelding` AAN
+  zetten; zodra er weer gespeeld wordt → uit. Geen nieuw endpoint: hergebruikt het bestaande
+  command-model; de agent voert de setOverlays uit. Nieuwe schakelaar **`PAUZESCHERM_AUTO`**
+  (default `false`, los van `AUTOMATION_ARMED` want het maakt geen broadcasts) — draait
+  bovendien alleen op tafels die de agent als `streaming` meldt (dubbel veilig). Toestand
+  per tafel in `pauze-state.json`. Zie `docs/pauzescherm-auto.md`. Pure logica
+  (`src/planning/pauze.js`) unit-getest; dashboard-weergave van match-status volgt later.

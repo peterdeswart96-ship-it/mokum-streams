@@ -12,4 +12,13 @@ function isArmed() {
   return String(process.env.AUTOMATION_ARMED || '').toLowerCase() === 'true';
 }
 
-module.exports = { isArmed };
+// Aparte schakelaar voor het automatische PAUZESCHERM (Jumbotron + Pauzemelding
+// tussen wedstrijden, zie docs/pauzescherm-auto.md). Standaard UIT. Los van
+// AUTOMATION_ARMED omdat dit alleen overlays toggelt (geen broadcasts maakt/stopt):
+// je kunt het pauzescherm dus aanzetten zonder de volledige broadcast-automatisering
+// scherp te zetten. Werkt alleen op tafels die de agent als 'streaming' meldt.
+function isPauzeAutoOn() {
+  return String(process.env.PAUZESCHERM_AUTO || '').toLowerCase() === 'true';
+}
+
+module.exports = { isArmed, isPauzeAutoOn };

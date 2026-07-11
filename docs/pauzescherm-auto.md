@@ -76,14 +76,24 @@ en past beter in het brein.
 ## Gefaseerd bouwen
 1. ✅ **Cuescore live-endpoint achterhalen** — gevonden (`tournament/?id=` → `matches` met
    `matchstatus` + `table.tableId`).
-2. **Backend:** live-status pollen (timer ~30 s) → per tafel `{ matchActief, currentMatch,
-   nextMatch }` afleiden + opslaan + via `/api/live` tonen (dashboard: status + volgende).
-3. **Backend:** op **transitie** `setOverlay`-commando's enqueuen (pauzescherm aan/uit),
-   met dedup via de opgeslagen toestand (alleen bij wijziging).
-4. **Pauzemelding dynamisch** (gehoste overlay die de backend pollt).
-5. **Rotatie-onderdrukking** tijdens pauze.
+2. ✅ **Backend: pollen + toestandsmachine + transitie-commando's** (gebouwd 11-07, v0.12).
+   Timer `pauzeScherm` (elke 30s): per streamende tafel via `getTodaysTournaments()` checken
+   of er gespeeld wordt (`tafelSpeeltNu`), toestandsmachine met 20s debounce
+   (`volgendeToestand`), en bij een omslag `setOverlay`-commando's voor `jumbotron` +
+   `pauzemelding`. Toestand in `pauze-state.json`. Gated op `PAUZESCHERM_AUTO` (default uit)
+   + alleen op tafels die de agent als `streaming` meldt. Pure logica (`src/planning/pauze.js`)
+   unit-getest.
+3. ▶ **Dashboard-weergave** van match-status/volgende wedstrijd in `/api/live` (bonus, nog te doen).
+4. ▶ **Pauzemelding dynamisch** (gehoste overlay; "Volgende: [spelers] om [tijd]").
+5. ▶ **Rotatie-onderdrukking** tijdens pauze (Jumbotron dekt het beeld al → laag-prioriteit).
 
-## Openstaande beslissingen
-- Architectuur bevestigen: **Optie 2 (backend-side)** — akkoord?
-- Debounce-tijd SPELEN→PAUZE (voorstel: 15–20 s).
-- Gedrag bij "live zonder toernooi" (pauzescherm of niets).
+## Uitrol (avond)
+Zet `PAUZESCHERM_AUTO=true` (app-setting) **nadat** de agent draait en de OBS-bronnen
+`Jumbotron` + `Pauzemelding` bestaan. Daarvóór doet de timer niets (default uit + geen
+streamende tafels).
+
+## Beslissingen (vastgelegd 11-07)
+- Architectuur: **Optie 2 (backend-side)** — gekozen.
+- Debounce SPELEN→PAUZE: **20 s**.
+- "Live zonder toernooi": pauzescherm **niet** afdwingen — geen streamende-tafel-match →
+  na debounce pauze; ad-hoc/testers kunnen `PAUZESCHERM_AUTO` uit laten. (Fijnafstelling later.)

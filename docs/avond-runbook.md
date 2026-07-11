@@ -56,6 +56,7 @@ in overleg met Nick. Bijgewerkt **2026-07-11 (avond)**.
 - [ ] **Rotatie**: `Scores other tables` verschijnt periodiek in de bovenbalk.
 - [ ] **Ad-hoc start**: dashboard → + Nieuwe stream → unlisted → Start → agent start OBS → YouTube live → Stop.
 - [ ] **#11 acceptatietest** (volautomatisch): `AUTOMATION_ARMED=true`, een **testtoernooi in Cuescore** (dummy-spelers, starttijd binnen pre-roll-venster) → timer maakt broadcast + agent start → na afloop stop. **Zet daarna `AUTOMATION_ARMED` weer op `false`.**
+- [ ] **Automatisch pauzescherm (A, optioneel):** pas nadat de agent draait én de OBS-bronnen `Jumbotron` + `Pauzemelding` bestaan → app-setting **`PAUZESCHERM_AUTO=true`**. De timer `pauzeScherm` zet dan tussen wedstrijden vanzelf het pauzescherm aan/uit (per streamende tafel, 20s debounce). Los van `AUTOMATION_ARMED`. Zie `docs/pauzescherm-auto.md`.
 
 ### 7. Opruimen
 - [ ] Oude test-/auto-broadcasts (unlisted/leeg) verwijderen via YouTube Studio.
