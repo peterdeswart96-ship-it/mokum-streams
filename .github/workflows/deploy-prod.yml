@@ -40,6 +40,9 @@ jobs:
           node-version: '20'
       - name: Build
         working-directory: frontend
+        env:
+          # Dashboard praat met de Azure Function App (publieke URL, geen secret).
+          VITE_API_BASE: https://mokum-streams-func.azurewebsites.net
         run: |
           npm ci
           npm run build
