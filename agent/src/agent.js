@@ -20,10 +20,18 @@ async function voerCommandoUit(pool, cmd) {
 async function runOnce(config, pool, backend, logger = console) {
   const commands = await backend.fetchCommands(config);
 
+  const beheerdeTafels = new Set((config.tables || []).map((t) => t.tableNumber));
   const verwerkteCommandoIds = [];
   for (const cmd of commands) {
     try {
       valideerCommando(cmd);
+      // Commando voor een tafel die deze agent niet beheert → bevestigen (skip),
+      // anders blijft 'ie eeuwig in de wachtrij en herproberen we 'm elke tik.
+      if (!beheerdeTafels.has(cmd.tableNumber)) {
+        verwerkteCommandoIds.push(cmd.id);
+        logger.log(`[SKIP] tafel ${cmd.tableNumber} niet in config — commando ${cmd.id} bevestigd`);
+        continue;
+      }
       await voerCommandoUit(pool, cmd);
       verwerkteCommandoIds.push(cmd.id);
       logger.log(`[OK] ${cmd.type} tafel ${cmd.tableNumber}`);
