@@ -122,8 +122,11 @@ uiteenlopende OBS-output per tafel én YouTube-**latentie** die op laag/ultralaa
 begrenzen op ~480p). Dit was dé sleutelbevinding. Vergrendeld zolang een broadcast
 loopt; staat op de herbruikbare keys al goed.
 
-> **Bekend restpunt:** audio ontbreekt nog op de streams (YouTube meldt "audio bitrate
-> 0"). Los op te pakken (gaps #17). Niet blokkerend voor beeldkwaliteit.
+> **Bewust geen geluid (besluit):** de streams hebben opzettelijk **geen audio**
+> ("audio bitrate 0"). Reden: achtergrondmuziek in de zaal live uitzenden zou
+> **Buma/Stemra**-rechten raken. #17 is dus **geen op te lossen bug**. Wil je ooit
+> commentaar, dan via een **aparte microfoon** (niet de zaal-audio), zodat er geen
+> muziek meelift.
 
 > **Handmatig weer live na een afgeronde broadcast** (tot de agent dit doet): maak in
 > YouTube Studio → 📅 Manage → **Schedule Stream → Reuse settings** een nieuwe uitzending
