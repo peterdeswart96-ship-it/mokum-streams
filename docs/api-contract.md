@@ -25,7 +25,9 @@ Antwoord:
       "videoId": "_TG4cEuVt98" | null,
       "title": "Tafel 15 Fluke ranking 9ball Seizoen 3 #22" | null,
       "scheduledStart": "2026-07-08T17:30:00Z" | null,
-      "tournamentName": "Fluke ranking 9ball Seizoen 3 #22" | null
+      "tournamentName": "Fluke ranking 9ball Seizoen 3 #22" | null,
+      "quality": { "resolution": "1920x1080", "fps": 60, "bitrateKbps": 9000 } | null,
+      "overlays": { "sponsors": true, "scoreboard": true, "scoresOtherTables": true, "cuescoreLogo": true } | null
     }
   ]
 }
@@ -154,9 +156,16 @@ Body:
   "agentTime": "2026-07-08T18:00:00Z",
   "verwerkteCommandoIds": ["c1", "c2"],
   "tables": [
-    { "tableNumber": 1, "obsConnected": true, "streaming": true, "bitrateKbps": 5200 }
+    {
+      "tableNumber": 1, "obsConnected": true, "streaming": true, "bitrateKbps": 9000,
+      "resolution": "1920x1080", "fps": 60,
+      "overlays": { "sponsors": true, "scoreboard": true, "scoresOtherTables": true, "cuescoreLogo": true }
+    }
   ]
 }
+- `resolution` (`"WxH"`) en `fps` komen uit OBS (GetVideoSettings, output-resolutie).
+  `overlays` = de werkelijke aan/uit-stand per overlaybron (GetSceneItemEnabled).
+  Deze velden zijn optioneel; ontbreken → `/api/live` geeft `quality`/`overlays` = `null`.
 
 ## Wijzigingslog
 - 2026-07-04: eerste concept v0.1 (Peter + Claude).
@@ -219,3 +228,12 @@ Body:
   kunnen aan/uit zetten (voorheen bewust vaste branding, zie v0.6). `Camera Tafel N` blijft
   altijd aan (geen schakelaar). Front- en backend meegewijzigd; OBS-standaard ongewijzigd
   qua bronnamen.
+- 2026-07-11: v0.10 — **live kwaliteit + overlay-standen zichtbaar in het dashboard**.
+  De agent-statuspost (`/api/agent/status`) meldt per tafel nu ook `resolution`
+  (`"WxH"`), `fps` en de werkelijke `overlays`-stand (map sleutel→bool, uit
+  GetSceneItemEnabled). `GET /api/live` geeft per tafel een `quality`-blok
+  (`{resolution, fps, bitrateKbps}`) en `overlays` door — beide `null` als de tafel
+  niet live is of de agent (nog) niets meldt. Reden: dashboard toont echte
+  beeldkwaliteit en of overlays daadwerkelijk aan/uit staan, i.p.v. alleen lokale
+  "fire-and-forget"-toggles. Backend (`buildLiveTables`), agent (`obs.status` +
+  overlay-uitlezen) en frontend meegewijzigd.

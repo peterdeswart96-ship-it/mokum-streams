@@ -71,10 +71,24 @@ function Badge({ status }) {
   return <span className={`text-xs px-2 py-0.5 rounded border ${map[status] || map.offline}`}>{label}</span>;
 }
 
+// "1920x1080" + 60 + 9000 → "1080p60 · 9,0 Mbps" (kort, leesbaar in de kaart)
+function fmtKwaliteit(q) {
+  if (!q) return null;
+  const hoogte = q.resolution ? q.resolution.split('x')[1] : null;
+  const res = hoogte ? `${hoogte}p${q.fps ?? ''}` : (q.fps ? `${q.fps}fps` : '');
+  const mbps = q.bitrateKbps ? `${(q.bitrateKbps / 1000).toFixed(1).replace('.', ',')} Mbps` : '';
+  return [res, mbps].filter(Boolean).join(' · ');
+}
+
 // ── Tafelkaart ─────────────────────────────────────────────────────────────
 function TableCard({ table, onStop, onOverlay, busy }) {
   const actief = table.status === 'live' || table.status === 'scheduled';
-  const [ov, setOv] = useState(alleOverlaysAan);
+  // Overlay-toggles: lokaal-optimistisch, maar volgen de echte OBS-stand zodra de
+  // agent die meldt (table.overlays). Zonder agent-data blijft het lokale gedrag.
+  const serverOv = table.overlays;
+  const [ov, setOv] = useState(() => serverOv || alleOverlaysAan());
+  useEffect(() => { if (serverOv) setOv(serverOv); }, [serverOv]);
+  const kwaliteit = table.status === 'live' ? fmtKwaliteit(table.quality) : null;
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4">
       <div className="flex items-center justify-between mb-2">
@@ -82,6 +96,7 @@ function TableCard({ table, onStop, onOverlay, busy }) {
         <Badge status={table.status} />
       </div>
       {table.title && <p className="text-sm text-slate-600 truncate" title={table.title}>{table.title}</p>}
+      {kwaliteit && <p className="text-xs text-slate-500 mt-0.5">🎥 {kwaliteit}</p>}
       {table.videoId && (
         <a href={`https://youtu.be/${table.videoId}`} target="_blank" rel="noreferrer"
            className="text-sm text-emerald-700 underline">Bekijk op YouTube ↗</a>

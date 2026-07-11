@@ -17,6 +17,29 @@ test('buildLiveTables geeft live/scheduled/offline per cameratafel', () => {
   assert.strictEqual(byT[15].videoId, null);
 });
 
+test('buildLiveTables geeft quality + overlays door voor een live tafel, null voor de rest', () => {
+  const store = { '1': { videoId: 'v1', title: 'T1' }, '3': { videoId: 'v3', title: 'T3' } };
+  const status = {
+    tables: [
+      {
+        tableNumber: 1, streaming: true, bitrateKbps: 9000, resolution: '1920x1080', fps: 60,
+        overlays: { sponsors: true, scoreboard: false, scoresOtherTables: true, cuescoreLogo: true },
+      },
+      { tableNumber: 3, streaming: false, resolution: '1920x1080', fps: 60 }, // wel gemeld, maar niet live
+    ],
+  };
+  const byT = Object.fromEntries(buildLiveTables([1, 3, 15], store, status).map((r) => [r.tableNumber, r]));
+  // Live tafel: kwaliteit + overlays doorgegeven
+  assert.deepStrictEqual(byT[1].quality, { resolution: '1920x1080', fps: 60, bitrateKbps: 9000 });
+  assert.strictEqual(byT[1].overlays.scoreboard, false);
+  // Scheduled (niet live): geen stale kwaliteit/overlays
+  assert.strictEqual(byT[3].quality, null);
+  assert.strictEqual(byT[3].overlays, null);
+  // Offline zonder agent-data
+  assert.strictEqual(byT[15].quality, null);
+  assert.strictEqual(byT[15].overlays, null);
+});
+
 test('buildLiveTables: een gestopte entry telt als offline (geen videoId)', () => {
   const store = { '1': { videoId: 'v1', title: 'Tafel 1 Test', stopped: true } };
   // Zelfs als de agent nog "streaming" meldt: gestopt = offline.

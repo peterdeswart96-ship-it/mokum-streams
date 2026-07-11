@@ -4,6 +4,16 @@ const { valideerCommando } = require('./commands');
 // OBS-pool, en de status (incl. bevestigde commando-ids) terugsturen.
 // `pool` en `backend` worden geïnjecteerd zodat runOnce testbaar is met fakes.
 
+// Standaard overlaybronnen (spiegelt backend OVERLAY_BRON). Per install te
+// overrijden via config.overlaySources. Gebruikt om de werkelijke overlay-stand
+// per tafel uit te lezen (dashboard-weergave, api-contract v0.10).
+const DEFAULT_OVERLAY_SOURCES = {
+  sponsors: 'Sponsor slideshow',
+  scoreboard: 'Scoreboard',
+  scoresOtherTables: 'Scores other tables',
+  cuescoreLogo: 'Cuescore logo',
+};
+
 async function voerCommandoUit(pool, cmd) {
   switch (cmd.type) {
     case 'startStream':
@@ -48,10 +58,21 @@ async function runOnce(config, pool, backend, logger = console) {
     }
   }
 
+  const overlaySources = config.overlaySources || DEFAULT_OVERLAY_SOURCES;
   const tables = [];
   for (const t of config.tables) {
     try {
-      tables.push({ tableNumber: t.tableNumber, ...(await pool.status(t.tableNumber)) });
+      const base = await pool.status(t.tableNumber);
+      // Overlay-standen alleen uitlezen als er gezonden wordt (anders irrelevant + extra calls).
+      let extra = {};
+      if (base.streaming && typeof pool.overlayStates === 'function') {
+        try {
+          extra = { overlays: await pool.overlayStates(t.tableNumber, overlaySources) };
+        } catch (e) {
+          logger.log(`[STATUS] overlay-standen tafel ${t.tableNumber} mislukt: ${e.message}`);
+        }
+      }
+      tables.push({ tableNumber: t.tableNumber, ...base, ...extra });
     } catch (e) {
       tables.push({ tableNumber: t.tableNumber, obsConnected: false, streaming: false, bitrateKbps: 0 });
     }

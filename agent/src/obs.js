@@ -69,13 +69,43 @@ class ObsPool {
     await obs.call('SetSceneItemEnabled', { sceneName, sceneItemId, sceneItemEnabled: enabled });
   }
 
-  // Leest de streamstatus; berekent een gemiddelde bitrate uit outputBytes/duration.
+  // Leest de streamstatus; berekent een gemiddelde bitrate uit outputBytes/duration
+  // (outputDuration in ms → bits/ms == kbps) en de output-resolutie + fps.
   async status(tableNumber) {
     const obs = await this.connect(tableNumber);
     const s = await obs.call('GetStreamStatus');
     const bitrateKbps =
       s.outputActive && s.outputDuration > 0 ? Math.round((s.outputBytes * 8) / s.outputDuration) : 0;
-    return { obsConnected: true, streaming: !!s.outputActive, bitrateKbps };
+    let resolution = null;
+    let fps = null;
+    try {
+      const v = await obs.call('GetVideoSettings');
+      resolution = `${v.outputWidth}x${v.outputHeight}`;
+      if (v.fpsDenominator) fps = Math.round(v.fpsNumerator / v.fpsDenominator);
+    } catch {
+      /* oudere OBS zonder GetVideoSettings → laat resolutie/fps op null */
+    }
+    return { obsConnected: true, streaming: !!s.outputActive, bitrateKbps, resolution, fps };
+  }
+
+  // Leest de werkelijke aan/uit-stand van de opgegeven overlaybronnen (map
+  // sleutel→bronnaam) via GetSceneItemEnabled. Een bron die niet bestaat wordt
+  // stil overgeslagen (blijft uit de map).
+  async overlayStates(tableNumber, sources) {
+    const cfg = this.tables.get(tableNumber);
+    const obs = await this.connect(tableNumber);
+    const scene = cfg.sceneName || (await obs.call('GetCurrentProgramScene')).currentProgramSceneName;
+    const out = {};
+    for (const [sleutel, sourceName] of Object.entries(sources || {})) {
+      try {
+        const { sceneName, sceneItemId } = await this._vindSceneItem(obs, scene, sourceName);
+        const { sceneItemEnabled } = await obs.call('GetSceneItemEnabled', { sceneName, sceneItemId });
+        out[sleutel] = !!sceneItemEnabled;
+      } catch {
+        /* bron niet gevonden → laat weg */
+      }
+    }
+    return out;
   }
 
   async disconnectAll() {

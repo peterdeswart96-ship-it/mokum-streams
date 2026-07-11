@@ -6,15 +6,25 @@ const { zaalDelen } = require('../schedule/schedule');
 // Per cameratafel de live-status: 'live' als de agent meldt dat er gezonden wordt,
 // 'scheduled' als er vandaag een broadcast klaarstaat, anders 'offline'. Een
 // gestopte entry (stopped: true) telt niet meer als actief → weer 'offline'.
+// Voor een live tafel geven we ook de door de agent gemelde kwaliteit (resolutie/
+// fps/bitrate) en de werkelijke overlay-standen door; anders zijn die `null`.
 function buildLiveTables(cameraTables, store, status) {
-  const streaming = new Set(
-    (((status && status.tables) || []).filter((t) => t.streaming) || []).map((t) => Number(t.tableNumber))
+  const statusByTable = new Map(
+    (((status && status.tables) || [])).map((t) => [Number(t.tableNumber), t])
   );
   return (cameraTables || []).map((nr) => {
     const b = (store || {})[String(nr)] || null;
     const actief = !!(b && !b.stopped);
+    const s = statusByTable.get(Number(nr)) || null;
+    const streaming = !!(s && s.streaming);
     let st = 'offline';
-    if (actief) st = streaming.has(Number(nr)) ? 'live' : 'scheduled';
+    if (actief) st = streaming ? 'live' : 'scheduled';
+    // Kwaliteit + overlays alleen als de tafel echt live is (anders stale/irrelevant).
+    const quality =
+      streaming && actief
+        ? { resolution: s.resolution || null, fps: s.fps ?? null, bitrateKbps: s.bitrateKbps ?? null }
+        : null;
+    const overlays = streaming && actief && s.overlays ? s.overlays : null;
     return {
       tableNumber: Number(nr),
       status: st,
@@ -22,6 +32,8 @@ function buildLiveTables(cameraTables, store, status) {
       title: actief ? b.title || null : null,
       scheduledStart: actief ? b.scheduledStart || null : null,
       tournamentName: actief ? b.tournamentName || null : null,
+      quality,
+      overlays,
     };
   });
 }

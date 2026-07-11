@@ -61,6 +61,37 @@ test('runOnce slaat een commando voor een niet-beheerde tafel over en bevestigt 
   assert.deepStrictEqual(posted.verwerkteCommandoIds, ['a1', 'a2']);  // beide bevestigd (skip = ack)
 });
 
+test('runOnce voegt overlay-standen + resolutie/fps toe voor een streamende tafel', async () => {
+  const pool = fakePool();
+  pool.status = async () => ({ obsConnected: true, streaming: true, bitrateKbps: 9000, resolution: '1920x1080', fps: 60 });
+  pool.overlayStates = async () => ({ sponsors: true, scoreboard: false, scoresOtherTables: true, cuescoreLogo: true });
+  let posted = null;
+  const backend = {
+    async fetchCommands() { return []; },
+    async postStatus(_cfg, body) { posted = body; },
+  };
+  await runOnce({ tables: [{ tableNumber: 16 }] }, pool, backend, { log() {} });
+
+  const t = posted.tables[0];
+  assert.strictEqual(t.resolution, '1920x1080');
+  assert.strictEqual(t.fps, 60);
+  assert.deepStrictEqual(t.overlays, { sponsors: true, scoreboard: false, scoresOtherTables: true, cuescoreLogo: true });
+});
+
+test('runOnce leest geen overlays uit als de tafel niet streamt', async () => {
+  const pool = fakePool();
+  pool.status = async () => ({ obsConnected: true, streaming: false, bitrateKbps: 0, resolution: '1920x1080', fps: 60 });
+  let overlayCalls = 0;
+  pool.overlayStates = async () => { overlayCalls++; return {}; };
+  let posted = null;
+  const backend = { async fetchCommands() { return []; }, async postStatus(_c, b) { posted = b; } };
+
+  await runOnce({ tables: [{ tableNumber: 16 }] }, pool, backend, { log() {} });
+
+  assert.strictEqual(overlayCalls, 0); // niet uitgelezen wanneer offline/idle
+  assert.strictEqual(posted.tables[0].overlays, undefined);
+});
+
 test('runOnce rapporteert een tafel als offline als de status faalt', async () => {
   const pool = fakePool();
   pool.status = async () => { throw new Error('geen OBS'); };
