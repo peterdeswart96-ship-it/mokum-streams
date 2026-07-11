@@ -80,6 +80,39 @@ function fmtKwaliteit(q) {
   return [res, mbps].filter(Boolean).join(' · ');
 }
 
+// ── Overzichtsblok ─────────────────────────────────────────────────────────
+// Compacte samenvatting bovenaan: hoeveel tafels live/gepland/offline, plus een
+// waarschuwing als een live tafel onder 1080p uitzendt (na de scherpte-kwestie).
+function Overzicht({ tables }) {
+  const live = tables.filter((t) => t.status === 'live');
+  const gepland = tables.filter((t) => t.status === 'scheduled');
+  const offline = tables.filter((t) => t.status === 'offline');
+  const laag = live.filter((t) => {
+    const h = t.quality && t.quality.resolution ? Number(t.quality.resolution.split('x')[1]) : null;
+    return h && h < 1080;
+  });
+  const Stat = ({ n, label, kleur }) => (
+    <div className="flex items-baseline gap-1.5">
+      <span className={`text-2xl font-bold ${kleur}`}>{n}</span>
+      <span className="text-sm text-slate-500">{label}</span>
+    </div>
+  );
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 mb-4">
+      <div className="flex items-center gap-6 flex-wrap">
+        <Stat n={`${live.length}/${tables.length}`} label="live" kleur="text-red-600" />
+        <Stat n={gepland.length} label="gepland" kleur="text-amber-600" />
+        <Stat n={offline.length} label="offline" kleur="text-slate-400" />
+      </div>
+      {laag.length > 0 && (
+        <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2 mt-3">
+          ⚠ Lagere kwaliteit: {laag.map((t) => `Tafel ${t.tableNumber} (${t.quality.resolution})`).join(', ')}
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ── Tafelkaart ─────────────────────────────────────────────────────────────
 function TableCard({ table, onStop, onOverlay, busy }) {
   const actief = table.status === 'live' || table.status === 'scheduled';
@@ -253,6 +286,7 @@ export default function App() {
             Kon de status niet laden. Staat <code>VITE_API_BASE</code> goed en draait de backend?
           </p>
         )}
+        {status === 'ok' && <Overzicht tables={tables} />}
         {status === 'ok' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {tables.map((t) => (
