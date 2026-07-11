@@ -17,6 +17,16 @@ test('buildLiveTables geeft live/scheduled/offline per cameratafel', () => {
   assert.strictEqual(byT[15].videoId, null);
 });
 
+test('buildLiveTables: een gestopte entry telt als offline (geen videoId)', () => {
+  const store = { '1': { videoId: 'v1', title: 'Tafel 1 Test', stopped: true } };
+  // Zelfs als de agent nog "streaming" meldt: gestopt = offline.
+  const status = { tables: [{ tableNumber: 1, streaming: true }] };
+  const res = buildLiveTables([1], store, status);
+  assert.strictEqual(res[0].status, 'offline');
+  assert.strictEqual(res[0].videoId, null);
+  assert.strictEqual(res[0].title, null);
+});
+
 test('buildSchedule geeft aankomende enkeldaagse toernooien binnen het venster', () => {
   const planning = [
     { tournamentId: 1, name: 'Fluke', type: 'tournament', enabled: true, plannedStart: '2026-07-14T17:30:00Z', tafels: [1, 3] },

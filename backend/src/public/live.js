@@ -4,22 +4,24 @@ const { zaalDelen } = require('../schedule/schedule');
 // netwerk/opslag → unit-testbaar. Zie docs/api-contract.md.
 
 // Per cameratafel de live-status: 'live' als de agent meldt dat er gezonden wordt,
-// 'scheduled' als er vandaag een broadcast klaarstaat, anders 'offline'.
+// 'scheduled' als er vandaag een broadcast klaarstaat, anders 'offline'. Een
+// gestopte entry (stopped: true) telt niet meer als actief → weer 'offline'.
 function buildLiveTables(cameraTables, store, status) {
   const streaming = new Set(
     (((status && status.tables) || []).filter((t) => t.streaming) || []).map((t) => Number(t.tableNumber))
   );
   return (cameraTables || []).map((nr) => {
     const b = (store || {})[String(nr)] || null;
+    const actief = !!(b && !b.stopped);
     let st = 'offline';
-    if (b) st = streaming.has(Number(nr)) ? 'live' : 'scheduled';
+    if (actief) st = streaming.has(Number(nr)) ? 'live' : 'scheduled';
     return {
       tableNumber: Number(nr),
       status: st,
-      videoId: b ? b.videoId || null : null,
-      title: b ? b.title || null : null,
-      scheduledStart: b ? b.scheduledStart || null : null,
-      tournamentName: b ? b.tournamentName || null : null,
+      videoId: actief ? b.videoId || null : null,
+      title: actief ? b.title || null : null,
+      scheduledStart: actief ? b.scheduledStart || null : null,
+      tournamentName: actief ? b.tournamentName || null : null,
     };
   });
 }
