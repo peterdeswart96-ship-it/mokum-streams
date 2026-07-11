@@ -53,6 +53,21 @@ Namen in het **Engels** (afgesproken 2026-07-09); het **tafel-token blijft
 >   (sync-risico, gaps #9). Verwijs alle 4 de slideshows naar diezelfde bestanden.
 > Elke instantie moet uiteindelijk **dezelfde set + dezelfde namen** hebben.
 
+> **UPDATE 2026-07-11 — overgestapt op de OFFICIËLE Cuescore-overlay.** Op alle 4
+> tafels vervangt een nieuwe browser-source **`Scoreboard Cuescore`** het oude
+> pixelgrid-`Scoreboard`. URL: `https://cuescore.com/scoreboard/overlay/?tableId=<ID>&lang=nl`
+> (tafel 1=61403749, 3=61403764, 15=61403800, 16=61403803), 1920×1080, Fit to screen.
+> Voordelen: spelersfoto's + vlaggen + innings/averages, Nederlands, huisstijlkleur,
+> header + scorebord in één bron, en **tussen wedstrijden automatisch andere resultaten
+> + next match**. Uitgezet op alle 4: oude `Scoreboard` (pixelgrid), `Scores other tables`
+> en `Cuescore logo`. Zie `docs/cuescore-overlays.md` (incl. Jumbotron voor "andere tafels").
+>
+> ⚠️ **Aandacht vóór de agent live gaat:** de actieve bron heet nu `Scoreboard Cuescore`,
+> maar de automatisering (`OVERLAY_BRON.scoreboard`) verwacht de naam **`Scoreboard`**.
+> Vóór het scherp zetten: **hernoem `Scoreboard Cuescore` → `Scoreboard`** (en verwijder de
+> oude pixelgrid-`Scoreboard`), óf pas `OVERLAY_BRON.scoreboard` aan naar `Scoreboard Cuescore`.
+> Anders toggelt de dashboard-schakelaar "Scorebord" de verkeerde (uitgezette) bron.
+
 ### Scoreboard-bron (browser-source) — URL per tafel
 De `Scoreboard` is een **Browser-source** naar het Cuescore-overlay-tool, met de
 **Cuescore tableId** in de URL. Instellingen: **1280×720**, Custom CSS
