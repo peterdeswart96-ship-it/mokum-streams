@@ -9,42 +9,43 @@
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
   body {
-    margin: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-    background: #0f172a; color: #e2e8f0; -webkit-font-smoothing: antialiased;
+    margin: 0; font-family: Arial, Helvetica, sans-serif;
+    background: #0a0a0a; color: #cccccc; -webkit-font-smoothing: antialiased;
   }
   header {
     position: sticky; top: 0; z-index: 5;
-    background: linear-gradient(180deg, #0b1220 0%, rgba(15,23,42,.96) 100%);
-    padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,.08);
+    background: #1a1a1a;
+    padding: 14px 16px; border-bottom: 1px solid #2a2a2a;
   }
-  header h1 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: .2px; }
-  header .sub { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+  header h1 { margin: 0; font-size: 18px; font-family: "Arial Black", Arial, sans-serif; letter-spacing: .2px; color: #fff; }
+  header h1 .m { color: #cc0000; }
+  header .sub { font-size: 12px; color: #999; margin-top: 2px; }
   main { padding: 12px 12px 40px; max-width: 640px; margin: 0 auto; }
-  .melding { color: #94a3b8; text-align: center; padding: 40px 16px; font-size: 15px; }
-  .sectiekop { font-size: 13px; text-transform: uppercase; letter-spacing: .6px; color: #94a3b8; margin: 16px 4px 8px; display: flex; align-items: center; gap: 8px; }
-  .dot { width: 9px; height: 9px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 0 4px rgba(239,68,68,.18); }
+  .melding { color: #999; text-align: center; padding: 40px 16px; font-size: 15px; }
+  .sectiekop { font-size: 13px; text-transform: uppercase; letter-spacing: .6px; color: #999; margin: 16px 4px 8px; display: flex; align-items: center; gap: 8px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #cc0000; box-shadow: 0 0 0 4px rgba(204,0,0,.2); }
   .kaart {
-    background: #1e293b; border: 1px solid rgba(255,255,255,.07); border-radius: 14px;
+    background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px;
     padding: 12px 14px; margin-bottom: 10px;
   }
-  .kaart.live { border-left: 3px solid #ef4444; }
-  .kaart.klaar { opacity: .6; }
+  .kaart.live { border-left: 3px solid #cc0000; }
+  .kaart.klaar { opacity: .55; }
   .kaart .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-  .tafel { font-weight: 800; font-size: 13px; background: #334155; color: #fff; border-radius: 8px; padding: 3px 9px; }
-  .toernooi { font-size: 11px; color: #94a3b8; text-align: right; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tafel { font-family: "Arial Black", Arial, sans-serif; font-size: 13px; background: #2a2a2a; color: #fff; border-radius: 6px; padding: 3px 9px; }
+  .toernooi { font-size: 11px; color: #999; text-align: right; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .rij { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; }
-  .speler { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .speler { font-size: 15px; font-weight: bold; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .speler.b { text-align: right; }
-  .score { font-size: 20px; font-weight: 800; letter-spacing: 1px; white-space: nowrap; }
-  .score .sep { color: #64748b; margin: 0 3px; }
-  .raceto { text-align: center; font-size: 11px; color: #94a3b8; margin-top: 6px; }
-  footer { text-align: center; color: #64748b; font-size: 11px; padding: 8px 16px 24px; }
-  footer a { color: #94a3b8; }
+  .score { font-size: 20px; font-family: "Arial Black", Arial, sans-serif; letter-spacing: 1px; white-space: nowrap; color: #fff; }
+  .score .sep { color: #666; margin: 0 3px; }
+  .raceto { text-align: center; font-size: 11px; color: #999; margin-top: 6px; }
+  footer { text-align: center; color: #666; font-size: 11px; padding: 8px 16px 24px; }
+  footer a { color: #999; }
 </style>
 </head>
 <body>
   <header>
-    <h1>Mokum Pool &amp; Darts</h1>
+    <h1><span class="m">Mokum</span> Pool &amp; Darts</h1>
     <div class="sub">Live standen — alle wedstrijden in de zaal</div>
   </header>
   <main>

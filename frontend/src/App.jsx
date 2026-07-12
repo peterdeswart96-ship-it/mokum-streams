@@ -31,9 +31,9 @@ const standaardOverlays = () => Object.fromEntries(OVERLAYS.map((o) => [o.key, o
 function Login({ onSaved }) {
   const [val, setVal] = useState('');
   return (
-    <div className="max-w-md mx-auto mt-20 bg-white border border-slate-200 rounded-xl shadow p-6">
-      <h2 className="text-lg font-semibold mb-1">Inloggen</h2>
-      <p className="text-sm text-slate-500 mb-4">
+    <div className="max-w-md mx-auto mt-20 bg-surface border border-line rounded-lg shadow-2xl p-6">
+      <h2 className="text-lg font-display mb-1">Inloggen</h2>
+      <p className="text-sm text-ink-muted mb-4">
         Vul het beheer-token in (tijdelijk; Entra-login volgt later). Het blijft alleen in deze browser bewaard.
       </p>
       <input
@@ -41,13 +41,13 @@ function Login({ onSaved }) {
         value={val}
         onChange={(e) => setVal(e.target.value)}
         placeholder="ADMIN_TOKEN"
-        className="w-full border border-slate-300 rounded px-3 py-2 mb-3"
+        className="w-full bg-canvas border border-line rounded px-3 py-2 mb-3 text-ink placeholder:text-neutral-500"
         onKeyDown={(e) => e.key === 'Enter' && val.trim() && (saveToken(val), onSaved())}
       />
       <button
         disabled={!val.trim()}
         onClick={() => { saveToken(val); onSaved(); }}
-        className="w-full bg-emerald-700 text-white rounded px-4 py-2 font-medium disabled:opacity-40"
+        className="w-full bg-brand hover:bg-brand-dark text-white rounded px-4 py-2 font-medium disabled:opacity-40"
       >
         Opslaan
       </button>
@@ -63,10 +63,10 @@ function Toggle({ on, onChange, label, title, busy }) {
       disabled={busy}
       title={title}
       className={`flex items-center gap-2 text-sm px-2 py-1 rounded border ${
-        on ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-slate-50 border-slate-300 text-slate-500'
+        on ? 'bg-brand/20 border-brand text-ink' : 'bg-surface-raised border-line text-ink-muted'
       } ${busy ? 'opacity-60 cursor-wait' : ''}`}
     >
-      <span className={`w-3 h-3 rounded-full ${busy ? 'bg-amber-400 animate-pulse' : on ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+      <span className={`w-3 h-3 rounded-full ${busy ? 'bg-amber-400 animate-pulse' : on ? 'bg-brand' : 'bg-neutral-600'}`} />
       {label}
     </button>
   );
@@ -81,8 +81,8 @@ function Toaster({ toasts, onDismiss }) {
         <button
           key={t.id}
           onClick={() => onDismiss(t.id)}
-          className={`text-left rounded-lg px-4 py-2.5 text-sm shadow-lg border text-white ${
-            t.type === 'fout' ? 'bg-red-600 border-red-700' : 'bg-emerald-600 border-emerald-700'
+          className={`text-left rounded-lg px-4 py-2.5 text-sm shadow-2xl border text-white ${
+            t.type === 'fout' ? 'bg-brand border-brand-dark' : 'bg-emerald-600 border-emerald-700'
           }`}
         >
           {t.message}
@@ -109,13 +109,13 @@ function VerversStatus({ lastUpdated, status, onRefresh }) {
     const t = setInterval(() => setTick((x) => x + 1), 1000);
     return () => clearInterval(t);
   }, []);
-  const kleur = status === 'ok' ? 'bg-emerald-500' : status === 'fout' ? 'bg-red-500' : 'bg-amber-400 animate-pulse';
+  const kleur = status === 'ok' ? 'bg-emerald-500' : status === 'fout' ? 'bg-brand' : 'bg-amber-400 animate-pulse';
   const tekst = status === 'fout' ? 'verbinding kwijt' : `bijgewerkt ${geleden(lastUpdated ? Date.now() - lastUpdated : null)}`;
   return (
-    <div className="flex items-center gap-2 text-sm text-slate-500">
+    <div className="flex items-center gap-2 text-sm text-ink-muted">
       <span className={`w-2 h-2 rounded-full ${kleur}`} />
       <span>{tekst}</span>
-      <button onClick={onRefresh} title="Nu verversen" className="text-slate-400 hover:text-slate-700 text-base leading-none">↻</button>
+      <button onClick={onRefresh} title="Nu verversen" className="text-neutral-500 hover:text-ink text-base leading-none">↻</button>
     </div>
   );
 }
@@ -123,9 +123,9 @@ function VerversStatus({ lastUpdated, status, onRefresh }) {
 // ── Statusbadge ────────────────────────────────────────────────────────────
 function Badge({ status }) {
   const map = {
-    live: 'bg-red-100 text-red-700 border-red-200',
-    scheduled: 'bg-amber-100 text-amber-700 border-amber-200',
-    offline: 'bg-slate-100 text-slate-500 border-slate-200',
+    live: 'bg-brand/20 text-brand-light border-brand/40',
+    scheduled: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+    offline: 'bg-neutral-700/40 text-neutral-400 border-neutral-600',
   };
   const label = { live: '● LIVE', scheduled: 'gepland', offline: 'offline' }[status] || status;
   return <span className={`text-xs px-2 py-0.5 rounded border ${map[status] || map.offline}`}>{label}</span>;
@@ -153,19 +153,19 @@ function Overzicht({ tables }) {
   });
   const Stat = ({ n, label, kleur }) => (
     <div className="flex items-baseline gap-1.5">
-      <span className={`text-2xl font-bold ${kleur}`}>{n}</span>
-      <span className="text-sm text-slate-500">{label}</span>
+      <span className={`text-2xl font-display ${kleur}`}>{n}</span>
+      <span className="text-sm text-ink-muted">{label}</span>
     </div>
   );
   return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 mb-4">
+    <div className="bg-surface border border-line rounded-lg shadow-lg p-4 mb-4">
       <div className="flex items-center gap-6 flex-wrap">
-        <Stat n={`${live.length}/${tables.length}`} label="live" kleur="text-red-600" />
-        <Stat n={gepland.length} label="gepland" kleur="text-amber-600" />
-        <Stat n={offline.length} label="offline" kleur="text-slate-400" />
+        <Stat n={`${live.length}/${tables.length}`} label="live" kleur="text-brand-light" />
+        <Stat n={gepland.length} label="gepland" kleur="text-amber-400" />
+        <Stat n={offline.length} label="offline" kleur="text-neutral-500" />
       </div>
       {laag.length > 0 && (
-        <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2 mt-3">
+        <p className="text-xs text-amber-200 bg-amber-500/10 border border-amber-500/30 rounded p-2 mt-3">
           ⚠ Lagere kwaliteit: {laag.map((t) => `Tafel ${t.tableNumber} (${t.quality.resolution})`).join(', ')}
         </p>
       )}
@@ -180,15 +180,15 @@ function MatchRegel({ match }) {
   const live = st === 'playing';
   const label = live ? 'Nu live' : st === 'finished' ? 'afgelopen' : 'straks';
   return (
-    <div className={`mt-2 rounded-lg px-2.5 py-1.5 border ${live ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
+    <div className={`mt-2 rounded-lg px-2.5 py-1.5 border ${live ? 'bg-brand/10 border-brand/40' : 'bg-surface-raised border-line'}`}>
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
         <span className="text-sm font-medium truncate">{match.playerA || '—'}</span>
-        <span className="text-base font-bold tabular-nums whitespace-nowrap">{match.scoreA ?? 0}<span className="text-slate-400 mx-0.5">-</span>{match.scoreB ?? 0}</span>
+        <span className="text-base font-bold tabular-nums whitespace-nowrap">{match.scoreA ?? 0}<span className="text-neutral-500 mx-0.5">-</span>{match.scoreB ?? 0}</span>
         <span className="text-sm font-medium truncate text-right">{match.playerB || '—'}</span>
       </div>
       <div className="flex items-center gap-1.5 mt-0.5">
-        {live && <span className="w-1.5 h-1.5 rounded-full bg-red-500" />}
-        <span className="text-[11px] text-slate-500">{label}{match.round ? ` · ${match.round}` : ''}</span>
+        {live && <span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />}
+        <span className="text-[11px] text-ink-muted">{label}{match.round ? ` · ${match.round}` : ''}</span>
       </div>
     </div>
   );
@@ -219,30 +219,30 @@ function TableCard({ table, onStop, onOverlay, onPreview, busy }) {
             busy={!!pending[o.key]} onChange={(v) => schakel(o.key, v)} />
   );
   return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4">
+    <div className="bg-surface border border-line rounded-lg shadow-lg p-4">
       <div className="flex items-center justify-between mb-2">
-        <h3 className="font-semibold">Tafel {table.tableNumber}</h3>
+        <h3 className="font-display">Tafel {table.tableNumber}</h3>
         <Badge status={table.status} />
       </div>
-      {table.title && <p className="text-sm text-slate-600 truncate" title={table.title}>{table.title}</p>}
+      {table.title && <p className="text-sm text-ink-muted truncate" title={table.title}>{table.title}</p>}
       <MatchRegel match={table.match} />
-      {kwaliteit && <p className="text-xs text-slate-500 mt-0.5">🎥 {kwaliteit}</p>}
+      {kwaliteit && <p className="text-xs text-ink-muted mt-0.5">🎥 {kwaliteit}</p>}
       {table.videoId && (
         <a href={`https://youtu.be/${table.videoId}`} target="_blank" rel="noreferrer"
-           className="text-sm text-emerald-700 underline">Bekijk op YouTube ↗</a>
+           className="text-sm text-brand-light underline">Bekijk op YouTube ↗</a>
       )}
       <div className="mt-3 flex flex-wrap gap-2">
         {CONTENT_OVERLAYS.map(toggle)}
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <span className="text-xs text-slate-400 uppercase tracking-wide">Pauze</span>
+        <span className="text-xs text-neutral-500 uppercase tracking-wide">Pauze</span>
         {PAUZE_OVERLAYS.map(toggle)}
       </div>
       <div className="mt-3 flex gap-2">
         {table.status === 'live' && table.videoId && (
           <button
             onClick={() => onPreview(table)}
-            className="flex-1 bg-emerald-700 text-white rounded px-3 py-2 text-sm font-medium"
+            className="flex-1 bg-brand hover:bg-brand-dark text-white rounded px-3 py-2 text-sm font-medium"
           >
             👁 Preview
           </button>
@@ -251,7 +251,7 @@ function TableCard({ table, onStop, onOverlay, onPreview, busy }) {
           <button
             disabled={busy}
             onClick={() => onStop(table.tableNumber)}
-            className="flex-1 bg-slate-800 text-white rounded px-3 py-2 text-sm font-medium disabled:opacity-40"
+            className="flex-1 bg-surface-raised hover:bg-neutral-700 text-ink border border-line rounded px-3 py-2 text-sm font-medium disabled:opacity-40"
           >
             Stop stream
           </button>
@@ -282,26 +282,26 @@ function Wizard({ onClose, onStarted }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-10">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-        <h2 className="text-lg font-semibold mb-4">Nieuwe stream starten</h2>
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-10">
+      <div className="bg-surface text-ink border border-line rounded-lg shadow-2xl w-full max-w-md p-6">
+        <h2 className="text-lg font-display mb-4">Nieuwe stream starten</h2>
         <label className="block text-sm font-medium mb-1">Tafel</label>
         <select value={tafel} onChange={(e) => setTafel(Number(e.target.value))}
-                className="w-full border border-slate-300 rounded px-3 py-2 mb-3">
+                className="w-full bg-canvas border border-line rounded px-3 py-2 mb-3 text-ink">
           {CAMERAS.map((n) => <option key={n} value={n}>Tafel {n}</option>)}
         </select>
 
         <label className="block text-sm font-medium mb-1">YouTube-titel</label>
         <input value={titel} onChange={(e) => setTitel(e.target.value)} placeholder="bijv. Fluke ranking 9ball #22"
-               className="w-full border border-slate-300 rounded px-3 py-2 mb-1" />
-        <p className="text-xs text-slate-400 mb-3">Wordt: <span className="font-mono">Tafel {tafel} {titel}</span></p>
+               className="w-full bg-canvas border border-line rounded px-3 py-2 mb-1 text-ink placeholder:text-neutral-500" />
+        <p className="text-xs text-neutral-500 mb-3">Wordt: <span className="font-mono">Tafel {tafel} {titel}</span></p>
 
         <label className="block text-sm font-medium mb-1">Zichtbaarheid</label>
         <div className="flex gap-2 mb-3">
           {['unlisted', 'public', 'private'].map((p) => (
             <button key={p} onClick={() => setPrivacy(p)}
               className={`flex-1 rounded px-2 py-1.5 text-sm border ${
-                privacy === p ? 'bg-emerald-700 text-white border-emerald-700' : 'bg-white border-slate-300'
+                privacy === p ? 'bg-brand text-white border-brand' : 'bg-canvas border-line text-ink-muted'
               }`}>
               {{ unlisted: 'Verborgen', public: 'Openbaar', private: 'Privé' }[p]}
             </button>
@@ -316,12 +316,12 @@ function Wizard({ onClose, onStarted }) {
           ))}
         </div>
 
-        {fout && <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2 mb-3">{fout}</p>}
+        {fout && <p className="text-sm text-brand-light bg-brand/10 border border-brand/40 rounded p-2 mb-3">{fout}</p>}
 
         <div className="flex gap-2">
-          <button onClick={onClose} className="flex-1 border border-slate-300 rounded px-4 py-2">Annuleren</button>
+          <button onClick={onClose} className="flex-1 border border-line text-ink rounded px-4 py-2">Annuleren</button>
           <button disabled={bezig} onClick={start}
-                  className="flex-1 bg-emerald-700 text-white rounded px-4 py-2 font-medium disabled:opacity-40">
+                  className="flex-1 bg-brand hover:bg-brand-dark text-white rounded px-4 py-2 font-medium disabled:opacity-40">
             {bezig ? 'Starten…' : 'Start stream'}
           </button>
         </div>
@@ -334,22 +334,22 @@ function Wizard({ onClose, onStarted }) {
 function OverlayInfo({ onClose }) {
   const items = [...OVERLAYS, CAMERA_INFO];
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-10" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-lg font-semibold mb-1">Wat tonen de overlays?</h2>
-        <p className="text-sm text-slate-500 mb-4">De grafische lagen over het camerabeeld — en waar ze staan.</p>
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-10" onClick={onClose}>
+      <div className="bg-surface text-ink border border-line rounded-lg shadow-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-lg font-display mb-1">Wat tonen de overlays?</h2>
+        <p className="text-sm text-ink-muted mb-4">De grafische lagen over het camerabeeld — en waar ze staan.</p>
         <ul className="space-y-3">
           {items.map((o) => (
-            <li key={o.key} className="border-b border-slate-100 pb-3 last:border-0">
+            <li key={o.key} className="border-b border-line pb-3 last:border-0">
               <div className="flex items-center justify-between">
                 <span className="font-medium">{o.label}</span>
-                <span className="text-xs text-slate-500 bg-slate-100 rounded px-2 py-0.5">{o.pos}</span>
+                <span className="text-xs text-ink-muted bg-surface-raised rounded px-2 py-0.5">{o.pos}</span>
               </div>
-              <p className="text-sm text-slate-600">{o.desc}</p>
+              <p className="text-sm text-ink-muted">{o.desc}</p>
             </li>
           ))}
         </ul>
-        <button onClick={onClose} className="mt-5 w-full border border-slate-300 rounded px-4 py-2">Sluiten</button>
+        <button onClick={onClose} className="mt-5 w-full border border-line text-ink rounded px-4 py-2">Sluiten</button>
       </div>
     </div>
   );
@@ -358,11 +358,11 @@ function OverlayInfo({ onClose }) {
 // ── Live stream-preview (YouTube-embed) ──────────────────────────────────────
 function Preview({ table, onClose }) {
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-10" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl p-4" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-10" onClick={onClose}>
+      <div className="bg-surface text-ink border border-line rounded-lg shadow-2xl w-full max-w-3xl p-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold">Tafel {table.tableNumber} — live</h2>
-          <button onClick={onClose} className="text-slate-500 text-sm underline">Sluiten</button>
+          <h2 className="font-display">Tafel {table.tableNumber} — live</h2>
+          <button onClick={onClose} className="text-ink-muted hover:text-ink text-sm underline">Sluiten</button>
         </div>
         <div className="relative w-full" style={{ paddingTop: '56.25%' }}>
           <iframe
@@ -374,7 +374,7 @@ function Preview({ table, onClose }) {
           />
         </div>
         <a href={`https://youtu.be/${table.videoId}`} target="_blank" rel="noreferrer"
-           className="inline-block mt-3 text-sm text-emerald-700 underline">Openen op YouTube ↗</a>
+           className="inline-block mt-3 text-sm text-brand-light underline">Openen op YouTube ↗</a>
       </div>
     </div>
   );
@@ -445,32 +445,32 @@ export default function App() {
   if (!ingelogd) return <Login onSaved={() => setIngelogd(true)} />;
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800">
-      <header className="bg-emerald-800 text-white px-6 py-4 shadow flex items-center justify-between">
+    <div className="min-h-screen bg-canvas text-ink">
+      <header className="bg-surface-raised text-white px-6 py-4 shadow-lg border-b border-line flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold">Mokum Streams — Bedienpaneel</h1>
-          <p className="text-emerald-100 text-sm">Streams starten/stoppen &amp; overlays</p>
+          <h1 className="text-xl font-display"><span className="text-brand-light">Mokum</span> Streams — Bedienpaneel</h1>
+          <p className="text-ink-muted text-sm">Streams starten/stoppen &amp; overlays</p>
         </div>
         <div className="flex items-center gap-4">
           <button onClick={() => setInfoOpen(true)}
-                  className="text-emerald-100 text-sm underline">Uitleg overlays</button>
+                  className="text-ink-muted hover:text-ink text-sm underline">Uitleg overlays</button>
           <button onClick={() => { clearToken(); setIngelogd(false); }}
-                  className="text-emerald-100 text-sm underline">Uitloggen</button>
+                  className="text-ink-muted hover:text-ink text-sm underline">Uitloggen</button>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto p-6">
         <div className="flex items-center justify-between mb-4">
           <button onClick={() => setWizard(true)}
-                  className="bg-emerald-700 text-white rounded-lg px-4 py-2 font-medium shadow-sm">
+                  className="bg-brand hover:bg-brand-dark text-white rounded-lg px-4 py-2 font-medium shadow-lg">
             + Nieuwe stream
           </button>
           <VerversStatus lastUpdated={lastUpdated} status={status} onRefresh={laad} />
         </div>
 
-        {status === 'laden' && <p className="text-slate-500">Laden…</p>}
+        {status === 'laden' && <p className="text-ink-muted">Laden…</p>}
         {status === 'fout' && (
-          <p className="text-amber-800 bg-amber-50 border border-amber-200 rounded p-3">
+          <p className="text-amber-200 bg-amber-500/10 border border-amber-500/30 rounded p-3">
             Kon de status niet laden. Staat <code>VITE_API_BASE</code> goed en draait de backend?
           </p>
         )}
