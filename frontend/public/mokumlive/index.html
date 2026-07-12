@@ -322,9 +322,11 @@
         for (const m of t.matches) { m._toernooi = t.name || ''; matches.push(m); }
       }
       ALLE = matches;
-      // Alleen toernooien in de ticker die vandaag écht wedstrijden op tafels hebben
-      // (voorkomt dat een doorlopende league zonder wedstrijden vandaag meelift).
-      TOERNOOINAMEN = [...new Set(matches.filter(heeftTafel).map((m) => (m._toernooi || '').trim()).filter(Boolean))];
+      // Alleen toernooien in de ticker die vandaag écht gespeeld worden: een wedstrijd
+      // op een tafel die bezig (playing) of afgelopen (finished) is. Zo valt een
+      // doorlopende league zonder daadwerkelijk gespeelde partijen vandaag weg.
+      const gespeeldVandaag = (m) => heeftTafel(m) && (st(m) === 'playing' || st(m) === 'finished');
+      TOERNOOINAMEN = [...new Set(matches.filter(gespeeldVandaag).map((m) => (m._toernooi || '').trim()).filter(Boolean))];
       GELADEN = true;
       document.getElementById('ts').textContent = new Date().toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
       render();
