@@ -170,12 +170,8 @@
   /* Uitklapbaar filterpaneel. */
   .filters { display: none; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
   .filters.open { display: block; }
-  .filters .veld { display: block; font-size: 12px; color: #999; margin: 0 0 10px; }
-  .filters .veld input {
-    width: 100%; box-sizing: border-box; margin-top: 5px; padding: 9px 11px;
-    background: #0a0a0a; border: 1px solid #2a2a2a; border-radius: 8px; color: #fff; font: inherit; font-size: 15px;
-  }
   .filters label { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #ccc; margin: 10px 0; cursor: pointer; }
+  .filters label:first-child { margin-top: 0; }
   .filters input[type=checkbox] { width: 18px; height: 18px; accent-color: #cc0000; flex: none; }
   .filters .reset { margin-top: 6px; background: transparent; border: 1px solid #2a2a2a; color: #ff6b6b; border-radius: 8px; padding: 8px 12px; cursor: pointer; font: inherit; font-size: 13px; }
   .filters .reset:hover { border-color: #cc0000; }
@@ -206,9 +202,6 @@
       </div>
     </div>
     <div id="filters" class="filters">
-      <span class="veld">Toon alleen deze tafels (tafelnummers met komma's, bijv. <b>1,3,15</b>) — leeg = alle
-        <input id="fTafels" type="text" inputmode="numeric" placeholder="alle tafels" autocomplete="off">
-      </span>
       <label><input id="fGepind" type="checkbox"> Alleen gepinde tafels weergeven 📌</label>
       <label><input id="fAfgelopen" type="checkbox"> Afgelopen wedstrijden verbergen</label>
       <label><input id="fYoutube" type="checkbox"> Alleen wedstrijden die live op YouTube zijn</label>
@@ -250,13 +243,13 @@
   const LS_FILTERS = 'standen_filters';
   const LS_PINS = 'standen_pins';
   let WEERGAVE = 'minimal'; // 'standaard' | 'minimal' — minimal is de standaard
-  let FILTERS = { tafels: '', afgelopen: false, youtube: false, gepind: false };
+  let FILTERS = { afgelopen: false, youtube: false, gepind: false };
   let PINS = new Set(); // vastgepinde tafelnummers (jouw eigen favorieten)
   try {
     const w = localStorage.getItem(LS_WEERGAVE);
     if (w === 'minimal' || w === 'standaard' || w === 'xl') WEERGAVE = w;
     const f = JSON.parse(localStorage.getItem(LS_FILTERS) || 'null');
-    if (f && typeof f === 'object') FILTERS = { tafels: '', afgelopen: false, youtube: false, gepind: false, ...f };
+    if (f && typeof f === 'object') FILTERS = { afgelopen: false, youtube: false, gepind: false, ...f };
     const p = JSON.parse(localStorage.getItem(LS_PINS) || '[]');
     if (Array.isArray(p)) PINS = new Set(p.map(Number).filter((n) => !Number.isNaN(n)));
   } catch (e) { /* privacymodus e.d. → gewoon standaard */ }
@@ -343,12 +336,6 @@
     }
   }
 
-  // Zet "1,3,15" om naar een Set van tafelnummers; leeg/ongeldig → null (= alle tafels).
-  function parseTafels(s) {
-    const nums = String(s || '').split(',').map((x) => parseInt(x.replace(/\D/g, ''), 10)).filter((n) => !Number.isNaN(n));
-    return nums.length ? new Set(nums) : null;
-  }
-
   const st = (m) => String(m.matchstatus || '').toLowerCase();
   const heeftTafel = (m) => m.table && m.table.name != null && String(m.table.name).trim() !== '';
   // Rode gloed = deze tafel is NU live op ónze YouTube (heeft een 📺), niet zomaar
@@ -359,14 +346,13 @@
 
   // Hoeveel filters staan aan (voor het telpilletje op de filterknop).
   function actieveFilters() {
-    return (FILTERS.tafels && parseTafels(FILTERS.tafels) ? 1 : 0) + (FILTERS.afgelopen ? 1 : 0) + (FILTERS.youtube ? 1 : 0) + (FILTERS.gepind ? 1 : 0);
+    return (FILTERS.afgelopen ? 1 : 0) + (FILTERS.youtube ? 1 : 0) + (FILTERS.gepind ? 1 : 0);
   }
 
   // Bouwt de weergave uit ALLE, met zoekterm (#29) + filters (#…) toegepast.
   function render() {
     if (!GELADEN) return;
     const q = (document.getElementById('zoek').value || '').trim().toLowerCase();
-    const tafelSet = parseTafels(FILTERS.tafels);
     const zoekt = (m) => {
       if (!q) return true;
       const a = ((m.playerA && m.playerA.name) || '').toLowerCase();
@@ -375,7 +361,6 @@
       return a.includes(q) || b.includes(q) || tf === q || ('tafel ' + tf).includes(q);
     };
     const filtert = (m) => {
-      if (tafelSet && !tafelSet.has(num(m.table && m.table.name))) return false;
       if (FILTERS.afgelopen && st(m) === 'finished') return false;
       if (FILTERS.youtube && !STREAMS[String((m.table && m.table.name) || '')]) return false;
       if (FILTERS.gepind && !isPin(num(m.table && m.table.name))) return false;
@@ -524,7 +509,6 @@
     document.getElementById('wMinimal').classList.toggle('aan', WEERGAVE === 'minimal');
     document.getElementById('wXL').classList.toggle('aan', WEERGAVE === 'xl');
     document.body.classList.toggle('xl', WEERGAVE === 'xl');
-    document.getElementById('fTafels').value = FILTERS.tafels || '';
     document.getElementById('fGepind').checked = !!FILTERS.gepind;
     document.getElementById('fAfgelopen').checked = !!FILTERS.afgelopen;
     document.getElementById('fYoutube').checked = !!FILTERS.youtube;
@@ -547,12 +531,11 @@
     const open = filtersEl.classList.toggle('open');
     e.currentTarget.setAttribute('aria-expanded', open ? 'true' : 'false');
   });
-  document.getElementById('fTafels').addEventListener('input', (e) => { FILTERS.tafels = e.target.value; bewaar(); pasControlsToe(); render(); });
   document.getElementById('fGepind').addEventListener('change', (e) => { FILTERS.gepind = e.target.checked; bewaar(); pasControlsToe(); render(); });
   document.getElementById('fAfgelopen').addEventListener('change', (e) => { FILTERS.afgelopen = e.target.checked; bewaar(); pasControlsToe(); render(); });
   document.getElementById('fYoutube').addEventListener('change', (e) => { FILTERS.youtube = e.target.checked; bewaar(); pasControlsToe(); render(); });
   document.getElementById('fReset').addEventListener('click', () => {
-    FILTERS = { tafels: '', afgelopen: false, youtube: false, gepind: false };
+    FILTERS = { afgelopen: false, youtube: false, gepind: false };
     bewaar(); pasControlsToe(); render();
   });
 
