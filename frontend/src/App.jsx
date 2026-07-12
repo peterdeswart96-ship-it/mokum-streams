@@ -56,18 +56,39 @@ function Login({ onSaved }) {
 }
 
 // ── Kleine schakelaar ──────────────────────────────────────────────────────
-function Toggle({ on, onChange, label, title }) {
+function Toggle({ on, onChange, label, title, busy }) {
   return (
     <button
-      onClick={() => onChange(!on)}
+      onClick={() => !busy && onChange(!on)}
+      disabled={busy}
       title={title}
       className={`flex items-center gap-2 text-sm px-2 py-1 rounded border ${
         on ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-slate-50 border-slate-300 text-slate-500'
-      }`}
+      } ${busy ? 'opacity-60 cursor-wait' : ''}`}
     >
-      <span className={`w-3 h-3 rounded-full ${on ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+      <span className={`w-3 h-3 rounded-full ${busy ? 'bg-amber-400 animate-pulse' : on ? 'bg-emerald-500' : 'bg-slate-300'}`} />
       {label}
     </button>
+  );
+}
+
+// ── Toasts (tijdelijke meldingen rechtsonder) ────────────────────────────────
+function Toaster({ toasts, onDismiss }) {
+  if (!toasts.length) return null;
+  return (
+    <div className="fixed bottom-4 right-4 z-30 flex flex-col gap-2 max-w-xs">
+      {toasts.map((t) => (
+        <button
+          key={t.id}
+          onClick={() => onDismiss(t.id)}
+          className={`text-left rounded-lg px-4 py-2.5 text-sm shadow-lg border text-white ${
+            t.type === 'fout' ? 'bg-red-600 border-red-700' : 'bg-emerald-600 border-emerald-700'
+          }`}
+        >
+          {t.message}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -152,11 +173,22 @@ function TableCard({ table, onStop, onOverlay, onPreview, busy }) {
   // agent die meldt (table.overlays). Zonder agent-data blijft het lokale gedrag.
   const serverOv = table.overlays;
   const [ov, setOv] = useState(() => serverOv || standaardOverlays());
+  const [pending, setPending] = useState({});
   useEffect(() => { if (serverOv) setOv(serverOv); }, [serverOv]);
   const kwaliteit = table.status === 'live' ? fmtKwaliteit(table.quality) : null;
+  // Optimistisch schakelen, maar bij een mislukte API-call terugdraaien (rollback)
+  // zodat de knop de werkelijke stand toont. onOverlay geeft true/false terug.
+  const schakel = async (key, v) => {
+    const vorige = ov[key];
+    setOv((s) => ({ ...s, [key]: v }));
+    setPending((p) => ({ ...p, [key]: true }));
+    const ok = await onOverlay(table.tableNumber, { [key]: v });
+    setPending((p) => ({ ...p, [key]: false }));
+    if (!ok) setOv((s) => ({ ...s, [key]: vorige })); // terugdraaien
+  };
   const toggle = (o) => (
     <Toggle key={o.key} on={!!ov[o.key]} label={o.label} title={`${o.desc} — ${o.pos}`}
-            onChange={(v) => { setOv((s) => ({ ...s, [o.key]: v })); onOverlay(table.tableNumber, { [o.key]: v }); }} />
+            busy={!!pending[o.key]} onChange={(v) => schakel(o.key, v)} />
   );
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4">
@@ -327,9 +359,16 @@ export default function App() {
   const [status, setStatus] = useState('laden');
   const [wizard, setWizard] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [melding, setMelding] = useState('');
+  const [toasts, setToasts] = useState([]);
   const [infoOpen, setInfoOpen] = useState(false);
   const [preview, setPreview] = useState(null);
+
+  const pushToast = useCallback((message, type = 'ok') => {
+    const id = Date.now() + Math.random();
+    setToasts((ts) => [...ts, { id, message, type }]);
+    setTimeout(() => setToasts((ts) => ts.filter((t) => t.id !== id)), 3500);
+  }, []);
+  const dismissToast = (id) => setToasts((ts) => ts.filter((t) => t.id !== id));
 
   const laad = useCallback(async () => {
     try {
@@ -350,12 +389,27 @@ export default function App() {
   }, [ingelogd, laad]);
 
   async function actie(fn, okText) {
-    setBusy(true); setMelding('');
-    try { await fn(); if (okText) setMelding(okText); await laad(); }
+    setBusy(true);
+    try { await fn(); if (okText) pushToast(okText, 'ok'); await laad(); }
     catch (e) {
       if (e.status === 401) { clearToken(); setIngelogd(false); }
-      else setMelding(`Fout: ${e.message}`);
+      else pushToast(`Fout: ${e.message}`, 'fout');
     } finally { setBusy(false); }
+  }
+
+  // Overlay wijzigen met rollback-ondersteuning: geeft true bij succes, false bij fout
+  // (dan draait de tafelkaart de knop terug). Succes is stil — de knop bevestigt zelf;
+  // alleen bij een fout een toast.
+  async function wijzigOverlay(n, patch) {
+    try {
+      await setOverlay({ tableNumber: n, ...patch });
+      laad(); // reconcile met de server (agent-standen)
+      return true;
+    } catch (e) {
+      if (e.status === 401) { clearToken(); setIngelogd(false); }
+      else pushToast(`Kon overlay (tafel ${n}) niet wijzigen: ${e.message}`, 'fout');
+      return false;
+    }
   }
 
   if (!ingelogd) return <Login onSaved={() => setIngelogd(true)} />;
@@ -381,7 +435,6 @@ export default function App() {
                   className="bg-emerald-700 text-white rounded-lg px-4 py-2 font-medium shadow-sm">
             + Nieuwe stream
           </button>
-          {melding && <span className="text-sm text-slate-600">{melding}</span>}
         </div>
 
         {status === 'laden' && <p className="text-slate-500">Laden…</p>}
@@ -396,7 +449,7 @@ export default function App() {
             {tables.map((t) => (
               <TableCard key={t.tableNumber} table={t} busy={busy}
                 onStop={(n) => actie(() => stopStream(n), `Tafel ${n} gestopt`)}
-                onOverlay={(n, patch) => actie(() => setOverlay({ tableNumber: n, ...patch }), `Overlay tafel ${n} bijgewerkt`)}
+                onOverlay={wijzigOverlay}
                 onPreview={(tafel) => setPreview(tafel)}
               />
             ))}
@@ -406,10 +459,11 @@ export default function App() {
 
       {wizard && (
         <Wizard onClose={() => setWizard(false)}
-                onStarted={() => { setWizard(false); setMelding('Stream gestart — OBS volgt via de agent.'); laad(); }} />
+                onStarted={() => { setWizard(false); pushToast('Stream gestart — OBS volgt via de agent.', 'ok'); laad(); }} />
       )}
       {infoOpen && <OverlayInfo onClose={() => setInfoOpen(false)} />}
       {preview && <Preview table={preview} onClose={() => setPreview(null)} />}
+      <Toaster toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }
