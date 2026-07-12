@@ -127,7 +127,9 @@ function Overzicht({ tables }) {
 // ── Live wedstrijd-regel (uit Cuescore, via /api/live) ───────────────────────
 function MatchRegel({ match }) {
   if (!match) return null;
-  const live = String(match.status || '').toLowerCase() === 'playing';
+  const st = String(match.status || '').toLowerCase();
+  const live = st === 'playing';
+  const label = live ? 'Nu live' : st === 'finished' ? 'afgelopen' : 'straks';
   return (
     <div className={`mt-2 rounded-lg px-2.5 py-1.5 border ${live ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
@@ -137,7 +139,7 @@ function MatchRegel({ match }) {
       </div>
       <div className="flex items-center gap-1.5 mt-0.5">
         {live && <span className="w-1.5 h-1.5 rounded-full bg-red-500" />}
-        <span className="text-[11px] text-slate-500">{live ? 'Nu live' : 'afgelopen'}{match.round ? ` · ${match.round}` : ''}</span>
+        <span className="text-[11px] text-slate-500">{label}{match.round ? ` · ${match.round}` : ''}</span>
       </div>
     </div>
   );
