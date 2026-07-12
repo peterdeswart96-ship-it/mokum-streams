@@ -84,11 +84,14 @@
   .mrij .ms .sep { color: #666; margin: 0 4px; }
   .mrij .mk { flex: 0 0 auto; text-decoration: none; font-size: 15px; line-height: 1; }
 
-  /* Pin-knop (📌) om een tafel vast te pinnen — grijs als los, gekleurd als gepind. */
-  .pin { flex: 0 0 auto; cursor: pointer; background: none; border: 0; padding: 0 1px; font-size: 15px; line-height: 1; opacity: .3; filter: grayscale(1); }
-  .pin:hover { opacity: .7; }
-  .pin.aan { opacity: 1; filter: none; }
-  .top .tafelwrap { display: inline-flex; align-items: center; gap: 6px; }
+  /* Pin-knop om een tafel vast te pinnen. Los = grijze omtrek, schuin gekanteld;
+     gepind = massief rood en rechtop. SVG zodat we de kleur écht kunnen sturen. */
+  .pin { flex: 0 0 auto; cursor: pointer; background: none; border: 0; padding: 3px; line-height: 0; color: #8a8a8a; transform: rotate(-30deg); transition: transform .15s ease, color .15s ease; }
+  .pin svg { width: 17px; height: 17px; display: block; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .pin:hover { color: #ff6b6b; }
+  .pin.aan { color: #cc0000; transform: rotate(0deg); }
+  .pin.aan svg { fill: currentColor; }
+  .top .tafelwrap { display: inline-flex; align-items: center; gap: 4px; }
 
   /* Livestream-paneel onder de standen (zelfde stijl als het dashboard). */
   .stream { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 14px; margin-top: 22px; }
@@ -409,10 +412,11 @@
     </div>`;
   }
 
-  // De pin-knop voor een tafel (📌). data-tafel wordt door de klik-afhandelaar gebruikt.
+  // De pin-knop voor een tafel. data-tafel wordt door de klik-afhandelaar gebruikt.
+  const PIN_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><line x1="12" x2="12" y1="17" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>';
   function pinKnop(tnr) {
     const aan = isPin(tnr);
-    return `<button type="button" class="pin ${aan ? 'aan' : ''}" data-tafel="${esc(tnr)}" title="${aan ? 'Losmaken' : 'Vastpinnen'}" aria-label="${aan ? 'Tafel losmaken' : 'Tafel vastpinnen'}">📌</button>`;
+    return `<button type="button" class="pin ${aan ? 'aan' : ''}" data-tafel="${esc(tnr)}" title="${aan ? 'Losmaken' : 'Vastpinnen'}" aria-label="${aan ? 'Tafel losmaken' : 'Tafel vastpinnen'}" aria-pressed="${aan}">${PIN_SVG}</button>`;
   }
 
   function toon(html) { document.getElementById('inhoud').innerHTML = html; }
