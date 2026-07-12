@@ -148,7 +148,7 @@
   .knop .telpil { background: #cc0000; color: #fff; border-radius: 999px; font-size: 11px; padding: 0 6px; font-weight: bold; }
   /* Segment-schakelaar (Standaard | Minimal). */
   .seg { display: inline-flex; border: 1px solid #2a2a2a; border-radius: 8px; overflow: hidden; }
-  .seg button { cursor: pointer; background: #1a1a1a; border: 0; color: #999; font: inherit; font-size: 13px; font-weight: bold; padding: 8px 0; min-width: 34px; text-align: center; }
+  .seg button { cursor: pointer; background: #1a1a1a; border: 0; color: #999; font: inherit; font-size: 13px; font-weight: bold; padding: 8px 12px; text-align: center; }
   .seg button.aan { background: #cc0000; color: #fff; }
   .seg .xl-knop { display: none; } /* XL is alleen voor desktop */
 
@@ -196,9 +196,8 @@
       </button>
       <div id="ticker" class="ticker" aria-label="Toernooi van vandaag" hidden></div>
       <div class="seg" role="group" aria-label="Weergave">
-        <button id="wMinimal" type="button" title="Minimal — compacte lijst (klein)">S</button>
-        <button id="wStandaard" type="button" title="Standaard — kaarten">M</button>
-        <button id="wXL" type="button" class="xl-knop" title="XL — brede desktopweergave met grote livestream 🖥️">XL</button>
+        <button id="wMinimal" type="button" title="Lijst — compacte standen">Lijst</button>
+        <button id="wXL" type="button" class="xl-knop" title="XL — brede desktopweergave met grote livestream 🖥️">🖥️ XL</button>
       </div>
     </div>
     <div id="filters" class="filters">
@@ -247,7 +246,7 @@
   let PINS = new Set(); // vastgepinde tafelnummers (jouw eigen favorieten)
   try {
     const w = localStorage.getItem(LS_WEERGAVE);
-    if (w === 'minimal' || w === 'standaard' || w === 'xl') WEERGAVE = w;
+    if (w === 'minimal' || w === 'xl') WEERGAVE = w; // 'standaard' bestaat niet meer → valt terug op minimal
     const f = JSON.parse(localStorage.getItem(LS_FILTERS) || 'null');
     if (f && typeof f === 'object') FILTERS = { afgelopen: false, youtube: false, gepind: false, ...f };
     const p = JSON.parse(localStorage.getItem(LS_PINS) || '[]');
@@ -372,18 +371,10 @@
     const straks = basis.filter((m) => st(m) === 'waiting').sort(opTafel).slice(0, 12);
     const afgelopen = basis.filter((m) => st(m) === 'finished').sort((a, b) => tijd(b.stoptime) - tijd(a.stoptime)).slice(0, 8);
 
-    // Minimal én XL tonen dezelfde compacte lijst; XL zet die alleen links in een
-    // strook met de grote livestream ernaast (via de body.xl-lay-out).
-    if (WEERGAVE === 'minimal' || WEERGAVE === 'xl') {
-      const rijen = [...live, ...straks, ...afgelopen].sort(opTafel);
-      return rijen.length ? toon(rijen.map(mrij).join('')) : toonLeeg(q);
-    }
-
-    const secties = [];
-    if (live.length) secties.push(sectie('Nu live', live, 'live'));
-    if (straks.length) secties.push(sectie('Straks', straks, 'straks'));
-    if (afgelopen.length) secties.push(sectie('Net afgelopen', afgelopen, 'klaar'));
-    return secties.length ? toon(secties.join('')) : toonLeeg(q);
+    // Compacte lijst (S én XL): live + (max 12) straks + (max 8) afgelopen, op tafel.
+    // XL zet dezelfde lijst links in een strook met de grote livestream ernaast.
+    const rijen = [...live, ...straks, ...afgelopen].sort(opTafel);
+    return rijen.length ? toon(rijen.map(mrij).join('')) : toonLeeg(q);
   }
 
   function toonLeeg(q) {
@@ -396,41 +387,7 @@
       : 'Nog geen wedstrijden.<br>Zodra er gespeeld wordt, verschijnen de standen hier vanzelf.'}</div>`);
   }
 
-  function sectie(titel, lijst, soort) {
-    const dot = soort === 'live' ? '<span class="dot"></span> ' : '';
-    return `<div class="sectiekop">${dot}${esc(titel)} · ${lijst.length}</div>${lijst.map((m) => kaart(m)).join('')}`;
-  }
-
-  function kaart(m) {
-    const a = (m.playerA && m.playerA.name) || 'nog onbekend';
-    const b = (m.playerB && m.playerB.name) || 'nog onbekend';
-    const sa = m.scoreA != null ? m.scoreA : 0;
-    const sb = m.scoreB != null ? m.scoreB : 0;
-    const tnr = (m.table && m.table.name) ? String(m.table.name) : '';
-    const tafel = tnr ? `Tafel ${esc(tnr)}` : 'Tafel';
-    const race = m.raceTo ? `Race naar ${esc(m.raceTo)}` : '';
-    const vid = STREAMS[tnr];
-    const kijk = vid ? `<a class="kijk" href="https://www.youtube.com/watch?v=${esc(vid)}" target="_blank" rel="noreferrer">📺 Kijk deze tafel live</a>` : '';
-    // Gloed alleen als wij deze tafel live streamen (📺); afgelopen wedstrijden dimmen.
-    const cls = [vid ? 'live' : '', st(m) === 'finished' ? 'klaar' : ''].filter(Boolean).join(' ');
-    const pin = tnr ? pinKnop(tnr) : '';
-    return `
-      <div class="kaart ${cls}">
-        <div class="top">
-          <span class="tafelwrap">${pin}<span class="tafel">${tafel}</span></span>
-          <span class="toernooi">${esc(m._toernooi)}</span>
-        </div>
-        <div class="rij">
-          <div class="speler">${esc(a)}</div>
-          <div class="score"><span class="sa">${esc(sa)}</span><span class="sep">-</span><span class="sb">${esc(sb)}</span></div>
-          <div class="speler b">${esc(b)}</div>
-        </div>
-        ${race ? `<div class="raceto">${race}</div>` : ''}
-        ${kijk}
-      </div>`;
-  }
-
-  // Eén compacte regel (minimal-weergave): [tafel] speler A  score  speler B  [📺]
+  // Eén compacte regel (S/XL-weergave): [tafel] speler A  score  speler B  [📺]
   function mrij(m) {
     const a = (m.playerA && m.playerA.name) || 'nog onbekend';
     const b = (m.playerB && m.playerB.name) || 'nog onbekend';
@@ -505,7 +462,6 @@
 
   // Zet de knoppen/velden in lijn met de huidige staat (bij laden + na reset/wissel).
   function pasControlsToe() {
-    document.getElementById('wStandaard').classList.toggle('aan', WEERGAVE === 'standaard');
     document.getElementById('wMinimal').classList.toggle('aan', WEERGAVE === 'minimal');
     document.getElementById('wXL').classList.toggle('aan', WEERGAVE === 'xl');
     document.body.classList.toggle('xl', WEERGAVE === 'xl');
@@ -522,7 +478,6 @@
 
   // Events koppelen.
   document.getElementById('zoek').addEventListener('input', render);
-  document.getElementById('wStandaard').addEventListener('click', () => setWeergave('standaard'));
   document.getElementById('wMinimal').addEventListener('click', () => setWeergave('minimal'));
   document.getElementById('wXL').addEventListener('click', () => setWeergave('xl'));
 
