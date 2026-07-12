@@ -102,13 +102,21 @@ uiteenlopende OBS-output per tafel én YouTube-**latentie** die op laag/ultralaa
 |---|---|
 | Video Encoder | **NVIDIA NVENC H.264** |
 | Rate Control | **CBR** |
-| Bitrate | **9000 Kbps** |
+| Bitrate | **16000 Kbps** (was 9000 — verhoogd voor bewegingskorrel, zie noot) |
 | Keyframe Interval | **2 s** |
 | Preset | **P6** (of "Quality") |
 | Tuning | **High Quality** |
 | Multipass Mode | **Two Passes (Quarter Res)** |
 | Profile | **high** |
 | Look-ahead / Psycho Visual Tuning | **aan** |
+
+> **Noot bitrate (2026-07-12):** bij stilstand is 9000 kbps scherp, maar zodra een
+> speler om de tafel loopt wordt 1080p60 in de donkere zaal korrelig/blokkerig — de
+> encoder heeft dan te weinig bits. YouTube "stats for nerds" bevestigde: er wordt wél
+> 1080p60 geleverd, ruime bandbreedte, nauwelijks dropped frames → het is de **bron-
+> bitrate**, niet het netwerk of de kijkkant. Met 120 Mbps upload is er ruimte zeg:
+> verhoog naar **16000 kbps** (evt. 12000–20000). Alternatief: **1080p30** voor meer
+> bits per beeld. Vergt stream-herstart → doen als een tafel vrij is. Zie issue #16.
 
 **OBS → Settings → Video:**
 | Instelling | Waarde |
