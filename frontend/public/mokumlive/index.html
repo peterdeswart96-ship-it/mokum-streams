@@ -174,8 +174,10 @@
   /* Uitklapbaar filterpaneel. */
   .filters { display: none; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
   .filters.open { display: block; }
+  .filters .veld-select { display: block; font-size: 12px; color: #999; margin: 0 0 12px; }
+  .filters select { width: 100%; box-sizing: border-box; margin-top: 5px; padding: 9px 11px; background: #0a0a0a; border: 1px solid #2a2a2a; border-radius: 8px; color: #fff; font: inherit; font-size: 15px; }
   .filters label { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #ccc; margin: 10px 0; cursor: pointer; }
-  .filters label:first-child { margin-top: 0; }
+  .filters label.veld-select { display: block; }
   .filters input[type=checkbox] { width: 18px; height: 18px; accent-color: #cc0000; flex: none; }
   .filters .reset { margin-top: 6px; background: transparent; border: 1px solid #2a2a2a; color: #ff6b6b; border-radius: 8px; padding: 8px 12px; cursor: pointer; font: inherit; font-size: 13px; }
   .filters .reset:hover { border-color: #cc0000; }
@@ -205,6 +207,9 @@
       </div>
     </div>
     <div id="filters" class="filters">
+      <label class="veld-select">Toernooi
+        <select id="fToernooi"></select>
+      </label>
       <label><input id="fGepind" type="checkbox"> Alleen gepinde tafels weergeven 📌</label>
       <label><input id="fAfgelopen" type="checkbox"> Afgelopen wedstrijden verbergen</label>
       <label><input id="fYoutube" type="checkbox"> Alleen wedstrijden die live op YouTube zijn</label>
@@ -238,13 +243,19 @@
   let ALLE = [];     // alle wedstrijden van vandaag (met _toernooi)
   let STREAMS = {};  // { "<tafelnr>": youtube-videoId } — welke tafels wij live streamen
   let GELADEN = false;
-  let TOERNOOINAMEN = [];         // unieke toernooinamen van vandaag (voor de ticker)
+  let TOERNOOINAMEN = [];         // gestreamde (live) toernooien vandaag — voor auto-keuze
+  let TOERNOOIEN_VANDAAG = [];    // álle toernooinamen van vandaag — voor de dropdown
+  let TOERNOOI_OPTS_SIG = '';     // handtekening van de dropdown-opties (om onnodig herbouwen te vermijden)
   let TICKER_GETOOND = null;      // welke tekst nu in de ticker staat (om herstart te voorkomen)
 
   // Weergave + filters, onthouden in de browser (localStorage).
   const LS_WEERGAVE = 'standen_weergave';
   const LS_FILTERS = 'standen_filters';
   const LS_PINS = 'standen_pins';
+  const LS_TOERNOOI = 'standen_toernooi';
+  // null = automatisch (het gestreamde/live toernooi), 'ALLE' = alle toernooien, of een
+  // exacte toernooinaam.
+  let TOERNOOIKEUZE = null;
   let WEERGAVE = 'minimal'; // 'standaard' | 'minimal' — minimal is de standaard
   let FILTERS = { afgelopen: false, youtube: false, gepind: false };
   let PINS = new Set(); // vastgepinde tafelnummers (jouw eigen favorieten)
@@ -255,6 +266,8 @@
     if (f && typeof f === 'object') FILTERS = { afgelopen: false, youtube: false, gepind: false, ...f };
     const p = JSON.parse(localStorage.getItem(LS_PINS) || '[]');
     if (Array.isArray(p)) PINS = new Set(p.map(Number).filter((n) => !Number.isNaN(n)));
+    const tk = localStorage.getItem(LS_TOERNOOI);
+    if (tk) TOERNOOIKEUZE = tk; // 'ALLE' of een toernooinaam
   } catch (e) { /* privacymodus e.d. → gewoon standaard */ }
 
   function bewaar() {
@@ -262,7 +275,18 @@
       localStorage.setItem(LS_WEERGAVE, WEERGAVE);
       localStorage.setItem(LS_FILTERS, JSON.stringify(FILTERS));
       localStorage.setItem(LS_PINS, JSON.stringify([...PINS]));
+      if (TOERNOOIKEUZE == null) localStorage.removeItem(LS_TOERNOOI);
+      else localStorage.setItem(LS_TOERNOOI, TOERNOOIKEUZE);
     } catch (e) { /* niet fataal */ }
+  }
+
+  // Welke toernooien tonen we nu? null = alle (geen filter). Volgorde: expliciete keuze
+  // 'ALLE' → alle; een gekozen (nog bestaande) toernooinaam → alleen dat; anders
+  // automatisch de gestreamde/live toernooien (venue-wide fallback als er niets live is).
+  function toonToernooiSet() {
+    if (TOERNOOIKEUZE === 'ALLE') return null;
+    if (TOERNOOIKEUZE && TOERNOOIEN_VANDAAG.includes(TOERNOOIKEUZE)) return new Set([TOERNOOIKEUZE]);
+    return TOERNOOINAMEN.length ? new Set(TOERNOOINAMEN) : null;
   }
 
   const isPin = (tnr) => PINS.has(Number(tnr));
@@ -330,8 +354,11 @@
       if (!namen.length) namen = matches.filter((m) => st(m) === 'playing').map(naam).filter(Boolean);
       if (!namen.length) namen = matches.filter((m) => opCamera(m) && st(m) === 'finished').map(naam).filter(Boolean);
       TOERNOOINAMEN = [...new Set(namen)];
+      // Alle toernooien van vandaag (met wedstrijden op tafels) — voor de dropdown.
+      TOERNOOIEN_VANDAAG = [...new Set(matches.filter(heeftTafel).map(naam).filter(Boolean))].sort();
       GELADEN = true;
       document.getElementById('ts').textContent = new Date().toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+      renderToernooiOpties();
       render();
       renderTicker();
     } catch (e) {
@@ -369,10 +396,9 @@
       if (FILTERS.gepind && !isPin(num(m.table && m.table.name))) return false;
       return true;
     };
-    // Alleen het toernooi dat we streamen (zelfde set als de ticker) — niet de
-    // parallelle league in dezelfde zaal. Leeg (onbekend) → toon alles (fallback).
-    const actief = new Set(TOERNOOINAMEN);
-    const inToernooi = (m) => !actief.size || actief.has((m._toernooi || '').trim());
+    // Toernooi-keuze uit de dropdown (of automatisch het gestreamde toernooi).
+    const actief = toonToernooiSet(); // null = alle toernooien
+    const inToernooi = (m) => !actief || actief.has((m._toernooi || '').trim());
     const basis = ALLE.filter((m) => heeftTafel(m) && inToernooi(m) && zoekt(m) && filtert(m));
 
     const live = basis.filter((m) => st(m) === 'playing').sort(opTafel);
@@ -438,7 +464,9 @@
   function renderTicker() {
     const el = document.getElementById('ticker');
     if (!el) return;
-    const tekst = TOERNOOINAMEN.join(' • '); // ruime bullet-scheiding
+    const set = toonToernooiSet();
+    const namen = set ? [...set] : TOERNOOIEN_VANDAAG; // volgt de dropdown-keuze
+    const tekst = namen.join(' • '); // ruime bullet-scheiding
     if (tekst === TICKER_GETOOND) return;
     TICKER_GETOOND = tekst;
     if (!tekst) { el.hidden = true; el.innerHTML = ''; return; }
@@ -478,10 +506,29 @@
   }
 
   // Zet de knoppen/velden in lijn met de huidige staat (bij laden + na reset/wissel).
+  // Vult de toernooi-dropdown (opties = "Allemaal" + alle toernooien vandaag) en zet de
+  // nu-getoonde keuze als geselecteerd (bij automatisch: het gestreamde toernooi).
+  function renderToernooiOpties() {
+    const sel = document.getElementById('fToernooi');
+    if (!sel) return;
+    const sig = TOERNOOIEN_VANDAAG.join('|');
+    if (sig !== TOERNOOI_OPTS_SIG) {
+      TOERNOOI_OPTS_SIG = sig;
+      sel.innerHTML = ['<option value="ALLE">Allemaal</option>']
+        .concat(TOERNOOIEN_VANDAAG.map((n) => `<option value="${esc(n)}">${esc(n)}</option>`))
+        .join('');
+    }
+    const set = toonToernooiSet();
+    let val = 'ALLE';
+    if (set) { const arr = [...set]; if (arr.length === 1 && TOERNOOIEN_VANDAAG.includes(arr[0])) val = arr[0]; }
+    sel.value = val;
+  }
+
   function pasControlsToe() {
     document.getElementById('wMinimal').classList.toggle('aan', WEERGAVE === 'minimal');
     document.getElementById('wXL').classList.toggle('aan', WEERGAVE === 'xl');
     document.body.classList.toggle('xl', WEERGAVE === 'xl');
+    renderToernooiOpties();
     document.getElementById('fGepind').checked = !!FILTERS.gepind;
     document.getElementById('fAfgelopen').checked = !!FILTERS.afgelopen;
     document.getElementById('fYoutube').checked = !!FILTERS.youtube;
@@ -503,12 +550,14 @@
     const open = filtersEl.classList.toggle('open');
     e.currentTarget.setAttribute('aria-expanded', open ? 'true' : 'false');
   });
+  document.getElementById('fToernooi').addEventListener('change', (e) => { TOERNOOIKEUZE = e.target.value; bewaar(); pasControlsToe(); render(); renderTicker(); });
   document.getElementById('fGepind').addEventListener('change', (e) => { FILTERS.gepind = e.target.checked; bewaar(); pasControlsToe(); render(); });
   document.getElementById('fAfgelopen').addEventListener('change', (e) => { FILTERS.afgelopen = e.target.checked; bewaar(); pasControlsToe(); render(); });
   document.getElementById('fYoutube').addEventListener('change', (e) => { FILTERS.youtube = e.target.checked; bewaar(); pasControlsToe(); render(); });
   document.getElementById('fReset').addEventListener('click', () => {
     FILTERS = { afgelopen: false, youtube: false, gepind: false };
-    bewaar(); pasControlsToe(); render();
+    TOERNOOIKEUZE = null; // terug naar automatisch (het gestreamde toernooi)
+    bewaar(); pasControlsToe(); render(); renderTicker();
   });
 
   // Pin-knoppen (📌) in de standen: klik = tafel vastpinnen/losmaken.
