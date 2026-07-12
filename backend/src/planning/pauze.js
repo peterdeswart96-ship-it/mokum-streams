@@ -73,6 +73,18 @@ function bouwLiveMatches(tournaments, cameraTables) {
   return uit;
 }
 
+// Telt alle lopende (playing) wedstrijden in de zaal (over alle toernooien) — voor
+// de dashboard-teller "X wedstrijden nu live in de zaal".
+function telZaalLive(tournaments) {
+  let n = 0;
+  for (const t of tournaments || []) {
+    for (const m of (t.matches || [])) {
+      if (String(m.status || '').toLowerCase() === 'playing') n++;
+    }
+  }
+  return n;
+}
+
 // Bouwt de setOverlay-commando's (zonder id/tijd) om het pauzescherm aan of uit te
 // zetten: de opgegeven pauze-overlaysleutels op `toonPauze`. Slaat sleutels over die
 // niet in overlayBron staan.
@@ -82,4 +94,4 @@ function pauzeCommandos(tableNumber, toonPauze, overlayBron, keys) {
     .map((k) => ({ type: 'setOverlay', tableNumber: Number(tableNumber), sourceName: overlayBron[k], enabled: !!toonPauze }));
 }
 
-module.exports = { tafelSpeeltNu, volgendeToestand, pauzeCommandos, bouwLiveMatches };
+module.exports = { tafelSpeeltNu, volgendeToestand, pauzeCommandos, bouwLiveMatches, telZaalLive };

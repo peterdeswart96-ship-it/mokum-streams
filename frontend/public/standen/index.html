@@ -3,8 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0f172a">
+<meta name="theme-color" content="#0a0a0a">
 <title>Mokum Pool & Darts — Live standen</title>
+<link rel="icon" href="/mokum-logo.png">
+<link rel="apple-touch-icon" href="/mokum-logo.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Mokum standen">
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
@@ -41,14 +47,33 @@
   .raceto { text-align: center; font-size: 11px; color: #999; margin-top: 6px; }
   footer { text-align: center; color: #666; font-size: 11px; padding: 8px 16px 24px; }
   footer a { color: #999; }
+  .bar { display: flex; align-items: center; gap: 12px; }
+  .logo { height: 40px; width: auto; flex: none; }
+  .zoek {
+    width: 100%; box-sizing: border-box; margin: 4px 0 4px; padding: 10px 12px;
+    background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px;
+    color: #fff; font-size: 15px; font-family: inherit;
+  }
+  .zoek::placeholder { color: #777; }
+  .kijk {
+    display: inline-block; margin-top: 8px; font-size: 12px; font-weight: bold;
+    color: #ff6b6b; text-decoration: none;
+  }
+  .kijk:hover { color: #cc0000; }
 </style>
 </head>
 <body>
   <header>
-    <h1><span class="m">Mokum</span> Pool &amp; Darts</h1>
-    <div class="sub">Live standen — alle wedstrijden in de zaal</div>
+    <div class="bar">
+      <img class="logo" src="/mokum-logo.png" alt="Mokum Pool & Darts">
+      <div>
+        <h1><span class="m">Mokum</span> Pool &amp; Darts</h1>
+        <div class="sub">Live standen — alle wedstrijden in de zaal</div>
+      </div>
+    </div>
   </header>
   <main>
+    <input id="zoek" class="zoek" type="search" placeholder="Zoek speler of tafel…" autocomplete="off">
     <div id="inhoud"><div class="melding">Laden…</div></div>
   </main>
   <footer>Bijgewerkt <span id="ts">—</span> · standen via Cuescore</footer>
@@ -57,6 +82,11 @@
   const VENUE = 60451687;
   const REFRESH_MS = 20000;
   const API = 'https://api.cuescore.com';
+  const APP_API = 'https://mokum-streams-func.azurewebsites.net'; // onze backend (voor 'kijk live'-links)
+
+  let ALLE = [];     // alle wedstrijden van vandaag (met _toernooi)
+  let STREAMS = {};  // { "<tafelnr>": youtube-videoId } — welke tafels wij live streamen
+  let GELADEN = false;
 
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
   const num = (s) => { const n = parseInt(String(s ?? '').replace(/\D/g, ''), 10); return Number.isNaN(n) ? 9999 : n; };
@@ -70,39 +100,62 @@
 
   async function laad() {
     try {
+      // Onze eigen live-stream-info (voor de 'kijk live'-links, #27) — mag falen.
+      haalJson(`${APP_API}/api/live`).then((live) => {
+        const map = {};
+        for (const t of (live.tables || [])) {
+          const v = t.liveVideoId || t.videoId;
+          if (v) map[String(t.tableNumber)] = v;
+        }
+        STREAMS = map; render();
+      }).catch(() => {});
+
       const ev = await haalJson(`${API}/venue/events/?venueId=${VENUE}&date=${vandaag()}`);
       const ids = Array.isArray(ev.events) ? ev.events : [];
-      if (!ids.length) return toon(`<div class="melding">Vandaag geen toernooien in de zaal.</div>`);
-
-      const toernooien = await Promise.all(
-        ids.map((id) => haalJson(`${API}/tournament/?lang=nl&id=${id}`).catch(() => null))
-      );
+      const toernooien = ids.length
+        ? await Promise.all(ids.map((id) => haalJson(`${API}/tournament/?lang=nl&id=${id}`).catch(() => null)))
+        : [];
       const matches = [];
       for (const t of toernooien) {
         if (!t || !Array.isArray(t.matches)) continue;
         for (const m of t.matches) { m._toernooi = t.name || ''; matches.push(m); }
       }
-
-      const st = (m) => String(m.matchstatus || '').toLowerCase();
-      const heeftTafel = (m) => m.table && m.table.name != null && String(m.table.name).trim() !== '';
-      const opTafel = (a, b) => num(a.table && a.table.name) - num(b.table && b.table.name);
-      const live = matches.filter((m) => st(m) === 'playing' && heeftTafel(m)).sort(opTafel);
-      const straks = matches.filter((m) => st(m) === 'waiting' && heeftTafel(m)).sort(opTafel).slice(0, 12);
-      const afgelopen = matches.filter((m) => st(m) === 'finished' && heeftTafel(m))
-        .sort((a, b) => tijd(b.stoptime) - tijd(a.stoptime)).slice(0, 8);
-
-      const nu = new Date();
-      document.getElementById('ts').textContent = nu.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
-
-      const secties = [];
-      if (live.length) secties.push(sectie('Nu live', live, 'live'));
-      if (straks.length) secties.push(sectie('Straks', straks, 'straks'));
-      if (afgelopen.length) secties.push(sectie('Net afgelopen', afgelopen, 'klaar'));
-      if (!secties.length) return toon(`<div class="melding">Nog geen wedstrijden.<br>Zodra er gespeeld wordt, verschijnen de standen hier vanzelf.</div>`);
-      toon(secties.join(''));
+      ALLE = matches;
+      GELADEN = true;
+      document.getElementById('ts').textContent = new Date().toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+      render();
     } catch (e) {
-      toon(`<div class="melding">Kon de standen even niet laden.<br>De pagina probeert het zo opnieuw.</div>`);
+      if (!GELADEN) toon(`<div class="melding">Kon de standen even niet laden.<br>De pagina probeert het zo opnieuw.</div>`);
     }
+  }
+
+  // Bouwt de secties uit ALLE, met de huidige zoekterm (#29) toegepast.
+  function render() {
+    if (!GELADEN) return;
+    const q = (document.getElementById('zoek').value || '').trim().toLowerCase();
+    const st = (m) => String(m.matchstatus || '').toLowerCase();
+    const heeftTafel = (m) => m.table && m.table.name != null && String(m.table.name).trim() !== '';
+    const zoekt = (m) => {
+      if (!q) return true;
+      const a = ((m.playerA && m.playerA.name) || '').toLowerCase();
+      const b = ((m.playerB && m.playerB.name) || '').toLowerCase();
+      const tf = String((m.table && m.table.name) || '').toLowerCase();
+      return a.includes(q) || b.includes(q) || tf === q || ('tafel ' + tf).includes(q);
+    };
+    const basis = ALLE.filter((m) => heeftTafel(m) && zoekt(m));
+    const opTafel = (a, b) => num(a.table && a.table.name) - num(b.table && b.table.name);
+    const live = basis.filter((m) => st(m) === 'playing').sort(opTafel);
+    const straks = basis.filter((m) => st(m) === 'waiting').sort(opTafel).slice(0, 12);
+    const afgelopen = basis.filter((m) => st(m) === 'finished').sort((a, b) => tijd(b.stoptime) - tijd(a.stoptime)).slice(0, 8);
+
+    const secties = [];
+    if (live.length) secties.push(sectie('Nu live', live, 'live'));
+    if (straks.length) secties.push(sectie('Straks', straks, 'straks'));
+    if (afgelopen.length) secties.push(sectie('Net afgelopen', afgelopen, 'klaar'));
+    if (!secties.length) {
+      return toon(`<div class="melding">${q ? 'Geen wedstrijden gevonden voor “' + esc(q) + '”.' : 'Nog geen wedstrijden.<br>Zodra er gespeeld wordt, verschijnen de standen hier vanzelf.'}</div>`);
+    }
+    toon(secties.join(''));
   }
 
   function tijd(iso) { const t = Date.parse(iso || ''); return Number.isNaN(t) ? 0 : t; }
@@ -117,8 +170,11 @@
     const b = (m.playerB && m.playerB.name) || 'nog onbekend';
     const sa = m.scoreA != null ? m.scoreA : 0;
     const sb = m.scoreB != null ? m.scoreB : 0;
-    const tafel = (m.table && m.table.name) ? `Tafel ${esc(m.table.name)}` : 'Tafel';
+    const tnr = (m.table && m.table.name) ? String(m.table.name) : '';
+    const tafel = tnr ? `Tafel ${esc(tnr)}` : 'Tafel';
     const race = m.raceTo ? `Race naar ${esc(m.raceTo)}` : '';
+    const vid = STREAMS[tnr];
+    const kijk = vid ? `<a class="kijk" href="https://www.youtube.com/watch?v=${esc(vid)}" target="_blank" rel="noreferrer">📺 Kijk deze tafel live</a>` : '';
     return `
       <div class="kaart ${esc(soort || '')}">
         <div class="top">
@@ -131,11 +187,13 @@
           <div class="speler b">${esc(b)}</div>
         </div>
         ${race ? `<div class="raceto">${race}</div>` : ''}
+        ${kijk}
       </div>`;
   }
 
   function toon(html) { document.getElementById('inhoud').innerHTML = html; }
 
+  document.getElementById('zoek').addEventListener('input', render);
   laad();
   setInterval(laad, REFRESH_MS);
 </script>

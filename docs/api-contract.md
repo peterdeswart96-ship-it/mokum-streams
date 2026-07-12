@@ -18,6 +18,7 @@ GET /api/live
 Antwoord:
 {
   "generatedAt": "2026-07-08T18:00:00Z",
+  "venueLive": 7 | null,          // totaal aantal lopende wedstrijden in de héle zaal (alle toernooien), los van welke tafels wij filmen; null = onbekend
   "tables": [
     {
       "tableNumber": 15,
@@ -281,3 +282,10 @@ Body:
   **stream-paneel met tafel-switcher** onder het overzicht (YouTube-embed, gedempt) om
   overlay-wijzigingen op het beeld te controleren (met de normale YouTube-vertraging).
   Reden: visuele controle + opstap naar volledig dashboard-beheer van de streams.
+- 2026-07-12: v0.15 — **zaal-live-teller + "Wat komt eraan" in het dashboard** (#24, #21).
+  Timer `liveMatches` telt nu álle lopende wedstrijden in de zaal (`telZaalLive`, over alle
+  toernooien) en schrijft dat als `venueLive` naar `live-matches.json`. `GET /api/live` geeft
+  dat top-level als **`venueLive`** door (null = onbekend). Frontend: het overzicht toont
+  "X wedstrijden live in de zaal", en een read-only **"Wat komt eraan"**-blok voedt zich uit
+  `GET /api/schedule` (bestaand endpoint, `getSchedule`). Reden: context over de hele zaal +
+  zicht op de planning, zonder nieuw koppelvlak.

@@ -22,7 +22,14 @@ app.http('publicLive', {
     const status = (await readJson('status.json', {})) || {};
     const liveMatches = (await readJson('live-matches.json', {})) || {};
     const liveVideos = (await readJson('live-videos.json', {})) || {};
-    return json(200, { generatedAt: now.toISOString(), tables: buildLiveTables(cameras, store, status, liveMatches, liveVideos) });
+    // venueLive = totaal aantal lopende wedstrijden in de hele zaal (alle toernooien),
+    // los van welke tafels wij filmen. null als we het (nog) niet weten.
+    const venueLive = Number.isFinite(liveMatches.venueLive) ? liveMatches.venueLive : null;
+    return json(200, {
+      generatedAt: now.toISOString(),
+      venueLive,
+      tables: buildLiveTables(cameras, store, status, liveMatches, liveVideos),
+    });
   },
 });
 

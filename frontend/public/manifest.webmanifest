@@ -1,0 +1,13 @@
+{
+  "name": "Mokum Pool & Darts — Live standen",
+  "short_name": "Mokum standen",
+  "description": "Live standen van alle wedstrijden in de zaal.",
+  "start_url": "/standen/",
+  "scope": "/standen/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "icons": [
+    { "src": "/mokum-logo.png", "sizes": "190x220", "type": "image/png", "purpose": "any" }
+  ]
+}

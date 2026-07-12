@@ -33,6 +33,8 @@ async function req(path, opts = {}) {
 
 // Publiek (geen token nodig): live-status per cameratafel.
 export const getLive = () => req('/api/live');
+// Publiek: aankomende (enkeldaagse) toernooien binnen `days`.
+export const getSchedule = (days = 7) => req(`/api/schedule?days=${days}`);
 
 // Beheer (token vereist).
 export const getConfig = () => req('/api/manage/config');

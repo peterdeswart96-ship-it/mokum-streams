@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  getLive, startStream, stopStream, setOverlay,
+  getLive, getSchedule, startStream, stopStream, setOverlay,
   getToken, setToken as saveToken, clearToken,
 } from './api.js';
 
@@ -143,7 +143,7 @@ function fmtKwaliteit(q) {
 // ── Overzichtsblok ─────────────────────────────────────────────────────────
 // Compacte samenvatting bovenaan: hoeveel tafels live/gepland/offline, plus een
 // waarschuwing als een live tafel onder 1080p uitzendt (na de scherpte-kwestie).
-function Overzicht({ tables }) {
+function Overzicht({ tables, venueLive }) {
   const live = tables.filter((t) => t.status === 'live');
   const gepland = tables.filter((t) => t.status === 'scheduled');
   const offline = tables.filter((t) => t.status === 'offline');
@@ -159,10 +159,16 @@ function Overzicht({ tables }) {
   );
   return (
     <div className="bg-surface border border-line rounded-lg shadow-lg p-4 mb-4">
-      <div className="flex items-center gap-6 flex-wrap">
+      <div className="flex items-center gap-x-6 gap-y-2 flex-wrap">
         <Stat n={`${live.length}/${tables.length}`} label="live" kleur="text-brand-light" />
         <Stat n={gepland.length} label="gepland" kleur="text-amber-400" />
         <Stat n={offline.length} label="offline" kleur="text-neutral-500" />
+        {venueLive != null && (
+          <div className="flex items-baseline gap-1.5 sm:ml-auto">
+            <span className="text-2xl font-display text-ink">{venueLive}</span>
+            <span className="text-sm text-ink-muted">wedstrijd{venueLive === 1 ? '' : 'en'} live in de zaal</span>
+          </div>
+        )}
       </div>
       {laag.length > 0 && (
         <p className="text-xs text-amber-200 bg-amber-500/10 border border-amber-500/30 rounded p-2 mt-3">
@@ -431,10 +437,58 @@ function StreamPaneel({ tables }) {
   );
 }
 
+// Datum 'YYYY-MM-DD' → leesbaar: "Vandaag" / "Morgen" / "di 15 jul".
+function datumLabel(iso) {
+  const d = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  const vandaag = new Date(); vandaag.setHours(0, 0, 0, 0);
+  const verschil = Math.round((d - vandaag) / 86400000);
+  if (verschil === 0) return 'Vandaag';
+  if (verschil === 1) return 'Morgen';
+  return d.toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+// ── Wat komt eraan (aankomende toernooien, uit /api/schedule) ────────────────
+// Read-only lijstje van geplande enkeldaagse toernooien in de komende dagen. Vult
+// zich zodra de planning geïmporteerd is; anders een nette lege melding.
+function Aankomend() {
+  const [items, setItems] = useState(null); // null = laden, [] = niets gepland
+  useEffect(() => {
+    let leeft = true;
+    const haal = () => getSchedule(7).then((d) => { if (leeft) setItems(d.items || []); }).catch(() => { if (leeft) setItems([]); });
+    haal();
+    const t = setInterval(haal, 300000); // elke 5 min verversen (planning wijzigt zelden)
+    return () => { leeft = false; clearInterval(t); };
+  }, []);
+  return (
+    <div className="bg-surface border border-line rounded-lg shadow-lg p-4 mt-4">
+      <h3 className="font-display mb-3">Wat komt eraan</h3>
+      {items == null ? (
+        <p className="text-sm text-ink-muted">Laden…</p>
+      ) : items.length === 0 ? (
+        <p className="text-sm text-ink-muted">Geen geplande toernooien in de komende 7 dagen.</p>
+      ) : (
+        <ul className="divide-y divide-line">
+          {items.map((it, i) => (
+            <li key={i} className="flex items-baseline gap-3 py-2 first:pt-0 last:pb-0">
+              <span className="text-xs font-medium text-brand-light w-24 shrink-0">{datumLabel(it.date)} · {it.startTime}</span>
+              <span className="text-sm text-ink truncate flex-1">{it.tournamentName || 'Toernooi'}</span>
+              {it.tableNumbers && it.tableNumbers.length > 0 && (
+                <span className="text-xs text-ink-muted shrink-0">tafel {it.tableNumbers.join(', ')}</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 // ── App ────────────────────────────────────────────────────────────────────
 export default function App() {
   const [ingelogd, setIngelogd] = useState(!!getToken());
   const [tables, setTables] = useState([]);
+  const [venueLive, setVenueLive] = useState(null);
   const [status, setStatus] = useState('laden');
   const [wizard, setWizard] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -455,6 +509,7 @@ export default function App() {
       const d = await getLive();
       const list = (d.tables && d.tables.length) ? d.tables : CAMERAS.map((n) => ({ tableNumber: n, status: 'offline' }));
       setTables(list.sort((a, b) => a.tableNumber - b.tableNumber));
+      setVenueLive(d.venueLive ?? null);
       setStatus('ok');
       setLastUpdated(Date.now());
     } catch {
@@ -497,9 +552,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-canvas text-ink">
-      <header className="bg-surface-raised text-white px-6 py-4 shadow-lg border-b border-line flex items-center justify-between">
+      <header className="bg-surface-raised text-white px-4 sm:px-6 py-4 shadow-lg border-b border-line flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-xl font-display"><span className="text-brand-light">Mokum</span> Streams — Bedienpaneel</h1>
+          <h1 className="text-lg sm:text-xl font-display"><span className="text-brand-light">Mokum</span> Streams — Bedienpaneel</h1>
           <p className="text-ink-muted text-sm">Streams starten/stoppen &amp; overlays</p>
         </div>
         <div className="flex items-center gap-4">
@@ -510,8 +565,8 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto p-6">
-        <div className="flex items-center justify-between mb-4">
+      <main className="max-w-4xl mx-auto p-4 sm:p-6">
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
           <button onClick={() => setWizard(true)}
                   className="bg-brand hover:bg-brand-dark text-white rounded-lg px-4 py-2 font-medium shadow-lg">
             + Nieuwe stream
@@ -525,7 +580,7 @@ export default function App() {
             Kon de status niet laden. Staat <code>VITE_API_BASE</code> goed en draait de backend?
           </p>
         )}
-        {status === 'ok' && <Overzicht tables={tables} />}
+        {status === 'ok' && <Overzicht tables={tables} venueLive={venueLive} />}
         {status === 'ok' && (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -538,6 +593,7 @@ export default function App() {
               ))}
             </div>
             <StreamPaneel tables={tables} />
+            <Aankomend />
           </>
         )}
       </main>

@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { tafelSpeeltNu, volgendeToestand, pauzeCommandos, bouwLiveMatches } = require('../src/planning/pauze');
+const { tafelSpeeltNu, volgendeToestand, pauzeCommandos, bouwLiveMatches, telZaalLive } = require('../src/planning/pauze');
 
 // Mini genormaliseerd toernooi (zoals normalizeTournament levert).
 const toernooiMet = (matches) => ({ id: 1, name: 'T', status: 'Active', finished: false, matches });
@@ -55,6 +55,16 @@ test('bouwLiveMatches: per tafel de lopende wedstrijd (of laatste), anders null'
   assert.deepStrictEqual(r['3'], { playerA: 'A', playerB: 'B', scoreA: 4, scoreB: 1, status: 'playing', round: 'R1' });
   assert.deepStrictEqual(r['1'], { playerA: 'C', playerB: 'D', scoreA: 7, scoreB: 5, status: 'finished', round: 'Finale' });
   assert.strictEqual(r['15'], null); // geen wedstrijd op tafel 15
+});
+
+test('telZaalLive: telt alle lopende wedstrijden over alle toernooien (case-ongevoelig)', () => {
+  const ts = [
+    toernooiMet([match(3, 'playing'), match(1, 'finished'), match(15, 'Playing')]),
+    toernooiMet([match(5, 'waiting'), match(7, 'playing')]),
+  ];
+  assert.strictEqual(telZaalLive(ts), 3); // tafel 3, 15, 7
+  assert.strictEqual(telZaalLive([]), 0);
+  assert.strictEqual(telZaalLive(null), 0);
 });
 
 test('pauzeCommandos: schakelt de pauze-overlays op de gewenste stand, onbekende sleutels overslaan', () => {
