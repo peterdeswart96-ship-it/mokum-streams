@@ -19,6 +19,27 @@ function buildBroadcastTitle({ tafel, sponsor, toernooinaam }) {
   return `Tafel ${tafel}${sponsorDeel} ${naam}`.trim();
 }
 
+// Vaste links voor in de YouTube-beschrijving. De /standen-link krijgt UTM-tags mee
+// zodat Google Analytics het verkeer aan YouTube toeschrijft (#18 fase 1/3).
+const STANDEN_URL = 'https://mokum-streams.pdscloud.nl/standen/?utm_source=youtube&utm_medium=description&utm_campaign=standen';
+const KANAAL_URL = 'https://www.youtube.com/@MokumPoolDarts';
+
+// Bouwt de YouTube-beschrijving voor een broadcast: korte context + een link naar de
+// live standen (verkeer-drijver naar de site) + het kanaal. Puur → unit-testbaar.
+function buildBroadcastDescription({ toernooinaam } = {}) {
+  const naam = (toernooinaam || '').trim();
+  const kop = naam
+    ? `Live vanaf Mokum Pool & Darts in Amsterdam — ${naam}.`
+    : 'Live vanaf Mokum Pool & Darts in Amsterdam.';
+  return [
+    kop,
+    '',
+    `📊 Live standen van alle tafels: ${STANDEN_URL}`,
+    '',
+    `▶ Ons kanaal: ${KANAAL_URL}`,
+  ].join('\n');
+}
+
 // --- API-aanroepen ------------------------------------------------------------
 
 // Lijst van bestaande liveStreams van het kanaal (voor idempotente seed).
@@ -113,6 +134,7 @@ async function listActiveBroadcasts() {
 
 module.exports = {
   buildBroadcastTitle,
+  buildBroadcastDescription,
   listLiveStreams,
   createReusableLiveStream,
   createBroadcast,

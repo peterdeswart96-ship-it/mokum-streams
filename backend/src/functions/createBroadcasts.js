@@ -5,7 +5,7 @@ const { dueRecords, effectiveStart } = require('../planning/planning');
 const { leagueDueTables } = require('../planning/league');
 const { getTournament } = require('../cuescore');
 const { enqueue, startCommandsFor } = require('../agent/commandQueue');
-const { buildBroadcastTitle, createBroadcast, bindBroadcast } = require('../youtube/broadcasts');
+const { buildBroadcastTitle, buildBroadcastDescription, createBroadcast, bindBroadcast } = require('../youtube/broadcasts');
 const { isArmed } = require('../config/automation');
 
 // Timer-Function (#9 + optie 2 + start-automatisering): maakt vooruit de
@@ -42,8 +42,9 @@ async function verwerk(now, context) {
       return;
     }
     const title = buildBroadcastTitle({ tafel: tafelNr, toernooinaam: rec.name || '' });
+    const description = buildBroadcastDescription({ toernooinaam: rec.name || '' });
     try {
-      const broadcast = await createBroadcast({ title, scheduledStartTime: startIso });
+      const broadcast = await createBroadcast({ title, description, scheduledStartTime: startIso });
       await bindBroadcast({ broadcastId: broadcast.id, streamId: table.streamId });
       store[String(tafelNr)] = {
         tableNumber: Number(tafelNr),

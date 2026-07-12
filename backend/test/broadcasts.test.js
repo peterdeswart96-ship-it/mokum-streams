@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { buildBroadcastTitle } = require('../src/youtube/broadcasts');
+const { buildBroadcastTitle, buildBroadcastDescription } = require('../src/youtube/broadcasts');
 
 // Unit-tests voor de pure titel-opbouw. Geen netwerk, dus veilig in de CI.
 
@@ -31,4 +31,17 @@ test('tafel 0 is geldig (geen verplicht-fout)', () => {
 
 test('ontbrekende tafel gooit een fout', () => {
   assert.throws(() => buildBroadcastTitle({ toernooinaam: 'x' }), /tafel is verplicht/);
+});
+
+test('beschrijving bevat de standen-link met UTM en de toernooinaam', () => {
+  const d = buildBroadcastDescription({ toernooinaam: 'Fluke ranking' });
+  assert.match(d, /Fluke ranking/);
+  assert.match(d, /standen\/\?utm_source=youtube&utm_medium=description&utm_campaign=standen/);
+  assert.match(d, /@MokumPoolDarts/);
+});
+
+test('beschrijving zonder toernooinaam blijft geldig (algemene kop)', () => {
+  const d = buildBroadcastDescription({});
+  assert.match(d, /Live vanaf Mokum Pool & Darts/);
+  assert.match(d, /standen\//);
 });

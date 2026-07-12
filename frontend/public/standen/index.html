@@ -88,6 +88,18 @@
   let STREAMS = {};  // { "<tafelnr>": youtube-videoId } — welke tafels wij live streamen
   let GELADEN = false;
 
+  // Cookieloze bezoek-/QR-teller (#18 fase 1): meld één paginaweergave met de bron uit
+  // utm_source (bv. 'qr' vanaf de QR-overlay). Fire-and-forget, geen cookies, geen
+  // persoonsgegevens → geen consent-banner. Mag nooit de pagina blokkeren.
+  (function meldBezoek() {
+    try {
+      const bron = new URLSearchParams(location.search).get('utm_source') || 'direct';
+      const url = `${APP_API}/api/hit?source=${encodeURIComponent(bron)}&page=standen`;
+      if (navigator.sendBeacon) navigator.sendBeacon(url);
+      else fetch(url, { method: 'POST', mode: 'no-cors', keepalive: true });
+    } catch (e) { /* teller nooit fataal */ }
+  })();
+
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
   const num = (s) => { const n = parseInt(String(s ?? '').replace(/\D/g, ''), 10); return Number.isNaN(n) ? 9999 : n; };
   const vandaag = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };

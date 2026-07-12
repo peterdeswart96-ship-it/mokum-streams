@@ -38,6 +38,13 @@ Antwoord:
 GET /api/schedule?days=7
 Antwoord: { "items": [ { "date", "startTime", "tournamentName", "tableNumbers": [..] } ] }
 
+POST /api/hit?source=qr&page=standen   (ook GET) — cookieloze bezoek-/QR-teller
+- Publiek, geen auth, geen body nodig (past bij navigator.sendBeacon / fetch no-cors).
+- `source` = bron (uit utm_source, bv. qr|youtube|direct), `page` = pagina (bv. standen).
+  Beide worden genormaliseerd (kleine letters, [a-z0-9_-], max 24) → rommel kan de opslag
+  niet opblazen. Cookieloos, geen persoonsgegevens/IP's → geen consent-banner.
+- Antwoord: 204 (geen body). Fouten worden stil ingeslikt (teller nooit fataal voor de pagina).
+
 ## Beheer (dashboard, auth vereist)
 GET  /api/manage/config              -> tafelconfig, array van { tableNumber, streamId }
 GET  /api/manage/planning?days=14    -> geplande toernooien (Cuescore-import + instellingen)
@@ -50,6 +57,7 @@ POST /api/manage/streams/overlay     -> body: { "tableNumber": 15, "sponsors"?: 
    NB: content-overlays (sponsors/scoreboard/scoresOtherTables/cuescoreLogo) staan standaard AAN;
    break-overlays (jumbotron/pauzemelding) staan standaard UIT (alleen tijdens pauzes tonen).
 POST /api/manage/setup/streams       -> eenmalig: herbruikbare liveStream per tafel (idempotent) → schrijft config/tables.json; body (optioneel) { "cameras": [1,3,15,16] }
+GET  /api/manage/stats               -> opgetelde bezoek-/QR-teller: { "totaal", "perBron": {..}, "perPagina": {..}, "perDag": { "YYYY-MM-DD": { "totaal", "perBron": {..} } } } (voedt later het centrale mokum-bot-dashboard, #18 fase 4)
 
 Tafelconfig (GET /api/manage/config) — array:
 {
@@ -289,3 +297,11 @@ Body:
   "X wedstrijden live in de zaal", en een read-only **"Wat komt eraan"**-blok voedt zich uit
   `GET /api/schedule` (bestaand endpoint, `getSchedule`). Reden: context over de hele zaal +
   zicht op de planning, zonder nieuw koppelvlak.
+- 2026-07-12: v0.16 — **analytics + SEO fase 1/3 (#18)**. Nieuw **`POST/GET /api/hit`**
+  (publiek, cookieloze bezoek-/QR-teller → `stats/hits.json` via ETag-veilige `updateJson`)
+  en **`GET /api/manage/stats`** (beheer, opgetelde cijfers). De QR-overlay linkt nu met
+  UTM (`utm_source=stream&utm_medium=qr&utm_campaign=standen`) en de `/standen`-pagina meldt
+  een bezoek via `navigator.sendBeacon`. Broadcasts krijgen automatisch een **beschrijving**
+  (`buildBroadcastDescription`) met een UTM-link naar `/standen` + het kanaal, als
+  verkeer-drijver. Reden: meetbaar maken van QR-scans/bezoek en verkeer van YouTube naar de
+  site sturen — fundament voor het centrale mokum-bot-dashboard (fase 4).

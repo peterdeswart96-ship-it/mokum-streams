@@ -2,7 +2,7 @@ const { app } = require('@azure/functions');
 const { readJson, writeJson } = require('../storage/blob');
 const { zaalDelen } = require('../schedule/schedule');
 const { enqueue, isTableBusy, startCommandsFor, OVERLAY_BRON } = require('../agent/commandQueue');
-const { buildBroadcastTitle, createBroadcast, bindBroadcast } = require('../youtube/broadcasts');
+const { buildBroadcastTitle, buildBroadcastDescription, createBroadcast, bindBroadcast } = require('../youtube/broadcasts');
 const { isAdmin } = require('../admin/auth');
 
 // Handmatige (ad-hoc) bediening vanuit het dashboard: een stream op een vrije
@@ -43,6 +43,7 @@ app.http('adminStreamStart', {
     if (isTableBusy(store, tafelNr)) return json(409, { error: `tafel ${tafelNr} is vandaag al in gebruik` });
 
     const title = buildBroadcastTitle({ tafel: tafelNr, toernooinaam: body.title || '' });
+    const description = buildBroadcastDescription({ toernooinaam: body.title || '' });
     const start = new Date().toISOString();
     // Voor een veilige test kun je privacy: "unlisted" (of "private") meesturen;
     // standaard is de stream "public".
@@ -50,7 +51,7 @@ app.http('adminStreamStart', {
 
     let broadcast;
     try {
-      broadcast = await createBroadcast({ title, scheduledStartTime: start, privacyStatus });
+      broadcast = await createBroadcast({ title, description, scheduledStartTime: start, privacyStatus });
       await bindBroadcast({ broadcastId: broadcast.id, streamId: table.streamId });
     } catch (e) {
       context.log(`[FOUT] ad-hoc broadcast tafel ${tafelNr}: ${e.message}`);
