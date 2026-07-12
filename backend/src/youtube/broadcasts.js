@@ -100,10 +100,12 @@ async function getBroadcastStatus(broadcastId) {
 // óók voor handmatig gestarte uitzendingen (mine=true = alle broadcasts op het kanaal).
 async function listActiveBroadcasts() {
   const yt = await getYouTubeClient();
+  // LET OP: liveBroadcasts.list eist PRECIES ÉÉN filter (id | mine | broadcastStatus).
+  // `broadcastStatus: 'active'` is al kanaal-scoped (de geauthenticeerde eigenaar) →
+  // `mine` mag er NIET bij (anders 'incompatibleParameters').
   const res = await yt.liveBroadcasts.list({
     part: ['id', 'snippet'],
     broadcastStatus: 'active',
-    mine: true,
     maxResults: 50,
   });
   return (res.data.items || []).map((b) => ({ videoId: b.id, title: (b.snippet && b.snippet.title) || '' }));
