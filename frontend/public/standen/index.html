@@ -240,6 +240,9 @@
 
   const st = (m) => String(m.matchstatus || '').toLowerCase();
   const heeftTafel = (m) => m.table && m.table.name != null && String(m.table.name).trim() !== '';
+  // Rode gloed = deze tafel is NU live op ónze YouTube (heeft een 📺), niet zomaar
+  // elke lopende Cuescore-wedstrijd.
+  const opYoutube = (m) => !!STREAMS[String(m.table && m.table.name)];
   const tijd = (iso) => { const t = Date.parse(iso || ''); return Number.isNaN(t) ? 0 : t; };
   const opTafel = (a, b) => num(a.table && a.table.name) - num(b.table && b.table.name);
 
@@ -293,10 +296,10 @@
 
   function sectie(titel, lijst, soort) {
     const dot = soort === 'live' ? '<span class="dot"></span> ' : '';
-    return `<div class="sectiekop">${dot}${esc(titel)} · ${lijst.length}</div>${lijst.map((m) => kaart(m, soort)).join('')}`;
+    return `<div class="sectiekop">${dot}${esc(titel)} · ${lijst.length}</div>${lijst.map((m) => kaart(m)).join('')}`;
   }
 
-  function kaart(m, soort) {
+  function kaart(m) {
     const a = (m.playerA && m.playerA.name) || 'nog onbekend';
     const b = (m.playerB && m.playerB.name) || 'nog onbekend';
     const sa = m.scoreA != null ? m.scoreA : 0;
@@ -306,8 +309,10 @@
     const race = m.raceTo ? `Race naar ${esc(m.raceTo)}` : '';
     const vid = STREAMS[tnr];
     const kijk = vid ? `<a class="kijk" href="https://www.youtube.com/watch?v=${esc(vid)}" target="_blank" rel="noreferrer">📺 Kijk deze tafel live</a>` : '';
+    // Gloed alleen als wij deze tafel live streamen (📺); afgelopen wedstrijden dimmen.
+    const cls = [vid ? 'live' : '', st(m) === 'finished' ? 'klaar' : ''].filter(Boolean).join(' ');
     return `
-      <div class="kaart ${esc(soort || '')}">
+      <div class="kaart ${cls}">
         <div class="top">
           <span class="tafel">${tafel}</span>
           <span class="toernooi">${esc(m._toernooi)}</span>
@@ -324,7 +329,6 @@
 
   // Eén compacte regel (minimal-weergave): [tafel] speler A  score  speler B  [📺]
   function mrij(m) {
-    const soort = st(m) === 'playing' ? 'live' : st(m) === 'finished' ? 'klaar' : '';
     const a = (m.playerA && m.playerA.name) || 'nog onbekend';
     const b = (m.playerB && m.playerB.name) || 'nog onbekend';
     const sa = m.scoreA != null ? m.scoreA : 0;
@@ -334,6 +338,8 @@
     const kijk = vid
       ? `<a class="mk" title="Kijk deze tafel live" href="https://www.youtube.com/watch?v=${esc(vid)}" target="_blank" rel="noreferrer">📺</a>`
       : '<span></span>';
+    // Gloed alleen als wij deze tafel live streamen (📺); afgelopen wedstrijden dimmen.
+    const soort = [vid ? 'live' : '', st(m) === 'finished' ? 'klaar' : ''].filter(Boolean).join(' ');
     return `<div class="mrij ${soort}">
       <span class="mt">${esc(tnr)}</span>
       <span class="ma">${esc(a)}</span>
