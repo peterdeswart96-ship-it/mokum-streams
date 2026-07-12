@@ -92,6 +92,34 @@ function Toaster({ toasts, onDismiss }) {
   );
 }
 
+// "X sec/min geleden" (kort). null → "—".
+function geleden(ms) {
+  if (ms == null) return '—';
+  const s = Math.max(0, Math.round(ms / 1000));
+  if (s < 3) return 'zojuist';
+  if (s < 60) return `${s}s geleden`;
+  const m = Math.round(s / 60);
+  return `${m}m geleden`;
+}
+
+// ── Verversingsstatus (tikt zelf elke seconde, los van de rest) ──────────────
+function VerversStatus({ lastUpdated, status, onRefresh }) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick((x) => x + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const kleur = status === 'ok' ? 'bg-emerald-500' : status === 'fout' ? 'bg-red-500' : 'bg-amber-400 animate-pulse';
+  const tekst = status === 'fout' ? 'verbinding kwijt' : `bijgewerkt ${geleden(lastUpdated ? Date.now() - lastUpdated : null)}`;
+  return (
+    <div className="flex items-center gap-2 text-sm text-slate-500">
+      <span className={`w-2 h-2 rounded-full ${kleur}`} />
+      <span>{tekst}</span>
+      <button onClick={onRefresh} title="Nu verversen" className="text-slate-400 hover:text-slate-700 text-base leading-none">↻</button>
+    </div>
+  );
+}
+
 // ── Statusbadge ────────────────────────────────────────────────────────────
 function Badge({ status }) {
   const map = {
@@ -362,6 +390,7 @@ export default function App() {
   const [toasts, setToasts] = useState([]);
   const [infoOpen, setInfoOpen] = useState(false);
   const [preview, setPreview] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   const pushToast = useCallback((message, type = 'ok') => {
     const id = Date.now() + Math.random();
@@ -376,6 +405,7 @@ export default function App() {
       const list = (d.tables && d.tables.length) ? d.tables : CAMERAS.map((n) => ({ tableNumber: n, status: 'offline' }));
       setTables(list.sort((a, b) => a.tableNumber - b.tableNumber));
       setStatus('ok');
+      setLastUpdated(Date.now());
     } catch {
       setStatus('fout');
     }
@@ -435,6 +465,7 @@ export default function App() {
                   className="bg-emerald-700 text-white rounded-lg px-4 py-2 font-medium shadow-sm">
             + Nieuwe stream
           </button>
+          <VerversStatus lastUpdated={lastUpdated} status={status} onRefresh={laad} />
         </div>
 
         {status === 'laden' && <p className="text-slate-500">Laden…</p>}
