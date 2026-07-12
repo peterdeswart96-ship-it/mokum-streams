@@ -163,7 +163,8 @@
     body.xl .streamkop h2 { font-size: 20px; }
     /* Video zo groot mogelijk: het grootste 16:9-vlak dat in de resterende breedte
        én de schermhoogte past (voorkomt zwarte balken en loze ruimte). */
-    body.xl .video { padding-top: 0; aspect-ratio: 16 / 9; width: min(100%, calc((100vh - 200px) * 16 / 9)); margin: 0 auto; }
+    /* Cap op 1920px (native 1080p): niet groter uitrekken dan de bron → blijft scherp. */
+    body.xl .video { padding-top: 0; aspect-ratio: 16 / 9; width: min(100%, calc((100vh - 200px) * 16 / 9)); max-width: 1920px; margin: 0 auto; }
   }
 
   /* Uitklapbaar filterpaneel. */
@@ -502,7 +503,7 @@
     if (vid !== STREAM_VID_GETOOND) {
       STREAM_VID_GETOOND = vid;
       document.getElementById('streamvideo').innerHTML = vid
-        ? `<iframe src="https://www.youtube.com/embed/${encodeURIComponent(vid)}?autoplay=1&mute=1" title="Tafel ${STREAM_SEL} livestream" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`
+        ? `<iframe src="https://www.youtube.com/embed/${encodeURIComponent(vid)}?autoplay=1&mute=1&vq=hd1080" title="Tafel ${STREAM_SEL} livestream" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`
         : `<div class="geenstream">Geen livestream voor Tafel ${STREAM_SEL}.</div>`;
     }
     paneel.hidden = false;
