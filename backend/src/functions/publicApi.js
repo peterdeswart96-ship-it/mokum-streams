@@ -20,7 +20,8 @@ app.http('publicLive', {
     const { datum } = zaalDelen(now);
     const store = (await readJson(`broadcasts/${datum}.json`, {})) || {};
     const status = (await readJson('status.json', {})) || {};
-    return json(200, { generatedAt: now.toISOString(), tables: buildLiveTables(cameras, store, status) });
+    const liveMatches = (await readJson('live-matches.json', {})) || {};
+    return json(200, { generatedAt: now.toISOString(), tables: buildLiveTables(cameras, store, status, liveMatches) });
   },
 });
 

@@ -7,11 +7,15 @@ const { zaalDelen } = require('../schedule/schedule');
 // 'scheduled' als er vandaag een broadcast klaarstaat, anders 'offline'. Een
 // gestopte entry (stopped: true) telt niet meer als actief → weer 'offline'.
 // Voor een live tafel geven we ook de door de agent gemelde kwaliteit (resolutie/
-// fps/bitrate) en de werkelijke overlay-standen door; anders zijn die `null`.
-function buildLiveTables(cameraTables, store, status) {
+// fps/bitrate) en de werkelijke overlay-standen door; anders zijn die `null`. Daarnaast
+// `match`: de huidige Cuescore-wedstrijd op die tafel (uit liveMatches, timer liveMatches)
+// — los van onze eigen broadcast-status, zodat het dashboard ook toont wat er speelt
+// terwijl streams handmatig lopen.
+function buildLiveTables(cameraTables, store, status, liveMatches) {
   const statusByTable = new Map(
     (((status && status.tables) || [])).map((t) => [Number(t.tableNumber), t])
   );
+  const matches = (liveMatches && liveMatches.matches) || {};
   return (cameraTables || []).map((nr) => {
     const b = (store || {})[String(nr)] || null;
     const actief = !!(b && !b.stopped);
@@ -34,6 +38,7 @@ function buildLiveTables(cameraTables, store, status) {
       tournamentName: actief ? b.tournamentName || null : null,
       quality,
       overlays,
+      match: matches[String(nr)] || null,
     };
   });
 }

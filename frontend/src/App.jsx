@@ -124,6 +124,25 @@ function Overzicht({ tables }) {
   );
 }
 
+// ── Live wedstrijd-regel (uit Cuescore, via /api/live) ───────────────────────
+function MatchRegel({ match }) {
+  if (!match) return null;
+  const live = String(match.status || '').toLowerCase() === 'playing';
+  return (
+    <div className={`mt-2 rounded-lg px-2.5 py-1.5 border ${live ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+        <span className="text-sm font-medium truncate">{match.playerA || '—'}</span>
+        <span className="text-base font-bold tabular-nums whitespace-nowrap">{match.scoreA ?? 0}<span className="text-slate-400 mx-0.5">-</span>{match.scoreB ?? 0}</span>
+        <span className="text-sm font-medium truncate text-right">{match.playerB || '—'}</span>
+      </div>
+      <div className="flex items-center gap-1.5 mt-0.5">
+        {live && <span className="w-1.5 h-1.5 rounded-full bg-red-500" />}
+        <span className="text-[11px] text-slate-500">{live ? 'Nu live' : 'afgelopen'}{match.round ? ` · ${match.round}` : ''}</span>
+      </div>
+    </div>
+  );
+}
+
 // ── Tafelkaart ─────────────────────────────────────────────────────────────
 function TableCard({ table, onStop, onOverlay, onPreview, busy }) {
   const actief = table.status === 'live' || table.status === 'scheduled';
@@ -144,6 +163,7 @@ function TableCard({ table, onStop, onOverlay, onPreview, busy }) {
         <Badge status={table.status} />
       </div>
       {table.title && <p className="text-sm text-slate-600 truncate" title={table.title}>{table.title}</p>}
+      <MatchRegel match={table.match} />
       {kwaliteit && <p className="text-xs text-slate-500 mt-0.5">🎥 {kwaliteit}</p>}
       {table.videoId && (
         <a href={`https://youtu.be/${table.videoId}`} target="_blank" rel="noreferrer"

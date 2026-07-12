@@ -27,7 +27,8 @@ Antwoord:
       "scheduledStart": "2026-07-08T17:30:00Z" | null,
       "tournamentName": "Fluke ranking 9ball Seizoen 3 #22" | null,
       "quality": { "resolution": "1920x1080", "fps": 60, "bitrateKbps": 9000 } | null,
-      "overlays": { "sponsors": true, "scoreboard": true, "scoresOtherTables": true, "cuescoreLogo": true } | null
+      "overlays": { "sponsors": true, "scoreboard": true, "scoresOtherTables": true, "cuescoreLogo": true } | null,
+      "match": { "playerA": "Kevin Jansen", "playerB": "Johan Palé", "scoreA": 4, "scoreB": 1, "status": "playing", "round": "Winners qualification" } | null
     }
   ]
 }
@@ -124,6 +125,9 @@ Ad-hoc stream (POST /api/manage/streams/start met een vrije camera):
 - `status.json`             — laatst gerapporteerde agent-status (uit POST /api/agent/status)
 - `pauze-state.json`        — per tafel de pauzescherm-toestand ({ toestand: 'spelen'|'pauze',
   sinds, wachtSinds }) voor de auto-trigger (timer `pauzeScherm`, zie v0.12)
+- `live-matches.json`       — { updatedAt, matches: { <tafelnr>: { playerA, playerB, scoreA,
+  scoreB, status, round } | null } } — huidige Cuescore-wedstrijd per tafel (timer
+  `liveMatches`), voedt het `match`-veld in GET /api/live (zie v0.13)
 
 > Migratienoot: het simpele `config/schedule.json` (terugkerende regels uit #9)
 > wordt vervangen door `config/defaults.json` (templates) + `planning.json`
@@ -258,3 +262,10 @@ Body:
   bovendien alleen op tafels die de agent als `streaming` meldt (dubbel veilig). Toestand
   per tafel in `pauze-state.json`. Zie `docs/pauzescherm-auto.md`. Pure logica
   (`src/planning/pauze.js`) unit-getest; dashboard-weergave van match-status volgt later.
+- 2026-07-12: v0.13 — **live match-status per tafel in het dashboard**. Nieuwe timer
+  `liveMatches` (elke min) haalt via Cuescore de huidige wedstrijd per cameratafel op
+  (`bouwLiveMatches`) en schrijft `live-matches.json`. `GET /api/live` geeft nu per tafel
+  een `match`-veld door ({playerA, playerB, scoreA, scoreB, status, round} | null) — **los
+  van onze eigen broadcast-status**, zodat het dashboard óók toont wat er speelt terwijl
+  streams handmatig lopen. Puur lees-werk (geen streams) → veilig tijdens een toernooi.
+  Frontend toont de live wedstrijd op de tafelkaart. Reden: A-verfijning + nuttig overzicht.

@@ -50,6 +50,13 @@ test('buildLiveTables: een gestopte entry telt als offline (geen videoId)', () =
   assert.strictEqual(res[0].title, null);
 });
 
+test('buildLiveTables geeft de huidige Cuescore-match per tafel door (match)', () => {
+  const liveMatches = { matches: { '1': { playerA: 'A', playerB: 'B', scoreA: 3, scoreB: 2, status: 'playing', round: 'R1' } } };
+  const byT = Object.fromEntries(buildLiveTables([1, 3], {}, { tables: [] }, liveMatches).map((r) => [r.tableNumber, r]));
+  assert.deepStrictEqual(byT[1].match, { playerA: 'A', playerB: 'B', scoreA: 3, scoreB: 2, status: 'playing', round: 'R1' });
+  assert.strictEqual(byT[3].match, null); // geen match voor tafel 3
+});
+
 test('buildSchedule geeft aankomende enkeldaagse toernooien binnen het venster', () => {
   const planning = [
     { tournamentId: 1, name: 'Fluke', type: 'tournament', enabled: true, plannedStart: '2026-07-14T17:30:00Z', tafels: [1, 3] },

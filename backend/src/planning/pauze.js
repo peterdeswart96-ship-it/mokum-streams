@@ -46,6 +46,33 @@ function volgendeToestand(vorige, speeltNu, nowMs, debounceMs) {
   return { toestand: 'spelen', sinds: prev.sinds, wachtSinds, veranderd: false };
 }
 
+// Bouwt per cameratafel de "huidige wedstrijd" voor weergave in het dashboard
+// (read-only). Kiest bij voorkeur een lopende (playing) wedstrijd; anders de laatst
+// gevonden wedstrijd op die tafel. Retour: { [tafelnr]: {playerA, playerB, scoreA,
+// scoreB, status, round} | null }.
+function bouwLiveMatches(tournaments, cameraTables) {
+  const uit = {};
+  for (const tn of cameraTables || []) {
+    let gevonden = null;
+    for (const t of tournaments || []) {
+      const m = findTableMatch(t, tn, { onlyPlaying: false });
+      if (m && m.status === 'playing') { gevonden = m; break; } // lopende wint altijd
+      if (m && !gevonden) gevonden = m; // anders de eerst-gevondene onthouden
+    }
+    uit[String(tn)] = gevonden
+      ? {
+          playerA: gevonden.playerA ? gevonden.playerA.name : null,
+          playerB: gevonden.playerB ? gevonden.playerB.name : null,
+          scoreA: gevonden.scoreA != null ? gevonden.scoreA : null,
+          scoreB: gevonden.scoreB != null ? gevonden.scoreB : null,
+          status: gevonden.status || null,
+          round: gevonden.roundName || null,
+        }
+      : null;
+  }
+  return uit;
+}
+
 // Bouwt de setOverlay-commando's (zonder id/tijd) om het pauzescherm aan of uit te
 // zetten: de opgegeven pauze-overlaysleutels op `toonPauze`. Slaat sleutels over die
 // niet in overlayBron staan.
@@ -55,4 +82,4 @@ function pauzeCommandos(tableNumber, toonPauze, overlayBron, keys) {
     .map((k) => ({ type: 'setOverlay', tableNumber: Number(tableNumber), sourceName: overlayBron[k], enabled: !!toonPauze }));
 }
 
-module.exports = { tafelSpeeltNu, volgendeToestand, pauzeCommandos };
+module.exports = { tafelSpeeltNu, volgendeToestand, pauzeCommandos, bouwLiveMatches };
