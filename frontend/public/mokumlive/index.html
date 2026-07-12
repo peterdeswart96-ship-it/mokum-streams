@@ -369,7 +369,11 @@
       if (FILTERS.gepind && !isPin(num(m.table && m.table.name))) return false;
       return true;
     };
-    const basis = ALLE.filter((m) => heeftTafel(m) && zoekt(m) && filtert(m));
+    // Alleen het toernooi dat we streamen (zelfde set als de ticker) — niet de
+    // parallelle league in dezelfde zaal. Leeg (onbekend) → toon alles (fallback).
+    const actief = new Set(TOERNOOINAMEN);
+    const inToernooi = (m) => !actief.size || actief.has((m._toernooi || '').trim());
+    const basis = ALLE.filter((m) => heeftTafel(m) && inToernooi(m) && zoekt(m) && filtert(m));
 
     const live = basis.filter((m) => st(m) === 'playing').sort(opTafel);
     const straks = basis.filter((m) => st(m) === 'waiting').sort(opTafel).slice(0, 12);
