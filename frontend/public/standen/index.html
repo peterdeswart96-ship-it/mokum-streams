@@ -133,6 +133,17 @@
   .seg { display: inline-flex; border: 1px solid #2a2a2a; border-radius: 8px; overflow: hidden; }
   .seg button { cursor: pointer; background: #1a1a1a; border: 0; color: #999; font: inherit; font-size: 13px; padding: 8px 12px; }
   .seg button.aan { background: #cc0000; color: #fff; font-weight: bold; }
+  .seg .xl-knop { display: none; } /* XL is alleen voor desktop */
+
+  /* XL-weergave (alleen desktop ≥1000px): links een strook met filters + standen,
+     rechts een grote, zo beeldvullend mogelijke livestream. */
+  @media (min-width: 1000px) {
+    .seg .xl-knop { display: block; }
+    body.xl main { max-width: 1500px; display: grid; grid-template-columns: minmax(340px, 400px) 1fr; gap: 18px; align-items: start; }
+    body.xl #kolomlinks { min-width: 0; }
+    body.xl #streampaneel { margin-top: 0; position: sticky; top: 16px; }
+    body.xl .streamkop h2 { font-size: 20px; }
+  }
 
   /* Uitklapbaar filterpaneel. */
   .filters { display: none; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
@@ -159,6 +170,7 @@
     </div>
   </header>
   <main>
+    <div id="kolomlinks">
     <input id="zoek" class="zoek" type="search" placeholder="Zoek speler of tafel…" autocomplete="off">
     <div class="toolbar">
       <button id="filterKnop" class="knop" type="button" aria-expanded="false" aria-controls="filters">
@@ -168,6 +180,7 @@
       <div class="seg" role="group" aria-label="Weergave">
         <button id="wStandaard" type="button">Standaard</button>
         <button id="wMinimal" type="button">Minimal</button>
+        <button id="wXL" type="button" class="xl-knop" title="XL — brede desktopweergave met grote livestream">🖥️ XL</button>
       </div>
     </div>
     <div id="filters" class="filters">
@@ -180,6 +193,7 @@
       <button id="fReset" class="reset" type="button">Reset alle filters</button>
     </div>
     <div id="inhoud"><div class="melding">Laden…</div></div>
+    </div>
 
     <section id="streampaneel" class="stream" hidden>
       <div class="streamkop">
@@ -216,7 +230,7 @@
   let PINS = new Set(); // vastgepinde tafelnummers (jouw eigen favorieten)
   try {
     const w = localStorage.getItem(LS_WEERGAVE);
-    if (w === 'minimal' || w === 'standaard') WEERGAVE = w;
+    if (w === 'minimal' || w === 'standaard' || w === 'xl') WEERGAVE = w;
     const f = JSON.parse(localStorage.getItem(LS_FILTERS) || 'null');
     if (f && typeof f === 'object') FILTERS = { tafels: '', afgelopen: false, youtube: false, gepind: false, ...f };
     const p = JSON.parse(localStorage.getItem(LS_PINS) || '[]');
@@ -336,7 +350,9 @@
     const straks = basis.filter((m) => st(m) === 'waiting').sort(opTafel).slice(0, 12);
     const afgelopen = basis.filter((m) => st(m) === 'finished').sort((a, b) => tijd(b.stoptime) - tijd(a.stoptime)).slice(0, 8);
 
-    if (WEERGAVE === 'minimal') {
+    // Minimal én XL tonen dezelfde compacte lijst; XL zet die alleen links in een
+    // strook met de grote livestream ernaast (via de body.xl-lay-out).
+    if (WEERGAVE === 'minimal' || WEERGAVE === 'xl') {
       const rijen = [...live, ...straks, ...afgelopen].sort(opTafel);
       return rijen.length ? toon(rijen.map(mrij).join('')) : toonLeeg(q);
     }
@@ -452,6 +468,8 @@
   function pasControlsToe() {
     document.getElementById('wStandaard').classList.toggle('aan', WEERGAVE === 'standaard');
     document.getElementById('wMinimal').classList.toggle('aan', WEERGAVE === 'minimal');
+    document.getElementById('wXL').classList.toggle('aan', WEERGAVE === 'xl');
+    document.body.classList.toggle('xl', WEERGAVE === 'xl');
     document.getElementById('fTafels').value = FILTERS.tafels || '';
     document.getElementById('fGepind').checked = !!FILTERS.gepind;
     document.getElementById('fAfgelopen').checked = !!FILTERS.afgelopen;
@@ -468,6 +486,7 @@
   document.getElementById('zoek').addEventListener('input', render);
   document.getElementById('wStandaard').addEventListener('click', () => setWeergave('standaard'));
   document.getElementById('wMinimal').addEventListener('click', () => setWeergave('minimal'));
+  document.getElementById('wXL').addEventListener('click', () => setWeergave('xl'));
 
   const filtersEl = document.getElementById('filters');
   document.getElementById('filterKnop').addEventListener('click', (e) => {
