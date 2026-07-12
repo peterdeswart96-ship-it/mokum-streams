@@ -325,7 +325,9 @@
         for (const m of t.matches) { m._toernooi = t.name || ''; matches.push(m); }
       }
       ALLE = matches;
-      TOERNOOINAMEN = [...new Set(toernooien.filter(Boolean).map((t) => (t.name || '').trim()).filter(Boolean))];
+      // Alleen toernooien in de ticker die vandaag écht wedstrijden op tafels hebben
+      // (voorkomt dat een doorlopende league zonder wedstrijden vandaag meelift).
+      TOERNOOINAMEN = [...new Set(matches.filter(heeftTafel).map((m) => (m._toernooi || '').trim()).filter(Boolean))];
       GELADEN = true;
       document.getElementById('ts').textContent = new Date().toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
       render();
