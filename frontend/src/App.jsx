@@ -552,14 +552,17 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-canvas text-ink">
-      <header className="bg-surface-raised text-white px-4 sm:px-6 py-4 shadow-lg border-b border-line flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-lg sm:text-xl font-display"><span className="text-brand-light">Mokum</span> Streams — Bedienpaneel</h1>
-          <p className="text-ink-muted text-sm">Streams starten/stoppen &amp; overlays</p>
+      <header className="bg-surface-raised text-white px-4 sm:px-6 py-3 shadow-lg border-b border-line grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+        <div className="flex items-center">
+          <img src="/mokum-logo.png" alt="Mokum Pool & Darts" className="h-10 w-auto" />
         </div>
-        <div className="flex items-center gap-4">
+        <div className="text-center">
+          <h1 className="text-lg sm:text-xl font-display leading-tight"><span className="text-brand">Mokum</span> Stream manager</h1>
+          <p className="text-ink-muted text-xs sm:text-sm">Plan and manage livestreams</p>
+        </div>
+        <div className="flex items-center gap-4 justify-end">
           <button onClick={() => setInfoOpen(true)}
-                  className="text-ink-muted hover:text-ink text-sm underline">Uitleg overlays</button>
+                  className="text-ink-muted hover:text-ink text-sm underline whitespace-nowrap">Uitleg overlays</button>
           <button onClick={() => { clearToken(); setIngelogd(false); }}
                   className="text-ink-muted hover:text-ink text-sm underline">Uitloggen</button>
         </div>
