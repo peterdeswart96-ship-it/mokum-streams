@@ -322,16 +322,17 @@
         for (const m of t.matches) { m._toernooi = t.name || ''; matches.push(m); }
       }
       ALLE = matches;
-      // Ticker: toon het toernooi dat op ónze cameratafels (1/3/15/16) loopt — dat is wat
-      // we streamen. Zo valt een parallelle league op andere tafels (bv. 14.1 Summer
-      // League) weg. Fallback: staat er (nog) niets op de cameratafels, toon dan de
-      // toernooien die vandaag écht gespeeld worden (playing/finished).
+      // Ticker: het toernooi dat NU live is = een toernooi met een lopende (playing)
+      // wedstrijd. Zo valt een parallelle league weg die vandaag wél op de cameratafels
+      // heeft gespeeld maar nu niets lopends heeft (bv. 14.1 Summer League: 0 playing).
+      // Voorkeur voor lopende partijen op onze cameratafels; anders elk lopend toernooi;
+      // als laatste (niets live) de laatst gespeelde op de cameratafels.
       const cameraSet = new Set(CAMERAS);
       const naam = (m) => (m._toernooi || '').trim();
-      let namen = matches.filter((m) => heeftTafel(m) && cameraSet.has(num(m.table && m.table.name))).map(naam).filter(Boolean);
-      if (!namen.length) {
-        namen = matches.filter((m) => heeftTafel(m) && (st(m) === 'playing' || st(m) === 'finished')).map(naam).filter(Boolean);
-      }
+      const opCamera = (m) => heeftTafel(m) && cameraSet.has(num(m.table && m.table.name));
+      let namen = matches.filter((m) => opCamera(m) && st(m) === 'playing').map(naam).filter(Boolean);
+      if (!namen.length) namen = matches.filter((m) => st(m) === 'playing').map(naam).filter(Boolean);
+      if (!namen.length) namen = matches.filter((m) => opCamera(m) && st(m) === 'finished').map(naam).filter(Boolean);
       TOERNOOINAMEN = [...new Set(namen)];
       GELADEN = true;
       document.getElementById('ts').textContent = new Date().toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
