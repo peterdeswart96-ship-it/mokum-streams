@@ -83,6 +83,10 @@
   }
   .mrij.live { border-color: #cc0000; animation: gloed 2.4s ease-in-out infinite; }
   .mrij.klaar { opacity: .55; }
+  .mrij.wacht { opacity: .68; } /* staat klaar, nog niet begonnen → gedimd */
+  .sdot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
+  .sdot.spelen { background: #cc0000; box-shadow: 0 0 0 3px rgba(204,0,0,.22); }
+  .sdot.straks { background: #7a7a7a; }
   .mrij .helft { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 8px; }
   .mrij .helft.rechts { justify-content: flex-end; }
   .mrij .mt { flex: 0 0 auto; font-family: "Arial Black", Arial, sans-serif; font-size: 12px; background: #2a2a2a; color: #fff; border-radius: 5px; padding: 2px 7px; }
@@ -398,10 +402,19 @@
     const kijk = vid
       ? `<a class="mk" title="Kijk deze tafel live" href="https://www.youtube.com/watch?v=${esc(vid)}" target="_blank" rel="noreferrer">📺</a>`
       : '';
-    // Gloed alleen als wij deze tafel live streamen (📺); afgelopen wedstrijden dimmen.
-    const soort = [vid ? 'live' : '', st(m) === 'finished' ? 'klaar' : ''].filter(Boolean).join(' ');
+    // Statusstip: rood = nu bezig, grijs = staat klaar (nog niet begonnen). Afgelopen
+    // wedstrijden dimmen. Gloed (rode rand) alleen als wij die tafel live streamen (📺).
+    const status = st(m);
+    const dot = status === 'playing' ? '<span class="sdot spelen" title="Nu bezig"></span>'
+      : status === 'waiting' ? '<span class="sdot straks" title="Staat klaar — nog niet begonnen"></span>'
+      : '';
+    const soort = [
+      vid ? 'live' : '',
+      status === 'finished' ? 'klaar' : '',
+      status === 'waiting' ? 'wacht' : '',
+    ].filter(Boolean).join(' ');
     return `<div class="mrij ${soort}">
-      <span class="helft links">${pinKnop(tnr)}<span class="mt">${esc(tnr)}</span><span class="ma">${esc(a)}</span></span>
+      <span class="helft links">${pinKnop(tnr)}<span class="mt">${esc(tnr)}</span>${dot}<span class="ma">${esc(a)}</span></span>
       <span class="ms"><span class="sa">${esc(sa)}</span><span class="sep">-</span><span class="sb">${esc(sb)}</span></span>
       <span class="helft rechts"><span class="mb">${esc(b)}</span>${kijk}</span>
     </div>`;
