@@ -11,11 +11,15 @@ const { zaalDelen } = require('../schedule/schedule');
 // `match`: de huidige Cuescore-wedstrijd op die tafel (uit liveMatches, timer liveMatches)
 // — los van onze eigen broadcast-status, zodat het dashboard ook toont wat er speelt
 // terwijl streams handmatig lopen.
-function buildLiveTables(cameraTables, store, status, liveMatches) {
+// `liveVideoId`: het YouTube-videoId van de nu-actieve stream op die tafel (uit
+// live-videos.json, timer liveVideos) — óók voor handmatig gestarte streams, zodat
+// het dashboard de echte stream kan embedden ongeacht onze eigen broadcast-status.
+function buildLiveTables(cameraTables, store, status, liveMatches, liveVideos) {
   const statusByTable = new Map(
     (((status && status.tables) || [])).map((t) => [Number(t.tableNumber), t])
   );
   const matches = (liveMatches && liveMatches.matches) || {};
+  const videos = (liveVideos && liveVideos.videos) || {};
   return (cameraTables || []).map((nr) => {
     const b = (store || {})[String(nr)] || null;
     const actief = !!(b && !b.stopped);
@@ -39,6 +43,7 @@ function buildLiveTables(cameraTables, store, status, liveMatches) {
       quality,
       overlays,
       match: matches[String(nr)] || null,
+      liveVideoId: videos[String(nr)] || null,
     };
   });
 }

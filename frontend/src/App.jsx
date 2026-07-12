@@ -380,6 +380,57 @@ function Preview({ table, onClose }) {
   );
 }
 
+// ── Live stream-paneel (YouTube-embed met tafel-switcher) ────────────────────
+// Toont de echte YouTube-stream van een gekozen tafel, zodat je overlay-wijzigingen
+// op het beeld kunt controleren (met de normale YouTube-vertraging). Gebruikt
+// liveVideoId (uit /api/live) — werkt ook voor handmatig gestarte streams.
+function StreamPaneel({ tables }) {
+  const [sel, setSel] = useState(CAMERAS[0]);
+  const t = tables.find((c) => c.tableNumber === sel) || tables[0];
+  const vid = t && (t.liveVideoId || t.videoId);
+  return (
+    <div className="bg-surface border border-line rounded-lg shadow-lg p-4 mt-4">
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <h3 className="font-display">Livestream</h3>
+        <div className="flex gap-1.5 flex-wrap">
+          {tables.map((c) => {
+            const heeft = !!(c.liveVideoId || c.videoId);
+            const actief = t && c.tableNumber === t.tableNumber;
+            return (
+              <button key={c.tableNumber} onClick={() => setSel(c.tableNumber)}
+                className={`px-3 py-1 rounded text-sm border flex items-center gap-1.5 ${
+                  actief ? 'bg-brand border-brand text-white' : 'bg-surface-raised border-line text-ink-muted'
+                }`}>
+                {heeft && <span className="w-1.5 h-1.5 rounded-full bg-brand-light" />}
+                Tafel {c.tableNumber}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {vid ? (
+        <div className="relative w-full" style={{ paddingTop: '56.25%' }}>
+          <iframe
+            key={vid}
+            className="absolute inset-0 w-full h-full rounded"
+            src={`https://www.youtube.com/embed/${vid}?autoplay=1&mute=1`}
+            title={`Tafel ${t.tableNumber} livestream`}
+            allow="autoplay; encrypted-media; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+      ) : (
+        <div className="text-ink-muted text-sm py-12 text-center border border-line rounded bg-canvas">
+          Geen livestream gevonden voor Tafel {t && t.tableNumber}.
+        </div>
+      )}
+      <p className="text-[11px] text-neutral-500 mt-2">
+        YouTube-vertraging ~10-30s — overlay-wijzigingen zie je met wat vertraging.
+      </p>
+    </div>
+  );
+}
+
 // ── App ────────────────────────────────────────────────────────────────────
 export default function App() {
   const [ingelogd, setIngelogd] = useState(!!getToken());
@@ -476,15 +527,18 @@ export default function App() {
         )}
         {status === 'ok' && <Overzicht tables={tables} />}
         {status === 'ok' && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {tables.map((t) => (
-              <TableCard key={t.tableNumber} table={t} busy={busy}
-                onStop={(n) => actie(() => stopStream(n), `Tafel ${n} gestopt`)}
-                onOverlay={wijzigOverlay}
-                onPreview={(tafel) => setPreview(tafel)}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {tables.map((t) => (
+                <TableCard key={t.tableNumber} table={t} busy={busy}
+                  onStop={(n) => actie(() => stopStream(n), `Tafel ${n} gestopt`)}
+                  onOverlay={wijzigOverlay}
+                  onPreview={(tafel) => setPreview(tafel)}
+                />
+              ))}
+            </div>
+            <StreamPaneel tables={tables} />
+          </>
         )}
       </main>
 

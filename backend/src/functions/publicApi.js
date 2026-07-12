@@ -21,7 +21,8 @@ app.http('publicLive', {
     const store = (await readJson(`broadcasts/${datum}.json`, {})) || {};
     const status = (await readJson('status.json', {})) || {};
     const liveMatches = (await readJson('live-matches.json', {})) || {};
-    return json(200, { generatedAt: now.toISOString(), tables: buildLiveTables(cameras, store, status, liveMatches) });
+    const liveVideos = (await readJson('live-videos.json', {})) || {};
+    return json(200, { generatedAt: now.toISOString(), tables: buildLiveTables(cameras, store, status, liveMatches, liveVideos) });
   },
 });
 

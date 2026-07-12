@@ -95,6 +95,20 @@ async function getBroadcastStatus(broadcastId) {
   return item ? item.status.lifeCycleStatus : null;
 }
 
+// Lijst van nu-actieve (live) broadcasts van het kanaal — read-only. Retour:
+// [{ videoId, title }]. Gebruikt om per tafel het live YouTube-videoId te vinden,
+// óók voor handmatig gestarte uitzendingen (mine=true = alle broadcasts op het kanaal).
+async function listActiveBroadcasts() {
+  const yt = await getYouTubeClient();
+  const res = await yt.liveBroadcasts.list({
+    part: ['id', 'snippet'],
+    broadcastStatus: 'active',
+    mine: true,
+    maxResults: 50,
+  });
+  return (res.data.items || []).map((b) => ({ videoId: b.id, title: (b.snippet && b.snippet.title) || '' }));
+}
+
 module.exports = {
   buildBroadcastTitle,
   listLiveStreams,
@@ -102,4 +116,5 @@ module.exports = {
   createBroadcast,
   bindBroadcast,
   getBroadcastStatus,
+  listActiveBroadcasts,
 };

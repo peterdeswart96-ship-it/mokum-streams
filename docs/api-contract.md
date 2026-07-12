@@ -28,7 +28,8 @@ Antwoord:
       "tournamentName": "Fluke ranking 9ball Seizoen 3 #22" | null,
       "quality": { "resolution": "1920x1080", "fps": 60, "bitrateKbps": 9000 } | null,
       "overlays": { "sponsors": true, "scoreboard": true, "scoresOtherTables": true, "cuescoreLogo": true } | null,
-      "match": { "playerA": "Kevin Jansen", "playerB": "Johan Palé", "scoreA": 4, "scoreB": 1, "status": "playing", "round": "Winners qualification" } | null
+      "match": { "playerA": "Kevin Jansen", "playerB": "Johan Palé", "scoreA": 4, "scoreB": 1, "status": "playing", "round": "Winners qualification" } | null,
+      "liveVideoId": "yX9SYqMXYrM" | null
     }
   ]
 }
@@ -128,6 +129,9 @@ Ad-hoc stream (POST /api/manage/streams/start met een vrije camera):
 - `live-matches.json`       — { updatedAt, matches: { <tafelnr>: { playerA, playerB, scoreA,
   scoreB, status, round } | null } } — huidige Cuescore-wedstrijd per tafel (timer
   `liveMatches`), voedt het `match`-veld in GET /api/live (zie v0.13)
+- `live-videos.json`        — { updatedAt, videos: { <tafelnr>: "<youtube-videoId>" } } —
+  nu-actieve YouTube-stream per tafel (timer `liveVideos`, via liveBroadcasts.list op titel),
+  voedt het `liveVideoId`-veld in GET /api/live (zie v0.14)
 
 > Migratienoot: het simpele `config/schedule.json` (terugkerende regels uit #9)
 > wordt vervangen door `config/defaults.json` (templates) + `planning.json`
@@ -269,3 +273,11 @@ Body:
   van onze eigen broadcast-status**, zodat het dashboard óók toont wat er speelt terwijl
   streams handmatig lopen. Puur lees-werk (geen streams) → veilig tijdens een toernooi.
   Frontend toont de live wedstrijd op de tafelkaart. Reden: A-verfijning + nuttig overzicht.
+- 2026-07-12: v0.14 — **live YouTube-stream in het dashboard**. Nieuwe read-only
+  functie `listActiveBroadcasts` (liveBroadcasts.list, broadcastStatus=active, mine=true)
+  + timer `liveVideos` (elke min) koppelt actieve broadcasts per tafel op titel
+  (`koppelVideosAanTafels`, "Tafel {nr} …") → `live-videos.json`. `GET /api/live` geeft
+  per tafel een **`liveVideoId`** door — óók voor handmatig gestarte streams. Frontend:
+  **stream-paneel met tafel-switcher** onder het overzicht (YouTube-embed, gedempt) om
+  overlay-wijzigingen op het beeld te controleren (met de normale YouTube-vertraging).
+  Reden: visuele controle + opstap naar volledig dashboard-beheer van de streams.
