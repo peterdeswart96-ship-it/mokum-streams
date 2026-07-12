@@ -51,8 +51,11 @@
   .rij { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; }
   .speler { font-size: 15px; font-weight: bold; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .speler.b { text-align: right; }
-  .score { font-size: 20px; font-family: "Arial Black", Arial, sans-serif; letter-spacing: 1px; white-space: nowrap; color: #fff; }
-  .score .sep { color: #666; margin: 0 3px; }
+  /* Score altijd gecentreerd rond het streepje: beide helften even breed. */
+  .score { font-size: 20px; font-family: "Arial Black", Arial, sans-serif; color: #fff; display: inline-flex; align-items: baseline; justify-content: center; }
+  .score .sa { min-width: 28px; text-align: right; }
+  .score .sb { min-width: 28px; text-align: left; }
+  .score .sep { color: #666; margin: 0 4px; }
   .raceto { text-align: center; font-size: 11px; color: #999; margin-top: 6px; }
   .kijk {
     display: inline-block; margin-top: 8px; font-size: 12px; font-weight: bold;
@@ -60,20 +63,40 @@
   }
   .kijk:hover { color: #cc0000; }
 
-  /* Minimal-weergave: één compacte regel per wedstrijd, gesorteerd op tafel. */
+  /* Minimal-weergave: één compacte regel per wedstrijd. Links (tafel + speler A) en
+     rechts (speler B + 📺) zijn even breed (flex:1) zodat de score altijd exact in het
+     midden staat, ongeacht de breedte van het tafelnummer of het 📺-icoon. */
   .mrij {
-    display: grid; grid-template-columns: auto 1fr auto 1fr auto; align-items: center; gap: 8px;
+    display: flex; align-items: center; gap: 10px;
     background: #1a1a1a; border: 1px solid transparent; border-radius: 8px;
     padding: 8px 10px; margin-bottom: 6px;
   }
   .mrij.live { border-color: #cc0000; animation: gloed 2.4s ease-in-out infinite; }
   .mrij.klaar { opacity: .55; }
-  .mrij .mt { font-family: "Arial Black", Arial, sans-serif; font-size: 12px; background: #2a2a2a; color: #fff; border-radius: 5px; padding: 2px 7px; }
-  .mrij .ma { font-size: 14px; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .mrij .mb { font-size: 14px; color: #fff; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .mrij .ms { font-size: 15px; font-family: "Arial Black", Arial, sans-serif; white-space: nowrap; color: #fff; }
-  .mrij .ms .sep { color: #666; margin: 0 3px; }
-  .mrij .mk { text-decoration: none; font-size: 15px; line-height: 1; }
+  .mrij .helft { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 8px; }
+  .mrij .helft.rechts { justify-content: flex-end; }
+  .mrij .mt { flex: 0 0 auto; font-family: "Arial Black", Arial, sans-serif; font-size: 12px; background: #2a2a2a; color: #fff; border-radius: 5px; padding: 2px 7px; }
+  .mrij .ma { flex: 1 1 auto; min-width: 0; font-size: 14px; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mrij .mb { flex: 0 1 auto; min-width: 0; font-size: 14px; color: #fff; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mrij .ms { flex: 0 0 auto; font-size: 15px; font-family: "Arial Black", Arial, sans-serif; color: #fff; display: inline-flex; align-items: baseline; }
+  .mrij .ms .sa { min-width: 20px; text-align: right; }
+  .mrij .ms .sb { min-width: 20px; text-align: left; }
+  .mrij .ms .sep { color: #666; margin: 0 4px; }
+  .mrij .mk { flex: 0 0 auto; text-decoration: none; font-size: 15px; line-height: 1; }
+
+  /* Livestream-paneel onder de standen (zelfde stijl als het dashboard). */
+  .stream { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 14px; margin-top: 22px; }
+  .streamkop { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .streamkop h2 { margin: 0; font-family: "Arial Black", Arial, sans-serif; font-size: 18px; color: #fff; }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tab { cursor: pointer; display: inline-flex; align-items: center; gap: 6px; background: #0a0a0a; border: 1px solid #2a2a2a; border-radius: 8px; color: #ccc; font: inherit; font-size: 13px; padding: 7px 12px; }
+  .tab .tabdot { width: 7px; height: 7px; border-radius: 50%; background: #ff6b6b; }
+  .tab.aan { background: #cc0000; border-color: #cc0000; color: #fff; font-weight: bold; }
+  .tab.aan .tabdot { background: #fff; }
+  .video { position: relative; width: 100%; padding-top: 56.25%; border-radius: 8px; overflow: hidden; background: #000; }
+  .video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .geenstream { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #999; font-size: 14px; text-align: center; padding: 20px; }
+  .streamhint { font-size: 11px; color: #666; margin-top: 8px; }
 
   footer { text-align: center; color: #666; font-size: 11px; padding: 8px 16px 24px; }
   footer a { color: #999; }
@@ -147,6 +170,15 @@
       <button id="fReset" class="reset" type="button">Reset alle filters</button>
     </div>
     <div id="inhoud"><div class="melding">Laden…</div></div>
+
+    <section id="streampaneel" class="stream" hidden>
+      <div class="streamkop">
+        <h2>Livestream</h2>
+        <div class="tabs" id="streamtabs"></div>
+      </div>
+      <div class="video" id="streamvideo"></div>
+      <div class="streamhint">YouTube-vertraging ~10-30s — het beeld loopt iets achter op de zaal.</div>
+    </section>
   </main>
   <footer>Bijgewerkt <span id="ts">—</span> · standen via Cuescore</footer>
 
@@ -155,6 +187,11 @@
   const REFRESH_MS = 20000;
   const API = 'https://api.cuescore.com';
   const APP_API = 'https://mokum-streams-func.azurewebsites.net'; // onze backend (voor 'kijk live'-links)
+  const CAMERAS = [1, 3, 15, 16]; // tafels met camera (zelfde als het dashboard)
+
+  let STREAM_SEL = CAMERAS[0];       // gekozen tafel in het livestream-paneel
+  let STREAM_VID_GETOOND = null;     // welk videoId nu in de iframe staat (om herladen te voorkomen)
+  let streamAutoGekozen = false;     // eenmalig de eerste live tafel kiezen
 
   let ALLE = [];     // alle wedstrijden van vandaag (met _toernooi)
   let STREAMS = {};  // { "<tafelnr>": youtube-videoId } — welke tafels wij live streamen
@@ -163,7 +200,7 @@
   // Weergave + filters, onthouden in de browser (localStorage).
   const LS_WEERGAVE = 'standen_weergave';
   const LS_FILTERS = 'standen_filters';
-  let WEERGAVE = 'standaard'; // 'standaard' | 'minimal'
+  let WEERGAVE = 'minimal'; // 'standaard' | 'minimal' — minimal is de standaard
   let FILTERS = { tafels: '', afgelopen: false, youtube: false };
   try {
     const w = localStorage.getItem(LS_WEERGAVE);
@@ -210,7 +247,7 @@
           const v = t.liveVideoId || t.videoId;
           if (v) map[String(t.tableNumber)] = v;
         }
-        STREAMS = map; render();
+        STREAMS = map; render(); renderStream();
       }).catch(() => {});
 
       const ev = await haalJson(`${API}/venue/events/?venueId=${VENUE}&date=${vandaag()}`);
@@ -319,7 +356,7 @@
         </div>
         <div class="rij">
           <div class="speler">${esc(a)}</div>
-          <div class="score">${esc(sa)}<span class="sep">-</span>${esc(sb)}</div>
+          <div class="score"><span class="sa">${esc(sa)}</span><span class="sep">-</span><span class="sb">${esc(sb)}</span></div>
           <div class="speler b">${esc(b)}</div>
         </div>
         ${race ? `<div class="raceto">${race}</div>` : ''}
@@ -337,19 +374,44 @@
     const vid = STREAMS[String(m.table && m.table.name)];
     const kijk = vid
       ? `<a class="mk" title="Kijk deze tafel live" href="https://www.youtube.com/watch?v=${esc(vid)}" target="_blank" rel="noreferrer">📺</a>`
-      : '<span></span>';
+      : '';
     // Gloed alleen als wij deze tafel live streamen (📺); afgelopen wedstrijden dimmen.
     const soort = [vid ? 'live' : '', st(m) === 'finished' ? 'klaar' : ''].filter(Boolean).join(' ');
     return `<div class="mrij ${soort}">
-      <span class="mt">${esc(tnr)}</span>
-      <span class="ma">${esc(a)}</span>
-      <span class="ms">${esc(sa)}<span class="sep">-</span>${esc(sb)}</span>
-      <span class="mb">${esc(b)}</span>
-      ${kijk}
+      <span class="helft links"><span class="mt">${esc(tnr)}</span><span class="ma">${esc(a)}</span></span>
+      <span class="ms"><span class="sa">${esc(sa)}</span><span class="sep">-</span><span class="sb">${esc(sb)}</span></span>
+      <span class="helft rechts"><span class="mb">${esc(b)}</span>${kijk}</span>
     </div>`;
   }
 
   function toon(html) { document.getElementById('inhoud').innerHTML = html; }
+
+  // Livestream-paneel: tabs voor de cameratafels + de YouTube-embed van de gekozen tafel.
+  // De iframe wordt alleen herbouwd als het videoId wijzigt, zodat de 20s-verversing de
+  // lopende stream niet telkens herlaadt.
+  function renderStream() {
+    const paneel = document.getElementById('streampaneel');
+    if (!paneel) return;
+    // Eenmalig automatisch de eerste tafel kiezen die echt live is.
+    if (!streamAutoGekozen && Object.keys(STREAMS).length) {
+      const eersteLive = CAMERAS.find((nr) => STREAMS[String(nr)]);
+      if (eersteLive) STREAM_SEL = eersteLive;
+      streamAutoGekozen = true;
+    }
+    document.getElementById('streamtabs').innerHTML = CAMERAS.map((nr) => {
+      const heeft = !!STREAMS[String(nr)];
+      const aan = nr === STREAM_SEL;
+      return `<button type="button" class="tab ${aan ? 'aan' : ''}" data-nr="${nr}">${heeft ? '<span class="tabdot"></span>' : ''}Tafel ${nr}</button>`;
+    }).join('');
+    const vid = STREAMS[String(STREAM_SEL)] || null;
+    if (vid !== STREAM_VID_GETOOND) {
+      STREAM_VID_GETOOND = vid;
+      document.getElementById('streamvideo').innerHTML = vid
+        ? `<iframe src="https://www.youtube.com/embed/${encodeURIComponent(vid)}?autoplay=1&mute=1" title="Tafel ${STREAM_SEL} livestream" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`
+        : `<div class="geenstream">Geen livestream voor Tafel ${STREAM_SEL}.</div>`;
+    }
+    paneel.hidden = false;
+  }
 
   // Zet de knoppen/velden in lijn met de huidige staat (bij laden + na reset/wissel).
   function pasControlsToe() {
@@ -384,7 +446,16 @@
     bewaar(); pasControlsToe(); render();
   });
 
+  // Livestream-tabs: klik = andere tafel tonen.
+  document.getElementById('streamtabs').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-nr]');
+    if (!b) return;
+    STREAM_SEL = Number(b.dataset.nr);
+    renderStream();
+  });
+
   pasControlsToe();
+  renderStream();
   laad();
   setInterval(laad, REFRESH_MS);
 </script>
