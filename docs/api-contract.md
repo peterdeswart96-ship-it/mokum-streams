@@ -38,7 +38,7 @@ Antwoord:
 GET /api/schedule?days=7
 Antwoord: { "items": [ { "date", "startTime", "tournamentName", "tableNumbers": [..] } ] }
 
-POST /api/hit?source=qr&page=standen   (ook GET) — cookieloze bezoek-/QR-teller
+POST /api/hit?source=qr&page=mokumlive   (ook GET) — cookieloze bezoek-/QR-teller
 - Publiek, geen auth, geen body nodig (past bij navigator.sendBeacon / fetch no-cors).
 - `source` = bron (uit utm_source, bv. qr|youtube|direct), `page` = pagina (bv. standen).
   Beide worden genormaliseerd (kleine letters, [a-z0-9_-], max 24) → rommel kan de opslag
@@ -305,3 +305,9 @@ Body:
   (`buildBroadcastDescription`) met een UTM-link naar `/standen` + het kanaal, als
   verkeer-drijver. Reden: meetbaar maken van QR-scans/bezoek en verkeer van YouTube naar de
   site sturen — fundament voor het centrale mokum-bot-dashboard (fase 4).
+- 2026-07-12: v0.17 — **publieke pagina hernoemd `/standen/` → `/mokumlive/`**. De pagina
+  heet nu "Mokum Live" (gecentreerde titel + subtitel "Standen en livestreams"). Op `/standen/`
+  staat een redirect-stub (behoudt query/hash) zodat bestaande QR-codes en al-geplaatste
+  YouTube-beschrijvingen blijven werken. Bijgewerkt: QR-overlay + broadcast-beschrijving
+  (`buildBroadcastDescription`) linken nu naar `/mokumlive/` (utm_campaign=mokumlive), PWA-
+  manifest (start_url/scope `/mokumlive/`), en de teller-bron `page=mokumlive`.

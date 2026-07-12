@@ -10,7 +10,7 @@ const { registreerHit, schoonPerDag } = require('../stats/hits');
 const STATS_PAD = 'stats/hits.json';
 const json = (status, body) => ({ status, jsonBody: body });
 
-// POST/GET /api/hit?source=qr&page=standen — publiek, geen body nodig.
+// POST/GET /api/hit?source=qr&page=mokumlive — publiek, geen body nodig.
 app.http('hit', {
   methods: ['POST', 'GET'],
   authLevel: 'anonymous',

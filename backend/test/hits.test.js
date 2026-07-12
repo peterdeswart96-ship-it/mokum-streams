@@ -19,10 +19,10 @@ test('registreerHit telt op per bron, pagina en dag; muteert de input niet', () 
   assert.strictEqual(s1.totaal, 1, 'oude store blijft ongewijzigd (immutability)');
 });
 
-test('registreerHit valt terug op direct/standen bij ontbrekende bron/pagina', () => {
+test('registreerHit valt terug op direct/mokumlive bij ontbrekende bron/pagina', () => {
   const s = registreerHit(null, { dagKey: '2026-07-12' });
   assert.strictEqual(s.perBron.direct, 1);
-  assert.strictEqual(s.perPagina.standen, 1);
+  assert.strictEqual(s.perPagina.mokumlive, 1);
 });
 
 test('normaliseerSleutel schoont rommelige/lange waarden op', () => {

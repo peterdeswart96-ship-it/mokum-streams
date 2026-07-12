@@ -1,10 +1,10 @@
 # QR-overlay — Live standen
 
 Overlay met een QR-code die naar de **Mokum live-standen-pagina** wijst
-(`/standen/` — alle wedstrijden in de zaal, via Cuescore). Kijkers scannen 'm en zien
+(`/mokumlive/` — alle wedstrijden in de zaal, via Cuescore). Kijkers scannen 'm en zien
 de standen op hun telefoon. Zelfde overlay op alle 4 tafels.
 
-QR wijst naar: https://mokum-streams.pdscloud.nl/standen/
+QR wijst naar: https://mokum-streams.pdscloud.nl/mokumlive/?utm_source=stream&utm_medium=qr&utm_campaign=mokumlive
 
 ## Gebruiken in OBS
 - **Optie A (aanrader):** `qr-jumbotron.html` als **Browser-source** (Local file aanvinken

@@ -19,9 +19,9 @@ function buildBroadcastTitle({ tafel, sponsor, toernooinaam }) {
   return `Tafel ${tafel}${sponsorDeel} ${naam}`.trim();
 }
 
-// Vaste links voor in de YouTube-beschrijving. De /standen-link krijgt UTM-tags mee
+// Vaste links voor in de YouTube-beschrijving. De /mokumlive-link krijgt UTM-tags mee
 // zodat Google Analytics het verkeer aan YouTube toeschrijft (#18 fase 1/3).
-const STANDEN_URL = 'https://mokum-streams.pdscloud.nl/standen/?utm_source=youtube&utm_medium=description&utm_campaign=standen';
+const MOKUMLIVE_URL = 'https://mokum-streams.pdscloud.nl/mokumlive/?utm_source=youtube&utm_medium=description&utm_campaign=mokumlive';
 const KANAAL_URL = 'https://www.youtube.com/@MokumPoolDarts';
 
 // Bouwt de YouTube-beschrijving voor een broadcast: korte context + een link naar de
@@ -34,7 +34,7 @@ function buildBroadcastDescription({ toernooinaam } = {}) {
   return [
     kop,
     '',
-    `📊 Live standen van alle tafels: ${STANDEN_URL}`,
+    `📊 Live standen van alle tafels: ${MOKUMLIVE_URL}`,
     '',
     `▶ Ons kanaal: ${KANAAL_URL}`,
   ].join('\n');

@@ -30,7 +30,7 @@ function registreerHit(store, { source, page, dagKey, now } = {}) {
   s.perPagina = s.perPagina || {};
   s.perDag = s.perDag || {};
   const bron = normaliseerSleutel(source, 'direct');
-  const pagina = normaliseerSleutel(page, 'standen');
+  const pagina = normaliseerSleutel(page, 'mokumlive');
   s.perBron[bron] = (s.perBron[bron] || 0) + 1;
   s.perPagina[pagina] = (s.perPagina[pagina] || 0) + 1;
   const dag = (s.perDag[dagKey] = s.perDag[dagKey] || { totaal: 0, perBron: {} });

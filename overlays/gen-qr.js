@@ -2,7 +2,7 @@ const QRCode = require('qrcode');
 const fs = require('fs');
 const path = require('path');
 
-const URL = 'https://mokum-streams.pdscloud.nl/standen/';
+const URL = 'https://mokum-streams.pdscloud.nl/mokumlive/?utm_source=stream&utm_medium=qr&utm_campaign=mokumlive';
 const outDir = 'C:\\Projects\\mokum-streams\\overlays';
 fs.mkdirSync(outDir, { recursive: true });
 
