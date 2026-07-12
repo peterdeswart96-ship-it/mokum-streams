@@ -146,10 +146,14 @@
      rechts een grote, zo beeldvullend mogelijke livestream. */
   @media (min-width: 1000px) {
     .seg .xl-knop { display: block; }
-    body.xl main { max-width: 1500px; display: grid; grid-template-columns: minmax(340px, 400px) 1fr; gap: 18px; align-items: start; }
+    /* Volle breedte gebruiken: smalle strook links, de rest voor de livestream. */
+    body.xl main { max-width: none; width: 100%; display: grid; grid-template-columns: minmax(320px, 380px) 1fr; gap: 18px; align-items: start; padding: 12px 18px 24px; }
     body.xl #kolomlinks { min-width: 0; }
     body.xl #streampaneel { margin-top: 0; position: sticky; top: 16px; }
     body.xl .streamkop h2 { font-size: 20px; }
+    /* Video zo groot mogelijk: het grootste 16:9-vlak dat in de resterende breedte
+       én de schermhoogte past (voorkomt zwarte balken en loze ruimte). */
+    body.xl .video { padding-top: 0; aspect-ratio: 16 / 9; width: min(100%, calc((100vh - 200px) * 16 / 9)); margin: 0 auto; }
   }
 
   /* Uitklapbaar filterpaneel. */
