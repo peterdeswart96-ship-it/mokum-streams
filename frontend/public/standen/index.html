@@ -121,6 +121,13 @@
   /* Werkbalk: filterknop links, weergave-schakelaar rechts. */
   .toolbar { display: flex; align-items: center; gap: 8px; margin: 2px 0 8px; }
   .toolbar .spacer { flex: 1; }
+  /* Toernooi-ticker: de toernooinaam scrolt langzaam voorbij (bespaart ruimte). */
+  .ticker { flex: 1 1 0; min-width: 60px; overflow: hidden; height: 34px; display: flex; align-items: center; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; }
+  .tickertrack { display: inline-flex; white-space: nowrap; will-change: transform; animation: tickerscroll linear infinite; }
+  .tickertrack span { padding: 0 22px; color: #cbd5e1; font-size: 13px; }
+  .ticker:hover .tickertrack { animation-play-state: paused; }
+  @keyframes tickerscroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  @media (prefers-reduced-motion: reduce) { .tickertrack { animation: none; } }
   .knop {
     display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
     background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px;
@@ -176,7 +183,7 @@
       <button id="filterKnop" class="knop" type="button" aria-expanded="false" aria-controls="filters">
         ▾ Filters <span id="filterTel" class="telpil" hidden>0</span>
       </button>
-      <span class="spacer"></span>
+      <div id="ticker" class="ticker" aria-label="Toernooi van vandaag" hidden></div>
       <div class="seg" role="group" aria-label="Weergave">
         <button id="wStandaard" type="button">Standaard</button>
         <button id="wMinimal" type="button">Minimal</button>
@@ -220,6 +227,8 @@
   let ALLE = [];     // alle wedstrijden van vandaag (met _toernooi)
   let STREAMS = {};  // { "<tafelnr>": youtube-videoId } — welke tafels wij live streamen
   let GELADEN = false;
+  let TOERNOOINAMEN = [];         // unieke toernooinamen van vandaag (voor de ticker)
+  let TICKER_GETOOND = null;      // welke tekst nu in de ticker staat (om herstart te voorkomen)
 
   // Weergave + filters, onthouden in de browser (localStorage).
   const LS_WEERGAVE = 'standen_weergave';
@@ -298,9 +307,11 @@
         for (const m of t.matches) { m._toernooi = t.name || ''; matches.push(m); }
       }
       ALLE = matches;
+      TOERNOOINAMEN = [...new Set(toernooien.filter(Boolean).map((t) => (t.name || '').trim()).filter(Boolean))];
       GELADEN = true;
       document.getElementById('ts').textContent = new Date().toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
       render();
+      renderTicker();
     } catch (e) {
       if (!GELADEN) toon(`<div class="melding">Kon de standen even niet laden.<br>De pagina probeert het zo opnieuw.</div>`);
     }
@@ -436,6 +447,23 @@
   }
 
   function toon(html) { document.getElementById('inhoud').innerHTML = html; }
+
+  // Toernooi-ticker: laat de toernooinaam/-namen van vandaag langzaam voorbij scrollen.
+  // Bouwt alleen opnieuw als de tekst wijzigt (anders zou de animatie steeds herstarten).
+  function renderTicker() {
+    const el = document.getElementById('ticker');
+    if (!el) return;
+    const tekst = TOERNOOINAMEN.join(' • '); // ruime bullet-scheiding
+    if (tekst === TICKER_GETOOND) return;
+    TICKER_GETOOND = tekst;
+    if (!tekst) { el.hidden = true; el.innerHTML = ''; return; }
+    // Snelheid schaalt met de lengte → overal ongeveer even "langzaam".
+    const dur = Math.min(90, Math.max(18, tekst.length * 0.4));
+    const span = `<span>${esc(tekst)}</span>`;
+    // Twee identieke kopieën + translateX(-50%) = naadloze lus.
+    el.innerHTML = `<div class="tickertrack" style="animation-duration:${dur}s">${span}${span}</div>`;
+    el.hidden = false;
+  }
 
   // Livestream-paneel: tabs voor de cameratafels + de YouTube-embed van de gekozen tafel.
   // De iframe wordt alleen herbouwd als het videoId wijzigt, zodat de 20s-verversing de
