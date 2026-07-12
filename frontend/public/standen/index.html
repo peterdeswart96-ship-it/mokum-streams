@@ -27,6 +27,8 @@
     background: #1e293b; border: 1px solid rgba(255,255,255,.07); border-radius: 14px;
     padding: 12px 14px; margin-bottom: 10px;
   }
+  .kaart.live { border-left: 3px solid #ef4444; }
+  .kaart.klaar { opacity: .6; }
   .kaart .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
   .tafel { font-weight: 800; font-size: 13px; background: #334155; color: #fff; border-radius: 8px; padding: 3px 9px; }
   .toernooi { font-size: 11px; color: #94a3b8; text-align: right; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -80,23 +82,36 @@
         for (const m of t.matches) { m._toernooi = t.name || ''; matches.push(m); }
       }
 
-      const live = matches
-        .filter((m) => String(m.matchstatus || '').toLowerCase() === 'playing' && m.table)
-        .sort((a, b) => num(a.table && a.table.name) - num(b.table && b.table.name));
+      const st = (m) => String(m.matchstatus || '').toLowerCase();
+      const heeftTafel = (m) => m.table && m.table.name != null && String(m.table.name).trim() !== '';
+      const opTafel = (a, b) => num(a.table && a.table.name) - num(b.table && b.table.name);
+      const live = matches.filter((m) => st(m) === 'playing' && heeftTafel(m)).sort(opTafel);
+      const straks = matches.filter((m) => st(m) === 'waiting' && heeftTafel(m)).sort(opTafel).slice(0, 12);
+      const afgelopen = matches.filter((m) => st(m) === 'finished' && heeftTafel(m))
+        .sort((a, b) => tijd(b.stoptime) - tijd(a.stoptime)).slice(0, 8);
 
       const nu = new Date();
       document.getElementById('ts').textContent = nu.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
 
-      if (!live.length) return toon(`<div class="melding">Nog geen wedstrijden bezig.<br>Zodra er gespeeld wordt, verschijnen de standen hier vanzelf.</div>`);
-
-      const kaarten = live.map(kaart).join('');
-      toon(`<div class="sectiekop"><span class="dot"></span> Nu live · ${live.length}</div>${kaarten}`);
+      const secties = [];
+      if (live.length) secties.push(sectie('Nu live', live, 'live'));
+      if (straks.length) secties.push(sectie('Straks', straks, 'straks'));
+      if (afgelopen.length) secties.push(sectie('Net afgelopen', afgelopen, 'klaar'));
+      if (!secties.length) return toon(`<div class="melding">Nog geen wedstrijden.<br>Zodra er gespeeld wordt, verschijnen de standen hier vanzelf.</div>`);
+      toon(secties.join(''));
     } catch (e) {
       toon(`<div class="melding">Kon de standen even niet laden.<br>De pagina probeert het zo opnieuw.</div>`);
     }
   }
 
-  function kaart(m) {
+  function tijd(iso) { const t = Date.parse(iso || ''); return Number.isNaN(t) ? 0 : t; }
+
+  function sectie(titel, lijst, soort) {
+    const dot = soort === 'live' ? '<span class="dot"></span> ' : '';
+    return `<div class="sectiekop">${dot}${esc(titel)} · ${lijst.length}</div>${lijst.map((m) => kaart(m, soort)).join('')}`;
+  }
+
+  function kaart(m, soort) {
     const a = (m.playerA && m.playerA.name) || 'nog onbekend';
     const b = (m.playerB && m.playerB.name) || 'nog onbekend';
     const sa = m.scoreA != null ? m.scoreA : 0;
@@ -104,7 +119,7 @@
     const tafel = (m.table && m.table.name) ? `Tafel ${esc(m.table.name)}` : 'Tafel';
     const race = m.raceTo ? `Race naar ${esc(m.raceTo)}` : '';
     return `
-      <div class="kaart">
+      <div class="kaart ${esc(soort || '')}">
         <div class="top">
           <span class="tafel">${tafel}</span>
           <span class="toernooi">${esc(m._toernooi)}</span>
