@@ -56,7 +56,9 @@ class ObsPool {
           if (treffer) return { sceneName: item.sourceName, sceneItemId: treffer.sceneItemId };
         }
       }
-      throw new Error(`bron '${sourceName}' niet gevonden in scène '${sceneName}'`);
+      const err = new Error(`bron '${sourceName}' niet gevonden in scène '${sceneName}'`);
+      err.code = 'SOURCE_NOT_FOUND'; // permanente fout → agent dropt i.p.v. eeuwig herproberen
+      throw err;
     }
   }
 

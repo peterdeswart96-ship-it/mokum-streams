@@ -8,7 +8,5 @@
     { "tableNumber": 15, "sceneName": null, "obs": { "host": "127.0.0.1", "port": 4457, "password": "ZET-IN-ENV-OBS_PASSWORD_TAFEL_15" } },
     { "tableNumber": 16, "sceneName": null, "obs": { "host": "127.0.0.1", "port": 4458, "password": "ZET-IN-ENV-OBS_PASSWORD_TAFEL_16" } }
   ],
-  "rotations": [
-    { "key": "scoresOtherTables", "everySec": 180, "forSec": 20 }
-  ]
+  "rotations": []
 }

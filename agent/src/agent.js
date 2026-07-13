@@ -10,7 +10,6 @@ const { valideerCommando } = require('./commands');
 const DEFAULT_OVERLAY_SOURCES = {
   sponsors: 'Sponsor slideshow',
   scoreboard: 'Scoreboard',
-  scoresOtherTables: 'Scores other tables',
   cuescoreLogo: 'Cuescore logo',
   jumbotron: 'Jumbotron',
   pauzemelding: 'Pauzemelding',
@@ -66,7 +65,15 @@ async function runOnce(config, pool, backend, logger = console, nowMs = Date.now
       verwerkteCommandoIds.push(cmd.id);
       logger.log(`[OK] ${cmd.type} tafel ${cmd.tableNumber}`);
     } catch (e) {
-      logger.log(`[FOUT] commando ${cmd && cmd.id}: ${e.message}`);
+      // Permanente fout (bron bestaat niet) → bevestigen/droppen, anders blijft één rare
+      // toggle de agent eeuwig in een lus houden. Transiënt (OBS onbereikbaar) → NIET
+      // bevestigen; volgende tik opnieuw.
+      if (e && e.code === 'SOURCE_NOT_FOUND') {
+        verwerkteCommandoIds.push(cmd.id);
+        logger.log(`[DROP] ${cmd.type} tafel ${cmd.tableNumber}: ${e.message}`);
+      } else {
+        logger.log(`[FOUT] commando ${cmd && cmd.id}: ${e.message}`);
+      }
     }
   }
 

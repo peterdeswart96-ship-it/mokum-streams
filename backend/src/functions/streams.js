@@ -83,7 +83,7 @@ app.http('adminStreamStart', {
 });
 
 // POST /api/manage/streams/overlay — overlay(s) live aan/uit op een lopende stream.
-// body { tableNumber, sponsors?, scoreboard?, scoresOtherTables?, cuescoreLogo? } (bool)
+// body { tableNumber, sponsors?, scoreboard?, cuescoreLogo?, jumbotron?, pauzemelding? } (bool)
 app.http('adminStreamOverlay', {
   methods: ['POST'],
   authLevel: 'anonymous',

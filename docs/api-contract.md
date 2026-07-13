@@ -28,7 +28,7 @@ Antwoord:
       "scheduledStart": "2026-07-08T17:30:00Z" | null,
       "tournamentName": "Fluke ranking 9ball Seizoen 3 #22" | null,
       "quality": { "resolution": "1920x1080", "fps": 60, "bitrateKbps": 9000 } | null,
-      "overlays": { "sponsors": true, "scoreboard": true, "scoresOtherTables": true, "cuescoreLogo": true } | null,
+      "overlays": { "sponsors": true, "scoreboard": true, "cuescoreLogo": true } | null,
       "match": { "playerA": "Kevin Jansen", "playerB": "Johan Palé", "scoreA": 4, "scoreB": 1, "status": "playing", "round": "Winners qualification" } | null,
       "liveVideoId": "yX9SYqMXYrM" | null
     }
@@ -51,10 +51,10 @@ GET  /api/manage/planning?days=14    -> geplande toernooien (Cuescore-import + i
 POST /api/manage/planning/{id}       -> instellingen van één toernooi wijzigen
 GET  /api/manage/defaults            -> standaard-instellingen (één set, zie hieronder)
 POST /api/manage/defaults            -> standaard-instellingen wijzigen
-POST /api/manage/streams/start       -> body: { "tableNumber": 15, "title"?: "...", "privacy"?: "public|unlisted|private", "overlays"?: { "sponsors": true, "scoreboard": true, "scoresOtherTables": true, "cuescoreLogo": true, "jumbotron": false, "pauzemelding": false } } (ad-hoc, vrije camera; enqueuet startStream + setOverlay per overlay)
+POST /api/manage/streams/start       -> body: { "tableNumber": 15, "title"?: "...", "privacy"?: "public|unlisted|private", "overlays"?: { "sponsors": true, "scoreboard": true, "cuescoreLogo": true, "jumbotron": false, "pauzemelding": false } } (ad-hoc, vrije camera; enqueuet startStream + setOverlay per overlay)
 POST /api/manage/streams/stop        -> body: { "tableNumber": 15 }
-POST /api/manage/streams/overlay     -> body: { "tableNumber": 15, "sponsors"?: bool, "scoreboard"?: bool, "scoresOtherTables"?: bool, "cuescoreLogo"?: bool, "jumbotron"?: bool, "pauzemelding"?: bool } (overlay(s) live aan/uit op een lopende stream; enqueuet setOverlay per opgegeven sleutel)
-   NB: content-overlays (sponsors/scoreboard/scoresOtherTables/cuescoreLogo) staan standaard AAN;
+POST /api/manage/streams/overlay     -> body: { "tableNumber": 15, "sponsors"?: bool, "scoreboard"?: bool, "cuescoreLogo"?: bool, "jumbotron"?: bool, "pauzemelding"?: bool } (overlay(s) live aan/uit op een lopende stream; enqueuet setOverlay per opgegeven sleutel)
+   NB: content-overlays (sponsors/scoreboard/cuescoreLogo) staan standaard AAN;
    break-overlays (jumbotron/pauzemelding) staan standaard UIT (alleen tijdens pauzes tonen).
 POST /api/manage/setup/streams       -> eenmalig: herbruikbare liveStream per tafel (idempotent) → schrijft config/tables.json; body (optioneel) { "cameras": [1,3,15,16] }
 GET  /api/manage/stats               -> opgetelde bezoek-/QR-teller: { "totaal", "perBron": {..}, "perPagina": {..}, "perDag": { "YYYY-MM-DD": { "totaal", "perBron": {..} } } } (voedt later het centrale mokum-bot-dashboard, #18 fase 4)
@@ -162,12 +162,12 @@ Antwoord:
 }
 - `type`: `startStream` | `stopStream` | `setOverlay`.
 - `setOverlay` zet een OBS-bron (overlay/scoreboard) aan of uit (`enabled`).
-- **Overlay-switch → OBS-bronnaam** (zie `docs/obs-standaard.md`), 4 schakelbare overlays:
+- **Overlay-switch → OBS-bronnaam** (zie `docs/obs-standaard.md`), schakelbare overlays:
   `overlays.sponsors` → **`Sponsor slideshow`**; `overlays.scoreboard` → **`Scoreboard`**
-  (eigen scorebord); `overlays.scoresOtherTables` → **`Scores other tables`**;
-  `overlays.cuescoreLogo` → **`Cuescore logo`**. Alle vier zijn per broadcast/live
-  schakelbaar (dashboard). `Camera Tafel N` staat altijd aan (geen schakelaar). Per
-  tafel te overrijden via `config/tables.json` (`overlaySources`).
+  (officiële Cuescore-overlay: toernooikop + eigen scorebord); `overlays.cuescoreLogo`
+  → **`Cuescore logo`**; plus break-overlays `overlays.jumbotron`/`overlays.pauzemelding`.
+  Per broadcast/live schakelbaar (dashboard). `Camera Tafel N` staat altijd aan (geen
+  schakelaar). Per tafel te overrijden via `config/tables.json` (`overlaySources`).
 - De agent bevestigt verwerkte commando's via de status-post (`verwerkteCommandoIds`),
   zodat de backend ze niet opnieuw stuurt.
 
@@ -180,7 +180,7 @@ Body:
     {
       "tableNumber": 1, "obsConnected": true, "streaming": true, "bitrateKbps": 9000,
       "resolution": "1920x1080", "fps": 60,
-      "overlays": { "sponsors": true, "scoreboard": true, "scoresOtherTables": true, "cuescoreLogo": true }
+      "overlays": { "sponsors": true, "scoreboard": true, "cuescoreLogo": true }
     }
   ]
 }
@@ -311,3 +311,11 @@ Body:
   YouTube-beschrijvingen blijven werken. Bijgewerkt: QR-overlay + broadcast-beschrijving
   (`buildBroadcastDescription`) linken nu naar `/mokumlive/` (utm_campaign=mokumlive), PWA-
   manifest (start_url/scope `/mokumlive/`), en de teller-bron `page=mokumlive`.
+- 2026-07-13: v0.18 — **overlay `scoresOtherTables` verwijderd** + **agent loop-proof**. De
+  officiële Cuescore-scoreboard-overlay dekt "andere tafels", dus de aparte OBS-bron
+  `Scores other tables` is uit OBS + uit `OVERLAY_BRON` + het dashboard + de agent-rotatie
+  gehaald. `/api/live` `overlays` en de start/overlay-body's hebben `scoresOtherTables` niet
+  meer. **Robuustheid:** de agent behandelt "bron niet gevonden" nu als **permanente** fout
+  (`SOURCE_NOT_FOUND`) en **dropt** zo'n commando (met `[DROP]`-log) i.p.v. het eeuwig te
+  herproberen — één verkeerde toggle kan de agent niet meer in een lus houden. Terug te
+  zetten: bron + sleutel in `OVERLAY_BRON`/agent/frontend weer toevoegen.

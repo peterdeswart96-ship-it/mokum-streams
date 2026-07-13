@@ -10,11 +10,13 @@ const GELDIGE_TYPES = new Set(['startStream', 'stopStream', 'setOverlay']);
 const OVERLAY_BRON = {
   sponsors: 'Sponsor slideshow',
   scoreboard: 'Scoreboard',
-  scoresOtherTables: 'Scores other tables',
   cuescoreLogo: 'Cuescore logo',
   jumbotron: 'Jumbotron',
   pauzemelding: 'Pauzemelding',
 };
+// NB: 'scoresOtherTables' (bron 'Scores other tables') is per 2026-07-13 verwijderd — de
+// officiële Cuescore-scoreboard-overlay dekt dit. Terug te zetten door de sleutel hier +
+// in agent DEFAULT_OVERLAY_SOURCES + frontend OVERLAYS weer toe te voegen én de OBS-bron.
 
 // Break-overlays staan standaard UIT: ze horen alleen tijdens een pauze in beeld
 // (Jumbotron = alle scores, Pauzemelding = "we wachten op de volgende wedstrijd").
