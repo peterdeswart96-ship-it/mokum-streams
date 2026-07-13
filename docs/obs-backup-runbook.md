@@ -1,93 +1,72 @@
-# Backup & restore-runbook — streaming-pc (2026-07-13)
+# Backup & herinstallatie-runbook — streaming-pc (2026-07-13)
 
-> Doel (prioriteit): **1)** snel een restore kunnen doen op een nieuwe pc/schijf zodat de
-> streams weer werken, **2)** zoveel mogelijk geautomatiseerd, **3)** kosten zo laag mogelijk.
-> Aanpak = **gelaagd**: een volledige disk-image (snelste restore, zelfde hardware) + een
-> kleine config-bundel off-site (snelste route op ándere hardware, bijna gratis) + de
-> reproduceerbare documentatie.
+> **Gekozen aanpak (13-07):** géén volledige disk-image, maar **documenteren + config
+> backuppen (GitHub + Azure) + een herinstallatie-draaiboek**. Reden: de unieke data is
+> klein/tekst-vriendelijk en een paar dagen downtime is acceptabel. Goedkoop, geen extra
+> hardware, gebruikt wat we al hebben (GitHub-repo, `rg-mokum-streams` storage + Key Vault).
+> Vervangt de eerdere Veeam-image-route (die blijft optioneel, zie onderaan).
 
-## Wat er beschermd moet worden
-Kritiek en **klein** (verandert zelden):
-- `C:\MokumOBS\` — de 4 portable OBS-mappen (scenes, profielen, kwaliteit, websocket, **stream keys**)
-- `C:\Mokum-Sponsors\` — sponsorafbeeldingen + overlay-assets
-- `agent-config.json` + de env-secrets (`AGENT_TOKEN`, `OBS_PASSWORD_TAFEL_*`)
-- Tailscale/RustDesk-config
-Groot maar herinstalleerbaar: Windows + OBS-installatie + GPU/NVENC-drivers.
+## 1. Documenteren (bron van waarheid)
+- **`docs/obs-standaard.md`** = de complete OBS-instellingen: kwaliteit-standaard, bronnamen,
+  Scoreboard-URL's per tafel, websocket-poorten. Houd dit actueel.
+- **`docs/obs-herstel-runbook.md`** = scenes terugzetten + uit OneDrive + agent.
+- Dit document = wat waar geback-upt wordt + het **herinstallatie-draaiboek** (§4).
 
-## Twee restore-scenario's (bepaalt de aanpak)
-| Scenario | Snelste redmiddel |
-|---|---|
-| **Zelfde pc, nieuwe/kapotte schijf** | Volledige **disk-image** terugzetten → boot → klaar (~15–30 min) |
-| **Andere/nieuwe pc** | Verse OBS-portable + de **config-bundel** erin (een image boot vaak niet op afwijkende hardware) |
+## 2. Wat gaat waar? (repo is PUBLIC → secrets nooit in GitHub)
+| Onderdeel | Bevat secret? | Bewaarplek |
+|---|---|---|
+| Scene-collection JSON's (per tafel) | nee (stream key zit NIET in de scene collection) | **GitHub** → `obs-config/` |
+| `agent-config.json` (template) | nee (tokens in env) | **GitHub** → `obs-config/agent-config.template.json` |
+| Overlay-assets (QR-html, e.d.) | nee | **GitHub** → `overlays/`, `frontend/public/overlays/` |
+| Sponsorafbeeldingen | nee, maar binair | **Azure Blob** (privé container `obs-backup`) |
+| Volledige portable OBS-map (incl. profiel MÉT stream keys) | **JA** | **Azure Blob** (privé) — nooit GitHub |
+| `AGENT_TOKEN`, OBS-websocket-wachtwoorden | **JA** | **Azure Key Vault** `kv-mokum-streams` |
+| Stream keys | **JA** | Herleidbaar via de backend (`/api/manage/setup/streams`); of in de Azure-bundel |
 
----
+## 3. Backuppen — hoe
+### a) GitHub (handmatig, versioned, gratis)
+1. In elke OBS: **Scene Collection → Export** → sla op als `obs-config/tafel-<N>.json`.
+2. Commit die JSON's naar de repo (via develop → main, zoals gewoonlijk).
+3. Controleer vóór commit dat er **geen stream key/wachtwoord** in de JSON staat (zou er niet
+   in moeten zitten; bij twijfel even laten checken).
+→ Hiermee staan de **scenes/bronnen** versie-gecontroleerd veilig; terugzetten = importeren.
 
-## Laag 1 — Volledige disk-image (Veeam Agent for Windows, gratis)
-Snelste restore bij zelfde hardware; kan ook naar afwijkende hardware (driver-injectie).
-1. Installeer **Veeam Agent for Windows (Free)**.
-2. **Backup job:** doel = **externe SSD/HDD** (of NAS). Schema: **wekelijks volledig +
-   dagelijks incrementeel**. "Entire computer" of minimaal de systeemschijf.
-3. Maak de **Recovery Media (USB)** aan en berg 'm bij de pc.
-4. **Maak de eerste image ná** het OBS-herstel + OneDrive-fix (dan zit de góéde staat erin).
-5. **Restore:** boot de recovery-USB → kies de laatste image → terugzetten.
-- **Kosten:** software gratis; alleen een externe schijf (~€50 eenmalig, herbruikbaar).
-- Alternatieven (ook gratis): AOMEI Backupper Standard, Hasleo Backup Suite, Macrium/Clonezilla.
+### b) Azure Blob (binaries + volledige bundel, privé)
+- Container **`obs-backup`** in de bestaande storage van `rg-mokum-streams`.
+- Script **`scripts/obs-backup.ps1`** zipt `C:\MokumOBS` + `C:\Mokum-Sponsors` (+ agent-config)
+  en uploadt naar de container. Draai 'm handmatig of via Task Scheduler (wekelijks is genoeg).
+- Auth: connection string in env (`AZURE_STORAGE_CONNECTION_STRING`) — niet in het script/repo.
+- Deze zip bevat stream keys → **privé container**, versleutel evt. extra (7-Zip AES).
 
-## Laag 2 — Config-bundel, geautomatiseerd + off-site (bijna gratis)
-Script: **`scripts/obs-backup.ps1`** — zipt de kritieke config, roteert lokaal, en pusht
-**eenrichting** naar de cloud via `rclone` (géén live twee-weg-sync zoals OneDrive — dat was
-juist het probleem).
+### c) Azure Key Vault (secrets)
+- Zet als secrets in `kv-mokum-streams`: `agent-token`, `obs-password-tafel-1/3/15/16`.
+- Zo staan de secrets veilig en centraal; het draaiboek haalt ze daar op.
 
-**Eenmalig instellen:**
-1. Installeer **rclone** (`winget install Rclone.Rclone`) en configureer één remote:
-   - `rclone config` → **Backblaze B2** (aanrader, centen/maand) *of* **Google Drive** (gratis, 15GB).
-   - Noem de remote bv. `b2` en maak een **privé** bucket `mokum-obs-backup`.
-2. Pas bovenin `scripts/obs-backup.ps1` de paden + `$RcloneRemote` aan (bv. `b2:mokum-obs-backup`;
-   leeg = alleen lokaal). Zet `$LokaalDoel` op de externe schijf.
-3. **Test handmatig:** `pwsh -File scripts\obs-backup.ps1` → controleer de zip + `backup.log`
-   + dat 'ie in de bucket staat.
-4. **Plan met Task Scheduler** (dagelijks, bv. 04:00):
-   - Program: `pwsh.exe` (of `powershell.exe`)
-   - Arguments: `-NoProfile -ExecutionPolicy Bypass -File "C:\pad\naar\scripts\obs-backup.ps1"`
-   - "Run whether user is logged on or not" + "Run with highest privileges".
-- **Kosten:** rclone gratis; B2 ≈ **paar cent/maand** voor een paar honderd MB (of Drive gratis).
+## 4. Herinstallatie-draaiboek (van kale pc → streams live)
+Strektijd: ~30–60 min. Volgorde:
+1. **Windows** installeren + updaten; **NVIDIA-drivers** (NVENC nodig).
+2. **OBS Studio (portable)** downloaden → uitpakken naar `C:\MokumOBS\Tafel-1..16`.
+3. **Config terugzetten:**
+   - Scenes: pak `obs-config/tafel-<N>.json` uit de repo → OBS **Scene Collection → Import**.
+   - Sponsorafbeeldingen: uit de Azure-bundel → `C:\Mokum-Sponsors\`; her-koppel de
+     `Sponsor slideshow` naar die map.
+   - (Sneller alternatief: de **volledige portable-map** uit de Azure-bundel terugzetten.)
+4. **Secrets invullen** (uit Key Vault): OBS-websocket-wachtwoorden (Tools → WebSocket
+   Server Settings, poort 4455/4456/4457/4458), stream key per tafel (Settings → Stream;
+   of opnieuw ophalen via de backend), `AGENT_TOKEN` als env voor de agent.
+5. **Kwaliteit** volgens `docs/obs-standaard.md` (1080p60, CBR 16000, NVENC P6).
+6. **Controle** per tafel via `docs/obs-herstel-runbook.md` §4 (bronnamen exact, Scoreboard-URL).
+7. **Agent** starten (`docs/obs-herstel-runbook.md` §7) → dashboard-knoppen werken weer.
+8. **Netwerk/remote:** Tailscale + RustDesk/Chrome Remote Desktop opnieuw koppelen.
+9. **Tot slot:** verse Azure-bundel maken (goede staat vastleggen).
 
-## Laag 3 — Reproduceerbaar via documentatie (gratis)
-`docs/obs-standaard.md` (config-standaard + bronnamen) en `docs/obs-herstel-runbook.md`
-(scenes importeren, uit OneDrive, websocket, agent) maken een schone herinstallatie
-reproduceerbaar. **Scene-collection JSON's (zonder secrets)** kun je in de repo versioneren;
-stream keys/wachtwoorden **niet** in de repo.
+## 5. Onderhoud
+- Na elke wijziging aan de overlays/instellingen: **JSON opnieuw exporteren + committen**
+  en (wekelijks/na wijziging) de **Azure-bundel** verversen.
+- **Test één keer** een import van een JSON + het terugzetten van de Azure-bundel op een
+  reserve-map, zodat je weet dat het werkt.
 
----
-
-## Secrets (belangrijk)
-- De backup-zip bevat **stream keys** (in de OBS-profielen). Bewaar 'm daarom in een **privé**
-  bucket/Drive, óf **versleuteld**: met 7-Zip AES-256, of een `rclone crypt`-remote.
-  - 7-Zip-variant (i.p.v. de Compress-Archive-regel): installeer 7-Zip en zip met
-    `-p<wachtwoord> -mhe=on` (wachtwoord uit een env-var, niet in het script).
-- `AGENT_TOKEN` + `OBS_PASSWORD_TAFEL_*` bewaar je in een **wachtwoordkluis** (niet in de repo/zip).
-- Kwijt geraakt? De **herbruikbare stream keys** kunnen we via de backend opnieuw ophalen/zetten
-  (`/api/manage/setup/streams`), maar dan opnieuw in OBS plakken.
-
-## Restore-procedures
-**A. Zelfde pc, nieuwe schijf:** boot Veeam recovery-USB → laatste image terugzetten → klaar.
-**B. Nieuwe/andere pc:** installeer Windows + NVIDIA-drivers + OBS (portable), pak de laatste
-config-bundel uit → `C:\MokumOBS\` + `C:\Mokum-Sponsors\` terugzetten → OBS vanaf `C:\MokumOBS`
-starten → websocket-wachtwoorden + `AGENT_TOKEN` opnieuw zetten → volg `obs-herstel-runbook.md`
-voor de check. Streams weer live in ~30 min.
-
-## Test je restore (één keer!)
-Een ongeteste backup is geen backup. Zet minimaal **één keer** de config-bundel terug op een
-reserve-schijf/pc en start OBS, en doe een proef-boot van de Veeam-image. Herhaal na grote
-wijzigingen.
-
-## Optioneel — koude reserve-pc
-De állersnelste swap: een tweede pc met alles vooraf geïnstalleerd, uit in de kast. Kost een
-extra pc; voor lage kosten is image + externe schijf de sweet spot.
-
-## Kosten-samenvatting
-| Onderdeel | Kosten |
-|---|---|
-| Veeam Agent Free + rclone + Task Scheduler | **gratis** |
-| Externe SSD/HDD (image + lokale bundel) | ~€50 eenmalig |
-| Cloud off-site (Backblaze B2) | ~centen/maand — of Google Drive **gratis** |
+## Optioneel — volledige disk-image (indien je tóch snellere restore wilt)
+Veeam Agent for Windows (gratis) → image + recovery-USB naar een externe schijf. Snelste
+restore bij zelfde hardware. Niet nodig voor de gekozen aanpak, maar een prima aanvulling
+als downtime later tóch kritischer wordt.
