@@ -269,7 +269,7 @@ function TableCard({ table, onStop, onOverlay, onPreview, busy }) {
 function Wizard({ onClose, onStarted }) {
   const [tafel, setTafel] = useState(CAMERAS[0]);
   const [titel, setTitel] = useState('');
-  const [privacy, setPrivacy] = useState('unlisted');
+  const [privacy, setPrivacy] = useState('public'); // standaard Openbaar (streams zijn bedoeld voor publiek); Verborgen alleen bewust kiezen voor een test
   const [ov, setOv] = useState(standaardOverlays);
   const [bezig, setBezig] = useState(false);
   const [fout, setFout] = useState('');
