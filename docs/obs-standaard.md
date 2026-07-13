@@ -118,13 +118,34 @@ uiteenlopende OBS-output per tafel én YouTube-**latentie** die op laag/ultralaa
 > verhoog naar **16000 kbps** (evt. 12000–20000). Alternatief: **1080p30** voor meer
 > bits per beeld. Vergt stream-herstart → doen als een tafel vrij is. Zie issue #16.
 
+### Camera-bron (UniFi Protect) — dé echte oorzaak van de "korrel" (2026-07-13)
+Bij live kijken bleek de blokvorming **in het OBS-preview** te zitten (dus vóór onze
+encoder) en **alleen bij beweging**. Diagnose: de tafelcamera's zijn **UniFi G5 Pro**,
+opnemend op **4K/30fps** met **Auto-bitrate ~16 Mbps in H.264 (Standard)** — véél te weinig
+bits per pixel voor 4K met beweging → de **camera-encoder** blokt. De pc/het netwerk was
+niet de bottleneck (CPU 9%, GPU 23%, LAN ~32 Mbps van 4 camera's). De **stream-bitrate
+(#32) was dus niet de hoofdoorzaak** — de camera was het.
+
+**Fix (UniFi Protect → camera → Recording Quality), op alle 4 tafelcamera's:**
+| Instelling | Waarde |
+|---|---|
+| Resolution | **4K** (2K als alternatief bij te weinig bits/pixel) |
+| Encoding | **Enhanced** (= H.265, ~2× efficiënter dan Standard → grootste winst) |
+| Video Compression | **Custom**, range **~12–16 Mbps** (16 = max voor 4K op deze camera) |
+| FPS | Auto (= 30) → **OBS ook op 30 zetten** |
+
+Resultaat: geen blokvorming meer, scherper beeld. **Belangrijk:** de artefacten zaten in de
+bron, dus ze gingen anders óók de stream in. Cameramodel: G5 Pro; RTSP via de NVR
+(`rtsp://10.253.253.10:7447/…`). NB: tafelcamera's staan op **When to Record = Never**
+(alleen live-stream, geen NVR-opname) — houd dat consistent op alle 4.
+
 **OBS → Settings → Video:**
 | Instelling | Waarde |
 |---|---|
 | Base (Canvas) Resolution | **1920×1080** |
 | Output (Scaled) Resolution | **1920×1080** |
 | Downscale Filter | **Lanczos** |
-| Common FPS Values | **60** |
+| Common FPS Values | **30** (matcht de camera's 30 fps — zie camera-noot; 60 op een 30-bron voegt niets toe en verdubbelt alleen de te encoden frames) |
 
 **YouTube (per stream):** **Streamlatentie = Normaal** — *niet* Laag/Ultralaag (die
 begrenzen op ~480p). Dit was dé sleutelbevinding. Vergrendeld zolang een broadcast
