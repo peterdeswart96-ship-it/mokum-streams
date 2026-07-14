@@ -739,7 +739,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto p-4 sm:p-6">
+      <main className="max-w-7xl mx-auto p-4 sm:p-6">
         <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
           <button onClick={() => setWizard(true)}
                   className="bg-brand hover:bg-brand-dark text-white rounded-lg px-4 py-2 font-medium shadow-lg">
@@ -767,15 +767,12 @@ export default function App() {
               ))}
             </div>
             <StreamPaneel tables={tables} />
+            <div className="mt-4">
+              <ToernooiPlanner onGepland={laad} />
+            </div>
           </>
         )}
       </main>
-
-      {status === 'ok' && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 pb-8">
-          <ToernooiPlanner onGepland={laad} />
-        </section>
-      )}
 
       {wizard && (
         <Wizard onClose={() => setWizard(false)}
