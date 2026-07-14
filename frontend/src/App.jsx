@@ -245,7 +245,7 @@ function TableCard({ table, onStop, onOverlay, onPreview, busy }) {
       <div className="flex items-center justify-between mb-2">
         <h3 className="font-display">Tafel {table.tableNumber}</h3>
         <div className="flex items-center gap-2">
-          <Badge status={table.status} />
+          {table.status !== 'offline' && <Badge status={table.status} />}
           <YouTubeIcoon table={table} />
         </div>
       </div>
