@@ -10,6 +10,7 @@ const STANDAARD_DEFAULTS = {
   tafels: [1, 3, 15, 16],
   preRollMinuten: 10,
   overlays: { sponsors: true, scoreboard: true },
+  visibility: 'public', // YouTube-zichtbaarheid van de geplande broadcast
 };
 
 // Leidt 'YYYY-MM-DD' af uit een ISO-achtige starttijd; anders null.
@@ -74,6 +75,8 @@ function defaultRecord(tournament, defaults = STANDAARD_DEFAULTS) {
     preRollMinuten: defaults.preRollMinuten == null ? 10 : defaults.preRollMinuten,
     tafels: Array.isArray(defaults.tafels) ? [...defaults.tafels] : [],
     overlays: { sponsors: ov.sponsors !== false, scoreboard: ov.scoreboard !== false },
+    visibility: defaults.visibility || 'public',
+    planned: false, // per-toernooi arm-vlag: pas true na bevestigen in de Toernooi planner
   };
 }
 

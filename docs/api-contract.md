@@ -328,3 +328,13 @@ Body:
   beheerder de import forceren én meteen zien of Azure Cuescore kan bereiken. Bij een import-fout
   antwoordt het endpoint `502` met de foutmelding. Front- (`refreshPlanning` + knop in Stream Agenda)
   en backend meegewijzigd; `verwerk` geeft nu een resultaat-object terug.
+- 2026-07-14: v0.20 — **Toernooi planner, fase 1** (EPIC #42). Het planning-record krijgt twee
+  velden: **`visibility`** (`public`|`unlisted`|`private`, default `public` — YouTube-zichtbaarheid van
+  de geplande broadcast) en **`planned`** (bool, default `false` — de per-toernooi "scherp"-vlag die
+  pas op `true` gaat na bevestigen in de planner). `POST /api/manage/planning/{id}` accepteert deze nu
+  ook (whitelist `TOEGESTAAN` uitgebreid; `visibility` valt terug op `public` bij onbekende waarde).
+  Frontend: "Stream Agenda" is vervangen door een full-width **"Toernooi planner"** (uitklapbaar) die
+  de eerstvolgende ~10 toernooien toont met dropdowns voor Tafels/Zichtbaarheid/Overlays + een
+  **Plan-knop → bevestigingsdialoog** die `planned:true` + de gekozen instellingen opslaat. **Fase 1
+  zet nog niets automatisch live** — `createBroadcasts`/`checkStops` gaan pas op `planned` reageren in
+  fase 2/3. Overlays via presets (Alle/Alleen scorebord/Geen) → bestaande `overlays`-map.

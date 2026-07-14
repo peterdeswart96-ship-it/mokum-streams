@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  getLive, getSchedule, startStream, stopStream, setOverlay, refreshPlanning,
+  getLive, startStream, stopStream, setOverlay, refreshPlanning, getPlanning, updatePlanning,
   getToken, setToken as saveToken, clearToken,
 } from './api.js';
 
@@ -446,78 +446,211 @@ function datumLabel(iso) {
   return d.toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
-// ── Wat komt eraan (aankomende toernooien, uit /api/schedule) ────────────────
-// Read-only lijstje van geplande enkeldaagse toernooien in de komende dagen. Vult
-// zich zodra de planning geïmporteerd is; anders een nette lege melding.
-function Aankomend() {
-  const [items, setItems] = useState(null); // null = laden, [] = niets gepland
-  const [open, setOpen] = useState(false);  // uitklapbare balk (standaard dicht)
+// ── Toernooi planner (EPIC #42, fase 1: plannen + opslaan; auto start/stop volgt) ──
+// Toont de eerstvolgende ~10 Cuescore-toernooien (uit /api/manage/planning). Per
+// toernooi kies je Tafels + Zichtbaarheid + Overlays en leg je met "Plan" (na
+// bevestiging) de planning vast (record.planned = true). NB: fase 1 zet nog niets
+// automatisch live — dat komt in fase 2/3.
+const VIS_LABELS = { public: 'Openbaar', unlisted: 'Verborgen', private: 'Privé' };
+const OVERLAY_PRESETS = [
+  { key: 'alle', label: 'Alle', overlays: { sponsors: true, scoreboard: true } },
+  { key: 'scorebord', label: 'Alleen scorebord', overlays: { sponsors: false, scoreboard: true } },
+  { key: 'geen', label: 'Geen', overlays: { sponsors: false, scoreboard: false } },
+];
+function overlaysNaarPreset(ov) {
+  const s = !!(ov && ov.sponsors); const b = !!(ov && ov.scoreboard);
+  if (!s && b) return 'scorebord';
+  if (!s && !b) return 'geen';
+  return 'alle';
+}
+function tijdVan(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+}
+
+function ToernooiPlanner({ onGepland }) {
+  const [records, setRecords] = useState(null); // null = laden
+  const [open, setOpen] = useState(false);
   const [bezig, setBezig] = useState(false);
   const [fout, setFout] = useState('');
-  useEffect(() => {
-    let leeft = true;
-    const haal = () => getSchedule(7).then((d) => { if (leeft) setItems(d.items || []); }).catch(() => { if (leeft) setItems([]); });
-    haal();
-    const t = setInterval(haal, 300000); // elke 5 min verversen (planning wijzigt zelden)
-    return () => { leeft = false; clearInterval(t); };
+  const [edits, setEdits] = useState({});       // tournamentId -> { tafels, visibility, overlayPreset, preRoll }
+  const [confirm, setConfirm] = useState(null); // record dat bevestigd wordt
+
+  const laad = useCallback(() => {
+    return getPlanning().then((d) => {
+      const drempel = Date.now() - 12 * 3600 * 1000; // vandaag telt nog mee
+      const lijst = (d.items || [])
+        .filter((r) => (r.type || 'tournament') !== 'competition')
+        .filter((r) => {
+          const t = Date.parse(r.plannedStart || `${r.date}T00:00:00Z`);
+          return !Number.isNaN(t) && t >= drempel;
+        })
+        .sort((a, b) => String(a.plannedStart || a.date).localeCompare(String(b.plannedStart || b.date)))
+        .slice(0, 10);
+      setRecords(lijst);
+    }).catch(() => setRecords([]));
   }, []);
-  // Forceert de Cuescore-import (i.p.v. wachten op de uurlijkse timer) en toont het
-  // resultaat direct. Een fout (bijv. Azure kan Cuescore niet bereiken) tonen we in beeld.
-  async function ververs() {
-    setBezig(true); setFout('');
-    try {
-      const d = await refreshPlanning();
-      setItems(d.items || []);
-    } catch (e) {
-      setFout(e.message || 'Verversen mislukt');
-    } finally { setBezig(false); }
+  useEffect(() => { laad(); }, [laad]);
+
+  function huidig(r) {
+    const e = edits[r.tournamentId] || {};
+    return {
+      tafels: e.tafels ?? (r.tafels || []),
+      visibility: e.visibility ?? (r.visibility || 'public'),
+      overlayPreset: e.overlayPreset ?? overlaysNaarPreset(r.overlays),
+      preRoll: e.preRoll ?? (r.preRollMinuten ?? 10),
+    };
   }
-  const aantal = Array.isArray(items) ? items.length : 0;
+  function wijzig(r, patch) {
+    setEdits((prev) => ({ ...prev, [r.tournamentId]: { ...huidig(r), ...patch } }));
+  }
+  function toggleTafel(r, n) {
+    const cur = huidig(r).tafels;
+    wijzig(r, { tafels: cur.includes(n) ? cur.filter((x) => x !== n) : [...cur, n].sort((a, b) => a - b) });
+  }
+  async function doe(fn, faalTekst) {
+    setBezig(true); setFout('');
+    try { await fn(); await laad(); if (onGepland) onGepland(); }
+    catch (e) { setFout(e.message || faalTekst); }
+    finally { setBezig(false); }
+  }
+  function plan(r) {
+    const cur = huidig(r);
+    const preset = OVERLAY_PRESETS.find((p) => p.key === cur.overlayPreset) || OVERLAY_PRESETS[0];
+    return doe(async () => {
+      await updatePlanning(r.tournamentId, {
+        tafels: cur.tafels, visibility: cur.visibility, overlays: preset.overlays,
+        preRollMinuten: cur.preRoll, planned: true,
+      });
+      setConfirm(null);
+    }, 'Plannen mislukt');
+  }
+  const annuleer = (r) => doe(() => updatePlanning(r.tournamentId, { planned: false }), 'Annuleren mislukt');
+  const ververs = () => doe(() => refreshPlanning(), 'Verversen mislukt');
+
+  const aantalGepland = Array.isArray(records) ? records.filter((r) => r.planned).length : 0;
+  const cell = 'px-2 py-2 align-middle';
+  const sel = 'bg-canvas border border-line rounded px-1.5 py-1 text-xs text-ink disabled:opacity-60';
+
   return (
-    <div className="bg-surface border border-line rounded-lg shadow-lg mt-4">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
-      >
+    <div className="bg-surface border border-line rounded-lg shadow-lg">
+      <button onClick={() => setOpen((o) => !o)} aria-expanded={open}
+              className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left">
         <span className="font-display flex items-center gap-2">
-          Stream Agenda
-          {aantal > 0 && (
-            <span className="text-xs font-medium text-brand-light bg-brand/10 border border-brand/40 rounded-full px-2 py-0.5">{aantal}</span>
+          Toernooi planner
+          {aantalGepland > 0 && (
+            <span className="text-xs font-medium text-emerald-300 bg-emerald-500/10 border border-emerald-500/40 rounded-full px-2 py-0.5">{aantalGepland} gepland</span>
           )}
         </span>
         <span className={`text-ink-muted text-sm transition-transform ${open ? 'rotate-180' : ''}`}>▾</span>
       </button>
       {open && (
         <div className="px-4 pb-4">
-          {items == null ? (
+          {records == null ? (
             <p className="text-sm text-ink-muted">Laden…</p>
-          ) : items.length === 0 ? (
-            <p className="text-sm text-ink-muted">Geen geplande toernooien in de komende 7 dagen.</p>
+          ) : records.length === 0 ? (
+            <p className="text-sm text-ink-muted">Geen aankomende toernooien. Klik “↻ Ververs” om Cuescore op te halen.</p>
           ) : (
-            <ul className="divide-y divide-line">
-              {items.map((it, i) => (
-                <li key={i} className="flex items-baseline gap-3 py-2 first:pt-0 last:pb-0">
-                  <span className="text-xs font-medium text-brand-light w-24 shrink-0">{datumLabel(it.date)} · {it.startTime}</span>
-                  <span className="text-sm text-ink truncate flex-1">{it.tournamentName || 'Toernooi'}</span>
-                  {it.tableNumbers && it.tableNumbers.length > 0 && (
-                    <span className="text-xs text-ink-muted shrink-0">tafel {it.tableNumbers.join(', ')}</span>
-                  )}
-                </li>
-              ))}
-            </ul>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border-collapse min-w-[860px]">
+                <thead>
+                  <tr className="text-left text-ink-muted border-b border-line">
+                    <th className={cell}>Datum</th><th className={cell}>Tafels</th><th className={cell}>Start</th>
+                    <th className={cell}>Toernooi</th><th className={cell}>Eind</th><th className={cell}>Zichtbaarheid</th>
+                    <th className={cell}>Overlays</th><th className={cell}>Status</th><th className={cell}>Actie</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {records.map((r) => {
+                    const cur = huidig(r);
+                    const gepland = !!r.planned;
+                    return (
+                      <tr key={r.tournamentId} className="border-b border-line/50">
+                        <td className={cell}><span className="whitespace-nowrap">{datumLabel(r.date)}</span></td>
+                        <td className={cell}>
+                          <div className="flex gap-1">
+                            {CAMERAS.map((n) => (
+                              <button key={n} disabled={gepland} onClick={() => toggleTafel(r, n)}
+                                className={`w-6 h-6 rounded text-xs border ${cur.tafels.includes(n) ? 'bg-brand text-white border-brand' : 'bg-canvas text-ink-muted border-line'} ${gepland ? 'opacity-60 cursor-default' : ''}`}>{n}</button>
+                            ))}
+                          </div>
+                        </td>
+                        <td className={cell}><span className="whitespace-nowrap">{tijdVan(r.plannedStart)}</span></td>
+                        <td className={`${cell} max-w-[16rem]`}><span className="block truncate" title={r.name}>{r.name}</span></td>
+                        <td className={cell}><span className="whitespace-nowrap">{tijdVan(r.plannedStop)}</span></td>
+                        <td className={cell}>
+                          <select className={sel} value={cur.visibility} disabled={gepland} onChange={(e) => wijzig(r, { visibility: e.target.value })}>
+                            {Object.entries(VIS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                          </select>
+                        </td>
+                        <td className={cell}>
+                          <select className={sel} value={cur.overlayPreset} disabled={gepland} onChange={(e) => wijzig(r, { overlayPreset: e.target.value })}>
+                            {OVERLAY_PRESETS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
+                          </select>
+                        </td>
+                        <td className={cell}>
+                          {gepland
+                            ? <span className="text-emerald-400 text-xs font-medium whitespace-nowrap">● Gepland</span>
+                            : <span className="text-ink-muted text-xs">Concept</span>}
+                        </td>
+                        <td className={cell}>
+                          {gepland
+                            ? <button onClick={() => annuleer(r)} disabled={bezig} className="text-xs text-brand-light underline disabled:opacity-50">Annuleren</button>
+                            : <button onClick={() => setConfirm(r)} disabled={bezig || cur.tafels.length === 0}
+                                      className="bg-brand hover:bg-brand-dark text-white rounded px-2.5 py-1 text-xs font-medium disabled:opacity-50">Plan</button>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
-          {fout && (
-            <p className="text-sm text-brand-light bg-brand/10 border border-brand/40 rounded p-2 mt-3">Ververs mislukt: {fout}</p>
-          )}
+          {fout && <p className="text-sm text-brand-light bg-brand/10 border border-brand/40 rounded p-2 mt-3">{fout}</p>}
           <div className="mt-3 flex justify-end">
-            <button onClick={ververs} disabled={bezig}
-              className="text-xs text-ink-muted hover:text-ink underline disabled:opacity-50">
-              {bezig ? 'Verversen…' : '↻ Ververs planning'}
+            <button onClick={ververs} disabled={bezig} className="text-xs text-ink-muted hover:text-ink underline disabled:opacity-50">
+              {bezig ? 'Bezig…' : '↻ Ververs'}
             </button>
           </div>
         </div>
       )}
+
+      {confirm && (() => {
+        const cur = huidig(confirm);
+        const preset = OVERLAY_PRESETS.find((p) => p.key === cur.overlayPreset);
+        return (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-40 p-4" onClick={() => setConfirm(null)}>
+            <div className="bg-surface text-ink border border-line rounded-lg shadow-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+              <h2 className="text-lg font-display mb-1">Toernooi inplannen</h2>
+              <p className="text-sm text-ink-muted mb-4 truncate" title={confirm.name}>{confirm.name}</p>
+              <dl className="text-sm space-y-1.5 mb-4">
+                <div className="flex justify-between gap-3"><dt className="text-ink-muted">Datum</dt><dd>{datumLabel(confirm.date)}</dd></div>
+                <div className="flex justify-between gap-3"><dt className="text-ink-muted">Tafels</dt><dd>{cur.tafels.join(', ') || '—'}</dd></div>
+                <div className="flex justify-between gap-3"><dt className="text-ink-muted">Start</dt><dd>{tijdVan(confirm.plannedStart)} · stream {cur.preRoll} min eerder</dd></div>
+                <div className="flex justify-between gap-3"><dt className="text-ink-muted">Eind</dt><dd>{tijdVan(confirm.plannedStop)} of Cuescore “Finished”</dd></div>
+                <div className="flex justify-between gap-3"><dt className="text-ink-muted">Zichtbaarheid</dt><dd>{VIS_LABELS[cur.visibility]}</dd></div>
+                <div className="flex justify-between gap-3"><dt className="text-ink-muted">Overlays</dt><dd>{preset ? preset.label : '—'}</dd></div>
+              </dl>
+              <label className="block text-sm mb-4">
+                <span className="text-ink-muted">Voorloop (minuten vóór start)</span>
+                <input type="number" min="0" value={cur.preRoll}
+                       onChange={(e) => wijzig(confirm, { preRoll: Math.max(0, Number(e.target.value) || 0) })}
+                       className="w-full bg-canvas border border-line rounded px-3 py-2 mt-1 text-ink" />
+              </label>
+              {fout && <p className="text-sm text-brand-light bg-brand/10 border border-brand/40 rounded p-2 mb-3">{fout}</p>}
+              <div className="flex gap-2">
+                <button onClick={() => setConfirm(null)} className="flex-1 border border-line rounded px-3 py-2 text-sm">Terug</button>
+                <button onClick={() => plan(confirm)} disabled={bezig || cur.tafels.length === 0}
+                        className="flex-1 bg-brand hover:bg-brand-dark text-white rounded px-3 py-2 text-sm font-medium disabled:opacity-50">
+                  {bezig ? 'Bezig…' : 'Bevestig plannen'}
+                </button>
+              </div>
+              <p className="text-xs text-ink-muted mt-3">Fase 1: dit legt de planning vast. Automatisch starten/stoppen volgt in fase 2/3 — voor nu start je nog handmatig via “+ Nieuwe stream”.</p>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -634,10 +767,15 @@ export default function App() {
               ))}
             </div>
             <StreamPaneel tables={tables} />
-            <Aankomend />
           </>
         )}
       </main>
+
+      {status === 'ok' && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 pb-8">
+          <ToernooiPlanner onGepland={laad} />
+        </section>
+      )}
 
       {wizard && (
         <Wizard onClose={() => setWizard(false)}
