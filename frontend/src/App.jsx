@@ -451,6 +451,7 @@ function datumLabel(iso) {
 // zich zodra de planning geïmporteerd is; anders een nette lege melding.
 function Aankomend() {
   const [items, setItems] = useState(null); // null = laden, [] = niets gepland
+  const [open, setOpen] = useState(false);  // uitklapbare balk (standaard dicht)
   useEffect(() => {
     let leeft = true;
     const haal = () => getSchedule(7).then((d) => { if (leeft) setItems(d.items || []); }).catch(() => { if (leeft) setItems([]); });
@@ -458,25 +459,42 @@ function Aankomend() {
     const t = setInterval(haal, 300000); // elke 5 min verversen (planning wijzigt zelden)
     return () => { leeft = false; clearInterval(t); };
   }, []);
+  const aantal = Array.isArray(items) ? items.length : 0;
   return (
-    <div className="bg-surface border border-line rounded-lg shadow-lg p-4 mt-4">
-      <h3 className="font-display mb-3">Wat komt eraan</h3>
-      {items == null ? (
-        <p className="text-sm text-ink-muted">Laden…</p>
-      ) : items.length === 0 ? (
-        <p className="text-sm text-ink-muted">Geen geplande toernooien in de komende 7 dagen.</p>
-      ) : (
-        <ul className="divide-y divide-line">
-          {items.map((it, i) => (
-            <li key={i} className="flex items-baseline gap-3 py-2 first:pt-0 last:pb-0">
-              <span className="text-xs font-medium text-brand-light w-24 shrink-0">{datumLabel(it.date)} · {it.startTime}</span>
-              <span className="text-sm text-ink truncate flex-1">{it.tournamentName || 'Toernooi'}</span>
-              {it.tableNumbers && it.tableNumbers.length > 0 && (
-                <span className="text-xs text-ink-muted shrink-0">tafel {it.tableNumbers.join(', ')}</span>
-              )}
-            </li>
-          ))}
-        </ul>
+    <div className="bg-surface border border-line rounded-lg shadow-lg mt-4">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
+      >
+        <span className="font-display flex items-center gap-2">
+          Stream Agenda
+          {aantal > 0 && (
+            <span className="text-xs font-medium text-brand-light bg-brand/10 border border-brand/40 rounded-full px-2 py-0.5">{aantal}</span>
+          )}
+        </span>
+        <span className={`text-ink-muted text-sm transition-transform ${open ? 'rotate-180' : ''}`}>▾</span>
+      </button>
+      {open && (
+        <div className="px-4 pb-4">
+          {items == null ? (
+            <p className="text-sm text-ink-muted">Laden…</p>
+          ) : items.length === 0 ? (
+            <p className="text-sm text-ink-muted">Geen geplande toernooien in de komende 7 dagen.</p>
+          ) : (
+            <ul className="divide-y divide-line">
+              {items.map((it, i) => (
+                <li key={i} className="flex items-baseline gap-3 py-2 first:pt-0 last:pb-0">
+                  <span className="text-xs font-medium text-brand-light w-24 shrink-0">{datumLabel(it.date)} · {it.startTime}</span>
+                  <span className="text-sm text-ink truncate flex-1">{it.tournamentName || 'Toernooi'}</span>
+                  {it.tableNumbers && it.tableNumbers.length > 0 && (
+                    <span className="text-xs text-ink-muted shrink-0">tafel {it.tableNumbers.join(', ')}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
     </div>
   );
@@ -555,7 +573,7 @@ export default function App() {
           <img src="/mokum-logo.png" alt="Mokum Pool & Darts" className="h-10 w-auto" />
         </div>
         <div className="text-center">
-          <h1 className="text-lg sm:text-xl font-display leading-tight"><span className="text-brand">Mokum</span> Stream manager</h1>
+          <h1 className="text-lg sm:text-xl font-display leading-tight"><span className="text-brand">Mokum</span> Streams</h1>
           <p className="text-ink-muted text-xs sm:text-sm">Plan and manage livestreams</p>
         </div>
         <div className="flex items-center gap-4 justify-end">
