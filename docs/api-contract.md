@@ -49,7 +49,7 @@ POST /api/hit?source=qr&page=mokumlive   (ook GET) — cookieloze bezoek-/QR-tel
 GET  /api/manage/config              -> tafelconfig, array van { tableNumber, streamId }
 GET  /api/manage/planning?days=14    -> geplande toernooien (Cuescore-import + instellingen)
 POST /api/manage/planning/{id}       -> instellingen van één toernooi wijzigen
-POST /api/manage/planning/refresh    -> draait de Cuescore-import nu meteen (i.p.v. wachten op de uurlijkse timer) en werkt planning.json bij; antwoord: { imported, total, items } waarbij items = dezelfde vorm als GET /api/schedule
+POST /api/manage/planning-refresh    -> draait de Cuescore-import nu meteen (i.p.v. wachten op de uurlijkse timer) en werkt planning.json bij; antwoord: { imported, total, items } waarbij items = dezelfde vorm als GET /api/schedule. NB: route bewust NIET `manage/planning/refresh` — dat botst met `manage/planning/{id}`
 GET  /api/manage/defaults            -> standaard-instellingen (één set, zie hieronder)
 POST /api/manage/defaults            -> standaard-instellingen wijzigen
 POST /api/manage/streams/start       -> body: { "tableNumber": 15, "title"?: "...", "privacy"?: "public|unlisted|private", "overlays"?: { "sponsors": true, "scoreboard": true, "jumbotron": false, "pauzemelding": false } } (ad-hoc, vrije camera; enqueuet startStream + setOverlay per overlay)
@@ -320,7 +320,7 @@ Body:
   (`SOURCE_NOT_FOUND`) en **dropt** zo'n commando (met `[DROP]`-log) i.p.v. het eeuwig te
   herproberen — één verkeerde toggle kan de agent niet meer in een lus houden. Terug te
   zetten: bron + sleutel in `OVERLAY_BRON`/agent/frontend weer toevoegen.
-- 2026-07-14: v0.19 — **handmatige planning-refresh**. Nieuw **`POST /api/manage/planning/refresh`**
+- 2026-07-14: v0.19 — **handmatige planning-refresh**. Nieuw **`POST /api/manage/planning-refresh`**
   (beheer) draait de Cuescore-import (`verwerk` uit `importPlanning`) direct i.p.v. te wachten op
   de uurlijkse timer, werkt `planning.json` bij en geeft `{ imported, total, items }` terug
   (`items` = zelfde vorm als `GET /api/schedule`). Reden: de "Stream Agenda" op het dashboard bleef

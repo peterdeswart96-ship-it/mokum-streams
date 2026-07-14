@@ -41,7 +41,7 @@ export const getConfig = () => req('/api/manage/config');
 // Draait de Cuescore-planning-import nu meteen (i.p.v. de uurlijkse timer) en geeft
 // { imported, total, items } terug — items = zelfde vorm als /api/schedule.
 export const refreshPlanning = () =>
-  req('/api/manage/planning/refresh', { method: 'POST' });
+  req('/api/manage/planning-refresh', { method: 'POST' });
 export const startStream = (body) =>
   req('/api/manage/streams/start', { method: 'POST', body: JSON.stringify(body) });
 export const stopStream = (tableNumber) =>

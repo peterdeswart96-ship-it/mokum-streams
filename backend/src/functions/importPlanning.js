@@ -40,13 +40,15 @@ app.timer('importPlanning', {
   },
 });
 
-// POST /api/manage/planning/refresh — draait de Cuescore-import nu meteen (i.p.v.
+// POST /api/manage/planning-refresh — draait de Cuescore-import nu meteen (i.p.v.
 // wachten op de uurlijkse timer) en geeft de bijgewerkte agenda terug. Handig om te
 // forceren én om te zien of Azure Cuescore kan bereiken. Zie api-contract v0.19.
+// NB: route bewust NIET onder `manage/planning/...` — dat botst met `manage/planning/{id}`
+// (updatePlanning), waardoor "refresh" als {id} werd opgevat.
 app.http('refreshPlanning', {
   methods: ['POST'],
   authLevel: 'anonymous',
-  route: 'manage/planning/refresh',
+  route: 'manage/planning-refresh',
   handler: async (request, context) => {
     if (!isAdmin(request)) return { status: 401, jsonBody: { error: 'niet geautoriseerd' } };
     const now = new Date();
