@@ -10,6 +10,7 @@ class ObsPool {
   constructor(tables) {
     this.tables = new Map(tables.map((t) => [t.tableNumber, t]));
     this.conns = new Map();
+    this._laatsteStart = new Map(); // tafel → tijdstip laatste StartStream (retry-guard, #41)
   }
 
   // Verbindt (lazy) met de OBS-instantie van een tafel en cachet de verbinding.
@@ -26,12 +27,36 @@ class ObsPool {
     return obs;
   }
 
-  // Idempotent: alleen starten als 'ie nog niet streamt (voorkomt fouten +
-  // hangende commando's als de stream al liep).
+  // Start OBS. Bij een stille OBS: gewoon starten (dat is de betrouwbare, bewezen weg —
+  // OBS gaat van stil → zenden, en YouTube's auto-start zet de gekoppelde broadcast live).
+  // Bij een OBS die ál zendt (bijv. een net her-gekoppelde nieuwe broadcast): forceer een
+  // schone stil→zenden-flank (kort stoppen + opnieuw starten) zodat de auto-start óók dan
+  // afvuurt — anders blijft de nieuwe broadcast op "Upcoming/No data" hangen (#41/#42).
+  // Retry-guard: doen we dit NIET als we <35s geleden zelf startten, zodat een opnieuw-
+  // afgeleverd startStream-commando (na een mislukte status-post) geen herstart-lus geeft.
   async startStream(tableNumber) {
     const obs = await this.connect(tableNumber);
     const { outputActive } = await obs.call('GetStreamStatus');
-    if (!outputActive) await obs.call('StartStream');
+    if (outputActive) {
+      const laatst = this._laatsteStart.get(tableNumber) || 0;
+      if (Date.now() - laatst < 35000) return; // net zelf gestart → laten lopen (retry-guard)
+      await obs.call('StopStream');
+      await this._wachtTotGestopt(obs);
+    }
+    await obs.call('StartStream');
+    this._laatsteStart.set(tableNumber, Date.now());
+  }
+
+  // Wacht (met timeout) tot OBS echt gestopt is en geeft YouTube daarna een korte buffer
+  // om de stop te registreren — zodat de volgende StartStream een duidelijke flank vormt.
+  async _wachtTotGestopt(obs, { timeoutMs = 6000, intervalMs = 200, bufferMs = 2000 } = {}) {
+    const eind = Date.now() + timeoutMs;
+    while (Date.now() < eind) {
+      const { outputActive } = await obs.call('GetStreamStatus');
+      if (!outputActive) break;
+      await new Promise((r) => setTimeout(r, intervalMs));
+    }
+    if (bufferMs) await new Promise((r) => setTimeout(r, bufferMs));
   }
 
   // Idempotent: alleen stoppen als 'ie daadwerkelijk streamt.
