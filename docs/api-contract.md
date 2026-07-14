@@ -338,3 +338,11 @@ Body:
   **Plan-knop → bevestigingsdialoog** die `planned:true` + de gekozen instellingen opslaat. **Fase 1
   zet nog niets automatisch live** — `createBroadcasts`/`checkStops` gaan pas op `planned` reageren in
   fase 2/3. Overlays via presets (Alle/Alleen scorebord/Geen) → bestaande `overlays`-map.
+- 2026-07-14: v0.21 — **Toernooi planner, fase 2: automatische start** (EPIC #42). `planningDue`
+  vereist nu **`planned === true`** — alleen expliciet ingeplande toernooien maken automatisch een
+  broadcast (concept-records worden overgeslagen). `createBroadcasts` geeft de gekozen
+  **`visibility`** door aan de YouTube-broadcast (i.p.v. altijd public). **Veilige uitrol:** de
+  master-schakelaar **`AUTOMATION_ARMED`** blijft de harde voorwaarde — staat die op `false` (default)
+  dan gebeurt er niets, ongeacht `planned`. Pas ná een droge test zet je 'm éénmalig op `true`; daarna
+  is het "plannen = draait" zonder verder te schakelen. Auto-stop van ingeplande toernooien volgt in
+  fase 3 (`checkStops`). Tafel-herresolutie uit de actuele Cuescore-matches: fase 4.

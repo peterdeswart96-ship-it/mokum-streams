@@ -19,7 +19,7 @@ test('effectiveStart neemt de override als die er is', () => {
 });
 
 const TOERNOOI = {
-  tournamentId: 1, type: 'tournament', enabled: true, preRollMinuten: 10,
+  tournamentId: 1, type: 'tournament', enabled: true, planned: true, preRollMinuten: 10,
   plannedStart: '2026-07-14T17:30:00Z', plannedStop: '2026-07-14T21:00:00Z',
   tafels: [1, 3],
 };
@@ -34,6 +34,10 @@ test('planningDue is onwaar ruim vóór het venster', () => {
 
 test('planningDue is onwaar voor een uitgeschakeld record', () => {
   assert.strictEqual(planningDue({ ...TOERNOOI, enabled: false }, new Date('2026-07-14T17:22:00Z')), false);
+});
+
+test('planningDue is onwaar voor een niet-ingepland (concept) record', () => {
+  assert.strictEqual(planningDue({ ...TOERNOOI, planned: false }, new Date('2026-07-14T17:22:00Z')), false);
 });
 
 test('planningDue slaat doorlopende competities over', () => {

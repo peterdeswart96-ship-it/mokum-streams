@@ -44,6 +44,7 @@ function effectiveStart(record) {
 // per-avond-logica (nog te bouwen) en geven hier false.
 function planningDue(record, now, { graceMinuten = 30 } = {}) {
   if (!record || record.enabled === false) return false;
+  if (!record.planned) return false; // fase 2 (#42): alleen expliciet ingeplande toernooien draaien automatisch
   const type = record.type || bepaalType(record);
   if (type === 'competition') return false;
   const startIso = effectiveStart(record);

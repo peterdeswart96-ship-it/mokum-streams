@@ -44,7 +44,7 @@ async function verwerk(now, context) {
     const title = buildBroadcastTitle({ tafel: tafelNr, toernooinaam: rec.name || '' });
     const description = buildBroadcastDescription({ toernooinaam: rec.name || '' });
     try {
-      const broadcast = await createBroadcast({ title, description, scheduledStartTime: startIso });
+      const broadcast = await createBroadcast({ title, description, scheduledStartTime: startIso, privacyStatus: rec.visibility || 'public' });
       await bindBroadcast({ broadcastId: broadcast.id, streamId: table.streamId });
       store[String(tafelNr)] = {
         tableNumber: Number(tafelNr),
