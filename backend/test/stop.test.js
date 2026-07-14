@@ -10,6 +10,14 @@ test('shouldStop: enkeldaags toernooi stopt als het Finished is', () => {
   assert.strictEqual(shouldStop(entry, { type: 'tournament' }, { finished: false }, NOW), false);
 });
 
+test('shouldStop: enkeldaags toernooi stopt op de eind-tijd (vangnet), ook zonder Cuescore-data', () => {
+  const entry = { tableNumber: 1, tournamentId: 1 };
+  // plannedStop in het verleden → stoppen, óók als Cuescore onbereikbaar is (tournament = null)
+  assert.strictEqual(shouldStop(entry, { type: 'tournament', plannedStop: '2026-07-14T20:59:00Z' }, null, NOW), true);
+  // plannedStop in de toekomst + nog niet finished → nog niet stoppen
+  assert.strictEqual(shouldStop(entry, { type: 'tournament', plannedStop: '2026-07-14T23:00:00Z' }, { finished: false }, NOW), false);
+});
+
 test('shouldStop: ad-hoc en al gestopte streams stoppen nooit automatisch', () => {
   assert.strictEqual(shouldStop({ tableNumber: 1, adhoc: true }, {}, { finished: true }, NOW), false);
   assert.strictEqual(shouldStop({ tableNumber: 1, stopped: true }, {}, { finished: true }, NOW), false);

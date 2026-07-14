@@ -346,3 +346,10 @@ Body:
   dan gebeurt er niets, ongeacht `planned`. Pas ná een droge test zet je 'm éénmalig op `true`; daarna
   is het "plannen = draait" zonder verder te schakelen. Auto-stop van ingeplande toernooien volgt in
   fase 3 (`checkStops`). Tafel-herresolutie uit de actuele Cuescore-matches: fase 4.
+- 2026-07-14: v0.22 — **Toernooi planner, fase 3: automatische stop** (EPIC #42). `shouldStop`
+  (gebruikt door `checkStops`) krijgt een **eind-tijd-vangnet**: een ingepland enkeldaags toernooi
+  stopt sowieso zodra **`plannedStop`** (de Cuescore-eindtijd) voorbij is — óók als Cuescore
+  onbereikbaar is of de status niet op `Finished` springt. Primair blijft `tournament.finished === true`;
+  het vangnet is de extra veiligheid (geldt niet voor competities, die hun per-avond-logica houden).
+  Nog steeds achter de master-switch `AUTOMATION_ARMED` (veilige uitrol). Daarmee is de auto-cyclus
+  compleet: plannen → automatisch starten (fase 2) → automatisch stoppen (fase 3).
