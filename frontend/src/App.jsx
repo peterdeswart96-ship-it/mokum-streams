@@ -199,6 +199,24 @@ function MatchRegel({ match }) {
 }
 
 // ── Tafelkaart ─────────────────────────────────────────────────────────────
+// YouTube-icoon rechtsboven op de tafelkaart: grijs bij offline, opgelicht + rode
+// gloed-puls (5s) bij live, en dan klikbaar naar de livestream.
+function YouTubeIcoon({ table }) {
+  const live = table.status === 'live';
+  const videoId = table.videoId || table.liveVideoId;
+  const img = (
+    <img src="/youtube.png" alt="YouTube"
+         className={`w-10 h-10 rounded-lg transition ${live ? 'yt-live' : 'grayscale opacity-40'}`} />
+  );
+  if (live && videoId) {
+    return (
+      <a href={`https://youtu.be/${videoId}`} target="_blank" rel="noreferrer"
+         title="Bekijk live op YouTube" className="shrink-0">{img}</a>
+    );
+  }
+  return <span className="shrink-0" title={live ? 'Live op YouTube' : 'Offline'}>{img}</span>;
+}
+
 function TableCard({ table, onStop, onOverlay, onPreview, busy }) {
   const actief = table.status === 'live' || table.status === 'scheduled';
   // Overlay-toggles: lokaal-optimistisch, maar volgen de echte OBS-stand zodra de
@@ -226,7 +244,10 @@ function TableCard({ table, onStop, onOverlay, onPreview, busy }) {
     <div className="bg-surface border border-line rounded-lg shadow-lg p-4">
       <div className="flex items-center justify-between mb-2">
         <h3 className="font-display">Tafel {table.tableNumber}</h3>
-        <Badge status={table.status} />
+        <div className="flex items-center gap-2">
+          <Badge status={table.status} />
+          <YouTubeIcoon table={table} />
+        </div>
       </div>
       {table.title && <p className="text-sm text-ink-muted truncate" title={table.title}>{table.title}</p>}
       <MatchRegel match={table.match} />
