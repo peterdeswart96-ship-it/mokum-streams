@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  getLive, getSchedule, startStream, stopStream, setOverlay,
+  getLive, getSchedule, startStream, stopStream, setOverlay, refreshPlanning,
   getToken, setToken as saveToken, clearToken,
 } from './api.js';
 
@@ -452,6 +452,8 @@ function datumLabel(iso) {
 function Aankomend() {
   const [items, setItems] = useState(null); // null = laden, [] = niets gepland
   const [open, setOpen] = useState(false);  // uitklapbare balk (standaard dicht)
+  const [bezig, setBezig] = useState(false);
+  const [fout, setFout] = useState('');
   useEffect(() => {
     let leeft = true;
     const haal = () => getSchedule(7).then((d) => { if (leeft) setItems(d.items || []); }).catch(() => { if (leeft) setItems([]); });
@@ -459,6 +461,17 @@ function Aankomend() {
     const t = setInterval(haal, 300000); // elke 5 min verversen (planning wijzigt zelden)
     return () => { leeft = false; clearInterval(t); };
   }, []);
+  // Forceert de Cuescore-import (i.p.v. wachten op de uurlijkse timer) en toont het
+  // resultaat direct. Een fout (bijv. Azure kan Cuescore niet bereiken) tonen we in beeld.
+  async function ververs() {
+    setBezig(true); setFout('');
+    try {
+      const d = await refreshPlanning();
+      setItems(d.items || []);
+    } catch (e) {
+      setFout(e.message || 'Verversen mislukt');
+    } finally { setBezig(false); }
+  }
   const aantal = Array.isArray(items) ? items.length : 0;
   return (
     <div className="bg-surface border border-line rounded-lg shadow-lg mt-4">
@@ -494,6 +507,15 @@ function Aankomend() {
               ))}
             </ul>
           )}
+          {fout && (
+            <p className="text-sm text-brand-light bg-brand/10 border border-brand/40 rounded p-2 mt-3">Ververs mislukt: {fout}</p>
+          )}
+          <div className="mt-3 flex justify-end">
+            <button onClick={ververs} disabled={bezig}
+              className="text-xs text-ink-muted hover:text-ink underline disabled:opacity-50">
+              {bezig ? 'Verversen…' : '↻ Ververs planning'}
+            </button>
+          </div>
         </div>
       )}
     </div>
