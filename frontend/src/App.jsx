@@ -753,6 +753,8 @@ export default function App() {
           <p className="text-ink-muted text-xs sm:text-sm">Plan and manage livestreams</p>
         </div>
         <div className="flex items-center gap-4 justify-end">
+          <a href="/uitleg/" target="_blank" rel="noreferrer"
+             className="text-ink-muted hover:text-ink text-sm underline whitespace-nowrap">Hoe het werkt</a>
           <button onClick={() => setInfoOpen(true)}
                   className="text-ink-muted hover:text-ink text-sm underline whitespace-nowrap">Uitleg overlays</button>
           <button onClick={() => { clearToken(); setIngelogd(false); }}
