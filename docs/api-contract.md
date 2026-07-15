@@ -376,3 +376,10 @@ Body:
   — verborgen/privé-streams verschijnen niet meer op de publieke pagina (was een lek). Dashboard: toont een
   **zichtbaarheid-badge + tooltip** op een live tafelkaart, en de **"● LIVE"-badge + YouTube-gloed zijn groen**
   (was rood). Reden: Peter zag een als Verborgen aangemaakte teststream tóch op Mokum Live.
+- 2026-07-15: v0.26 — **fix: stream stopbaar over middernacht heen** (bug 15-07). De broadcasts-store is
+  per dag (`broadcasts/<datum>.json`); een stream die na 00:00 doorloopt verdween uit `GET /api/live`
+  (status `offline`, geen Stop-knop) terwijl 'ie op YouTube gewoon live was. `buildLiveTables` behandelt een
+  tafel nu ook als **`live`** als de agent `streaming` meldt of YouTube een actieve broadcast heeft
+  (`liveVideoId`) terwijl er **geen store-entry** is (`!b`) — dan valt `videoId` terug op `liveVideoId`, en
+  `quality`/`overlays` volgen de agent-status. Een expliciet gestopte entry (`stopped:true`) blijft `offline`.
+  Gevolg: het dashboard toont zo'n stream weer als live + met een werkende Stop-knop, ongeacht de opslag-datum.

@@ -25,22 +25,26 @@ function buildLiveTables(cameraTables, store, status, liveMatches, liveVideos) {
     const actief = !!(b && !b.stopped);
     const s = statusByTable.get(Number(nr)) || null;
     const streaming = !!(s && s.streaming);
-    let st = 'offline';
-    if (actief) st = streaming ? 'live' : 'scheduled';
-    // Kwaliteit + overlays alleen als de tafel echt live is (anders stale/irrelevant).
-    const quality =
-      streaming && actief
-        ? { resolution: s.resolution || null, fps: s.fps ?? null, bitrateKbps: s.bitrateKbps ?? null }
-        : null;
-    const overlays = streaming && actief && s.overlays ? s.overlays : null;
     // live-videos.json: nieuw = { videoId, visibility }; oud = videoId-string (compat).
     const rawVid = videos[String(nr)];
     const liveVideoId = typeof rawVid === 'string' ? rawVid : (rawVid && rawVid.videoId) || null;
     const liveVisibility = rawVid && typeof rawVid === 'object' ? rawVid.visibility || null : null;
+    // Status: de store-entry (actief) is leidend. Maar meldt de agent 'streaming' of heeft
+    // YouTube een actieve broadcast (liveVideoId) ZÓNDER store-entry — bijv. een stream die
+    // over middernacht heen loopt en uit de dag-store rolde — dan tonen we 'm alsnog als
+    // 'live' (en dus stopbaar), zodat een stream nooit "onzichtbaar" blijft doorlopen.
+    let st = 'offline';
+    if (actief) st = streaming ? 'live' : 'scheduled';
+    else if (!b && (streaming || liveVideoId)) st = 'live'; // GEEN store-entry (rollover), maar wel live
+    // Kwaliteit + overlays zodra de agent streaming meldt (los van de store-datum).
+    const quality = streaming
+      ? { resolution: s.resolution || null, fps: s.fps ?? null, bitrateKbps: s.bitrateKbps ?? null }
+      : null;
+    const overlays = streaming && s.overlays ? s.overlays : null;
     return {
       tableNumber: Number(nr),
       status: st,
-      videoId: actief ? b.videoId || null : null,
+      videoId: (actief && b.videoId) || (st === 'live' ? liveVideoId : null),
       title: actief ? b.title || null : null,
       scheduledStart: actief ? b.scheduledStart || null : null,
       tournamentName: actief ? b.tournamentName || null : null,

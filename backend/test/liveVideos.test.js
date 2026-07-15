@@ -37,10 +37,28 @@ test('buildLiveTables geeft liveVideoId + liveVisibility door (met compat voor d
   const byT = Object.fromEntries(
     buildLiveTables([1, 3, 15], {}, { tables: [] }, {}, liveVideos).map((r) => [r.tableNumber, r])
   );
-  assert.strictEqual(byT[3].liveVideoId, 'vid3'); // ook al is status 'offline'
+  assert.strictEqual(byT[3].liveVideoId, 'vid3');
   assert.strictEqual(byT[3].liveVisibility, 'unlisted');
-  assert.strictEqual(byT[3].status, 'offline');
+  assert.strictEqual(byT[3].status, 'live'); // YouTube-broadcast zonder store-entry telt nu als live
   assert.strictEqual(byT[15].liveVideoId, 'oudVid'); // oude string-vorm blijft werken
   assert.strictEqual(byT[15].liveVisibility, null);
   assert.strictEqual(byT[1].liveVideoId, null);
+});
+
+test('buildLiveTables: live op YouTube ZONDER store-entry (bv. na middernacht-rollover) → live + stopbaar', () => {
+  const liveVideos = { videos: { 1: { videoId: 'vid1', visibility: 'public' } } };
+  const byT = Object.fromEntries(
+    buildLiveTables([1], {}, { tables: [] }, {}, liveVideos).map((r) => [r.tableNumber, r])
+  );
+  assert.strictEqual(byT[1].status, 'live'); // geen store-entry, maar YouTube heeft een actieve broadcast
+  assert.strictEqual(byT[1].videoId, 'vid1'); // valt terug op de YouTube-broadcast (voor Stop/Bekijk-knop)
+});
+
+test('buildLiveTables: agent meldt streaming zonder store-entry → live met kwaliteit', () => {
+  const status = { tables: [{ tableNumber: 3, streaming: true, resolution: '1920x1080', fps: 30 }] };
+  const byT = Object.fromEntries(
+    buildLiveTables([3], {}, status, {}, {}).map((r) => [r.tableNumber, r])
+  );
+  assert.strictEqual(byT[3].status, 'live');
+  assert.deepStrictEqual(byT[3].quality, { resolution: '1920x1080', fps: 30, bitrateKbps: null });
 });
