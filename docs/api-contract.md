@@ -353,3 +353,12 @@ Body:
   het vangnet is de extra veiligheid (geldt niet voor competities, die hun per-avond-logica houden).
   Nog steeds achter de master-switch `AUTOMATION_ARMED` (veilige uitrol). Daarmee is de auto-cyclus
   compleet: plannen → automatisch starten (fase 2) → automatisch stoppen (fase 3).
+- 2026-07-15: v0.23 — **nachtelijke veiligheids-stop** (`nachtStop`, timer elke 30 min). Na
+  sluitingstijd (default **02:00** Amsterdam, t/m 08:00) stopt 'ie **ALLE** nog-lopende streams —
+  óók handmatig gestarte (adhoc) — door per tafel een `stopStream` te enqueuen en de entry als
+  `stopped` te markeren. Checkt zowel de store van vandaag als gisteren (een avondstream zit na
+  middernacht nog in gisteren's `broadcasts/<datum>.json`). Bewust **NIET** achter `AUTOMATION_ARMED`
+  (stoppen is altijd veilig; dit is juist het vangnet). Aanpasbaar via app-settings
+  `NACHT_STOP_SLUITING_MIN` / `NACHT_STOP_OCHTEND_MIN`. Reden: op 14-07 bleven streams 's nachts
+  doorzenden met een bevroren beeld; dit garandeert dat er nooit meer iets blijft hangen. Pure logica
+  (`src/planning/nachtstop.js`) unit-getest.
