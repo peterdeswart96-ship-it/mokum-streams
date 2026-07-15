@@ -16,6 +16,9 @@ app.http('agentCommands', {
   route: 'agent/commands',
   handler: async (request) => {
     if (!isAgent(request)) return json(401, { error: 'niet geautoriseerd' });
+    // Hartslag: de agent pollt dit elke ~3s → we onthouden het laatste contact zodat
+    // het dashboard "agent online/offline" kan tonen. Geen agent-wijziging nodig.
+    await writeJson('agent/heartbeat.json', { lastSeen: new Date().toISOString() });
     const commands = (await readJson('commands.json', [])) || [];
     return json(200, { commands });
   },

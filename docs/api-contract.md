@@ -362,3 +362,9 @@ Body:
   `NACHT_STOP_SLUITING_MIN` / `NACHT_STOP_OCHTEND_MIN`. Reden: op 14-07 bleven streams 's nachts
   doorzenden met een bevroren beeld; dit garandeert dat er nooit meer iets blijft hangen. Pure logica
   (`src/planning/nachtstop.js`) unit-getest.
+- 2026-07-15: v0.24 — **agent-heartbeat / "agent offline"-indicator**. `GET /api/agent/commands` schrijft
+  bij elke poll (~3s) een hartslag naar `agent/heartbeat.json` (geen agent-wijziging nodig). `GET /api/live`
+  geeft nu een top-level **`agent`**-veld door: `{ online, lastSeenAt, secondsAgo }`, met `online` = laatste
+  contact < 20s geleden. Frontend: een duidelijke **rode balk "Agent offline"** bovenaan het dashboard als
+  de OBS-pc niet reageert (starten/stoppen werkt dan niet), en een subtiel groen "Agent online" als 't goed
+  is. Reden: op 14-07 zag je pas via Remote Desktop dat de pc offline was; nu meldt het dashboard het direct.

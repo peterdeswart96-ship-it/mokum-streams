@@ -7,6 +7,7 @@ const { buildLiveTables, buildSchedule } = require('../public/live');
 
 const json = (status, body) => ({ status, jsonBody: body });
 const CAMERAS_DEFAULT = [1, 3, 15, 16];
+const AGENT_ONLINE_MS = 20000; // agent pollt elke ~3s → >20s stil = offline
 
 // GET /api/live — live-status per cameratafel
 app.http('publicLive', {
@@ -25,9 +26,18 @@ app.http('publicLive', {
     // venueLive = totaal aantal lopende wedstrijden in de hele zaal (alle toernooien),
     // los van welke tafels wij filmen. null als we het (nog) niet weten.
     const venueLive = Number.isFinite(liveMatches.venueLive) ? liveMatches.venueLive : null;
+    // Agent-hartslag: is de OBS-pc bereikbaar? (bron: agent/heartbeat.json, gezet door GET /agent/commands)
+    const hb = (await readJson('agent/heartbeat.json', {})) || {};
+    const lastSeen = hb.lastSeen ? Date.parse(hb.lastSeen) : NaN;
+    const agent = {
+      online: !Number.isNaN(lastSeen) && now.getTime() - lastSeen < AGENT_ONLINE_MS,
+      lastSeenAt: hb.lastSeen || null,
+      secondsAgo: Number.isNaN(lastSeen) ? null : Math.round((now.getTime() - lastSeen) / 1000),
+    };
     return json(200, {
       generatedAt: now.toISOString(),
       venueLive,
+      agent,
       tables: buildLiveTables(cameras, store, status, liveMatches, liveVideos),
     });
   },

@@ -677,10 +677,32 @@ function ToernooiPlanner({ onGepland }) {
 }
 
 // ── App ────────────────────────────────────────────────────────────────────
+// Agent-status: waarschuwt als de OBS-pc (agent) niet bereikbaar is — dan werkt
+// starten/stoppen van streams niet. Online = subtiel groen; offline = duidelijke rode balk.
+function AgentStatus({ agent }) {
+  if (!agent) return null;
+  if (agent.online) {
+    return (
+      <div className="flex items-center gap-1.5 text-xs text-emerald-400 mb-4">
+        <span className="w-2 h-2 rounded-full bg-emerald-400" /> Agent online — OBS-pc bereikbaar
+      </div>
+    );
+  }
+  const geleden = agent.secondsAgo != null ? ` (laatst gezien ${agent.secondsAgo}s geleden)` : '';
+  return (
+    <div className="mb-4 flex items-start gap-2 bg-brand/15 border border-brand/40 text-brand-light rounded-lg px-4 py-3 text-sm">
+      <span aria-hidden="true">⚠</span>
+      <span><b>Agent offline</b> — de OBS-pc reageert niet{geleden}. Streams starten of stoppen werkt nu niet.
+        Controleer of de pc aan staat en de agent draait.</span>
+    </div>
+  );
+}
+
 export default function App() {
   const [ingelogd, setIngelogd] = useState(!!getToken());
   const [tables, setTables] = useState([]);
   const [venueLive, setVenueLive] = useState(null);
+  const [agent, setAgent] = useState(null);
   const [status, setStatus] = useState('laden');
   const [wizard, setWizard] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -702,6 +724,7 @@ export default function App() {
       const list = (d.tables && d.tables.length) ? d.tables : CAMERAS.map((n) => ({ tableNumber: n, status: 'offline' }));
       setTables(list.sort((a, b) => a.tableNumber - b.tableNumber));
       setVenueLive(d.venueLive ?? null);
+      setAgent(d.agent ?? null);
       setStatus('ok');
       setLastUpdated(Date.now());
     } catch {
@@ -771,6 +794,7 @@ export default function App() {
           <VerversStatus lastUpdated={lastUpdated} status={status} onRefresh={laad} />
         </div>
 
+        {status === 'ok' && <AgentStatus agent={agent} />}
         {status === 'laden' && <p className="text-ink-muted">Laden…</p>}
         {status === 'fout' && (
           <p className="text-amber-200 bg-amber-500/10 border border-amber-500/30 rounded p-3">
