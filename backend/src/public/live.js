@@ -33,6 +33,10 @@ function buildLiveTables(cameraTables, store, status, liveMatches, liveVideos) {
         ? { resolution: s.resolution || null, fps: s.fps ?? null, bitrateKbps: s.bitrateKbps ?? null }
         : null;
     const overlays = streaming && actief && s.overlays ? s.overlays : null;
+    // live-videos.json: nieuw = { videoId, visibility }; oud = videoId-string (compat).
+    const rawVid = videos[String(nr)];
+    const liveVideoId = typeof rawVid === 'string' ? rawVid : (rawVid && rawVid.videoId) || null;
+    const liveVisibility = rawVid && typeof rawVid === 'object' ? rawVid.visibility || null : null;
     return {
       tableNumber: Number(nr),
       status: st,
@@ -43,7 +47,8 @@ function buildLiveTables(cameraTables, store, status, liveMatches, liveVideos) {
       quality,
       overlays,
       match: matches[String(nr)] || null,
-      liveVideoId: videos[String(nr)] || null,
+      liveVideoId,
+      liveVisibility,
     };
   });
 }

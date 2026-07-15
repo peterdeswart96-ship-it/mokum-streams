@@ -368,3 +368,11 @@ Body:
   contact < 20s geleden. Frontend: een duidelijke **rode balk "Agent offline"** bovenaan het dashboard als
   de OBS-pc niet reageert (starten/stoppen werkt dan niet), en een subtiel groen "Agent online" als 't goed
   is. Reden: op 14-07 zag je pas via Remote Desktop dat de pc offline was; nu meldt het dashboard het direct.
+- 2026-07-15: v0.25 — **zichtbaarheid van de live stream + privacy-filter Mokum Live**. `listActiveBroadcasts`
+  haalt nu ook `status.privacyStatus` op; `koppelVideosAanTafels` levert per tafel `{ videoId, visibility }`
+  (i.p.v. alleen videoId) → `live-videos.json`. `GET /api/live` geeft per tafel een nieuw veld
+  **`liveVisibility`** (`public`|`unlisted`|`private`|null) naast `liveVideoId` (met compat voor de oude
+  string-vorm). **Mokum Live** (`/mokumlive`) embedt de stream nu alléén als `liveVisibility === 'public'`
+  — verborgen/privé-streams verschijnen niet meer op de publieke pagina (was een lek). Dashboard: toont een
+  **zichtbaarheid-badge + tooltip** op een live tafelkaart, en de **"● LIVE"-badge + YouTube-gloed zijn groen**
+  (was rood). Reden: Peter zag een als Verborgen aangemaakte teststream tóch op Mokum Live.

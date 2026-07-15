@@ -8,16 +8,16 @@ function parseTafelUitTitel(title) {
   return m ? Number(m[1]) : null;
 }
 
-// Koppelt actieve broadcasts ([{ videoId, title }]) aan cameratafels →
-// { "<tafelnr>": videoId }. Alleen tafels in cameraTables; bij meerdere matches op
-// dezelfde tafel wint de eerste.
+// Koppelt actieve broadcasts ([{ videoId, title, visibility }]) aan cameratafels →
+// { "<tafelnr>": { videoId, visibility } }. Alleen tafels in cameraTables; bij meerdere
+// matches op dezelfde tafel wint de eerste.
 function koppelVideosAanTafels(broadcasts, cameraTables) {
   const set = new Set((cameraTables || []).map(Number));
   const uit = {};
   for (const b of broadcasts || []) {
     const tn = parseTafelUitTitel(b && b.title);
     if (tn != null && set.has(tn) && uit[String(tn)] == null && b.videoId) {
-      uit[String(tn)] = b.videoId;
+      uit[String(tn)] = { videoId: b.videoId, visibility: b.visibility || null };
     }
   }
   return uit;

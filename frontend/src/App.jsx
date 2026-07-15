@@ -121,12 +121,26 @@ function VerversStatus({ lastUpdated, status, onRefresh }) {
 // ── Statusbadge ────────────────────────────────────────────────────────────
 function Badge({ status }) {
   const map = {
-    live: 'bg-brand/20 text-brand-light border-brand/40',
+    live: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
     scheduled: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
     offline: 'bg-neutral-700/40 text-neutral-400 border-neutral-600',
   };
   const label = { live: '● LIVE', scheduled: 'gepland', offline: 'offline' }[status] || status;
   return <span className={`text-xs px-2 py-0.5 rounded border ${map[status] || map.offline}`}>{label}</span>;
+}
+
+// Zichtbaarheid van een lopende stream (uit YouTube) + uitleg-tooltip.
+const VIS_INFO = {
+  public: { label: '🌐 Openbaar', tip: 'Openbaar — iedereen kan de stream vinden en bekijken (verschijnt ook op Mokum Live).' },
+  unlisted: { label: '🔗 Verborgen', tip: 'Verborgen — alleen mensen met de link kunnen kijken; niet openbaar vindbaar en niet op Mokum Live.' },
+  private: { label: '🔒 Privé', tip: 'Privé — alleen het Mokum-kanaal kan de stream bekijken.' },
+};
+function VisibilityBadge({ visibility }) {
+  const info = VIS_INFO[visibility];
+  if (!info) return null;
+  return (
+    <span title={info.tip} className="text-xs text-ink-muted border border-line rounded px-1.5 py-0.5 cursor-help whitespace-nowrap">{info.label}</span>
+  );
 }
 
 // "1920x1080" + 60 + 9000 → "1080p60 · 9,0 Mbps" (kort, leesbaar in de kaart)
@@ -252,6 +266,9 @@ function TableCard({ table, onStop, onOverlay, onPreview, busy }) {
       {table.title && <p className="text-sm text-ink-muted truncate" title={table.title}>{table.title}</p>}
       <MatchRegel match={table.match} />
       {kwaliteit && <p className="text-xs text-ink-muted mt-0.5">🎥 {kwaliteit}</p>}
+      {table.status === 'live' && table.liveVisibility && (
+        <p className="mt-1.5"><VisibilityBadge visibility={table.liveVisibility} /></p>
+      )}
       {table.videoId && (
         <a href={`https://youtu.be/${table.videoId}`} target="_blank" rel="noreferrer"
            className="text-sm text-brand-light underline">Bekijk op YouTube ↗</a>

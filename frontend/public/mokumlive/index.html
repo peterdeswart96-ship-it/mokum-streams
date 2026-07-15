@@ -325,7 +325,8 @@
       haalJson(`${APP_API}/api/live`).then((live) => {
         const map = {};
         for (const t of (live.tables || [])) {
-          const v = t.liveVideoId || t.videoId;
+          // Alleen ÓPENBARE streams op de publieke pagina — verborgen/privé horen hier niet.
+          const v = t.liveVisibility === 'public' ? t.liveVideoId : null;
           if (v) map[String(t.tableNumber)] = v;
         }
         STREAMS = map; render(); renderStream();

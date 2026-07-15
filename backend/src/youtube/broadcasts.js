@@ -125,11 +125,15 @@ async function listActiveBroadcasts() {
   // `broadcastStatus: 'active'` is al kanaal-scoped (de geauthenticeerde eigenaar) →
   // `mine` mag er NIET bij (anders 'incompatibleParameters').
   const res = await yt.liveBroadcasts.list({
-    part: ['id', 'snippet'],
+    part: ['id', 'snippet', 'status'],
     broadcastStatus: 'active',
     maxResults: 50,
   });
-  return (res.data.items || []).map((b) => ({ videoId: b.id, title: (b.snippet && b.snippet.title) || '' }));
+  return (res.data.items || []).map((b) => ({
+    videoId: b.id,
+    title: (b.snippet && b.snippet.title) || '',
+    visibility: (b.status && b.status.privacyStatus) || null, // public | unlisted | private
+  }));
 }
 
 module.exports = {
