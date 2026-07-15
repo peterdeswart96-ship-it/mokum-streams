@@ -207,6 +207,52 @@ sequenceDiagram
   </section>
 
   <section>
+    <h2><span class="num">03</span>Automatisch — de Toernooi planner</h2>
+    <p>De planner doet exact hetzelfde als hierboven, maar dan zetten <b>timers in de backend</b> de
+      commando's op tijd klaar in plaats van jij met een klik. Je plant een toernooi één keer; de rest
+      gaat vanzelf. Alles hieronder loopt alleen als de master-schakelaar aan staat.</p>
+    <figure>
+      <div class="panel">
+        <pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'Segoe UI, system-ui, sans-serif','primaryColor':'#fdeaea','primaryBorderColor':'#cc0000','primaryTextColor':'#1a1512','lineColor':'#9a938a','actorBkg':'#fdeaea','actorBorder':'#cc0000','actorTextColor':'#1a1512','signalColor':'#4a443c','signalTextColor':'#4a443c','noteBkgColor':'#fff6df','noteBorderColor':'#e0b84d','noteTextColor':'#4a443c'}}}%%
+sequenceDiagram
+    participant CS as Cuescore
+    participant BE as Backend
+    participant BL as Opslag
+    actor B as Beheerder
+    participant AG as Agent
+    participant O as OBS
+    participant YT as YouTube
+    Note over CS,BL: Dagen vooruit
+    BE->>CS: importPlanning (elk uur)
+    BE->>BL: geplande toernooien → de planner
+    B->>BL: plan toernooi (tafels, zichtbaarheid, overlays)
+    Note over BE,YT: Avond — bij starttijd min voorloop
+    BE->>BL: createBroadcasts (elke 5 min): aan de beurt?
+    BE->>YT: maak broadcast + koppel aan sleutel
+    BE->>AG: startStream (via de wachtrij)
+    AG->>O: StartStream
+    O->>YT: beeld → broadcast wordt LIVE
+    Note over CS,YT: Einde — Cuescore "Finished" of eind-tijd
+    BE->>CS: checkStops (elke 5 min): al klaar?
+    BE->>AG: stopStream (via de wachtrij)
+    AG->>O: StopStream → broadcast eindigt
+        </pre>
+      </div>
+      <figcaption>De backend-timers vervangen jouw klikken; de rest van de weg is identiek.</figcaption>
+    </figure>
+
+    <ol class="steps">
+      <li><b>importPlanning haalt de agenda op</b> <span>(elk uur): de geplande Mokum-toernooien uit Cuescore verschijnen in de Toernooi planner.</span></li>
+      <li><b>Je plant een toernooi</b> <span>— kies tafels, zichtbaarheid en overlays, en bevestig. Het krijgt de status "Gepland".</span></li>
+      <li><b>createBroadcasts start op tijd</b> <span>(elke 5 min): zodra de starttijd nadert (start − voorloop) maakt de backend zélf de broadcast aan en zet <code>startStream</code> klaar.</span></li>
+      <li><b>Vanaf hier identiek aan handmatig</b> <span>: agent → OBS → YouTube, en de broadcast wordt live.</span></li>
+      <li><b>checkStops stopt op tijd</b> <span>(elke 5 min): zodra Cuescore "Finished" meldt óf de eind-tijd bereikt is, gaat <code>stopStream</code> de wachtrij in.</span></li>
+      <li><b>De nacht-stop is het laatste vangnet</b> <span>: mocht er onverhoopt toch iets blijven staan, dan stopt 02:00 het alsnog.</span></li>
+    </ol>
+  </section>
+
+  <section>
     <h2>De vangnetten</h2>
     <p>Het systeem draait onbemand op een pc in de zaal, dus er zitten bewust veel veiligheidsnetten in.
       Ze vallen in vier groepen: dat er nooit iets blíjft hangen, dat er geen dubbele of vastgelopen acties
@@ -295,8 +341,8 @@ sequenceDiagram
   </section>
 
   <footer>
-    Mokum Streams · handmatige stream-bediening. De geautomatiseerde variant (Toernooi planner) volgt exact
-    dezelfde weg, maar dan zet de backend de commando's op tijd zelf klaar in plaats van jij met een klik.
+    Mokum Streams · van één klik tot een live uitzending. Handmatig (01–02) en automatisch (03) volgen
+    dezelfde weg: een commando-wachtrij die de agent op de OBS-pc leegpompt.
   </footer>
 </div>
 
