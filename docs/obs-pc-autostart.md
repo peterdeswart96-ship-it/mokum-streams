@@ -130,6 +130,71 @@ powercfg -q SCHEME_CURRENT SUB_SLEEP | Select-String -Context 0,6 'STANDBYIDLE'
   console-sessie. Daarom volgt CRD gewoon mee naar een ander account — je sluit
   jezelf niet buiten met een accountwissel. (Gecontroleerd 16-07 vóór het omschakelen.)
 
+## Windows Update mag niet herstarten tijdens openingstijden
+```powershell
+$wu = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate'
+New-Item -Path $wu -Force | Out-Null
+New-ItemProperty -Path $wu -Name 'SetActiveHours'   -Value 1  -PropertyType DWord -Force | Out-Null
+New-ItemProperty -Path $wu -Name 'ActiveHoursStart' -Value 12 -PropertyType DWord -Force | Out-Null
+New-ItemProperty -Path $wu -Name 'ActiveHoursEnd'   -Value 6  -PropertyType DWord -Force | Out-Null
+$au = "$wu\AU"
+New-Item -Path $au -Force | Out-Null
+New-ItemProperty -Path $au -Name 'NoAutoRebootWithLoggedOnUsers' -Value 1 -PropertyType DWord -Force | Out-Null
+$ux = 'HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings'
+New-ItemProperty -Path $ux -Name 'SmartActiveHoursState' -Value 0 -PropertyType DWord -Force | Out-Null
+```
+
+- **Actieve uren 12:00–06:00** (18 uur = het maximum dat Windows toestaat). Bewust
+  níet tot middernacht: het toernooi van 15-07 liep door tot **00:45**. Een venster
+  tot 00:00 laat die uitloop onbeschermd. 06:00–12:00 blijft over voor updates — dan
+  is de zaak dicht en staat er niks live.
+- **`NoAutoRebootWithLoggedOnUsers=1`** — met auto-login is er *altijd* iemand
+  ingelogd, dus effectief: nooit vanzelf herstarten. Updates installeren wel en
+  wachten op een handmatige herstart. Dat is nu ook geen bezwaar meer: herstarten is
+  hands-free, dus het kan op elk rustig moment.
+- **`SmartActiveHoursState=0`** — Windows 11 past standaard de actieve uren "slim"
+  aan op basis van activiteit en negeert dan je instelling. Op een pc die 's nachts
+  doorstreamt gokt dat gegarandeerd verkeerd.
+
+Dit vervangt de tijdelijke update-pauze, die na een paar weken vanzelf verloopt.
+
+## Bloatware — verwijderd 16-07
+De pc is een **Lenovo Legion T5 30AGB10**, opgewaardeerd met Corsair-geheugen,
+Patriot-SSD en een Gigabyte-GPU. Er stond een berg fabrikantensoftware op.
+
+Verwijderd: **McAfee** + WebAdvisor + `SENetFilter`, **Lenovo Vantage Service /
+Legion Space / Lenovo Now**, Xbox Game Bar + overlay, en de Store-rommel (Bing,
+Solitaire, Clipchamp, ZuneMusic, GetHelp).
+
+De reden is niet "rommel opruimen" maar **eigen updatekanalen die om Windows Update
+heen gaan** — precies langs de sloten hierboven:
+- `McAfee restart of PC` — een geplande taak die letterlijk de pc herstart. McAfee
+  zet 'm zelf aan wanneer het na een update wil herstarten.
+- `Lenovo UDC Lazy Deployment`, `LenovoSystemUpdateAddin_WeeklyTask` — Lenovo's
+  eigen driver- en BIOS-kanaal.
+
+Na het verwijderen bleven er **wees-taken** achter (`Lenovo UDC *`, `McAfee Sync
+Agent Pilot`); "Lazy Deployment" kan software opnieuw uitrollen, dus die moeten weg:
+```powershell
+Get-ScheduledTask | Where-Object { $_.TaskName -match '^Lenovo UDC|^McAfee Sync Agent Pilot' } |
+  Unregister-ScheduledTask -Confirm:$false
+```
+Controleer daarna dat Defender het overnam (moet `Normal` zijn, niet `Passive mode`):
+```powershell
+Get-MpComputerStatus | Select AMRunningMode,RealTimeProtectionEnabled
+```
+
+**Niet verwijderen:** NVIDIA-driver + PhysX, Node.js (draait de agent), Chrome Remote
+Desktop Host, OBS Studio, de Visual C++ redistributables.
+
+**Bewust laten staan:** GIGABYTE Control Center, Corsair Device Control, MSI
+Afterburner, ENE-RGB. Die regelen mogelijk fan-curves; verwijderen valt terug op de
+BIOS-standaard (veilig, maar mogelijk luidruchtiger). Lage prioriteit.
+
+> Gebruik voor een inventarisatie de **registersleutels** onder `Uninstall`, en
+> **nooit** `Get-CimInstance Win32_Product`: die zet elk MSI-pakket op de pc aan het
+> "repareren".
+
 ## Nog open (#43)
 - [ ] Bekabeld netwerk verifiëren (geen wifi) + packet loss meten
 - [ ] Fast Startup uit (schone boot bij herstart)
