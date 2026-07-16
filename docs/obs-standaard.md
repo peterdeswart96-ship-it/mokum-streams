@@ -14,6 +14,36 @@ met Nick.
 > **Nog te doen:** backup (Scene Collection → Export), **obs-websocket aanzetten**
 > (poort 4455/4456/4457/4458 + wachtwoord per instantie) → dan Fase 1-test.
 
+> **Update (2026-07-16): pauze-overlays + sponsorpositie.** ✅ Alle 4 de instanties
+> hebben nu ook `Jumbotron` en `Pauzemelding` (#39, zie daar voor URL/instellingen).
+> OBS staat op **Engels** (voorkeur Peter) — dat breekt niets: de agent vraagt de
+> actieve scène op bij OBS zelf en OBS vertaalt scène- of bronnamen niet.
+> Nieuwe scene-exports gemaakt na afloop.
+>
+> **Sponsorlogo's verplaatst (#44)** — over de lampenkap, die het zicht toch al
+> blokkeert. Zo kost sponsoring geen zichtbaar tafeloppervlak meer. **Identiek op
+> alle 4** (gecontroleerd 16-07: de lampen vallen bij elke camera op dezelfde plek):
+>
+> | `Sponsor slideshow` | waarde |
+> |---|---|
+> | Position | X = **1425**, Y = **110** |
+> | Bounds | **Fit**, 320 × 220 |
+> | Rotation | 0° |
+>
+> Bronvolgorde op alle 4, van boven naar beneden:
+> `Pauzemelding` (verborgen) → `Jumbotron` (verborgen) → `Scoreboard` →
+> `Sponsor slideshow` → `Camera Tafel N`. `Pauzemelding` moet **boven** `Jumbotron`:
+> het Cuescore-raster is dekkend, dus eronder zou de tekst onzichtbaar zijn.
+>
+> Zet bronnen na het slepen **weer op slot** (🔒) — dat voorkomt dat er tijdens een
+> drukke avond per ongeluk beeld verschuift.
+>
+> ⚠️ De sponsorafbeeldingen staan in **`C:\Mokum-Sponsors`** (machine-pad), niet in
+> een gebruikersprofiel. Dat is bewust: sinds 16-07 draait OBS onder het account
+> `MokumStream` (zie `docs/obs-pc-autostart.md`) en een pad in Nick's profiel zou
+> daar onbereikbaar zijn. De verwijzing naar `C:\Users\poole\Mokum-Sponsors\`
+> verderop in dit document is achterhaald.
+
 ## Waarom standaardiseren
 - **Eén set bronnamen** → de agent gebruikt overal dezelfde namen; onze
   standaard-overlaynamen (`Sponsors`, `cs score`) kloppen dan op elke tafel en er
