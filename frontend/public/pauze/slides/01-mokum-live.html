@@ -6,56 +6,113 @@
 <!-- Hoe lang deze kaart in beeld blijft; gen-pauze-slides.mjs leest dit uit. -->
 <meta name="pauze-seconden" content="10">
 <style>
+  /* Huisstijl uit frontend/tailwind.config.js — zwart + #cc0000 + Arial Black. */
+  :root {
+    --brand: #cc0000;
+    --brand-light: #ff6b6b;
+    --canvas: #0a0a0a;
+    --ink: #ffffff;
+    --ink-muted: #cccccc;
+  }
+
   html, body {
     margin: 0; height: 100%; overflow: hidden;
-    background: #0b1220; color: #fff;
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--canvas); color: var(--ink);
+    font-family: Arial, Helvetica, sans-serif;
   }
-  .wrap {
-    height: 100%; display: flex; align-items: center; justify-content: center;
-    gap: 72px; padding: 0 80px; box-sizing: border-box;
-  }
-  .qr {
-    background: #fff; border-radius: 24px; padding: 24px; line-height: 0;
-    box-shadow: 0 20px 60px rgba(0,0,0,.5);
-  }
-  /* De QR is een kleine PNG die we opschalen. `pixelated` houdt de blokjes
-     kraakhelder — met gladstrijken wordt een QR juist slechter leesbaar. */
-  .qr img { width: 380px; height: 380px; display: block; image-rendering: pixelated; }
 
-  .txt { max-width: 720px; }
-  .kicker {
-    font-size: 26px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase;
-    color: #f87171; margin-bottom: 10px;
+  /* De zaalfoto ligt vóór de gradiënten. Ontbreekt hij, dan schildert de browser 'm
+     simpelweg niet en blijven de gradiënten over — dan staat er dus nog steeds een
+     nette achtergrond in plaats van een kapot kruisje. */
+  .foto {
+    position: absolute; inset: 0;
+    background-image:
+      url('../img/zaal.jpg'),
+      radial-gradient(ellipse 42% 30% at 22% 34%, rgba(120,190,255,.20), transparent 70%),
+      radial-gradient(ellipse 38% 26% at 74% 28%, rgba(120,190,255,.14), transparent 70%),
+      radial-gradient(circle at 22% 8%, rgba(255,214,140,.26), transparent 26%),
+      radial-gradient(circle at 74% 6%, rgba(255,214,140,.20), transparent 24%),
+      linear-gradient(160deg, #10161d 0%, #0a0d11 55%, #07090c 100%);
+    background-size: cover;
+    background-position: center;
   }
-  .title { font-size: 82px; font-weight: 800; line-height: 1.02; letter-spacing: -1px; }
-  .sub { font-size: 34px; color: #cbd5e1; margin-top: 18px; line-height: 1.35; }
-  .hint {
-    font-size: 28px; color: #34d399; font-weight: 700; margin-top: 32px;
-    display: flex; align-items: center; gap: 12px;
+
+  /* Zonder deze verduistering is geen enkele tekst leesbaar op een echte foto. */
+  .scrim {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(10,10,10,.55), rgba(10,10,10,.78));
   }
-  .url {
-    margin-top: 26px; font-size: 24px; color: #64748b;
-    border-top: 1px solid rgba(255,255,255,.10); padding-top: 18px;
+
+  .midden {
+    position: relative; height: 100%;
+    display: flex; align-items: center; justify-content: center;
   }
+
+  .kaart {
+    position: relative;
+    width: 1320px; box-sizing: border-box;
+    background: var(--canvas);
+    border: 3px solid var(--brand);
+    border-radius: 14px;
+    padding: 64px;
+    box-shadow: 0 30px 90px rgba(0,0,0,.65);
+  }
+
+  /* Logo op de bovenrand, half over de rand heen. */
+  .badge {
+    position: absolute; left: 50%; top: 0;
+    transform: translate(-50%, -52%);
+    background: var(--canvas);
+    border: 3px solid var(--brand);
+    border-radius: 50%;
+    padding: 16px; line-height: 0;
+  }
+  .badge img { width: 66px; height: auto; display: block; }
+
+  .body { display: flex; align-items: center; gap: 80px; }
+
+  .qr { background: #fff; border-radius: 14px; padding: 18px; line-height: 0; }
+  /* De QR is een kleine PNG die we opschalen. `pixelated` houdt de blokjes scherp —
+     gladstrijken maakt een QR juist slechter scanbaar. */
+  .qr img { width: 320px; height: 320px; display: block; image-rendering: pixelated; }
+
+  .eyebrow {
+    font-family: "Arial Black", Arial, sans-serif;
+    font-size: 22px; letter-spacing: 5px; text-transform: uppercase;
+    color: var(--brand-light); margin-bottom: 8px;
+  }
+  .titel {
+    font-family: "Arial Black", Arial, sans-serif;
+    font-size: 74px; line-height: 1; letter-spacing: -2px; margin: 0;
+  }
+  .streep { width: 110px; height: 5px; background: var(--brand); margin: 22px 0; }
+  .sub { color: var(--ink-muted); font-size: 26px; line-height: 1.4; margin: 0; max-width: 16em; }
+  .url { color: #8a8a8a; font-size: 20px; margin-top: 24px; }
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="qr">
-      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAWgAAAFoAQAAAABSnlx4AAACHElEQVR42u2bwWrEQAxDTf//n11IbEkZSmFBObQou1lCOqdXo7FsT/UnV2V1Vv+11XVf+4y31339BSu+6pMrq3+49h9U1w3kdcO+32FFCFp4XzE8TOfFxnjdvGdFCFp5j5gsYkhTeL/Fm4xX2cP7Lf0uKkitmnQ/FD4EHbzn4ZdP8hMj72d+CPQtob5XCHr0BBKC9H3jXhPC8HbpyUT2pijMvFuy8uiJL77FVz43zIE+C0LQFd/FCIeIU2X2JwRN+yX8DisnYi0hLiFo4b3xvTfdz1idjf0QNOlJbSnwDHaWrrJf+vw8APNbLcnihn4ImvwlSt4tjxv6nfzbqt8l7lLkY39390x8++qDXVCUUq9zeM0QtMS3IGZ3B4aH8h7eJt4tJRSxOHD6yQfdfv70PJqWQ3TC27VfTgNtlAQGv6XRlvj28Zaaa1FLKDFbEg9BS/7NvlkdLXlJCsPb2k+DwWR2sipOGxSCtn5D6UCVlLwhNdkvnftloUFfzzivjp/3z0MU1Jo12ZZJwsT3C/WTQ77ZqIfehKArvsVf/jRgm/qJef4EzQVoCp0nzWcI2voN2hlGyUTSxfgd93yVTMdKT+dRMAxB4/ygTBIyJ6Tdj56452ORqgh9xnn0xD3/jSY9E271++Ht5V1SmBVhl1nO8Daf32FtSpxns5QVgtbzaeLmpUEP2xne9vMNXUf5RKpY4f3C+YacAc7q/7T6G2Ezphk801fhAAAAAElFTkSuQmCC"
-           alt="QR-code naar Mokum Live">
-    </div>
+  <div class="foto"></div>
+  <div class="scrim"></div>
 
-    <div class="txt">
-      <div class="kicker">Mokum Live</div>
-      <div class="title">Alle tafels op je&nbsp;telefoon</div>
-      <div class="sub">
-        Volg elke wedstrijd in de zaal live — standen, spelers en de tafels die nu
-        uitgezonden worden.
+  <div class="midden">
+    <div class="kaart">
+      <!-- Vanaf de site-root: hetzelfde logo als het dashboard en Mokum Live, geen kopie. -->
+      <div class="badge"><img src="/mokum-logo.png" alt=""></div>
+
+      <div class="body">
+        <div class="qr">
+          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAWgAAAFoAQAAAABSnlx4AAACHElEQVR42u2bwWrEQAxDTf//n11IbEkZSmFBObQou1lCOqdXo7FsT/UnV2V1Vv+11XVf+4y31339BSu+6pMrq3+49h9U1w3kdcO+32FFCFp4XzE8TOfFxnjdvGdFCFp5j5gsYkhTeL/Fm4xX2cP7Lf0uKkitmnQ/FD4EHbzn4ZdP8hMj72d+CPQtob5XCHr0BBKC9H3jXhPC8HbpyUT2pijMvFuy8uiJL77FVz43zIE+C0LQFd/FCIeIU2X2JwRN+yX8DisnYi0hLiFo4b3xvTfdz1idjf0QNOlJbSnwDHaWrrJf+vw8APNbLcnihn4ImvwlSt4tjxv6nfzbqt8l7lLkY39390x8++qDXVCUUq9zeM0QtMS3IGZ3B4aH8h7eJt4tJRSxOHD6yQfdfv70PJqWQ3TC27VfTgNtlAQGv6XRlvj28Zaaa1FLKDFbEg9BS/7NvlkdLXlJCsPb2k+DwWR2sipOGxSCtn5D6UCVlLwhNdkvnftloUFfzzivjp/3z0MU1Jo12ZZJwsT3C/WTQ77ZqIfehKArvsVf/jRgm/qJef4EzQVoCp0nzWcI2voN2hlGyUTSxfgd93yVTMdKT+dRMAxB4/ygTBIyJ6Tdj56452ORqgh9xnn0xD3/jSY9E271++Ht5V1SmBVhl1nO8Daf32FtSpxns5QVgtbzaeLmpUEP2xne9vMNXUf5RKpY4f3C+YacAc7q/7T6G2Ezphk801fhAAAAAElFTkSuQmCC"
+               alt="QR-code naar Mokum Live">
+        </div>
+
+        <div>
+          <div class="eyebrow">Mokum Live</div>
+          <h1 class="titel">Alle tafels<br>op je telefoon</h1>
+          <div class="streep"></div>
+          <p class="sub">Volg elke wedstrijd in de zaal — standen, spelers en de tafels die nu uitgezonden worden.</p>
+          <div class="url">mokum-streams.pdscloud.nl/mokumlive</div>
+        </div>
       </div>
-      <div class="hint">📱 Scan de code en kijk mee</div>
-      <div class="url">mokum-streams.pdscloud.nl/mokumlive</div>
     </div>
   </div>
 </body>
