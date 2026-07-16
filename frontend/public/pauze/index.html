@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>Pauzescherm — Mokum Pool &amp; Darts</title>
+<meta name="viewport" content="width=1920,initial-scale=1">
+<style>
+  :root { --kop: 96px; }
+
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: #0b1220; color: #fff;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  }
+
+  #kop {
+    height: var(--kop);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 38px; font-weight: 800; letter-spacing: .5px;
+    background: linear-gradient(180deg, rgba(220,38,38,.28), transparent);
+    border-bottom: 1px solid rgba(255,255,255,.10);
+  }
+
+  #deck { position: relative; height: calc(100% - var(--kop)); }
+
+  /* Kaarten die zelf al een volledig beeld vullen (zoals de Cuescore-jumbotron)
+     krijgen het hele scherm; de kop zou daar alleen ruimte wegnemen. */
+  body.fullbleed #kop  { display: none; }
+  body.fullbleed #deck { height: 100%; }
+
+  .slide {
+    position: absolute; inset: 0; border: 0; width: 100%; height: 100%;
+    opacity: 0; transition: opacity .6s ease; pointer-events: none;
+  }
+  .slide.actief { opacity: 1; }
+
+  #melding {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    color: #94a3b8; font-size: 24px;
+  }
+</style>
+</head>
+<body>
+  <div id="kop">We wachten op de volgende wedstrijd…</div>
+  <div id="deck"><div id="melding">Pauzescherm laden…</div></div>
+
+<script>
+// Pauzescherm-deck: laat een reeks kaarten (slides/*.html) om beurten zien.
+// Zie issue #46. Een kaart toevoegen = een bestand in slides/ zetten en
+// `node scripts/gen-pauze-slides.mjs` draaien — OBS hoeft niet aangeraakt te worden.
+(async () => {
+  const deck = document.getElementById('deck');
+  const melding = document.getElementById('melding');
+
+  let slides = [];
+  try {
+    const r = await fetch('slides.json', { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    slides = await r.json();
+  } catch (e) {
+    melding.textContent = 'Kan slides.json niet laden (' + e.message + ')';
+    return;
+  }
+  if (!Array.isArray(slides) || slides.length === 0) {
+    melding.textContent = 'Geen kaarten gevonden';
+    return;
+  }
+  melding.remove();
+
+  // Alle kaarten vooraf laden en over elkaar leggen; we wisselen alleen de opacity.
+  // Zo staat de volgende kaart altijd klaar en zie je nooit een half geladen pagina
+  // in beeld verschijnen — dit draait immers live op de stream.
+  const frames = slides.map((s) => {
+    const f = document.createElement('iframe');
+    f.className = 'slide';
+    f.src = 'slides/' + s.file;
+    f.setAttribute('scrolling', 'no');
+    f.setAttribute('title', s.titel || s.file);
+    deck.appendChild(f);
+    return f;
+  });
+
+  let huidig = -1;
+  function toon(n) {
+    if (huidig >= 0) frames[huidig].classList.remove('actief');
+    huidig = n;
+    frames[huidig].classList.add('actief');
+    document.body.classList.toggle('fullbleed', !!slides[huidig].fullbleed);
+    // Ondergrens van 3s: een tikfout in de meta mag geen stroboscoop opleveren.
+    const ms = Math.max(3, Number(slides[huidig].seconden) || 10) * 1000;
+    setTimeout(() => toon((huidig + 1) % frames.length), ms);
+  }
+  toon(0);
+})();
+</script>
+</body>
+</html>

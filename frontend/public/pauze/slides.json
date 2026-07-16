@@ -1,0 +1,14 @@
+[
+  {
+    "file": "01-mokum-live.html",
+    "titel": "Mokum Live",
+    "seconden": 10,
+    "fullbleed": false
+  },
+  {
+    "file": "02-jumbotron.html",
+    "titel": "Alle tafels in de zaal",
+    "seconden": 15,
+    "fullbleed": true
+  }
+]

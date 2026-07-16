@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>Alle tafels in de zaal</title>
+<meta name="pauze-seconden" content="15">
+<!-- Deze kaart vult zelf het hele beeld; de kop van het deck valt hier weg. -->
+<meta name="pauze-fullbleed" content="1">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1220; }
+  iframe { border: 0; width: 100%; height: 100%; display: block; }
+</style>
+</head>
+<body>
+  <!--
+    Cuescore's eigen jumbotron: alle tafels van de zaal, real-time.
+    venueId 60451687 = Mokum Pool & Darts.
+
+    Iframen mag: Cuescore stuurt géén X-Frame-Options en géén CSP frame-ancestors
+    (gecontroleerd 16-07-2026). Zetten ze dat ooit aan, dan blijft deze kaart leeg
+    en moeten we terug naar een losse OBS-bron met een rotatie-timer — zie #46.
+
+    De 4x4-rasterinstelling zit in localStorage van de browser-source, niet in de
+    URL. Zetten via rechtsklik op de OBS-bron -> Interact -> 4e grid-optie, filter leeg.
+  -->
+  <iframe src="https://cuescore.com/venue/table/jumbotron/?venueId=60451687&amp;branchId=1"
+          scrolling="no" title="Alle tafels in de zaal"></iframe>
+</body>
+</html>

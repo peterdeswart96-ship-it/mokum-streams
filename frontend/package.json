@@ -6,6 +6,8 @@
   "description": "Beheer-dashboard voor Mokum Streams (React + Vite + Tailwind CSS v3), gehost via GitHub Pages.",
   "scripts": {
     "dev": "vite",
+    "pauze:slides": "node scripts/gen-pauze-slides.mjs",
+    "prebuild": "node scripts/gen-pauze-slides.mjs",
     "build": "vite build",
     "preview": "vite preview"
   },

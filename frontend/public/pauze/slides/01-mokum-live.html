@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>Mokum Live</title>
+<!-- Hoe lang deze kaart in beeld blijft; gen-pauze-slides.mjs leest dit uit. -->
+<meta name="pauze-seconden" content="10">
+<style>
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: #0b1220; color: #fff;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  }
+  .wrap {
+    height: 100%; display: flex; align-items: center; justify-content: center;
+    gap: 72px; padding: 0 80px; box-sizing: border-box;
+  }
+  .qr {
+    background: #fff; border-radius: 24px; padding: 24px; line-height: 0;
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  }
+  /* De QR is een kleine PNG die we opschalen. `pixelated` houdt de blokjes
+     kraakhelder — met gladstrijken wordt een QR juist slechter leesbaar. */
+  .qr img { width: 380px; height: 380px; display: block; image-rendering: pixelated; }
+
+  .txt { max-width: 720px; }
+  .kicker {
+    font-size: 26px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase;
+    color: #f87171; margin-bottom: 10px;
+  }
+  .title { font-size: 82px; font-weight: 800; line-height: 1.02; letter-spacing: -1px; }
+  .sub { font-size: 34px; color: #cbd5e1; margin-top: 18px; line-height: 1.35; }
+  .hint {
+    font-size: 28px; color: #34d399; font-weight: 700; margin-top: 32px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .url {
+    margin-top: 26px; font-size: 24px; color: #64748b;
+    border-top: 1px solid rgba(255,255,255,.10); padding-top: 18px;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="qr">
+      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAWgAAAFoAQAAAABSnlx4AAACHElEQVR42u2bwWrEQAxDTf//n11IbEkZSmFBObQou1lCOqdXo7FsT/UnV2V1Vv+11XVf+4y31339BSu+6pMrq3+49h9U1w3kdcO+32FFCFp4XzE8TOfFxnjdvGdFCFp5j5gsYkhTeL/Fm4xX2cP7Lf0uKkitmnQ/FD4EHbzn4ZdP8hMj72d+CPQtob5XCHr0BBKC9H3jXhPC8HbpyUT2pijMvFuy8uiJL77FVz43zIE+C0LQFd/FCIeIU2X2JwRN+yX8DisnYi0hLiFo4b3xvTfdz1idjf0QNOlJbSnwDHaWrrJf+vw8APNbLcnihn4ImvwlSt4tjxv6nfzbqt8l7lLkY39390x8++qDXVCUUq9zeM0QtMS3IGZ3B4aH8h7eJt4tJRSxOHD6yQfdfv70PJqWQ3TC27VfTgNtlAQGv6XRlvj28Zaaa1FLKDFbEg9BS/7NvlkdLXlJCsPb2k+DwWR2sipOGxSCtn5D6UCVlLwhNdkvnftloUFfzzivjp/3z0MU1Jo12ZZJwsT3C/WTQ77ZqIfehKArvsVf/jRgm/qJef4EzQVoCp0nzWcI2voN2hlGyUTSxfgd93yVTMdKT+dRMAxB4/ygTBIyJ6Tdj56452ORqgh9xnn0xD3/jSY9E271++Ht5V1SmBVhl1nO8Daf32FtSpxns5QVgtbzaeLmpUEP2xne9vMNXUf5RKpY4f3C+YacAc7q/7T6G2Ezphk801fhAAAAAElFTkSuQmCC"
+           alt="QR-code naar Mokum Live">
+    </div>
+
+    <div class="txt">
+      <div class="kicker">Mokum Live</div>
+      <div class="title">Alle tafels op je&nbsp;telefoon</div>
+      <div class="sub">
+        Volg elke wedstrijd in de zaal live — standen, spelers en de tafels die nu
+        uitgezonden worden.
+      </div>
+      <div class="hint">📱 Scan de code en kijk mee</div>
+      <div class="url">mokum-streams.pdscloud.nl/mokumlive</div>
+    </div>
+  </div>
+</body>
+</html>
