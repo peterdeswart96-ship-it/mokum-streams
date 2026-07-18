@@ -20,16 +20,20 @@
       linear-gradient(180deg, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.45) 40%, rgba(0,0,0,0.72) 100%),
       url('../img/jumbotron-bg.png'),
       linear-gradient(160deg, #12161d, #0a0d11);
-    background-size: cover; background-position: center;
+    /* 100% 100% toont de HELE foto (volledige MOKUM-tekst + de tafels); de foto ligt
+       dicht bij 16:9 dus de rek is onmerkbaar. 'cover' zou de bovenkant afsnijden. */
+    background-size: 100% 100%, 100% 100%, cover;
+    background-position: center;
   }
 
   .stage { position: absolute; inset: 0; z-index: 1; overflow: hidden; }
 
   /* Kaart gecentreerd via marges (zodat de transform vrij is voor de slide-animatie). */
   .card {
-    position: absolute; left: 50%; top: 50%;
-    width: 1040px; height: 560px; margin-left: -520px; margin-top: -280px;
-    box-sizing: border-box; padding: 44px 52px 48px;
+    /* Verticaal in de bar-zone (tussen het MOKUM-bord en de tafels), niet dood-gecentreerd. */
+    position: absolute; left: 50%; top: 44%;
+    width: 1040px; height: 520px; margin-left: -520px; margin-top: -260px;
+    box-sizing: border-box; padding: 40px 52px 44px;
     background: rgba(8,8,8,0.78); border: 1px solid rgba(255,255,255,0.12);
     border-radius: 20px; box-shadow: 0 30px 80px rgba(0,0,0,0.6);
     display: flex; flex-direction: column; gap: 26px;
@@ -138,6 +142,7 @@ function toon(t) {
     oud.addEventListener('animationend', () => oud.remove(), { once: true });
   }
   stage.appendChild(nieuw);
+  document.getElementById('leeg').hidden = true; // nooit de leeg-melding onder een kaart
   huidigeKey = t.table;
 }
 
@@ -161,20 +166,30 @@ function volgende() {
   toon(t);
 }
 
+let leegTeller = 0; // aantal opeenvolgende ophaal-rondes zonder live tafels (debounce)
+
 async function ververs() {
   try {
     const r = await fetch(`${APP_API}/api/live`, { cache: 'no-store' });
     const d = await r.json();
     const alle = Array.isArray(d.venueTables) ? d.venueTables : [];
-    liveTafels = alle.filter((t) => String(t.status || '').toLowerCase() === 'playing');
-    if (!document.querySelector('.card') && liveTafels.length) volgende(); // meteen tonen
-    if (!liveTafels.length) volgende(); // leeg-melding
+    const nieuw = alle.filter((t) => String(t.status || '').toLowerCase() === 'playing');
+    if (nieuw.length) {
+      leegTeller = 0;
+      liveTafels = nieuw;
+    } else {
+      // Niet meteen "geen live" tonen bij een kort momentje zonder wedstrijd (bijv.
+      // tussen twee racks); pas na 2 lege rondes de kaart loslaten.
+      leegTeller += 1;
+      if (leegTeller >= 2) liveTafels = [];
+    }
   } catch (e) {
     /* netwerkfout → vorige beeld laten staan */
   }
 }
 
-ververs();
+// Eerste kaart meteen tonen zodra de eerste data binnen is (niet 6s wachten).
+ververs().then(volgende);
 setInterval(ververs, REFRESH_MS);
 setInterval(volgende, CARD_MS);
 </script>
