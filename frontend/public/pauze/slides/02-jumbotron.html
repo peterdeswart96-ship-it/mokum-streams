@@ -21,9 +21,11 @@
       url('../img/jumbotron-bg.png'),
       linear-gradient(160deg, #12161d, #0a0d11);
     /* 100% 100% toont de HELE foto (volledige MOKUM-tekst + de tafels); de foto ligt
-       dicht bij 16:9 dus de rek is onmerkbaar. 'cover' zou de bovenkant afsnijden. */
-    background-size: 100% 100%, 100% 100%, cover;
-    background-position: center;
+       dicht bij 16:9 dus de rek is onmerkbaar. 'cover' zou de bovenkant afsnijden.
+       De fotolaag is 80px breder + iets naar links gepositioneerd zodat het MOKUM-bord
+       (net links van het midden in de foto) horizontaal centreert (#54, symmetrie). */
+    background-size: 100% 100%, calc(100% + 80px) 100%, cover;
+    background-position: center, 10% center, center;
   }
 
   .stage { position: absolute; inset: 0; z-index: 1; overflow: hidden; }
@@ -79,6 +81,9 @@
     font-family: Arial, sans-serif; font-size: 34px; color: rgba(255,255,255,0.7);
     text-shadow: 0 2px 12px rgba(0,0,0,0.8);
   }
+  /* Cruciaal: laat de hidden-stand winnen van de display:flex hierboven (anders bleef
+     de "geen live wedstrijden"-melding altijd zichtbaar, ook onder een kaart). */
+  #leeg[hidden] { display: none; }
   @media (prefers-reduced-motion: reduce) { .card.in, .card.out { animation: none; } }
 </style>
 </head>
