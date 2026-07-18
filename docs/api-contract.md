@@ -383,3 +383,17 @@ Body:
   (`liveVideoId`) terwijl er **geen store-entry** is (`!b`) — dan valt `videoId` terug op `liveVideoId`, en
   `quality`/`overlays` volgen de agent-status. Een expliciet gestopte entry (`stopped:true`) blijft `offline`.
   Gevolg: het dashboard toont zo'n stream weer als live + met een werkende Stop-knop, ongeacht de opslag-datum.
+- 2026-07-18: v0.27 — **pre-flight camera-check vóór automatische start** (#43, blok A3 van de
+  arming-roadmap). Voorkomt dat een bevroren/dode camera (storing 15-07) onbewaakt de lucht in gaat.
+  - **Commando:** `startStream` krijgt een optioneel veld **`preflight: true`**. Alleen de
+    timer-automatisering (`createBroadcasts`) zet het; **handmatige** starts vanaf het dashboard
+    (`/api/manage/streams/*`) laten het weg — daar kijkt een mens naar de preview.
+  - **Agent:** bij een `startStream` met `preflight` maakt de agent eerst twee kleine
+    schermafbeeldingen van de camerabron (config `cameraSource`, default `Camera Tafel <nr>`) en
+    vergelijkt ze. Verschillend → live → starten. Identiek (bevroren) of geen beeld → **niet
+    starten en het commando NIET bevestigen**, zodat het de volgende poll opnieuw probeert (de
+    camera kan herstellen, zeker met auto-reconnect A2).
+  - **Agent-status** (`POST /api/agent/status`, per tafel): twee nieuwe **optionele** velden
+    **`preflightFailed: true`** + **`preflightReason: <tekst>`** wanneer een auto-start op de
+    cameracheck strandt — bedoeld als bron voor een dashboard-alarm (frontend nog te doen).
+    Beide velden ontbreken bij een geslaagde of handmatige start.

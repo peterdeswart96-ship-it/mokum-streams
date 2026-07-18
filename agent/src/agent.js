@@ -38,11 +38,19 @@ async function voerCommandoUit(pool, cmd) {
   }
 }
 
+// Camerabron voor de pre-flight per tafel: uit de (genormaliseerde) config, met een
+// veilige fallback op de uniforme standaardnaam.
+function cameraBronVoor(config, tableNumber) {
+  const t = (config.tables || []).find((x) => Number(x.tableNumber) === Number(tableNumber));
+  return (t && t.cameraSource) || `Camera Tafel ${tableNumber}`;
+}
+
 async function runOnce(config, pool, backend, logger = console, nowMs = Date.now()) {
   const commands = await backend.fetchCommands(config);
 
   const beheerdeTafels = new Set((config.tables || []).map((t) => Number(t.tableNumber)));
   const verwerkteCommandoIds = [];
+  const preflightFails = new Map(); // tafelnr → reden, voor de statusrapportage
   for (const cmd of commands) {
     // Ongeldig commando wordt nooit geldig → bevestigen (droppen) i.p.v. eeuwig herproberen.
     try {
@@ -61,6 +69,20 @@ async function runOnce(config, pool, backend, logger = console, nowMs = Date.now
     }
     // Uitvoeringsfout (bijv. OBS tijdelijk onbereikbaar) → NIET bevestigen; volgende tik opnieuw.
     try {
+      // Pre-flight vóór een AUTOMATISCHE start (#43): geen bevroren/dode camera onbewaakt
+      // de lucht in. Alleen bij commando's met preflight-vlag (auto uit createBroadcasts);
+      // een handmatige start vanaf het dashboard slaat dit over — daar kijkt een mens mee.
+      // Niet-live → NIET bevestigen zodat het de volgende tik opnieuw probeert (de camera
+      // kan herstellen, zeker met auto-reconnect); wél melden voor het dashboard-alarm.
+      if (cmd.type === 'startStream' && cmd.preflight && typeof pool.cameraLevendig === 'function') {
+        const cam = cameraBronVoor(config, cmd.tableNumber);
+        const check = await pool.cameraLevendig(cmd.tableNumber, cam);
+        if (!check.live) {
+          preflightFails.set(Number(cmd.tableNumber), check.reden);
+          logger.log(`[PREFLIGHT] tafel ${cmd.tableNumber}: ${check.reden} — auto-start uitgesteld`);
+          continue; // niet bevestigen → volgende tik opnieuw
+        }
+      }
       await voerCommandoUit(pool, cmd);
       verwerkteCommandoIds.push(cmd.id);
       logger.log(`[OK] ${cmd.type} tafel ${cmd.tableNumber}`);
@@ -111,9 +133,22 @@ async function runOnce(config, pool, backend, logger = console, nowMs = Date.now
           }
         }
       }
-      tables.push({ tableNumber: t.tableNumber, ...base, ...(overlays ? { overlays } : {}) });
+      const pf = preflightFails.get(Number(t.tableNumber));
+      tables.push({
+        tableNumber: t.tableNumber,
+        ...base,
+        ...(overlays ? { overlays } : {}),
+        ...(pf ? { preflightFailed: true, preflightReason: pf } : {}),
+      });
     } catch (e) {
-      tables.push({ tableNumber: t.tableNumber, obsConnected: false, streaming: false, bitrateKbps: 0 });
+      const pf = preflightFails.get(Number(t.tableNumber));
+      tables.push({
+        tableNumber: t.tableNumber,
+        obsConnected: false,
+        streaming: false,
+        bitrateKbps: 0,
+        ...(pf ? { preflightFailed: true, preflightReason: pf } : {}),
+      });
     }
   }
 
@@ -136,4 +171,4 @@ function startLoop(config, pool, backend, logger = console) {
   return setInterval(tick, config.pollIntervalMs);
 }
 
-module.exports = { voerCommandoUit, runOnce, startLoop, rotatieZichtbaar };
+module.exports = { voerCommandoUit, runOnce, startLoop, rotatieZichtbaar, cameraBronVoor };

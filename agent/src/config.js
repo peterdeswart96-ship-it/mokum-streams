@@ -20,6 +20,9 @@ function normalizeConfig(raw) {
     return {
       tableNumber: t.tableNumber,
       sceneName: t.sceneName || null, // null = huidige programmascène gebruiken
+      // Camerabron voor de pre-flight (#43): standaard 'Camera Tafel <nr>' — de
+      // uniforme bronnaam uit docs/obs-standaard.md. Per tafel te overrijden.
+      cameraSource: t.cameraSource || `Camera Tafel ${t.tableNumber}`,
       obs: {
         host: obs.host || '127.0.0.1',
         port: obs.port || 4455,

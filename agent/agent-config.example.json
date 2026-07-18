@@ -3,10 +3,10 @@
   "agentToken": "ZET-IN-ENV-AGENT_TOKEN",
   "pollIntervalMs": 3000,
   "tables": [
-    { "tableNumber": 1,  "sceneName": null, "obs": { "host": "127.0.0.1", "port": 4455, "password": "ZET-IN-ENV-OBS_PASSWORD_TAFEL_1" } },
-    { "tableNumber": 3,  "sceneName": null, "obs": { "host": "127.0.0.1", "port": 4456, "password": "ZET-IN-ENV-OBS_PASSWORD_TAFEL_3" } },
-    { "tableNumber": 15, "sceneName": null, "obs": { "host": "127.0.0.1", "port": 4457, "password": "ZET-IN-ENV-OBS_PASSWORD_TAFEL_15" } },
-    { "tableNumber": 16, "sceneName": null, "obs": { "host": "127.0.0.1", "port": 4458, "password": "ZET-IN-ENV-OBS_PASSWORD_TAFEL_16" } }
+    { "tableNumber": 1,  "sceneName": null, "cameraSource": "Camera Tafel 1",  "obs": { "host": "127.0.0.1", "port": 4455, "password": "ZET-IN-ENV-OBS_PASSWORD_TAFEL_1" } },
+    { "tableNumber": 3,  "sceneName": null, "cameraSource": "Camera Tafel 3",  "obs": { "host": "127.0.0.1", "port": 4456, "password": "ZET-IN-ENV-OBS_PASSWORD_TAFEL_3" } },
+    { "tableNumber": 15, "sceneName": null, "cameraSource": "Camera Tafel 15", "obs": { "host": "127.0.0.1", "port": 4457, "password": "ZET-IN-ENV-OBS_PASSWORD_TAFEL_15" } },
+    { "tableNumber": 16, "sceneName": null, "cameraSource": "Camera Tafel 16", "obs": { "host": "127.0.0.1", "port": 4458, "password": "ZET-IN-ENV-OBS_PASSWORD_TAFEL_16" } }
   ],
   "rotations": []
 }

@@ -155,3 +155,52 @@ test('runOnce laat een rotatie-overlay met rust als de stand al klopt', async ()
 
   assert.deepStrictEqual(pool.calls, []); // geen overbodige OBS-call
 });
+
+test('runOnce: auto-start (preflight) met een BEVROREN camera → niet starten, niet bevestigen, alarm in status', async () => {
+  const pool = fakePool();
+  pool.cameraLevendig = async () => ({ live: false, reden: 'bevroren beeld (twee identieke frames)' });
+  pool.status = async () => ({ obsConnected: true, streaming: false, bitrateKbps: 0 });
+  let posted = null;
+  const backend = {
+    async fetchCommands() { return [{ id: 'p1', type: 'startStream', tableNumber: 1, preflight: true }]; },
+    async postStatus(_c, body) { posted = body; },
+  };
+  const config = { tables: [{ tableNumber: 1, cameraSource: 'Camera Tafel 1' }], backendUrl: 'x', agentToken: 'y' };
+
+  await runOnce(config, pool, backend, { log() {} });
+
+  assert.deepStrictEqual(pool.calls, []); // OBS NIET gestart
+  assert.deepStrictEqual(posted.verwerkteCommandoIds, []); // niet bevestigd → volgende tik opnieuw
+  assert.strictEqual(posted.tables[0].preflightFailed, true);
+  assert.match(posted.tables[0].preflightReason, /bevroren/i);
+});
+
+test('runOnce: auto-start (preflight) met een LIVE camera → gewoon starten', async () => {
+  const pool = fakePool();
+  pool.cameraLevendig = async () => ({ live: true, reden: 'beeld wisselt (live)' });
+  const backend = {
+    async fetchCommands() { return [{ id: 'p2', type: 'startStream', tableNumber: 1, preflight: true }]; },
+    async postStatus() {},
+  };
+  const config = { tables: [{ tableNumber: 1 }], backendUrl: 'x', agentToken: 'y' };
+
+  await runOnce(config, pool, backend, { log() {} });
+
+  assert.deepStrictEqual(pool.calls, [['start', 1]]); // wél gestart
+});
+
+test('runOnce: HANDMATIGE start (geen preflight-vlag) slaat de cameracheck over', async () => {
+  const pool = fakePool();
+  let checked = false;
+  pool.cameraLevendig = async () => { checked = true; return { live: false, reden: 'x' }; };
+  const backend = {
+    async fetchCommands() { return [{ id: 'm1', type: 'startStream', tableNumber: 1 }]; }, // geen preflight
+    async postStatus() {},
+  };
+  const config = { tables: [{ tableNumber: 1 }], backendUrl: 'x', agentToken: 'y' };
+
+  await runOnce(config, pool, backend, { log() {} });
+
+  assert.strictEqual(checked, false); // cameraLevendig niet aangeroepen
+  assert.deepStrictEqual(pool.calls, [['start', 1]]); // gewoon gestart
+});

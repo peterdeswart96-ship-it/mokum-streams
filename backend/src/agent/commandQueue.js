@@ -27,10 +27,17 @@ const OVERLAY_DEFAULT_OFF = new Set(['jumbotron', 'pauzemelding']);
 // een expliciete boolean in record.overlays wint altijd. Itereert over overlayBron zodat
 // een extra overlay alleen daar hoeft te worden toegevoegd. Zonder id/tijd — die voegt
 // de function-laag toe.
-function startCommandsFor(record, tableNumber, overlayBron = OVERLAY_BRON) {
+//
+// opts.preflight (#43): markeer de startStream als AUTOMATISCH, zodat de agent eerst
+// controleert of de camera live beeld geeft vóór hij OBS laat zenden. Alleen voor de
+// timer-automatisering (createBroadcasts); handmatige starts vanaf het dashboard laten
+// dit weg — daar kijkt een mens naar de preview.
+function startCommandsFor(record, tableNumber, overlayBron = OVERLAY_BRON, opts = {}) {
   const ov = (record && record.overlays) || {};
+  const startCmd = { type: 'startStream', tableNumber };
+  if (opts.preflight) startCmd.preflight = true;
   return [
-    { type: 'startStream', tableNumber },
+    startCmd,
     ...Object.entries(overlayBron).map(([sleutel, sourceName]) => ({
       type: 'setOverlay',
       tableNumber,

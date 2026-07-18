@@ -55,9 +55,10 @@ async function verwerk(now, context) {
         title,
         scheduledStart: startIso,
       };
-      // Agent: OBS starten + overlays op de gewenste stand.
+      // Agent: OBS starten + overlays op de gewenste stand. preflight:true → de agent
+      // controleert eerst of de camera live beeld geeft (geen bevroren/dode cam de lucht in, #43).
       const overlayBron = table.overlaySources || undefined;
-      nieuweCommandos.push(...startCommandsFor(rec, Number(tafelNr), overlayBron));
+      nieuweCommandos.push(...startCommandsFor(rec, Number(tafelNr), overlayBron, { preflight: true }));
       context.log(`[OK] Broadcast + startcommando's: tafel ${tafelNr} — "${title}" (${broadcast.id})`);
     } catch (e) {
       context.log(`[FOUT] Broadcast tafel ${tafelNr} mislukt: ${e.message}`);

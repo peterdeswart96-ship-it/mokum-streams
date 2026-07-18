@@ -38,6 +38,17 @@ test('startCommandsFor levert startStream + alle overlays op de gewenste stand',
   ]);
 });
 
+test('startCommandsFor: zonder opts géén preflight-vlag (handmatige start)', () => {
+  const cmds = startCommandsFor({}, 1);
+  assert.strictEqual(cmds[0].type, 'startStream');
+  assert.strictEqual('preflight' in cmds[0], false);
+});
+
+test('startCommandsFor: opts.preflight → startStream krijgt preflight:true (auto-start)', () => {
+  const cmds = startCommandsFor({}, 1, undefined, { preflight: true });
+  assert.deepStrictEqual(cmds[0], { type: 'startStream', tableNumber: 1, preflight: true });
+});
+
 test('startCommandsFor: content-overlays standaard aan, break-overlays standaard uit', () => {
   const cmds = startCommandsFor({}, 1);
   const byBron = Object.fromEntries(cmds.filter((c) => c.type === 'setOverlay').map((c) => [c.sourceName, c.enabled]));

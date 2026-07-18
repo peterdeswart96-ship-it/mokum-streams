@@ -1,4 +1,5 @@
 const { OBSWebSocket } = require('obs-websocket-js');
+const { beoordeelCameraFrames } = require('./preflight');
 
 // Beheert de obs-websocket-verbindingen naar de meerdere portable OBS-instanties
 // (één per tafel, elk op een eigen poort + wachtwoord). Gebruikt de v5-requests:
@@ -57,6 +58,35 @@ class ObsPool {
       await new Promise((r) => setTimeout(r, intervalMs));
     }
     if (bufferMs) await new Promise((r) => setTimeout(r, bufferMs));
+  }
+
+  // Pre-flight (#43): geeft de camerabron van deze tafel LIVE beeld? Maakt twee kleine
+  // schermafbeeldingen met een korte tussenpoos en vergelijkt ze (zie
+  // preflight.beoordeelCameraFrames). Bedoeld als vangnet vóór een AUTOMATISCHE start:
+  // een bevroren/dode camera (storing 15-07) mag niet onbewaakt de lucht in.
+  //
+  // Gooit alleen bij een OBS-verbindingsfout (die hoort de caller als transiënt te
+  // behandelen → later opnieuw). Een ontbrekende bron of mislukte screenshot komt als
+  // { live:false } terug — dat blokkeert de start bewust.
+  async cameraLevendig(tableNumber, cameraSource, { gapMs = 600, breedte = 480, hoogte = 270, format = 'jpg' } = {}) {
+    const obs = await this.connect(tableNumber);
+    const schiet = async () => {
+      try {
+        const { imageData } = await obs.call('GetSourceScreenshot', {
+          sourceName: cameraSource,
+          imageFormat: format,
+          imageWidth: breedte,
+          imageHeight: hoogte,
+        });
+        return imageData;
+      } catch {
+        return null; // bron bestaat niet / niet te screenshotten → geen beeld
+      }
+    };
+    const a = await schiet();
+    await new Promise((r) => setTimeout(r, gapMs));
+    const b = await schiet();
+    return beoordeelCameraFrames(a, b);
   }
 
   // Idempotent: alleen stoppen als 'ie daadwerkelijk streamt.
