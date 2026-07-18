@@ -133,12 +133,35 @@ async function runOnce(config, pool, backend, logger = console, nowMs = Date.now
           }
         }
       }
+      // Freeze-watchdog (#43 A2): alleen zinvol op een streamende tafel. Detecteert een
+      // bevroren camera en forceert een herlading (het equivalent van Properties → OK).
+      // Zelf-throttlend/-debouncend in de pool; draait voor élke stream (ook handmatige).
+      let camAlarm;
+      if (base.streaming && config.cameraWatchdog && typeof pool.cameraWatchdog === 'function') {
+        const cam = cameraBronVoor(config, t.tableNumber);
+        const opts = config.cameraWatchdog === true ? {} : config.cameraWatchdog;
+        try {
+          const w = await pool.cameraWatchdog(t.tableNumber, cam, nowMs, opts);
+          if (w.status === 'hersteld') {
+            logger.log(`[WATCHDOG] tafel ${t.tableNumber}: camera bevroren (${w.reden}) → herstart uitgevoerd`);
+            camAlarm = { cameraFrozen: true, cameraRecovered: true, cameraReason: w.reden };
+          } else if (w.status === 'herstel-mislukt') {
+            logger.log(`[WATCHDOG] tafel ${t.tableNumber}: herstel mislukt (${w.reden})`);
+            camAlarm = { cameraFrozen: true, cameraRecovered: false, cameraReason: w.reden };
+          } else if (w.status === 'verdacht') {
+            logger.log(`[WATCHDOG] tafel ${t.tableNumber}: mogelijk bevroren (${w.reden}), reeks ${w.reeks}`);
+          }
+        } catch (e) {
+          logger.log(`[WATCHDOG] tafel ${t.tableNumber} mislukt: ${e.message}`);
+        }
+      }
       const pf = preflightFails.get(Number(t.tableNumber));
       tables.push({
         tableNumber: t.tableNumber,
         ...base,
         ...(overlays ? { overlays } : {}),
         ...(pf ? { preflightFailed: true, preflightReason: pf } : {}),
+        ...(camAlarm || {}),
       });
     } catch (e) {
       const pf = preflightFails.get(Number(t.tableNumber));

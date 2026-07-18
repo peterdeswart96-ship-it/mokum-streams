@@ -8,5 +8,6 @@
     { "tableNumber": 15, "sceneName": null, "cameraSource": "Camera Tafel 15", "obs": { "host": "127.0.0.1", "port": 4457, "password": "ZET-IN-ENV-OBS_PASSWORD_TAFEL_15" } },
     { "tableNumber": 16, "sceneName": null, "cameraSource": "Camera Tafel 16", "obs": { "host": "127.0.0.1", "port": 4458, "password": "ZET-IN-ENV-OBS_PASSWORD_TAFEL_16" } }
   ],
-  "rotations": []
+  "rotations": [],
+  "cameraWatchdog": null
 }

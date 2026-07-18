@@ -204,3 +204,43 @@ test('runOnce: HANDMATIGE start (geen preflight-vlag) slaat de cameracheck over'
   assert.strictEqual(checked, false); // cameraLevendig niet aangeroepen
   assert.deepStrictEqual(pool.calls, [['start', 1]]); // gewoon gestart
 });
+
+test('runOnce: freeze-watchdog aan → bij "hersteld" komt cameraFrozen/Recovered in de status', async () => {
+  const pool = fakePool();
+  pool.status = async () => ({ obsConnected: true, streaming: true, bitrateKbps: 6000 });
+  let called = null;
+  pool.cameraWatchdog = async (t, cam) => { called = { t, cam }; return { status: 'hersteld', reden: 'bevroren beeld (twee identieke frames)' }; };
+  let posted = null;
+  const backend = { async fetchCommands() { return []; }, async postStatus(_c, b) { posted = b; } };
+  const config = { tables: [{ tableNumber: 1, cameraSource: 'Camera Tafel 1' }], cameraWatchdog: { intervalMs: 30000 } };
+
+  await runOnce(config, pool, backend, { log() {} });
+
+  assert.deepStrictEqual(called, { t: 1, cam: 'Camera Tafel 1' });
+  assert.strictEqual(posted.tables[0].cameraFrozen, true);
+  assert.strictEqual(posted.tables[0].cameraRecovered, true);
+});
+
+test('runOnce: freeze-watchdog UIT (geen config) → cameraWatchdog niet aangeroepen', async () => {
+  const pool = fakePool();
+  pool.status = async () => ({ obsConnected: true, streaming: true, bitrateKbps: 6000 });
+  let called = false;
+  pool.cameraWatchdog = async () => { called = true; return { status: 'ok' }; };
+  const backend = { async fetchCommands() { return []; }, async postStatus() {} };
+  const config = { tables: [{ tableNumber: 1 }] }; // geen cameraWatchdog
+
+  await runOnce(config, pool, backend, { log() {} });
+  assert.strictEqual(called, false);
+});
+
+test('runOnce: freeze-watchdog draait niet op een NIET-streamende tafel', async () => {
+  const pool = fakePool();
+  pool.status = async () => ({ obsConnected: true, streaming: false, bitrateKbps: 0 });
+  let called = false;
+  pool.cameraWatchdog = async () => { called = true; return { status: 'ok' }; };
+  const backend = { async fetchCommands() { return []; }, async postStatus() {} };
+  const config = { tables: [{ tableNumber: 1 }], cameraWatchdog: true };
+
+  await runOnce(config, pool, backend, { log() {} });
+  assert.strictEqual(called, false); // niet streamend → geen watchdog
+});

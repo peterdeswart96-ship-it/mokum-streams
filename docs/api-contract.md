@@ -397,3 +397,16 @@ Body:
     **`preflightFailed: true`** + **`preflightReason: <tekst>`** wanneer een auto-start op de
     cameracheck strandt — bedoeld als bron voor een dashboard-alarm (frontend nog te doen).
     Beide velden ontbreken bij een geslaagde of handmatige start.
+- 2026-07-18: v0.28 — **freeze-watchdog: bevroren camera automatisch herstellen** (#43, blok A2).
+  Draait in de agent voor **élke** streamende tafel (ook handmatig gestarte streams — de storing
+  van 15-07 was een handmatige stream). Periodiek (throttled) maakt de agent twee schermafbeeldingen
+  van de camerabron en vergelijkt ze; na **`herstelNa`** opeenvolgende bevriezingen (debounce tegen
+  flukes) forceert hij een herlading van de bron — media-herstart, met terugval op het opnieuw
+  toepassen van de instellingen (het equivalent van handmatig *Properties → OK*).
+  - **Agent-config:** optioneel **`cameraWatchdog`** — `null`/afwezig = **uit** (standaard, tot
+    validatie op echte camera's). Aanzetten met bijv. `{ "intervalMs": 30000, "herstelNa": 2 }` of
+    `true` (defaults). Reden voor default-uit: een vals-positieve bevriezing zou een korte herlading
+    (hapering) geven.
+  - **Agent-status** (`POST /api/agent/status`, per tafel): optionele velden **`cameraFrozen: true`**
+    + **`cameraRecovered: true|false`** + **`cameraReason: <tekst>`** wanneer de watchdog een
+    bevriezing behandelde — bron voor een dashboard-alarm (frontend nog te doen). Ontbreken normaal.

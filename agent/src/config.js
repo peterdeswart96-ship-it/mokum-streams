@@ -37,6 +37,10 @@ function normalizeConfig(raw) {
     agentToken: process.env.AGENT_TOKEN || raw.agentToken || '',
     pollIntervalMs: raw.pollIntervalMs || 5000,
     tables: genormaliseerd,
+    // Freeze-watchdog (#43 A2): standaard UIT (null). Aanzetten met bijv.
+    // { "intervalMs": 30000, "herstelNa": 2 } — pas ná validatie op echte camera's,
+    // omdat een vals-positieve bevriezing een korte herlading (hapering) geeft.
+    cameraWatchdog: raw.cameraWatchdog || null,
   };
 }
 

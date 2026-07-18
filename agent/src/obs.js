@@ -12,6 +12,7 @@ class ObsPool {
     this.tables = new Map(tables.map((t) => [t.tableNumber, t]));
     this.conns = new Map();
     this._laatsteStart = new Map(); // tafel → tijdstip laatste StartStream (retry-guard, #41)
+    this._camWatch = new Map(); // tafel → { laatstMs, bevrorenReeks } (freeze-watchdog, #43 A2)
   }
 
   // Verbindt (lazy) met de OBS-instantie van een tafel en cachet de verbinding.
@@ -87,6 +88,56 @@ class ObsPool {
     await new Promise((r) => setTimeout(r, gapMs));
     const b = await schiet();
     return beoordeelCameraFrames(a, b);
+  }
+
+  // Forceer een herlading van de camerabron — het equivalent van handmatig
+  // "Properties → OK", wat de bevriezing van 15-07 verhielp (#43, blok A2).
+  // Eerst de media-herstart (RTSP opnieuw verbinden); lukt dat niet (geen media-input),
+  // dan de instellingen opnieuw toepassen (dat triggert net als OK een source-update).
+  async herstelCamera(tableNumber, cameraSource) {
+    const obs = await this.connect(tableNumber);
+    try {
+      await obs.call('TriggerMediaInputAction', {
+        inputName: cameraSource,
+        mediaAction: 'OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART',
+      });
+    } catch {
+      const { inputSettings } = await obs.call('GetInputSettings', { inputName: cameraSource });
+      await obs.call('SetInputSettings', { inputName: cameraSource, inputSettings, overlay: true });
+    }
+  }
+
+  // Freeze-watchdog (#43, blok A2): controleert periodiek of de camera nog live beeld
+  // geeft en herstelt 'm bij een bevriezing. Bedoeld om PER TICK aangeroepen te worden;
+  // throttelt zelf (intervalMs) en debounced (herstelNa opeenvolgende bevriezingen) zodat
+  // een eenmalige fluke geen onnodige herlading (= korte hapering) veroorzaakt.
+  // Retour-status: 'skip' (nog niet aan de beurt) | 'ok' | 'verdacht' | 'hersteld' |
+  // 'herstel-mislukt'. De throttle-/debounce-stand leeft in de pool (blijft tussen ticks).
+  async cameraWatchdog(tableNumber, cameraSource, nowMs = Date.now(), { intervalMs = 30000, herstelNa = 2 } = {}) {
+    const st = this._camWatch.get(tableNumber) || { laatstMs: 0, bevrorenReeks: 0 };
+    if (nowMs - st.laatstMs < intervalMs) return { status: 'skip' };
+    st.laatstMs = nowMs;
+
+    const check = await this.cameraLevendig(tableNumber, cameraSource);
+    if (check.live) {
+      st.bevrorenReeks = 0;
+      this._camWatch.set(tableNumber, st);
+      return { status: 'ok' };
+    }
+    st.bevrorenReeks += 1;
+    if (st.bevrorenReeks < herstelNa) {
+      this._camWatch.set(tableNumber, st);
+      return { status: 'verdacht', reden: check.reden, reeks: st.bevrorenReeks };
+    }
+    try {
+      await this.herstelCamera(tableNumber, cameraSource);
+      st.bevrorenReeks = 0; // na een herstelpoging opnieuw beginnen met tellen
+      this._camWatch.set(tableNumber, st);
+      return { status: 'hersteld', reden: check.reden };
+    } catch (e) {
+      this._camWatch.set(tableNumber, st);
+      return { status: 'herstel-mislukt', reden: e.message };
+    }
   }
 
   // Idempotent: alleen stoppen als 'ie daadwerkelijk streamt.
