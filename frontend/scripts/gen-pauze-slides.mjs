@@ -39,7 +39,9 @@ if (!fs.existsSync(slidesDir)) {
 
 const slides = fs
   .readdirSync(slidesDir)
-  .filter((f) => f.toLowerCase().endsWith('.html'))
+  // Alleen .html-kaarten; bestanden met een _-prefix zijn concept/uitgeschakeld en
+  // worden overgeslagen (blijven wél in de repo om later te bewerken en terug te zetten).
+  .filter((f) => f.toLowerCase().endsWith('.html') && !f.startsWith('_'))
   .sort()
   .map((f) => {
     const html = fs.readFileSync(path.join(slidesDir, f), 'utf8');
