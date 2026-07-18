@@ -413,7 +413,9 @@ Body:
 - 2026-07-18: v0.29 — **zaalbreed tafelraster in `GET /api/live`** (#54, eigen Mokum-jumbotron).
   `GET /api/live` krijgt een array **`venueTables`**: per fysieke tafel (over álle toernooien van
   vandaag, niet alleen de cameratafels) de meest relevante wedstrijd. Elk item:
-  `{ table, status, round, tournament, playerA, playerB, scoreA, scoreB }` — een **lopende**
+  `{ table, status, round, tournament, playerA, playerB, scoreA, scoreB }`, waarbij
+  **`playerA`/`playerB`** objecten zijn: **`{ name, image, flag }`** (`image` = spelersfoto-URL,
+  `flag` = landvlag-URL, beide uit de Cuescore-API en mogelijk `null`). Een **lopende**
   (`playing`) wedstrijd wint van een afgeronde; tafels zonder toegewezen wedstrijd vallen weg;
   gesorteerd op tafelnummer. Gevoed door de `liveMatches`-timer (`bouwZaalRaster` → `live-matches.json`).
   Leeg (`[]`) tot die timer draait. Vervangt de Cuescore-jumbotron (met zijn onverwijderbare

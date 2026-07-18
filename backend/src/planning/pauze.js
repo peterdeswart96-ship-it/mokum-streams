@@ -80,6 +80,8 @@ function bouwLiveMatches(tournaments, cameraTables) {
 // (playing) wedstrijd wint van een afgeronde; tafels zonder toegewezen wedstrijd
 // (m.table == null) vallen weg. Gesorteerd op tafelnummer. Pure functie → testbaar.
 function bouwZaalRaster(tournaments) {
+  // Compacte spelerweergave: naam + foto-URL + vlag-URL (of null bij ontbreken).
+  const speler = (p) => (p ? { name: p.name || null, image: p.image || null, flag: p.flag || null } : null);
   const perTafel = new Map();
   for (const t of tournaments || []) {
     for (const m of t.matches || []) {
@@ -101,8 +103,9 @@ function bouwZaalRaster(tournaments) {
       status: m.status || null,
       round: m.roundName || null,
       tournament: toernooi,
-      playerA: m.playerA ? m.playerA.name : null,
-      playerB: m.playerB ? m.playerB.name : null,
+      // Spelers als object met naam + foto + vlag (voor het tafelraster #54).
+      playerA: speler(m.playerA),
+      playerB: speler(m.playerB),
       scoreA: m.scoreA != null ? m.scoreA : null,
       scoreB: m.scoreB != null ? m.scoreB : null,
     }));

@@ -84,7 +84,7 @@ test('bouwZaalRaster: alle tafels met een wedstrijd, lopende wint, gesorteerd op
     { name: 'Ranking A', matches: [
       { matchId: 1, status: 'finished', table: '3', roundName: 'R1', playerA: { name: 'Oud' }, playerB: { name: 'X' }, scoreA: 7, scoreB: 2 },
       { matchId: 2, status: 'playing',  table: '3', roundName: 'R2', playerA: { name: 'Nu' },  playerB: { name: 'Y' }, scoreA: 1, scoreB: 0 },
-      { matchId: 3, status: 'playing',  table: '15', roundName: 'R1', playerA: { name: 'P' },  playerB: { name: 'Q' }, scoreA: 3, scoreB: 3 },
+      { matchId: 3, status: 'playing',  table: '15', roundName: 'R1', playerA: { name: 'P', image: 'https://img/p.png', flag: 'https://flag/nl.png' },  playerB: { name: 'Q' }, scoreA: 3, scoreB: 3 },
       { matchId: 4, status: 'pending',  table: null, roundName: '', playerA: { name: 'Z' }, playerB: { name: 'W' }, scoreA: 0, scoreB: 0 },
     ] },
     { name: 'Ranking B', matches: [
@@ -95,11 +95,15 @@ test('bouwZaalRaster: alle tafels met een wedstrijd, lopende wint, gesorteerd op
   assert.deepStrictEqual(r.map((x) => x.table), [1, 3, 15]); // gesorteerd, tafel=null valt weg
   const t3 = r.find((x) => x.table === 3);
   assert.strictEqual(t3.status, 'playing');   // lopende wint van afgeronde
-  assert.strictEqual(t3.playerA, 'Nu');
+  assert.strictEqual(t3.playerA.name, 'Nu');
   assert.strictEqual(t3.scoreA, 1);
   const t1 = r.find((x) => x.table === 1);
   assert.strictEqual(t1.status, 'finished');  // geen lopende → afgeronde tonen
   assert.strictEqual(t1.tournament, 'Ranking B');
+  const t15 = r.find((x) => x.table === 15);
+  assert.strictEqual(t15.playerA.image, 'https://img/p.png'); // foto doorgegeven
+  assert.strictEqual(t15.playerA.flag, 'https://flag/nl.png'); // vlag doorgegeven
+  assert.strictEqual(t15.playerB.image, null); // ontbrekende foto → null
 });
 
 test('bouwZaalRaster: lege/ongeldige invoer → lege lijst', () => {

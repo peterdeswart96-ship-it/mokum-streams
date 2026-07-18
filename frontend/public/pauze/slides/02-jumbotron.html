@@ -63,6 +63,13 @@
 
   .speler { display: flex; align-items: center; gap: 12px; font-size: 24px; line-height: 1.25; }
   .speler + .speler { margin-top: 6px; }
+  /* Spelersfoto: rond, met een subtiele rand. Valt terug op een grijze cirkel als er
+     geen foto is (of de foto niet laadt). object-fit houdt gezichten net. */
+  .foto {
+    width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+    object-fit: cover; background: #333; border: 1px solid var(--line);
+  }
+  .vlag { width: 26px; height: 18px; flex-shrink: 0; border-radius: 2px; object-fit: cover; }
   .naam { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .score {
     font-family: "Arial Black", Arial, sans-serif; font-size: 28px; min-width: 44px;
@@ -104,8 +111,21 @@ function celHtml(t) {
     ? '<span class="badge live">Live</span>'
     : (klaar ? '<span class="badge finished">Klaar</span>' : '');
   const ronde = t.round ? `<span class="ronde">${esc(t.round)}</span>` : '';
-  const speler = (naam, score) => `
-    <div class="speler"><span class="naam">${esc(naam || '—')}</span><span class="score">${score == null ? '' : esc(score)}</span></div>`;
+  // Foto valt terug op een grijze cirkel als 'ie ontbreekt of niet laadt (onerror).
+  const foto = (p) => {
+    if (p && p.image) {
+      return `<img class="foto" src="${esc(p.image)}" alt="" onerror="this.removeAttribute('src')">`;
+    }
+    return '<span class="foto"></span>';
+  };
+  const vlag = (p) => (p && p.flag ? `<img class="vlag" src="${esc(p.flag)}" alt="">` : '');
+  const speler = (p, score) => `
+    <div class="speler">
+      ${foto(p)}
+      ${vlag(p)}
+      <span class="naam">${esc((p && p.name) || '—')}</span>
+      <span class="score">${score == null ? '' : esc(score)}</span>
+    </div>`;
   return `
     <div class="${klasse}">
       <div class="celkop"><span class="tafel">Tafel ${esc(t.table)}</span>${ronde}${badge}</div>

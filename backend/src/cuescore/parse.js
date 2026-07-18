@@ -109,8 +109,14 @@ function normalizeMatch(m) {
     roundName: m.roundName || '',
     start: m.starttime || null, // geplande wedstrijdtijd (voor league-per-avond)
     stop: m.stoptime || null,
-    playerA: m.playerA ? { id: m.playerA.playerId, name: m.playerA.name } : null,
-    playerB: m.playerB ? { id: m.playerB.playerId, name: m.playerB.name } : null,
+    // image = spelersfoto-URL, flag = landvlag-URL (beide uit de Cuescore-API; kunnen
+    // ontbreken). Gebruikt door het eigen tafelraster (#54).
+    playerA: m.playerA
+      ? { id: m.playerA.playerId, name: m.playerA.name, image: m.playerA.image || null, flag: (m.playerA.country && m.playerA.country.image) || null }
+      : null,
+    playerB: m.playerB
+      ? { id: m.playerB.playerId, name: m.playerB.name, image: m.playerB.image || null, flag: (m.playerB.country && m.playerB.country.image) || null }
+      : null,
     scoreA: m.scoreA,
     scoreB: m.scoreB,
   };
