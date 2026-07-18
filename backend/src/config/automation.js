@@ -21,4 +21,17 @@ function isPauzeAutoOn() {
   return String(process.env.PAUZESCHERM_AUTO || '').toLowerCase() === 'true';
 }
 
-module.exports = { isArmed, isPauzeAutoOn };
+// Welke overlays het automatische pauzescherm aan/uit zet, als komma-gescheiden
+// app-setting PAUZESCHERM_KEYS. Standaard alléén 'pauzemelding' — de Cuescore-
+// jumbotron dwingt een instellingenvenster af dat mee de uitzending in gaat en niet
+// weg te krijgen is (zie #54). Zodra we een eigen tafelraster hebben, kan dit naar
+// bijv. "jumbotron,pauzemelding" zonder opnieuw te deployen. Onbekende sleutels
+// worden verderop stil overgeslagen (pauzeCommandos filtert op OVERLAY_BRON).
+function pauzeSchermKeys() {
+  const raw = String(process.env.PAUZESCHERM_KEYS || '').trim();
+  if (!raw) return ['pauzemelding'];
+  const keys = raw.split(',').map((k) => k.trim()).filter(Boolean);
+  return keys.length ? keys : ['pauzemelding'];
+}
+
+module.exports = { isArmed, isPauzeAutoOn, pauzeSchermKeys };

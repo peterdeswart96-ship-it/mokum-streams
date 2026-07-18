@@ -3,7 +3,7 @@ const { readJson, writeJson } = require('../storage/blob');
 const { getTodaysTournaments } = require('../cuescore');
 const { enqueue, OVERLAY_BRON } = require('../agent/commandQueue');
 const { tafelSpeeltNu, volgendeToestand, pauzeCommandos } = require('../planning/pauze');
-const { isPauzeAutoOn } = require('../config/automation');
+const { isPauzeAutoOn, pauzeSchermKeys } = require('../config/automation');
 
 // Timer-Function: automatisch pauzescherm (A auto-trigger, zie docs/pauzescherm-auto.md).
 // Per streamende tafel checkt 'ie via Cuescore of er een wedstrijd loopt; zo niet
@@ -12,7 +12,6 @@ const { isPauzeAutoOn } = require('../config/automation');
 
 const CRON_ELKE_30_SEC = '*/30 * * * * *';
 const DEBOUNCE_MS = 20000; // 20s 'geen wedstrijd' vóór we naar pauze gaan (anti-flapper)
-const PAUZE_KEYS = ['jumbotron', 'pauzemelding'];
 const STATE_PAD = 'pauze-state.json';
 
 async function verwerk(now, context) {
@@ -41,6 +40,7 @@ async function verwerk(now, context) {
 
   const store = (await readJson(STATE_PAD, {})) || {};
   const nowMs = now.getTime();
+  const pauzeKeys = pauzeSchermKeys();
   const commands = [];
 
   for (const tn of streamend) {
@@ -51,7 +51,7 @@ async function verwerk(now, context) {
 
     if (res.veranderd) {
       const toonPauze = res.toestand === 'pauze';
-      const cmds = pauzeCommandos(tn, toonPauze, OVERLAY_BRON, PAUZE_KEYS).map((c) => ({
+      const cmds = pauzeCommandos(tn, toonPauze, OVERLAY_BRON, pauzeKeys).map((c) => ({
         id: crypto.randomUUID(),
         createdAt: now.toISOString(),
         ...c,

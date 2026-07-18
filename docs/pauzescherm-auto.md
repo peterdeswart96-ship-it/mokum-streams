@@ -92,6 +92,26 @@ Zet `PAUZESCHERM_AUTO=true` (app-setting) **nadat** de agent draait en de OBS-br
 `Jumbotron` + `Pauzemelding` bestaan. Daarvóór doet de timer niets (default uit + geen
 streamende tafels).
 
+## Welke overlays het pauzescherm toont (`PAUZESCHERM_KEYS`)
+De timer zet standaard **alléén de `pauzemelding`** aan/uit, niet de jumbotron.
+
+**Waarom (besluit 18-07):** de Cuescore-jumbotron (`venue/table/jumbotron/`) dwingt een
+instellingenvenster af ("Jumbotron view / Grid size / Table filter") dat middenop het
+raster verschijnt en zo mee de uitzending in gaat. Het is een `<cs-jumbotron>`
+web-component (Lit) → de dialog zit in **shadow DOM** en is niet weg te krijgen met OBS'
+Custom CSS, niet met de oude v1-jumbotron, en niet met wegklikken (komt terug na herladen).
+Ook de scorebord-overlays (Modern `/scoreboard/stream/`, Legacy `/scoreboard/overlay/`)
+rouleren géén andere tafels in de idle-stand. Er is dus geen schone Cuescore-overlay voor
+een zaalbreed overzicht → we bouwen een **eigen tafelraster** (#54) en tonen tot die er is
+alleen de tekstmelding.
+
+De app-setting `PAUZESCHERM_KEYS` (komma-gescheiden) overschrijft de standaard zonder
+redeploy:
+- **niet gezet / leeg** → `pauzemelding` (huidige situatie, schoon, geen venster)
+- **`jumbotron,pauzemelding`** → beide (pas doen als #54 een eigen, venster-vrij raster levert)
+
+Onbekende sleutels worden stil overgeslagen (`pauzeCommandos` filtert op `OVERLAY_BRON`).
+
 ## Beslissingen (vastgelegd 11-07)
 - Architectuur: **Optie 2 (backend-side)** — gekozen.
 - Debounce SPELEN→PAUZE: **20 s**.
