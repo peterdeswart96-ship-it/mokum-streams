@@ -3,149 +3,162 @@
 <head>
 <meta charset="utf-8">
 <title>Live in de zaal</title>
-<!-- 40s in het deck = ruimte voor beide pagina's (elk 20s) als er >8 live tafels zijn. -->
+<!-- Fullbleed pauze-kaart; lang genoeg om meerdere tafels te laten rouleren. -->
 <meta name="pauze-seconden" content="40">
 <meta name="pauze-fullbleed" content="1">
 <style>
-  /* Eigen Mokum-tafelraster (#54) — vervangt de Cuescore-jumbotron. Toont alléén
-     LIVE wedstrijden over een zaalfoto, huisstijl zwart/rood + Arial Black. */
-  :root {
-    --brand: #cc0000;
-    --brand-light: #ff6b6b;
-    --ink: #ffffff;
-    --ink-muted: #cfcfcf;
+  /* Eigen Mokum-jumbotron (#54) — ontwerp van Peter (Claude design): één tafelkaart
+     tegelijk, schuift van rechts naar het midden, over de zaalfoto. Huisstijl zwart/rood
+     + Arial Black. Data uit onze eigen /api/live (venueTables). */
+  html, body {
+    margin: 0; padding: 0; width: 1920px; height: 1080px; overflow: hidden;
+    background: #000; color: #fff; font-family: 'Arial Black', Arial, sans-serif;
   }
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #0a0a0a; color: var(--ink);
-    font-family: Arial, Helvetica, sans-serif; }
-
-  /* Achtergrond: zaalfoto met donkere sluier. Ontbreekt de foto, dan blijft de
-     gradiënt over (geen kapot beeld op de stream). */
   .bg {
     position: absolute; inset: 0; z-index: 0;
     background-image:
-      linear-gradient(180deg, rgba(10,10,10,.72), rgba(10,10,10,.82)),
+      linear-gradient(180deg, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.45) 40%, rgba(0,0,0,0.72) 100%),
       url('../img/jumbotron-bg.png'),
       linear-gradient(160deg, #12161d, #0a0d11);
     background-size: cover; background-position: center;
   }
 
-  .kop {
-    position: relative; z-index: 1;
-    height: 96px; box-sizing: border-box;
-    display: flex; align-items: center; gap: 20px; padding: 0 44px;
-    background: linear-gradient(180deg, rgba(204,0,0,.34), rgba(10,10,10,0));
-    border-bottom: 2px solid var(--brand);
-  }
-  .kop img.logo { height: 54px; width: auto; }
-  .kop h1 { font-family: "Arial Black", Arial, sans-serif; font-size: 36px; margin: 0; letter-spacing: -.5px;
-    text-shadow: 0 2px 10px rgba(0,0,0,.6); }
-  .kop .telling { margin-left: auto; font-size: 24px; color: var(--ink-muted); }
-  .kop .telling b { color: var(--brand-light); font-family: "Arial Black", Arial, sans-serif; }
-  .kop .pagina { margin-left: 18px; font-size: 20px; color: #9a9a9a; }
+  .stage { position: absolute; inset: 0; z-index: 1; overflow: hidden; }
 
-  #raster {
-    position: relative; z-index: 1;
-    height: calc(100% - 96px); box-sizing: border-box; padding: 26px 44px;
-    display: grid; gap: 18px; grid-auto-rows: 1fr; align-content: stretch;
-    /* aantal kolommen wordt in JS gezet (schaalt met het aantal tafels) */
+  /* Kaart gecentreerd via marges (zodat de transform vrij is voor de slide-animatie). */
+  .card {
+    position: absolute; left: 50%; top: 50%;
+    width: 1040px; height: 560px; margin-left: -520px; margin-top: -280px;
+    box-sizing: border-box; padding: 44px 52px 48px;
+    background: rgba(8,8,8,0.78); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 20px; box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+    display: flex; flex-direction: column; gap: 26px;
   }
-  .cel {
-    background: rgba(14,14,16,.82); border: 1px solid var(--brand);
-    border-radius: 14px; padding: 18px 24px; backdrop-filter: blur(2px);
-    box-shadow: 0 10px 30px rgba(0,0,0,.5);
-    display: flex; flex-direction: column; justify-content: center; min-height: 0;
+  .card.in  { animation: cardIn  0.9s cubic-bezier(0.22, 0.9, 0.3, 1) forwards; }
+  .card.out { animation: cardOut 0.9s cubic-bezier(0.22, 0.9, 0.3, 1) forwards; }
+  @keyframes cardIn  { from { transform: translateX(1300px); } to { transform: translateX(0); } }
+  @keyframes cardOut { from { transform: translateX(0); } to { transform: translateX(-1300px); } }
+
+  .kop { display: flex; align-items: center; gap: 22px; }
+  .tafel { font-size: 58px; line-height: 1; }
+  .ronde { font-family: Arial, sans-serif; font-size: 26px; color: rgba(255,255,255,0.6); }
+  .badge {
+    margin-left: auto; display: flex; align-items: center; gap: 12px;
+    background: #cc0000; color: #fff; padding: 10px 22px; border-radius: 999px; font-size: 26px;
   }
-  .celkop { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-  .tafel { font-family: "Arial Black", Arial, sans-serif; font-size: 30px; }
-  .ronde { font-size: 17px; color: #9a9a9a; }
-  .badge { margin-left: auto; font-size: 16px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
-    padding: 4px 14px; border-radius: 999px; background: var(--brand); color: #fff; }
+  .badge .stip { width: 14px; height: 14px; border-radius: 50%; background: #fff; animation: livePulse 1.4s ease-in-out infinite; }
+  @keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
 
-  .speler { display: flex; align-items: center; gap: 18px; font-size: 30px; line-height: 1.2; }
-  .speler + .speler { margin-top: 16px; }
-  /* Grote spelersfoto (4× t.o.v. de eerste versie) → echte jumbotron-uitstraling. */
-  .foto { width: 110px; height: 110px; border-radius: 50%; flex-shrink: 0; object-fit: cover;
-    background: #333; border: 2px solid #444; }
-  .vlag { width: 40px; height: 27px; flex-shrink: 0; border-radius: 2px; object-fit: cover; }
-  .naam { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .score { font-family: "Arial Black", Arial, sans-serif; font-size: 38px; min-width: 62px; text-align: center;
-    background: var(--brand); border-radius: 10px; padding: 4px 16px; font-variant-numeric: tabular-nums; }
+  .spelers { display: flex; flex-direction: column; gap: 16px; flex: 1; justify-content: center; }
+  .speler {
+    display: flex; align-items: center; gap: 26px;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px; padding: 18px 26px;
+  }
+  .avatar {
+    width: 86px; height: 86px; border-radius: 50%; flex-shrink: 0; object-fit: cover;
+    background: #3a4a5a; border: 3px solid rgba(255,255,255,0.25);
+  }
+  .vlag {
+    width: 52px; height: 36px; flex-shrink: 0; object-fit: cover; border-radius: 3px;
+    border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  }
+  .naam { flex: 1; font-size: 40px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .score {
+    width: 110px; height: 86px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    background: #cc0000; color: #fff; font-size: 52px; border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(204,0,0,0.4); font-variant-numeric: tabular-nums;
+  }
 
-  #leeg { position: relative; z-index: 1; height: calc(100% - 96px); display: flex; align-items: center;
-    justify-content: center; color: #cfcfcf; font-size: 30px; text-shadow: 0 2px 10px rgba(0,0,0,.7); }
+  #leeg {
+    position: absolute; inset: 0; z-index: 1; display: flex; align-items: center; justify-content: center;
+    font-family: Arial, sans-serif; font-size: 34px; color: rgba(255,255,255,0.7);
+    text-shadow: 0 2px 12px rgba(0,0,0,0.8);
+  }
+  @media (prefers-reduced-motion: reduce) { .card.in, .card.out { animation: none; } }
 </style>
 </head>
 <body>
   <div class="bg"></div>
-  <div class="kop">
-    <img class="logo" src="/mokum-logo.png" alt="">
-    <h1>Live in de zaal</h1>
-    <div class="telling" id="telling"></div>
-    <div class="pagina" id="pagina"></div>
-  </div>
-  <div id="raster"></div>
+  <div class="stage" id="stage"></div>
   <div id="leeg" hidden>Op dit moment geen live wedstrijden</div>
 
 <script>
-// Toont alléén LIVE wedstrijden uit onze eigen /api/live (venueTables), over een
-// zaalfoto. Max 8 tafels per scherm; bij meer wisselt 'ie elke 20s tussen pagina's (#54).
+// Toont live wedstrijden uit onze eigen /api/live (venueTables), één tafelkaart tegelijk,
+// die van rechts inschuift. Rouleert door alle live tafels (#54).
 const APP_API = 'https://mokum-streams-func.azurewebsites.net';
-const REFRESH_MS = 15000;  // hoe vaak we de data verversen
-const PER_PAGE = 8;        // max tafels per scherm
-const PAGE_MS = 20000;     // 20s per scherm bij >8 tafels
+const REFRESH_MS = 15000; // data verversen
+const CARD_MS = 6000;     // hoe lang elke tafelkaart in beeld blijft
 
 let liveTafels = [];
-let pagina = 0;
+let idx = 0;
+let huidigeKey = null; // welke tafel nu in beeld staat (om onnodig herbouwen te voorkomen)
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => (
   { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]
 ));
 
-function celHtml(t) {
-  const ronde = t.round ? `<span class="ronde">${esc(t.round)}</span>` : '';
-  const foto = (p) => (p && p.image
-    ? `<img class="foto" src="${esc(p.image)}" alt="" onerror="this.removeAttribute('src')">`
-    : '<span class="foto"></span>');
-  const vlag = (p) => (p && p.flag ? `<img class="vlag" src="${esc(p.flag)}" alt="">` : '');
-  const speler = (p, score) => `
-    <div class="speler">${foto(p)}${vlag(p)}<span class="naam">${esc((p && p.name) || '—')}</span>
-      <span class="score">${score == null ? '' : esc(score)}</span></div>`;
+function spelerHtml(p, score) {
+  const avatar = p && p.image
+    ? `<img class="avatar" src="${esc(p.image)}" alt="" onerror="this.removeAttribute('src')">`
+    : '<span class="avatar"></span>';
+  const vlag = p && p.flag ? `<img class="vlag" src="${esc(p.flag)}" alt="">` : '<span class="vlag" style="visibility:hidden"></span>';
   return `
-    <div class="cel">
-      <div class="celkop"><span class="tafel">Tafel ${esc(t.table)}</span>${ronde}<span class="badge">Live</span></div>
-      ${speler(t.playerA, t.scoreA)}
-      ${speler(t.playerB, t.scoreB)}
+    <div class="speler">
+      ${avatar}${vlag}
+      <span class="naam">${esc((p && p.name) || '—')}</span>
+      <span class="score">${score == null ? '' : esc(score)}</span>
     </div>`;
 }
 
-// Kolommen schalen met het aantal tafels op dit scherm: weinig tafels → brede kaarten
-// met grote foto's; richting 8 → 4 kolommen (2 rijen) zodat alles past.
-function kolommenVoor(n) {
-  if (n <= 2) return n || 1;
-  if (n <= 4) return 2;
-  if (n <= 6) return 3;
-  return 4;
+function kaartHtml(t) {
+  const ronde = t.round ? `<span class="ronde">${esc(t.round)}</span>` : '';
+  return `
+    <div class="kop">
+      <span class="tafel">Tafel ${esc(t.table)}</span>${ronde}
+      <span class="badge"><span class="stip"></span>LIVE</span>
+    </div>
+    <div class="spelers">
+      ${spelerHtml(t.playerA, t.scoreA)}
+      ${spelerHtml(t.playerB, t.scoreB)}
+    </div>`;
 }
 
-function teken() {
-  const raster = document.getElementById('raster');
+function toon(t) {
+  const stage = document.getElementById('stage');
+  const nieuw = document.createElement('div');
+  nieuw.className = 'card in';
+  nieuw.innerHTML = kaartHtml(t);
+
+  // Vorige kaart naar links uitschuiven en daarna opruimen.
+  const oud = stage.querySelector('.card:not(.out)');
+  if (oud) {
+    oud.classList.remove('in');
+    oud.classList.add('out');
+    oud.addEventListener('animationend', () => oud.remove(), { once: true });
+  }
+  stage.appendChild(nieuw);
+  huidigeKey = t.table;
+}
+
+// Volgende live tafel tonen (rouleren). Bij 0 → "geen live wedstrijden".
+function volgende() {
   const leeg = document.getElementById('leeg');
-  const telling = document.getElementById('telling');
-  const paginaEl = document.getElementById('pagina');
-
-  const totaal = liveTafels.length;
-  const paginas = Math.max(1, Math.ceil(totaal / PER_PAGE));
-  if (pagina >= paginas) pagina = 0;
-
-  telling.innerHTML = totaal ? `<b>${totaal}</b> nu live` : '';
-  paginaEl.textContent = paginas > 1 ? `scherm ${pagina + 1}/${paginas}` : '';
-
-  if (!totaal) { raster.hidden = true; leeg.hidden = false; return; }
-  leeg.hidden = true; raster.hidden = false;
-
-  const deze = liveTafels.slice(pagina * PER_PAGE, pagina * PER_PAGE + PER_PAGE);
-  raster.style.gridTemplateColumns = `repeat(${kolommenVoor(deze.length)}, 1fr)`;
-  raster.innerHTML = deze.map(celHtml).join('');
+  const stage = document.getElementById('stage');
+  if (!liveTafels.length) {
+    leeg.hidden = false; stage.innerHTML = ''; huidigeKey = null; return;
+  }
+  leeg.hidden = true;
+  if (idx >= liveTafels.length) idx = 0;
+  const t = liveTafels[idx];
+  idx += 1;
+  // Bij één tafel niet steeds opnieuw inschuiven als 'ie al staat.
+  if (liveTafels.length === 1 && huidigeKey === t.table && stage.querySelector('.card')) {
+    // alleen de standen verversen zonder animatie
+    stage.querySelector('.card').innerHTML = kaartHtml(t);
+    return;
+  }
+  toon(t);
 }
 
 async function ververs() {
@@ -154,15 +167,16 @@ async function ververs() {
     const d = await r.json();
     const alle = Array.isArray(d.venueTables) ? d.venueTables : [];
     liveTafels = alle.filter((t) => String(t.status || '').toLowerCase() === 'playing');
-    teken();
+    if (!document.querySelector('.card') && liveTafels.length) volgende(); // meteen tonen
+    if (!liveTafels.length) volgende(); // leeg-melding
   } catch (e) {
-    // Netwerkfout → vorige beeld laten staan (geen lege flits op de stream).
+    /* netwerkfout → vorige beeld laten staan */
   }
 }
 
 ververs();
 setInterval(ververs, REFRESH_MS);
-setInterval(() => { pagina += 1; teken(); }, PAGE_MS); // wissel van scherm bij >8 tafels
+setInterval(volgende, CARD_MS);
 </script>
 </body>
 </html>
