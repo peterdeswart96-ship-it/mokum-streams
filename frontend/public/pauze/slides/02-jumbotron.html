@@ -18,14 +18,12 @@
     position: absolute; inset: 0; z-index: 0;
     background-image:
       linear-gradient(180deg, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.45) 40%, rgba(0,0,0,0.72) 100%),
-      url('../img/jumbotron-bg.png'),
+      url('../img/jumbotron-bg.jpg'),
       linear-gradient(160deg, #12161d, #0a0d11);
-    /* 100% 100% toont de HELE foto (volledige MOKUM-tekst + de tafels); de foto ligt
-       dicht bij 16:9 dus de rek is onmerkbaar. 'cover' zou de bovenkant afsnijden.
-       De fotolaag is 80px breder + iets naar links gepositioneerd zodat het MOKUM-bord
-       (net links van het midden in de foto) horizontaal centreert (#54, symmetrie). */
-    background-size: 100% 100%, calc(100% + 80px) 100%, cover;
-    background-position: center, 10% center, center;
+    /* De foto is bij de bron symmetrisch bijgesneden (links 164px eraf) zodat MOKUM
+       gecentreerd staat en de tafels gelijk zijn. 100% 100% toont de hele foto. */
+    background-size: 100% 100%, 100% 100%, cover;
+    background-position: center;
   }
 
   .stage { position: absolute; inset: 0; z-index: 1; overflow: hidden; }
