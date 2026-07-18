@@ -77,3 +77,34 @@ test('pauzeCommandos: schakelt de pauze-overlays op de gewenste stand, onbekende
   const uit = pauzeCommandos(3, false, bron, ['jumbotron', 'pauzemelding']);
   assert.ok(uit.every((c) => c.enabled === false));
 });
+
+test('bouwZaalRaster: alle tafels met een wedstrijd, lopende wint, gesorteerd op tafelnummer', () => {
+  const { bouwZaalRaster } = require('../src/planning/pauze');
+  const ts = [
+    { name: 'Ranking A', matches: [
+      { matchId: 1, status: 'finished', table: '3', roundName: 'R1', playerA: { name: 'Oud' }, playerB: { name: 'X' }, scoreA: 7, scoreB: 2 },
+      { matchId: 2, status: 'playing',  table: '3', roundName: 'R2', playerA: { name: 'Nu' },  playerB: { name: 'Y' }, scoreA: 1, scoreB: 0 },
+      { matchId: 3, status: 'playing',  table: '15', roundName: 'R1', playerA: { name: 'P' },  playerB: { name: 'Q' }, scoreA: 3, scoreB: 3 },
+      { matchId: 4, status: 'pending',  table: null, roundName: '', playerA: { name: 'Z' }, playerB: { name: 'W' }, scoreA: 0, scoreB: 0 },
+    ] },
+    { name: 'Ranking B', matches: [
+      { matchId: 5, status: 'finished', table: '1', roundName: 'Finale', playerA: { name: 'A' }, playerB: { name: 'B' }, scoreA: 5, scoreB: 7 },
+    ] },
+  ];
+  const r = bouwZaalRaster(ts);
+  assert.deepStrictEqual(r.map((x) => x.table), [1, 3, 15]); // gesorteerd, tafel=null valt weg
+  const t3 = r.find((x) => x.table === 3);
+  assert.strictEqual(t3.status, 'playing');   // lopende wint van afgeronde
+  assert.strictEqual(t3.playerA, 'Nu');
+  assert.strictEqual(t3.scoreA, 1);
+  const t1 = r.find((x) => x.table === 1);
+  assert.strictEqual(t1.status, 'finished');  // geen lopende → afgeronde tonen
+  assert.strictEqual(t1.tournament, 'Ranking B');
+});
+
+test('bouwZaalRaster: lege/ongeldige invoer → lege lijst', () => {
+  const { bouwZaalRaster } = require('../src/planning/pauze');
+  assert.deepStrictEqual(bouwZaalRaster([]), []);
+  assert.deepStrictEqual(bouwZaalRaster(null), []);
+  assert.deepStrictEqual(bouwZaalRaster([{ name: 'x', matches: [] }]), []);
+});

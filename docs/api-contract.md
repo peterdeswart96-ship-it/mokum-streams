@@ -410,3 +410,11 @@ Body:
   - **Agent-status** (`POST /api/agent/status`, per tafel): optionele velden **`cameraFrozen: true`**
     + **`cameraRecovered: true|false`** + **`cameraReason: <tekst>`** wanneer de watchdog een
     bevriezing behandelde — bron voor een dashboard-alarm (frontend nog te doen). Ontbreken normaal.
+- 2026-07-18: v0.29 — **zaalbreed tafelraster in `GET /api/live`** (#54, eigen Mokum-jumbotron).
+  `GET /api/live` krijgt een array **`venueTables`**: per fysieke tafel (over álle toernooien van
+  vandaag, niet alleen de cameratafels) de meest relevante wedstrijd. Elk item:
+  `{ table, status, round, tournament, playerA, playerB, scoreA, scoreB }` — een **lopende**
+  (`playing`) wedstrijd wint van een afgeronde; tafels zonder toegewezen wedstrijd vallen weg;
+  gesorteerd op tafelnummer. Gevoed door de `liveMatches`-timer (`bouwZaalRaster` → `live-matches.json`).
+  Leeg (`[]`) tot die timer draait. Vervangt de Cuescore-jumbotron (met zijn onverwijderbare
+  instellingenvenster) door een eigen raster in de Mokum-huisstijl in het pauzescherm-deck.

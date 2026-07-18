@@ -73,6 +73,41 @@ function bouwLiveMatches(tournaments, cameraTables) {
   return uit;
 }
 
+// Bouwt het ZAALBREDE raster: per fysieke tafel (over álle toernooien van vandaag) de
+// meest relevante wedstrijd. Voedt het eigen Mokum-tafelraster (#54) dat de Cuescore-
+// jumbotron vervangt in het pauzescherm. In tegenstelling tot bouwLiveMatches (vaste
+// cameralijst) neemt dit élke tafel mee die vandaag een wedstrijd heeft. Een lopende
+// (playing) wedstrijd wint van een afgeronde; tafels zonder toegewezen wedstrijd
+// (m.table == null) vallen weg. Gesorteerd op tafelnummer. Pure functie → testbaar.
+function bouwZaalRaster(tournaments) {
+  const perTafel = new Map();
+  for (const t of tournaments || []) {
+    for (const m of t.matches || []) {
+      if (m.table == null) continue;
+      const nr = Number(m.table);
+      if (!Number.isFinite(nr)) continue;
+      const speelt = String(m.status || '').toLowerCase() === 'playing';
+      const bestaand = perTafel.get(nr);
+      // Niets → zetten; anders alleen vervangen als de nieuwe lopend is en de oude niet.
+      if (!bestaand || (speelt && String(bestaand.status || '').toLowerCase() !== 'playing')) {
+        perTafel.set(nr, { m, toernooi: t.name || '' });
+      }
+    }
+  }
+  return [...perTafel.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([nr, { m, toernooi }]) => ({
+      table: nr,
+      status: m.status || null,
+      round: m.roundName || null,
+      tournament: toernooi,
+      playerA: m.playerA ? m.playerA.name : null,
+      playerB: m.playerB ? m.playerB.name : null,
+      scoreA: m.scoreA != null ? m.scoreA : null,
+      scoreB: m.scoreB != null ? m.scoreB : null,
+    }));
+}
+
 // Telt alle lopende (playing) wedstrijden in de zaal (over alle toernooien) — voor
 // de dashboard-teller "X wedstrijden nu live in de zaal".
 function telZaalLive(tournaments) {
@@ -94,4 +129,4 @@ function pauzeCommandos(tableNumber, toonPauze, overlayBron, keys) {
     .map((k) => ({ type: 'setOverlay', tableNumber: Number(tableNumber), sourceName: overlayBron[k], enabled: !!toonPauze }));
 }
 
-module.exports = { tafelSpeeltNu, volgendeToestand, pauzeCommandos, bouwLiveMatches, telZaalLive };
+module.exports = { tafelSpeeltNu, volgendeToestand, pauzeCommandos, bouwLiveMatches, telZaalLive, bouwZaalRaster };

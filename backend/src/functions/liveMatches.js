@@ -1,7 +1,7 @@
 const { app } = require('@azure/functions');
 const { readJson, writeJson } = require('../storage/blob');
 const { getTodaysTournaments } = require('../cuescore');
-const { bouwLiveMatches, telZaalLive } = require('../planning/pauze');
+const { bouwLiveMatches, telZaalLive, bouwZaalRaster } = require('../planning/pauze');
 
 // Timer-Function: haalt periodiek de live wedstrijd-status per cameratafel op uit
 // Cuescore en schrijft die naar live-matches.json. Puur lees-werk (geen streams/
@@ -26,7 +26,10 @@ async function verwerk(now, context) {
 
   const matches = bouwLiveMatches(tournaments, cameras);
   const venueLive = telZaalLive(tournaments);
-  await writeJson('live-matches.json', { updatedAt: now.toISOString(), matches, venueLive });
+  // venueTables = zaalbreed raster (alle tafels met een wedstrijd) voor het eigen
+  // Mokum-tafelraster in het pauzescherm (#54).
+  const venueTables = bouwZaalRaster(tournaments);
+  await writeJson('live-matches.json', { updatedAt: now.toISOString(), matches, venueLive, venueTables });
   const live = Object.values(matches).filter((m) => m && m.status === 'playing').length;
   context.log(`[liveMatches] bijgewerkt — ${live}/${cameras.length} tafels live · ${venueLive} in de zaal`);
 }

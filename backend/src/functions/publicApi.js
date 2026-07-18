@@ -34,9 +34,13 @@ app.http('publicLive', {
       lastSeenAt: hb.lastSeen || null,
       secondsAgo: Number.isNaN(lastSeen) ? null : Math.round((now.getTime() - lastSeen) / 1000),
     };
+    // venueTables = zaalbreed raster (alle tafels met een wedstrijd) voor het eigen
+    // Mokum-tafelraster in het pauzescherm (#54). Leeg tot de liveMatches-timer draait.
+    const venueTables = Array.isArray(liveMatches.venueTables) ? liveMatches.venueTables : [];
     return json(200, {
       generatedAt: now.toISOString(),
       venueLive,
+      venueTables,
       agent,
       tables: buildLiveTables(cameras, store, status, liveMatches, liveVideos),
     });
