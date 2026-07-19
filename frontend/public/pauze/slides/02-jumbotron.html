@@ -83,48 +83,6 @@
      de "geen live wedstrijden"-melding altijd zichtbaar, ook onder een kaart). */
   #leeg[hidden] { display: none; }
 
-  /* --- Quad-overzicht (#57): 2×2 raster van de 4 cameratafels, wisselt af met de grote
-     kaart tijdens de pauze. Zelfde kaart-look, compacter. --- */
-  .quad {
-    position: absolute; inset: 0; z-index: 1;
-    display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;
-    gap: 28px; padding: 178px 130px 108px;
-  }
-  .quad[hidden] { display: none; }
-  .quad.in { animation: cardIn 0.9s cubic-bezier(0.22, 0.9, 0.3, 1); }
-  .qtegel {
-    background: rgba(8,8,8,0.78); border: 1px solid rgba(255,255,255,0.12);
-    border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-    padding: 22px 30px; display: flex; flex-direction: column; gap: 12px; overflow: hidden;
-  }
-  .qkop { display: flex; align-items: center; gap: 14px; }
-  .qtafel { font-size: 38px; line-height: 1; }
-  .qronde { font-family: Arial, sans-serif; font-size: 20px; color: rgba(255,255,255,0.55); }
-  .qbadge {
-    margin-left: auto; display: flex; align-items: center; gap: 8px;
-    padding: 6px 16px; border-radius: 999px; font-size: 20px;
-  }
-  .qbadge.live { background: #cc0000; color: #fff; }
-  .qbadge.pauze { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.55); font-family: Arial; font-weight: bold; }
-  .qbadge .stip { width: 10px; height: 10px; border-radius: 50%; background: #fff; animation: livePulse 1.4s ease-in-out infinite; }
-  .qspeler {
-    display: flex; align-items: center; gap: 16px;
-    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 10px; padding: 10px 16px;
-  }
-  .qavatar {
-    width: 54px; height: 54px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
-    background: #3a4a5a; border: 2px solid rgba(255,255,255,0.25);
-  }
-  .qvlag { width: 36px; height: 24px; object-fit: cover; border-radius: 2px; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.3); }
-  .qnaam { flex: 1; font-size: 27px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .qscore {
-    width: 62px; height: 54px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
-    background: #cc0000; color: #fff; font-size: 30px; border-radius: 8px; font-variant-numeric: tabular-nums;
-  }
-  .qleeg { flex: 1; display: flex; align-items: center; justify-content: center;
-    font-family: Arial, sans-serif; font-weight: bold; font-size: 24px; color: rgba(255,255,255,0.4); }
-
   /* --- Promo-poster (#54): om de 120s even tonen met een gordijn-overgang --- */
   .poster {
     position: absolute; inset: 0; z-index: 3; background: #000;
@@ -234,7 +192,6 @@
 <body>
   <div class="bg"></div>
   <div class="stage" id="stage"></div>
-  <div class="quad" id="quad" hidden></div>
   <div id="leeg" hidden>Op dit moment geen live wedstrijden</div>
 
   <!-- Podium-eindscherm (winnaar-moment #54): laserstralen achter, podium in het midden, confetti ervoor. -->
@@ -267,9 +224,6 @@ const CARD_MS = 6000;     // hoe lang elke tafelkaart in beeld blijft
 let liveTafels = [];
 let idx = 0;
 let huidigeKey = null; // welke tafel nu in beeld staat (om onnodig herbouwen te voorkomen)
-let venueAlle = [];    // alle venueTables (voor het quad-overzicht, incl. foto's)
-let cameraTafels = []; // de 4 cameratafelnummers (uit /api/live tables[])
-const QUAD_TEST = /[?&]quad\b/.test(location.search); // ?quad = altijd het overzicht (preview)
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => (
   { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]
@@ -301,53 +255,6 @@ function kaartHtml(t) {
     </div>`;
 }
 
-// --- Quad-overzicht (#57): 2×2 raster van de cameratafels ---
-function qSpelerHtml(p, score) {
-  const avatar = p && p.image
-    ? `<img class="qavatar" src="${esc(p.image)}" alt="" onerror="this.removeAttribute('src')">`
-    : '<span class="qavatar"></span>';
-  const vlag = p && p.flag ? `<img class="qvlag" src="${esc(p.flag)}" alt="">` : '<span class="qvlag" style="visibility:hidden"></span>';
-  return `<div class="qspeler">${avatar}${vlag}<span class="qnaam">${esc((p && p.name) || '—')}</span><span class="qscore">${score == null ? '' : esc(score)}</span></div>`;
-}
-
-function qTegelHtml(nr) {
-  const v = venueAlle.find((x) => Number(x.table) === Number(nr));
-  const speelt = v && String(v.status || '').toLowerCase() === 'playing';
-  const badge = speelt
-    ? '<span class="qbadge live"><span class="stip"></span>LIVE</span>'
-    : '<span class="qbadge pauze">pauze</span>';
-  const ronde = v && v.round && speelt ? `<span class="qronde">${esc(v.round)}</span>` : '';
-  const inhoud = v
-    ? `${qSpelerHtml(v.playerA, v.scoreA)}${qSpelerHtml(v.playerB, v.scoreB)}`
-    : '<div class="qleeg">Geen wedstrijd</div>';
-  return `<div class="qtegel">
-      <div class="qkop"><span class="qtafel">Tafel ${esc(nr)}</span>${ronde}${badge}</div>
-      ${inhoud}
-    </div>`;
-}
-
-// Heeft het quad-overzicht iets zinnigs te tonen? (minstens één cameratafel met een wedstrijd)
-function quadHeeftInhoud() {
-  return cameraTafels.length > 0 && venueAlle.some((v) => cameraTafels.includes(Number(v.table)));
-}
-
-function toonQuad() {
-  const quad = document.getElementById('quad');
-  const tafels = cameraTafels.slice().sort((a, b) => a - b);
-  quad.innerHTML = tafels.map(qTegelHtml).join('');
-  // Bestaande enkele kaart + leeg-melding opruimen; overzicht tonen.
-  const stage = document.getElementById('stage');
-  stage.innerHTML = ''; huidigeKey = null;
-  document.getElementById('leeg').hidden = true;
-  quad.hidden = false;
-  quad.classList.remove('in'); void quad.offsetWidth; quad.classList.add('in'); // herstart de inschuif-animatie
-}
-
-function verbergQuad() {
-  const quad = document.getElementById('quad');
-  if (!quad.hidden) { quad.hidden = true; quad.innerHTML = ''; }
-}
-
 function toon(t) {
   const stage = document.getElementById('stage');
   const nieuw = document.createElement('div');
@@ -366,19 +273,11 @@ function toon(t) {
   huidigeKey = t.table;
 }
 
-let pauzeStap = 0; // telt de rotatiebeurten; elke 3e beurt tonen we het quad-overzicht
-
-// Volgende live tafel tonen (rouleren), afgewisseld met het quad-overzicht. Bij 0 → "geen live wedstrijden".
+// Volgende live tafel tonen (rouleren). Bij 0 → "geen live wedstrijden".
 function volgende() {
   if (posterBezig || podiumActief) return; // niet rouleren achter de poster of het podium
   const leeg = document.getElementById('leeg');
   const stage = document.getElementById('stage');
-
-  // Elke 3e beurt (of altijd in ?quad-preview) het overzicht van de cameratafels tonen.
-  pauzeStap += 1;
-  if ((QUAD_TEST || pauzeStap % 3 === 0) && quadHeeftInhoud()) { toonQuad(); return; }
-  verbergQuad();
-
   if (!liveTafels.length) {
     leeg.hidden = false; stage.innerHTML = ''; huidigeKey = null; return;
   }
@@ -402,8 +301,6 @@ async function ververs() {
     const r = await fetch(`${APP_API}/api/live`, { cache: 'no-store' });
     const d = await r.json();
     const alle = Array.isArray(d.venueTables) ? d.venueTables : [];
-    venueAlle = alle; // volledige lijst voor het quad-overzicht (incl. foto's)
-    cameraTafels = (d.tables || []).map((t) => Number(t.tableNumber)).filter((n) => Number.isFinite(n));
     const nieuw = alle.filter((t) => String(t.status || '').toLowerCase() === 'playing');
     if (nieuw.length) {
       leegTeller = 0;
@@ -498,7 +395,6 @@ function updatePodium(data) {
   podiumActief = true;
   renderPodium(data);
   document.getElementById('leeg').hidden = true;
-  verbergQuad(); // geen quad-overzicht achter het podium
   document.getElementById('stage').innerHTML = ''; huidigeKey = null; // tafelkaarten weg
   podium.hidden = false; lasers.hidden = false; canvas.hidden = false;
   startConfetti();
