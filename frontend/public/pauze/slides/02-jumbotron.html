@@ -82,13 +82,47 @@
   /* Cruciaal: laat de hidden-stand winnen van de display:flex hierboven (anders bleef
      de "geen live wedstrijden"-melding altijd zichtbaar, ook onder een kaart). */
   #leeg[hidden] { display: none; }
-  @media (prefers-reduced-motion: reduce) { .card.in, .card.out { animation: none; } }
+
+  /* --- Promo-poster (#54): om de 120s even tonen met een gordijn-overgang --- */
+  .poster {
+    position: absolute; inset: 0; z-index: 3; background: #000;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .poster[hidden] { display: none; }
+  .poster img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+
+  /* Theatergordijn: twee rood-fluwelen panelen die dichtschuiven en weer open. */
+  .curtain { position: absolute; inset: 0; z-index: 5; pointer-events: none; overflow: hidden; }
+  .curtain .panel {
+    position: absolute; top: 0; bottom: 0; width: 51%;
+    /* Fluweel: verticale plooien (lichte/donkere rode banden) + randschaduw. */
+    background:
+      linear-gradient(90deg, rgba(0,0,0,0.55), rgba(0,0,0,0) 10%, rgba(0,0,0,0) 90%, rgba(0,0,0,0.55)),
+      repeating-linear-gradient(90deg, #6c0d0d 0, #a11616 26px, #560808 52px, #6c0d0d 78px);
+    box-shadow: inset 0 0 120px rgba(0,0,0,0.6);
+    transition: transform 1s cubic-bezier(0.7, 0, 0.3, 1);
+  }
+  .curtain .left  { left: 0;  transform: translateX(-100%); }   /* open = uit beeld links */
+  .curtain .right { right: 0; transform: translateX(100%); }    /* open = uit beeld rechts */
+  .curtain.dicht .left  { transform: translateX(0); }
+  .curtain.dicht .right { transform: translateX(0); }
+  /* Gouden bies aan de sluitende rand, voor de theater-look. */
+  .curtain .left::after, .curtain .right::after {
+    content: ''; position: absolute; top: 0; bottom: 0; width: 6px;
+    background: linear-gradient(180deg, #f4d488, #b8860b);
+  }
+  .curtain .left::after  { right: 0; }
+  .curtain .right::after { left: 0; }
+
+  @media (prefers-reduced-motion: reduce) { .card.in, .card.out, .curtain .panel { animation: none; transition: none; } }
 </style>
 </head>
 <body>
   <div class="bg"></div>
   <div class="stage" id="stage"></div>
   <div id="leeg" hidden>Op dit moment geen live wedstrijden</div>
+  <div class="poster" id="poster" hidden><img src="../img/poster-10ball.jpg" alt="Mokum 10-ball Summer Break"></div>
+  <div class="curtain" id="curtain"><div class="panel left"></div><div class="panel right"></div></div>
 
 <script>
 // Toont live wedstrijden uit onze eigen /api/live (venueTables), één tafelkaart tegelijk,
@@ -151,6 +185,7 @@ function toon(t) {
 
 // Volgende live tafel tonen (rouleren). Bij 0 → "geen live wedstrijden".
 function volgende() {
+  if (posterBezig) return; // tijdens de poster niet rouleren (gebeurt achter het gordijn)
   const leeg = document.getElementById('leeg');
   const stage = document.getElementById('stage');
   if (!liveTafels.length) {
@@ -195,6 +230,37 @@ async function ververs() {
 ververs().then(volgende);
 setInterval(ververs, REFRESH_MS);
 setInterval(volgende, CARD_MS);
+
+// --- Promo-poster met theatergordijn-overgang (#54) ---
+const POSTER_INTERVAL_MS = 120000; // elke 2 minuten even de poster
+const POSTER_DUUR_MS = 20000;      // 20s tonen
+const GORDIJN_MS = 1000;           // duur van dicht-/openschuiven (== CSS-transition)
+let posterBezig = false;
+const wacht = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function toonPoster() {
+  posterBezig = true;
+  const curtain = document.getElementById('curtain');
+  const poster = document.getElementById('poster');
+  curtain.classList.add('dicht');        // gordijn dicht
+  await wacht(GORDIJN_MS);
+  poster.hidden = false;                  // poster erachter klaarzetten
+  curtain.classList.remove('dicht');      // gordijn open → poster in beeld
+  await wacht(GORDIJN_MS + POSTER_DUUR_MS);
+  curtain.classList.add('dicht');         // weer dicht
+  await wacht(GORDIJN_MS);
+  poster.hidden = true;                   // terug naar de jumbotron
+  curtain.classList.remove('dicht');      // gordijn open
+  await wacht(GORDIJN_MS);
+  posterBezig = false;
+}
+
+// Alleen tonen als de poster-afbeelding echt bestaat (anders geen zwart vlak op de stream).
+const posterImg = document.querySelector('#poster img');
+let posterBeschikbaar = false;
+posterImg.addEventListener('load', () => { posterBeschikbaar = true; });
+posterImg.addEventListener('error', () => { posterBeschikbaar = false; });
+setInterval(() => { if (!posterBezig && posterBeschikbaar) toonPoster(); }, POSTER_INTERVAL_MS);
 </script>
 </body>
 </html>
