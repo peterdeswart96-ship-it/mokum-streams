@@ -230,7 +230,7 @@ setInterval(volgende, CARD_MS);
 // blijft 120s / 20s (productie).
 const TEST = /[?&](test|snel)\b/.test(location.search);
 const POSTER_INTERVAL_MS = TEST ? 18000 : 120000; // elke 2 min (test: 18s)
-const POSTER_DUUR_MS = TEST ? 8000 : 20000;        // 20s tonen (test: 8s)
+const POSTER_DUUR_MS = TEST ? 8000 : 10000;        // 10s tonen (test: 8s)
 const GORDIJN_MS = 1000;           // duur van dicht-/openschuiven (== CSS-transition)
 let posterBezig = false;
 const wacht = (ms) => new Promise((r) => setTimeout(r, ms));
