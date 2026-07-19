@@ -38,6 +38,17 @@ met Nick.
 > Zet bronnen na het slepen **weer op slot** (🔒) — dat voorkomt dat er tijdens een
 > drukke avond per ongeluk beeld verschuift.
 >
+> **Update (2026-07-19): toernooi-intro (#58).** ✅ Alle 4 de instanties hebben nu ook
+> een `Toernooi-intro`-browser-source, **boven de camera** geplaatst (oogje aan). Het is
+> een transparante lower-third die ~10s bij een **verse streamstart** inschuift met de
+> toernooinaam + datum. Zelf-triggerend (pollt `/api/live`), dus **niet** in het
+> agent-overlaymodel (`OVERLAY_BRON`) opgenomen — hij hoeft nergens aan/uit gezet te
+> worden en mag altijd zichtbaar blijven (buiten die 10s volledig transparant).
+> URL **per tafel** (let op het nummer): `https://mokum-streams.pdscloud.nl/pauze/intro.html?table=<N>`
+> — `?table=1|3|15|16`. Breedte 1920 × hoogte 1080. Laat "Vernieuwen wanneer scène actief
+> wordt" **uit** (voorkomt herhalen bij een scènewissel). Preview/plaatsing checken kan met
+> `?demo` i.p.v. `?table=<N>` (speelt in een lus af).
+>
 > ⚠️ De sponsorafbeeldingen staan in **`C:\Mokum-Sponsors`** (machine-pad), niet in
 > een gebruikersprofiel. Dat is bewust: sinds 16-07 draait OBS onder het account
 > `MokumStream` (zie `docs/obs-pc-autostart.md`) en een pad in Nick's profiel zou
