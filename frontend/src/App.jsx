@@ -577,8 +577,12 @@ function ToernooiPlanner({ onGepland }) {
   }, []);
   useEffect(() => { laad(); }, [laad]);
 
+  const statusVan = (r) => r.status || (r.planned ? 'gepland' : 'concept');
+
   function huidig(r) {
-    const e = edits[r.tournamentId] || {};
+    // Concept-fase: lokale (nog niet opgeslagen) edits tonen. Zodra gepland/live/klaar:
+    // de serverwaarden zijn leidend (wijzigingen worden dan direct opgeslagen).
+    const e = statusVan(r) === 'concept' ? (edits[r.tournamentId] || {}) : {};
     return {
       tafels: e.tafels ?? (r.tafels || []),
       visibility: e.visibility ?? (r.visibility || 'public'),
@@ -586,8 +590,26 @@ function ToernooiPlanner({ onGepland }) {
       preRoll: e.preRoll ?? (r.preRollMinuten ?? 10),
     };
   }
+  // Vertaalt een lokale patch (overlayPreset/preRoll) naar de server-velden.
+  function naarServerPatch(patch) {
+    const out = {};
+    if ('tafels' in patch) out.tafels = patch.tafels;
+    if ('visibility' in patch) out.visibility = patch.visibility;
+    if ('preRoll' in patch) out.preRollMinuten = patch.preRoll;
+    if ('overlayPreset' in patch) {
+      const preset = OVERLAY_PRESETS.find((p) => p.key === patch.overlayPreset) || OVERLAY_PRESETS[0];
+      out.overlays = preset.overlays;
+    }
+    return out;
+  }
   function wijzig(r, patch) {
-    setEdits((prev) => ({ ...prev, [r.tournamentId]: { ...huidig(r), ...patch } }));
+    // Al ingepland → wijziging meteen opslaan (blijft gepland). Concept → lokaal stagen
+    // tot op 'Plan' geklikt wordt.
+    if (statusVan(r) === 'gepland') {
+      doe(() => updatePlanning(r.tournamentId, naarServerPatch(patch)), 'Wijzigen mislukt');
+    } else {
+      setEdits((prev) => ({ ...prev, [r.tournamentId]: { ...huidig(r), ...patch } }));
+    }
   }
   function toggleTafel(r, n) {
     const cur = huidig(r).tafels;
@@ -651,15 +673,17 @@ function ToernooiPlanner({ onGepland }) {
                     // Status uit de backend (concept/gepland/live/klaar/geannuleerd); val terug
                     // op planned-vlag als de backend 'm (nog) niet meestuurt.
                     const status = r.status || (r.planned ? 'gepland' : 'concept');
-                    const gepland = status !== 'concept'; // velden op slot zodra ingepland
+                    // Bewerkbaar in concept én gepland (wijziging wordt dan direct opgeslagen);
+                    // op slot zodra 'ie live/klaar/geannuleerd is.
+                    const opSlot = status === 'live' || status === 'klaar' || status === 'geannuleerd';
                     return (
                       <tr key={r.tournamentId} className="border-b border-line/50">
                         <td className={cell}><span className="whitespace-nowrap">{datumLabel(r.date)}</span></td>
                         <td className={cell}>
                           <div className="flex gap-1">
                             {CAMERAS.map((n) => (
-                              <button key={n} disabled={gepland} onClick={() => toggleTafel(r, n)}
-                                className={`w-6 h-6 rounded text-xs border ${cur.tafels.includes(n) ? 'bg-brand text-white border-brand' : 'bg-canvas text-ink-muted border-line'} ${gepland ? 'opacity-60 cursor-default' : ''}`}>{n}</button>
+                              <button key={n} disabled={opSlot || bezig} onClick={() => toggleTafel(r, n)}
+                                className={`w-6 h-6 rounded text-xs border ${cur.tafels.includes(n) ? 'bg-brand text-white border-brand' : 'bg-canvas text-ink-muted border-line'} ${opSlot ? 'opacity-60 cursor-default' : ''}`}>{n}</button>
                             ))}
                           </div>
                         </td>
@@ -667,12 +691,12 @@ function ToernooiPlanner({ onGepland }) {
                         <td className={`${cell} max-w-[16rem]`}><span className="block truncate" title={r.name}>{r.name}</span></td>
                         <td className={cell}><span className="whitespace-nowrap">{tijdVan(r.plannedStop)}</span></td>
                         <td className={cell}>
-                          <select className={sel} value={cur.visibility} disabled={gepland} onChange={(e) => wijzig(r, { visibility: e.target.value })}>
+                          <select className={sel} value={cur.visibility} disabled={opSlot || bezig} onChange={(e) => wijzig(r, { visibility: e.target.value })}>
                             {Object.entries(VIS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                           </select>
                         </td>
                         <td className={cell}>
-                          <select className={sel} value={cur.overlayPreset} disabled={gepland} onChange={(e) => wijzig(r, { overlayPreset: e.target.value })}>
+                          <select className={sel} value={cur.overlayPreset} disabled={opSlot || bezig} onChange={(e) => wijzig(r, { overlayPreset: e.target.value })}>
                             {OVERLAY_PRESETS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
                           </select>
                         </td>
