@@ -1,5 +1,19 @@
 const { zaalDelen } = require('../schedule/schedule');
 
+// Camera-alarm uit de agent-status (A3 pre-flight + A2 freeze-watchdog): geeft het
+// dashboard een waarschuwing als een automatische start werd uitgesteld omdat de camera
+// niet live is, of als de camera bevroor tijdens een stream. null = niks aan de hand.
+function cameraAlarmVan(s) {
+  if (!s) return null;
+  if (s.preflightFailed) {
+    return { type: 'preflight', reason: s.preflightReason || 'camera niet live', recovered: false };
+  }
+  if (s.cameraFrozen) {
+    return { type: 'frozen', reason: s.cameraReason || 'camera bevroren', recovered: !!s.cameraRecovered };
+  }
+  return null;
+}
+
 // Pure opbouw van de publieke antwoorden (/api/live + /api/schedule). Géén
 // netwerk/opslag → unit-testbaar. Zie docs/api-contract.md.
 
@@ -53,6 +67,7 @@ function buildLiveTables(cameraTables, store, status, liveMatches, liveVideos) {
       match: matches[String(nr)] || null,
       liveVideoId,
       liveVisibility,
+      cameraAlarm: cameraAlarmVan(s),
     };
   });
 }

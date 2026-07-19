@@ -62,3 +62,20 @@ test('buildLiveTables: agent meldt streaming zonder store-entry → live met kwa
   assert.strictEqual(byT[3].status, 'live');
   assert.deepStrictEqual(byT[3].quality, { resolution: '1920x1080', fps: 30, bitrateKbps: null });
 });
+
+test('buildLiveTables: cameraAlarm uit de agent-status (pre-flight + freeze-watchdog)', () => {
+  const status = { tables: [
+    { tableNumber: 1, streaming: false, preflightFailed: true, preflightReason: 'bevroren beeld (twee identieke frames)' },
+    { tableNumber: 3, streaming: true, cameraFrozen: true, cameraRecovered: true, cameraReason: 'bevroren beeld' },
+    { tableNumber: 15, streaming: true }, // niks aan de hand
+  ] };
+  const byT = Object.fromEntries(
+    buildLiveTables([1, 3, 15], {}, status, {}, {}).map((r) => [r.tableNumber, r])
+  );
+  assert.strictEqual(byT[1].cameraAlarm.type, 'preflight');
+  assert.match(byT[1].cameraAlarm.reason, /bevroren/i);
+  assert.strictEqual(byT[1].cameraAlarm.recovered, false);
+  assert.strictEqual(byT[3].cameraAlarm.type, 'frozen');
+  assert.strictEqual(byT[3].cameraAlarm.recovered, true);
+  assert.strictEqual(byT[15].cameraAlarm, null);
+});

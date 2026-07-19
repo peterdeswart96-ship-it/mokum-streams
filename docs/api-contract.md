@@ -420,3 +420,11 @@ Body:
   gesorteerd op tafelnummer. Gevoed door de `liveMatches`-timer (`bouwZaalRaster` → `live-matches.json`).
   Leeg (`[]`) tot die timer draait. Vervangt de Cuescore-jumbotron (met zijn onverwijderbare
   instellingenvenster) door een eigen raster in de Mokum-huisstijl in het pauzescherm-deck.
+- 2026-07-19: v0.30 — **camera-alarm per tafel in `GET /api/live`** (#40-prep, observability).
+  Elke tafel in `tables[]` krijgt een veld **`cameraAlarm`**: `null` als er niks is, anders
+  `{ type: 'preflight'|'frozen', reason, recovered }`. Bron: de agent-status (v0.27 pre-flight
+  `preflightFailed`/`preflightReason` + v0.28 freeze-watchdog `cameraFrozen`/`cameraRecovered`/
+  `cameraReason`), samengevat door `buildLiveTables`. `preflight` = een automatische start werd
+  uitgesteld omdat de camera niet live is; `frozen` = de camera bevroor tijdens een stream
+  (`recovered` geeft aan of het herstel lukte). Het dashboard toont dit als waarschuwing op de
+  tafelkaart + een samenvatting bovenaan — bedoeld om onbewaakt auto-streamen observeerbaar te maken.

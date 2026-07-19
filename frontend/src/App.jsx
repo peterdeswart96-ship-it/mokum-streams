@@ -143,6 +143,25 @@ function VisibilityBadge({ visibility }) {
   );
 }
 
+// Camera-alarm op de tafelkaart (bron: table.cameraAlarm uit /api/live — A2 freeze-
+// watchdog + A3 pre-flight). Rood bij een blokkade/mislukt herstel, amber bij een
+// hersteld voorval. Cruciaal om te zien tijdens onbewaakt auto-streamen (#40).
+function CameraAlarm({ alarm }) {
+  if (!alarm) return null;
+  const hersteld = alarm.type === 'frozen' && alarm.recovered;
+  const kleur = hersteld
+    ? 'bg-amber-500/15 text-amber-300 border-amber-500/40'
+    : 'bg-brand/15 text-brand-light border-brand/50';
+  const kop = alarm.type === 'preflight'
+    ? 'Camera niet live — auto-start uitgesteld'
+    : (hersteld ? 'Camera was bevroren — hersteld' : 'Camera bevroren — herstel mislukt');
+  return (
+    <p className={`mt-2 text-xs border rounded px-2 py-1 ${kleur}`} title={alarm.reason || ''}>
+      ⚠ {kop}
+    </p>
+  );
+}
+
 // "1920x1080" + 60 + 9000 → "1080p60 · 9,0 Mbps" (kort, leesbaar in de kaart)
 function fmtKwaliteit(q) {
   if (!q) return null;
@@ -187,6 +206,18 @@ function Overzicht({ tables, venueLive }) {
           ⚠ Lagere kwaliteit: {laag.map((t) => `Tafel ${t.tableNumber} (${t.quality.resolution})`).join(', ')}
         </p>
       )}
+      {(() => {
+        // Camera-alarm samengevat bovenaan (A2/A3): een niet-hersteld voorval is rood
+        // en springt eruit tijdens onbewaakt auto-streamen (#40).
+        const alarm = tables.filter((t) => t.cameraAlarm);
+        const ernstig = alarm.filter((t) => !(t.cameraAlarm.type === 'frozen' && t.cameraAlarm.recovered));
+        if (!ernstig.length) return null;
+        return (
+          <p className="text-xs text-brand-light bg-brand/10 border border-brand/40 rounded p-2 mt-3">
+            ⚠ Camera-probleem: {ernstig.map((t) => `Tafel ${t.tableNumber} (${t.cameraAlarm.type === 'preflight' ? 'niet live' : 'bevroren'})`).join(', ')}
+          </p>
+        );
+      })()}
     </div>
   );
 }
@@ -264,6 +295,7 @@ function TableCard({ table, onStop, onOverlay, onPreview, busy }) {
         </div>
       </div>
       {table.title && <p className="text-sm text-ink-muted truncate" title={table.title}>{table.title}</p>}
+      <CameraAlarm alarm={table.cameraAlarm} />
       <MatchRegel match={table.match} />
       {kwaliteit && <p className="text-xs text-ink-muted mt-0.5">🎥 {kwaliteit}</p>}
       {table.status === 'live' && table.liveVisibility && (
