@@ -45,3 +45,30 @@ test('leagueDueTables is leeg ruim vóór de eerste wedstrijd', () => {
   const record = { tafels: CAMERAS, preRollMinuten: 10 };
   assert.deepStrictEqual(leagueDueTables(LEAGUE, record, new Date('2026-07-14T16:00:00Z')), []);
 });
+
+test('herresolveerTafels: houdt van de geplande tafels alleen die met een wedstrijd vandaag', () => {
+  const { herresolveerTafels } = require('../src/planning/league');
+  const now = new Date('2026-07-14T17:30:00Z');
+  const tournament = { matches: [
+    { matchId: 1, table: '1', start: '2026-07-14T18:00:00Z', status: 'scheduled' },
+    { matchId: 2, table: '3', start: '2026-07-14T18:30:00Z', status: 'playing' },
+    { matchId: 3, table: '15', start: '2026-07-14T18:00:00Z', status: 'finished' }, // klaar → weg
+    { matchId: 4, table: '2', start: '2026-07-14T18:00:00Z', status: 'scheduled' },  // geen geplande tafel
+  ] };
+  // gepland 1,3,15,16 → 1 (gepland) + 3 (playing); 15 klaar, 16 geen wedstrijd
+  assert.deepStrictEqual(herresolveerTafels(tournament, [1, 3, 15, 16], now), [1, 3]);
+});
+
+test('herresolveerTafels: playing telt mee ook zonder start-tijd', () => {
+  const { herresolveerTafels } = require('../src/planning/league');
+  const now = new Date('2026-07-14T20:00:00Z');
+  const tournament = { matches: [{ matchId: 9, table: '16', start: null, status: 'playing' }] };
+  assert.deepStrictEqual(herresolveerTafels(tournament, [1, 16], now), [16]);
+});
+
+test('herresolveerTafels: geen tafeltoewijzing (loting niet gemaakt) → geplande tafels', () => {
+  const { herresolveerTafels } = require('../src/planning/league');
+  const now = new Date('2026-07-14T17:30:00Z');
+  assert.deepStrictEqual(herresolveerTafels({ matches: [] }, [1, 3], now), [1, 3]);
+  assert.deepStrictEqual(herresolveerTafels(null, [1, 3, 15, 16], now), [1, 3, 15, 16]);
+});

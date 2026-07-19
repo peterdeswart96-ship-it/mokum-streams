@@ -35,6 +35,27 @@ function cameraTablesWithMatchToday(tournament, cameraTables, now) {
   }));
 }
 
+// Her-resolveer de tafels van een (enkeldaags) toernooi op START-moment (#42, fase 2):
+// houd van de GEPLANDE tafels alleen die over waar Cuescore vandaag echt een
+// niet-afgeronde wedstrijd op zet (nu spelend, of vandaag gepland) — zo streamen we
+// geen lege tafel (bijv. 15/16 zonder wedstrijd). Heeft Cuescore nog geen
+// tafeltoewijzing (loting niet gemaakt) → val terug op de geplande tafels, zodat de
+// stream toch begint (de pauze-jumbotron dekt een lege tafel netjes af). Pure functie.
+function herresolveerTafels(tournament, geplandeTafels, now) {
+  const gepland = new Set((geplandeTafels || []).map(String));
+  const vandaag = zaalDelen(now).datum;
+  const metWedstrijd = new Set();
+  for (const m of (tournament && tournament.matches) || []) {
+    if (!m.table || !gepland.has(String(m.table))) continue;
+    if (m.status === 'finished') continue;
+    const speelt = m.status === 'playing';
+    const vandaagGepland = m.start && datumInZaal(m.start) === vandaag;
+    if (speelt || vandaagGepland) metWedstrijd.add(Number(m.table));
+  }
+  const resolved = [...metWedstrijd].sort((a, b) => a - b);
+  return resolved.length ? resolved : (geplandeTafels || []).map(Number);
+}
+
 // Welke camera-tafels van een league moeten NU een broadcast krijgen?
 // (er is vandaag een wedstrijd én we zitten in het pre-roll-venster van de
 // vroegste wedstrijd op die tafel).
@@ -47,4 +68,4 @@ function leagueDueTables(tournament, record, now, { graceMinuten = 30 } = {}) {
   });
 }
 
-module.exports = { cameraTablesWithMatchToday, leagueDueTables };
+module.exports = { cameraTablesWithMatchToday, leagueDueTables, herresolveerTafels };

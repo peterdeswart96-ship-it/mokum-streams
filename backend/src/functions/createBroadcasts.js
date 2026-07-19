@@ -2,7 +2,7 @@ const { app } = require('@azure/functions');
 const { readJson, writeJson } = require('../storage/blob');
 const { zaalDelen, tafelsNogTeMaken } = require('../schedule/schedule');
 const { dueRecords, effectiveStart } = require('../planning/planning');
-const { leagueDueTables } = require('../planning/league');
+const { leagueDueTables, herresolveerTafels } = require('../planning/league');
 const { getTournament } = require('../cuescore');
 const { enqueue, startCommandsFor } = require('../agent/commandQueue');
 const { buildBroadcastTitle, buildBroadcastDescription, createBroadcast, bindBroadcast } = require('../youtube/broadcasts');
@@ -68,7 +68,20 @@ async function verwerk(now, context) {
   // 1) Enkeldaagse toernooien
   for (const rec of dueRecords(planning, now)) {
     const start = effectiveStart(rec);
-    for (const tafelNr of tafelsNogTeMaken({ tafels: rec.tafels || [] }, store)) {
+    // Tafel-herresolutie op start-moment: alleen de geplande tafels waar Cuescore nu
+    // echt een wedstrijd op zet (voorkomt lege 15/16). Cuescore onbereikbaar of loting
+    // nog niet gemaakt → val terug op de geplande tafels.
+    let tafels = rec.tafels || [];
+    if (rec.tournamentId != null) {
+      try {
+        const tournament = await getTournament(rec.tournamentId);
+        tafels = herresolveerTafels(tournament, rec.tafels || [], now);
+        context.log(`[createBroadcasts] tafel-herresolutie toernooi ${rec.tournamentId}: [${(rec.tafels || []).join(',')}] → [${tafels.join(',')}]`);
+      } catch (e) {
+        context.log(`[createBroadcasts] herresolutie mislukt (${e.message}) → geplande tafels [${tafels.join(',')}]`);
+      }
+    }
+    for (const tafelNr of tafelsNogTeMaken({ tafels }, store)) {
       await maakBroadcast(rec, tafelNr, start);
     }
   }
