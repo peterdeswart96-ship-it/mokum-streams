@@ -63,7 +63,7 @@ const APP_API = 'https://mokum-streams-func.azurewebsites.net';
 const POLL_MS = 4000;              // hoe vaak we /api/live checken
 const MAX_LEEFTIJD_MS = 5 * 60000; // alleen intro als de stream < 5 min geleden startte
 const IN_MS = 700;                 // duur van het inschuiven (== CSS-transition)
-const HOUD_MS = 4000;              // hoe lang de intro blijft staan
+const HOUD_MS = 9300;              // hoe lang de intro blijft staan (~10s inclusief inschuiven)
 
 const params = new URLSearchParams(location.search);
 const TAFEL = Number(params.get('table')) || null;
