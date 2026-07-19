@@ -158,17 +158,26 @@
   }
   .pnum { font-size: 120px; line-height: 1; color: var(--rand, #888); text-shadow: 0 4px 20px rgba(0,0,0,0.6); }
 
-  /* Laserstralen: dunne gekleurde balken die vanuit het midden sweepen (screen-blend). */
+  /* Laserstralen: dunne gekleurde balken die vanuit de twee bovenhoeken de zaal in
+     sweepen (screen-blend). Links-boven waaiert naar rechtsonder, rechts-boven naar
+     linksonder. */
   .lasers { position: absolute; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; }
   .lasers[hidden] { display: none; }
   .lasers .beam {
-    position: absolute; left: 50%; top: 42%; width: 1600px; height: 5px; transform-origin: left center;
+    position: absolute; top: 0; width: 2100px; height: 5px;
     mix-blend-mode: screen; opacity: 0.55; border-radius: 3px;
-    background: linear-gradient(90deg, var(--laser, #cc0000) 0%, rgba(0,0,0,0) 78%);
     filter: blur(0.5px) drop-shadow(0 0 8px var(--laser, #cc0000));
     animation: sweep var(--dur, 7s) ease-in-out infinite alternate;
   }
-  @keyframes sweep { from { transform: rotate(var(--van, -35deg)); } to { transform: rotate(var(--tot, 35deg)); } }
+  .lasers .beam.links {
+    left: 0; transform-origin: left center;
+    background: linear-gradient(90deg, var(--laser, #cc0000) 0%, rgba(0,0,0,0) 78%);
+  }
+  .lasers .beam.rechts {
+    right: 0; transform-origin: right center;
+    background: linear-gradient(270deg, var(--laser, #cc0000) 0%, rgba(0,0,0,0) 78%);
+  }
+  @keyframes sweep { from { transform: rotate(var(--van, 15deg)); } to { transform: rotate(var(--tot, 60deg)); } }
 
   .confetti { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
   .confetti[hidden] { display: none; }
@@ -186,11 +195,14 @@
 
   <!-- Podium-eindscherm (winnaar-moment #54): laserstralen achter, podium in het midden, confetti ervoor. -->
   <div class="lasers" id="lasers" hidden>
-    <span class="beam" style="--laser:#cc0000; --van:-42deg; --tot:20deg; --dur:6.5s"></span>
-    <span class="beam" style="--laser:#f4c430; --van:-18deg; --tot:44deg; --dur:8s"></span>
-    <span class="beam" style="--laser:#19c3ff; --van:-52deg; --tot:8deg; --dur:7.2s"></span>
-    <span class="beam" style="--laser:#ff2fd0; --van:6deg;  --tot:56deg; --dur:9s"></span>
-    <span class="beam" style="--laser:#38ff8e; --van:-30deg; --tot:34deg; --dur:7.8s"></span>
+    <!-- Linksboven → waaiert naar rechtsonder (positieve hoeken). -->
+    <span class="beam links"  style="--laser:#cc0000; --van:12deg; --tot:40deg; --dur:6.5s"></span>
+    <span class="beam links"  style="--laser:#f4c430; --van:26deg; --tot:56deg; --dur:8s"></span>
+    <span class="beam links"  style="--laser:#19c3ff; --van:44deg; --tot:74deg; --dur:7.2s"></span>
+    <!-- Rechtsboven → waaiert naar linksonder (negatieve hoeken). -->
+    <span class="beam rechts" style="--laser:#ff2fd0; --van:-12deg; --tot:-40deg; --dur:9s"></span>
+    <span class="beam rechts" style="--laser:#38ff8e; --van:-26deg; --tot:-56deg; --dur:7.8s"></span>
+    <span class="beam rechts" style="--laser:#f4c430; --van:-44deg; --tot:-74deg; --dur:6.8s"></span>
   </div>
   <div class="podium" id="podium" hidden>
     <div class="podiumTitel"><span class="groot">🏆 Uitslag</span><span class="sub" id="podiumSub"></span></div>
