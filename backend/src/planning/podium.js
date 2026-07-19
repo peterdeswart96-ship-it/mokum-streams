@@ -49,23 +49,32 @@ function podiumVan(tournament) {
   ];
 }
 
-// Kiest het podium dat de zaal (het pauzescherm) nu moet tonen. Regels:
-//   - Speelt er nog IEMAND in de zaal (over alle toernooien)? → null (geen podium
-//     midden in het spel; het tafelraster blijft).
-//   - Anders: het laatste afgeronde toernooi mét een gespeelde finale → zijn podium.
-// Zo verschijnt het medaillescherm precies na de finale (niemand meer aan tafel) en
-// verdwijnt het zodra een volgende wedstrijd begint.
-function podiumVoorZaal(tournaments) {
+// Kiest het podium dat de gestreamde tafels nu moeten tonen. Kijkt UITSLUITEND naar de
+// cameratafels — losse challenges of wedstrijden op niet-gefilmde tafels zijn niet
+// relevant (besluit 19-07). Regels:
+//   - Speelt er nog een wedstrijd op een CAMERATAFEL? → null (toernooi nog bezig; de
+//     spelende tafels tonen hun kaart, idle cameratafels tonen het pauzescherm).
+//   - Anders: het laatste afgeronde toernooi dat op een cameratafel werd gespeeld en een
+//     gespeelde finale heeft → zijn podium.
+// Zo verschijnt het medaillescherm precies zodra de finale klaar is en geen cameratafel
+// meer speelt, ongeacht wat er elders in de zaal gebeurt.
+function podiumVoorZaal(tournaments, cameraTables) {
   const lijst = tournaments || [];
-  const speeltIemand = lijst.some((t) =>
-    ((t && t.matches) || []).some((m) => String((m && m.status) || '').toLowerCase() === 'playing')
+  const cams = (cameraTables || []).map(Number);
+  const opCamera = (m) => cams.includes(Number(m && m.table));
+
+  const cameraSpeelt = lijst.some((t) =>
+    ((t && t.matches) || []).some((m) => String((m && m.status) || '').toLowerCase() === 'playing' && opCamera(m))
   );
-  if (speeltIemand) return null;
+  if (cameraSpeelt) return null;
 
   let keuze = null;
   for (const t of lijst) {
     const p = podiumVan(t);
-    if (p) keuze = { tournamentName: (t && t.name) || '', podium: p }; // laatste in de lijst wint
+    if (!p) continue;
+    // Alleen toernooien die daadwerkelijk op een cameratafel gespeeld werden.
+    const gefilmd = ((t && t.matches) || []).some(opCamera);
+    if (gefilmd) keuze = { tournamentName: (t && t.name) || '', podium: p }; // laatste wint
   }
   return keuze;
 }

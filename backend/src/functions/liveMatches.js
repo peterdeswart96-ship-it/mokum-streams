@@ -30,9 +30,10 @@ async function verwerk(now, context) {
   // venueTables = zaalbreed raster (alle tafels met een wedstrijd) voor het eigen
   // Mokum-tafelraster in het pauzescherm (#54).
   const venueTables = bouwZaalRaster(tournaments);
-  // podium = medaillescherm van een net-afgerond toernooi (winnaar-moment #54); null
-  // zolang er nog gespeeld wordt of geen finale gespeeld is.
-  const podium = podiumVoorZaal(tournaments);
+  // podium = medaillescherm van een net-afgerond toernooi (winnaar-moment #54); kijkt
+  // alleen naar de cameratafels. null zolang een cameratafel nog speelt of geen finale
+  // gespeeld is.
+  const podium = podiumVoorZaal(tournaments, cameras);
   await writeJson('live-matches.json', { updatedAt: now.toISOString(), matches, venueLive, venueTables, podium });
   const live = Object.values(matches).filter((m) => m && m.status === 'playing').length;
   context.log(`[liveMatches] bijgewerkt — ${live}/${cameras.length} tafels live · ${venueLive} in de zaal`);

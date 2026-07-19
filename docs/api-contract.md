@@ -441,9 +441,10 @@ Body:
   **`positie`** (1|2|3), **`medaille`** (`'goud'|'zilver'|'brons'`) en **`speler`**
   `{ name, image, flag }` (foto-/vlag-URL uit Cuescore, mogelijk `null`). Afgeleid uit de
   wedstrijden: winnaar Finale = 1e, verliezer Finale = 2e, beide halvefinale-verliezers =
-  gedeeld 3e (`podiumVan`). De zaalkeuze (`podiumVoorZaal`) toont het podium **alleen als er
-  NIEMAND meer speelt** in de zaal (toernooi afgelopen) én er een afgerond toernooi met finale
-  is — bij meerdere de laatste. Gevoed door de `liveMatches`-timer (`live-matches.json`), `null`
-  tot die draait of zolang er nog gespeeld wordt. Het pauzescherm (jumbotron-overlay) toont bij
+  gedeeld 3e (`podiumVan`). De keuze (`podiumVoorZaal`) kijkt **uitsluitend naar de cameratafels**
+  (besluit 19-07): het podium verschijnt zodra **geen cameratafel meer speelt** én er een
+  afgerond, gefilmd toernooi met gespeelde finale is — losse challenges/niet-camera­tafels tellen
+  niet mee; bij meerdere de laatste. Gevoed door de `liveMatches`-timer (`live-matches.json`),
+  `null` tot die draait of zolang een cameratafel nog speelt. Het pauzescherm (jumbotron-overlay) toont bij
   een niet-lege `podium` een medaillescherm met de spelersfoto's + confetti/laser (finalewinnaar
   extra) i.p.v. het roterende tafelraster.

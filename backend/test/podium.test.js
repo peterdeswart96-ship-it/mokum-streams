@@ -52,22 +52,39 @@ test('podiumVan: finale zonder halve finales geeft alleen 1e + 2e', () => {
   assert.strictEqual(p[1].speler.name, 'Bob');
 });
 
-test('podiumVoorZaal: toont niets zolang er nog iemand speelt', () => {
-  const afgerond = { name: 'A', matches: [match('Final', 'finished', 'Anna', 5, 'Bob', 3)] };
-  const bezig = { name: 'B', matches: [match('Round 1', 'playing', 'X', 1, 'Y', 0)] };
-  assert.strictEqual(podiumVoorZaal([afgerond, bezig]), null);
+// Helper: zet een match op een tafelnummer (voor de camera-scoped tests).
+function opTafel(m, nr) { return { ...m, table: String(nr) }; }
+const CAMS = [1, 3, 15, 16];
+
+test('podiumVoorZaal: toont niets zolang een CAMERATAFEL nog speelt', () => {
+  const afgerond = { name: 'A', matches: [opTafel(match('Final', 'finished', 'Anna', 5, 'Bob', 3), 1)] };
+  const bezig = { name: 'B', matches: [opTafel(match('Round 1', 'playing', 'X', 1, 'Y', 0), 3)] };
+  assert.strictEqual(podiumVoorZaal([afgerond, bezig], CAMS), null);
 });
 
-test('podiumVoorZaal: geen speler meer → podium van het (laatste) afgeronde toernooi', () => {
-  const t1 = { name: 'Eerste', matches: [match('Final', 'finished', 'Anna', 5, 'Bob', 3)] };
-  const t2 = { name: 'Tweede', matches: [match('Final', 'finished', 'Cindy', 6, 'Dave', 2)] };
-  const uit = podiumVoorZaal([t1, t2]);
+test('podiumVoorZaal: challenge op een NIET-cameratafel blokkeert het podium niet', () => {
+  const toernooi = { name: 'Toernooi', matches: [opTafel(match('Final', 'finished', 'Anna', 5, 'Bob', 3), 1)] };
+  const challenge = { name: 'Challenge', matches: [opTafel(match('Challenge', 'playing', 'X', 1, 'Y', 0), 8)] };
+  const uit = podiumVoorZaal([toernooi, challenge], CAMS);
+  assert.strictEqual(uit.tournamentName, 'Toernooi');
+  assert.strictEqual(uit.podium[0].speler.name, 'Anna');
+});
+
+test('podiumVoorZaal: geen cameratafel meer bezig → podium van het (laatste) gefilmde toernooi', () => {
+  const t1 = { name: 'Eerste', matches: [opTafel(match('Final', 'finished', 'Anna', 5, 'Bob', 3), 1)] };
+  const t2 = { name: 'Tweede', matches: [opTafel(match('Final', 'finished', 'Cindy', 6, 'Dave', 2), 3)] };
+  const uit = podiumVoorZaal([t1, t2], CAMS);
   assert.strictEqual(uit.tournamentName, 'Tweede'); // laatste in de lijst wint
   assert.strictEqual(uit.podium[0].speler.name, 'Cindy');
 });
 
-test('podiumVoorZaal: niemand speelt maar geen finale gespeeld → null', () => {
-  const t = { name: 'A', matches: [match('Semi final', 'finished', 'Anna', 4, 'Bob', 1)] };
-  assert.strictEqual(podiumVoorZaal([t]), null);
-  assert.strictEqual(podiumVoorZaal([]), null);
+test('podiumVoorZaal: afgerond toernooi zonder cameratafel-wedstrijd → null', () => {
+  const t = { name: 'A', matches: [opTafel(match('Final', 'finished', 'Anna', 5, 'Bob', 3), 8)] };
+  assert.strictEqual(podiumVoorZaal([t], CAMS), null);
+});
+
+test('podiumVoorZaal: geen cameratafel bezig maar geen finale gespeeld → null', () => {
+  const t = { name: 'A', matches: [opTafel(match('Semi final', 'finished', 'Anna', 4, 'Bob', 1), 1)] };
+  assert.strictEqual(podiumVoorZaal([t], CAMS), null);
+  assert.strictEqual(podiumVoorZaal([], CAMS), null);
 });
