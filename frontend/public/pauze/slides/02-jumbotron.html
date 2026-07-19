@@ -106,13 +106,6 @@
   .curtain .right { right: 0; transform: translateX(100%); }    /* open = uit beeld rechts */
   .curtain.dicht .left  { transform: translateX(0); }
   .curtain.dicht .right { transform: translateX(0); }
-  /* Gouden bies aan de sluitende rand, voor de theater-look. */
-  .curtain .left::after, .curtain .right::after {
-    content: ''; position: absolute; top: 0; bottom: 0; width: 6px;
-    background: linear-gradient(180deg, #f4d488, #b8860b);
-  }
-  .curtain .left::after  { right: 0; }
-  .curtain .right::after { left: 0; }
 
   @media (prefers-reduced-motion: reduce) { .card.in, .card.out, .curtain .panel { animation: none; transition: none; } }
 </style>
