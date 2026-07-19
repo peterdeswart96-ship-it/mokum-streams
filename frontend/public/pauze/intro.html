@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>Toernooi-intro</title>
+<!-- Transparante start-overlay (#58): lower-third met toernooinaam + datum, ~5s bij de
+     start van een stream. Los toevoegen als OBS Browser-bron per tafel:
+     .../pauze/intro.html?table=<nr>  (transparant, dus composit over de camera).
+     Zelf-triggerend: pollt /api/live, ziet de tafel vers live gaan en speelt eenmalig
+     de animatie. ?demo (of geen ?table) = preview die zich herhaalt. -->
+<style>
+  html, body {
+    margin: 0; padding: 0; width: 1920px; height: 1080px; overflow: hidden;
+    background: transparent; color: #fff; font-family: 'Arial Black', Arial, sans-serif;
+  }
+
+  /* Lower-third: schuift van links in, boven de scorebord-zone (bottom ~150px). */
+  .lower {
+    position: absolute; left: 0; bottom: 150px; display: flex; align-items: stretch;
+    transform: translateX(-120%);
+    transition: transform 0.7s cubic-bezier(0.22, 0.9, 0.3, 1);
+    filter: drop-shadow(0 22px 55px rgba(0,0,0,0.6));
+  }
+  .lower.aan { transform: translateX(0); }
+
+  .stripe { width: 16px; background: #cc0000; border-radius: 0 4px 4px 0; }
+  .inhoud {
+    background: rgba(8,8,8,0.86); border: 1px solid rgba(255,255,255,0.1); border-left: none;
+    border-radius: 0 14px 14px 0; padding: 26px 64px 30px 40px; max-width: 1500px;
+  }
+
+  .eyebrow {
+    display: flex; align-items: center; gap: 16px;
+    font-family: Arial, sans-serif; font-weight: bold; font-size: 26px; letter-spacing: 5px;
+    text-transform: uppercase; color: rgba(255,255,255,0.85);
+  }
+  .eyebrow img { height: 36px; width: auto; display: block; }
+
+  .naam {
+    font-size: 64px; line-height: 1.05; margin-top: 12px;
+    max-width: 1400px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .datum {
+    font-family: Arial, sans-serif; font-weight: bold; font-size: 30px; letter-spacing: 1px;
+    color: #f4c430; margin-top: 10px; text-transform: capitalize;
+  }
+
+  @media (prefers-reduced-motion: reduce) { .lower { transition: none; } }
+</style>
+</head>
+<body>
+  <div class="lower" id="lower">
+    <div class="stripe"></div>
+    <div class="inhoud">
+      <div class="eyebrow"><img src="../mokum-logo.png" alt="" onerror="this.style.display='none'">Mokum Pool &amp; Darts</div>
+      <div class="naam" id="introNaam">Toernooinaam</div>
+      <div class="datum" id="introDatum">datum</div>
+    </div>
+  </div>
+
+<script>
+const APP_API = 'https://mokum-streams-func.azurewebsites.net';
+const POLL_MS = 4000;              // hoe vaak we /api/live checken
+const MAX_LEEFTIJD_MS = 5 * 60000; // alleen intro als de stream < 5 min geleden startte
+const IN_MS = 700;                 // duur van het inschuiven (== CSS-transition)
+const HOUD_MS = 4000;              // hoe lang de intro blijft staan
+
+const params = new URLSearchParams(location.search);
+const TAFEL = Number(params.get('table')) || null;
+// Zonder ?table (of met ?demo/?test): preview-modus die zich herhaalt.
+const DEMO = params.has('demo') || params.has('test') || !TAFEL;
+
+const lower = document.getElementById('lower');
+const wacht = (ms) => new Promise((r) => setTimeout(r, ms));
+let bezig = false;
+const getoond = new Set(); // videoId's waarvoor de intro al speelde (voorkomt herhaling)
+
+// ISO → "zaterdag 19 juli 2026" (zaal-tijdzone). Leeg bij onbekend.
+function datumTekst(iso) {
+  const d = new Date(iso || '');
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('nl-NL', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Amsterdam',
+  });
+}
+
+async function speelIntro(naam, iso) {
+  if (bezig) return;
+  bezig = true;
+  document.getElementById('introNaam').textContent = naam || 'Mokum Pool & Darts';
+  document.getElementById('introDatum').textContent = datumTekst(iso);
+  lower.classList.add('aan');                 // inschuiven
+  await wacht(IN_MS + HOUD_MS);
+  lower.classList.remove('aan');              // uitschuiven
+  await wacht(IN_MS);
+  bezig = false;
+}
+
+async function poll() {
+  try {
+    const r = await fetch(`${APP_API}/api/live`, { cache: 'no-store' });
+    const d = await r.json();
+    const t = (d.tables || []).find((x) => Number(x.tableNumber) === TAFEL);
+    if (!t || t.status !== 'live' || !t.videoId || getoond.has(t.videoId)) return;
+    // Alleen bij een VERSE start: oude streams (of een OBS-bronherlading midden in de
+    // stream) niet opnieuw introduceren.
+    const start = Date.parse(t.scheduledStart || '');
+    getoond.add(t.videoId);
+    if (!Number.isNaN(start) && Date.now() - start > MAX_LEEFTIJD_MS) return;
+    speelIntro(t.tournamentName || t.title || '', t.scheduledStart);
+  } catch (e) { /* netwerkfout → stil overslaan */ }
+}
+
+if (DEMO) {
+  // Preview: meteen en daarna herhalen, zodat je de animatie in de browser kunt bekijken.
+  const naam = params.get('titel') || 'MEGA Ranking i.s.m. Buffalo #22 ½';
+  const iso = params.get('datum') || new Date().toISOString();
+  const lus = async () => { await speelIntro(naam, iso); await wacht(3000); lus(); };
+  lus();
+} else {
+  poll();
+  setInterval(poll, POLL_MS);
+}
+</script>
+</body>
+</html>
