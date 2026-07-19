@@ -3,7 +3,7 @@ const { readJson, writeJson } = require('../storage/blob');
 const { getTodaysTournaments } = require('../cuescore');
 const { enqueue, OVERLAY_BRON } = require('../agent/commandQueue');
 const { tafelSpeeltNu, volgendeToestand, pauzeCommandos } = require('../planning/pauze');
-const { isPauzeAutoOn, pauzeSchermKeys } = require('../config/automation');
+const { isPauzeAutoOn, pauzeSchermKeys, pauzeSchermUitKeys } = require('../config/automation');
 
 // Timer-Function: automatisch pauzescherm (A auto-trigger, zie docs/pauzescherm-auto.md).
 // Per streamende tafel checkt 'ie via Cuescore of er een wedstrijd loopt; zo niet
@@ -40,7 +40,8 @@ async function verwerk(now, context) {
 
   const store = (await readJson(STATE_PAD, {})) || {};
   const nowMs = now.getTime();
-  const pauzeKeys = pauzeSchermKeys();
+  const pauzeKeys = pauzeSchermKeys();      // aan tijdens pauze (bijv. jumbotron)
+  const pauzeUitKeys = pauzeSchermUitKeys(); // aan tijdens spelen, uit bij pauze (bijv. scoreboard)
   const commands = [];
 
   for (const tn of streamend) {
@@ -51,11 +52,13 @@ async function verwerk(now, context) {
 
     if (res.veranderd) {
       const toonPauze = res.toestand === 'pauze';
-      const cmds = pauzeCommandos(tn, toonPauze, OVERLAY_BRON, pauzeKeys).map((c) => ({
-        id: crypto.randomUUID(),
-        createdAt: now.toISOString(),
-        ...c,
-      }));
+      // Pauze-overlays (jumbotron) AAN tijdens pauze; inverse-overlays (scoreboard) juist
+      // UIT tijdens pauze en AAN tijdens spelen — zodat een oud toernooi niet blijft hangen.
+      const rauw = [
+        ...pauzeCommandos(tn, toonPauze, OVERLAY_BRON, pauzeKeys),
+        ...pauzeCommandos(tn, !toonPauze, OVERLAY_BRON, pauzeUitKeys),
+      ];
+      const cmds = rauw.map((c) => ({ id: crypto.randomUUID(), createdAt: now.toISOString(), ...c }));
       commands.push(...cmds);
       context.log(`[pauzeScherm] tafel ${tn} → ${res.toestand} (pauzescherm ${toonPauze ? 'AAN' : 'uit'})`);
     }

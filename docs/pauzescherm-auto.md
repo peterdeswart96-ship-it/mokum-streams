@@ -108,9 +108,18 @@ alleen de tekstmelding.
 De app-setting `PAUZESCHERM_KEYS` (komma-gescheiden) overschrijft de standaard zonder
 redeploy:
 - **niet gezet / leeg** → `pauzemelding` (huidige situatie, schoon, geen venster)
-- **`jumbotron,pauzemelding`** → beide (pas doen als #54 een eigen, venster-vrij raster levert)
+- **`jumbotron`** → de eigen jumbotron-overlay (#54, huidige productie-instelling)
 
 Onbekende sleutels worden stil overgeslagen (`pauzeCommandos` filtert op `OVERLAY_BRON`).
+
+### Inverse: overlays uit tijdens een pauze (`PAUZESCHERM_UIT`)
+Sommige overlays moeten juist **aan tijdens spelen** en **uit bij een pauze/idle**. Het
+**Cuescore-scoreboard** (`scoreboard`) toont namelijk de laatste wedstrijd op een tafel
+en blijft daardoor een **oud/afgelopen toernooi** tonen zolang er geen nieuwe wedstrijd
+op die tafel staat (#54). Met de app-setting **`PAUZESCHERM_UIT`** (komma-gescheiden)
+worden die overlays bij een pauze uitgezet en bij spelen weer aan:
+- **niet gezet / leeg** → geen inverse toggling (standaard)
+- **`scoreboard`** → scorebord uit zodra er geen live wedstrijd is → geen oud toernooi in beeld
 
 ## Beslissingen (vastgelegd 11-07)
 - Architectuur: **Optie 2 (backend-side)** — gekozen.

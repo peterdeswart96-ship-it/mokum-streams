@@ -34,4 +34,15 @@ function pauzeSchermKeys() {
   return keys.length ? keys : ['pauzemelding'];
 }
 
-module.exports = { isArmed, isPauzeAutoOn, pauzeSchermKeys };
+// Inverse van pauzeSchermKeys: overlays die tijdens SPELEN aan moeten en bij een
+// pauze/idle UIT — bijv. het Cuescore-scoreboard, dat anders een oud/afgelopen
+// toernooi blijft tonen zolang er geen nieuwe wedstrijd op de tafel staat (#54).
+// Komma-gescheiden app-setting PAUZESCHERM_UIT; standaard leeg (geen inverse
+// toggling) tot 'ie expliciet gezet wordt.
+function pauzeSchermUitKeys() {
+  const raw = String(process.env.PAUZESCHERM_UIT || '').trim();
+  if (!raw) return [];
+  return raw.split(',').map((k) => k.trim()).filter(Boolean);
+}
+
+module.exports = { isArmed, isPauzeAutoOn, pauzeSchermKeys, pauzeSchermUitKeys };

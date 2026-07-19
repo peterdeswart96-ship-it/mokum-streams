@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { isArmed, pauzeSchermKeys } = require('../src/config/automation');
+const { isArmed, pauzeSchermKeys, pauzeSchermUitKeys } = require('../src/config/automation');
 
 test('isArmed: standaard UIT als AUTOMATION_ARMED niet gezet is', () => {
   delete process.env.AUTOMATION_ARMED;
@@ -40,4 +40,20 @@ test('pauzeSchermKeys: leeg/whitespace valt terug op de standaard', () => {
     assert.deepStrictEqual(pauzeSchermKeys(), ['pauzemelding'], `verwacht default bij "${v}"`);
   }
   delete process.env.PAUZESCHERM_KEYS;
+});
+
+test('pauzeSchermUitKeys: standaard leeg (geen inverse toggling)', () => {
+  delete process.env.PAUZESCHERM_UIT;
+  assert.deepStrictEqual(pauzeSchermUitKeys(), []);
+  process.env.PAUZESCHERM_UIT = '  ,  ';
+  assert.deepStrictEqual(pauzeSchermUitKeys(), []);
+  delete process.env.PAUZESCHERM_UIT;
+});
+
+test('pauzeSchermUitKeys: komma-lijst geparsed (bijv. scoreboard)', () => {
+  process.env.PAUZESCHERM_UIT = 'scoreboard';
+  assert.deepStrictEqual(pauzeSchermUitKeys(), ['scoreboard']);
+  process.env.PAUZESCHERM_UIT = 'scoreboard, sponsors';
+  assert.deepStrictEqual(pauzeSchermUitKeys(), ['scoreboard', 'sponsors']);
+  delete process.env.PAUZESCHERM_UIT;
 });
