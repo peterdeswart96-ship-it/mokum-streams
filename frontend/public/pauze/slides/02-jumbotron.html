@@ -225,8 +225,12 @@ setInterval(ververs, REFRESH_MS);
 setInterval(volgende, CARD_MS);
 
 // --- Promo-poster met theatergordijn-overgang (#54) ---
-const POSTER_INTERVAL_MS = 120000; // elke 2 minuten even de poster
-const POSTER_DUUR_MS = 20000;      // 20s tonen
+// Test-stand: met ?test (of ?snel) in de URL komt de poster al na een paar seconden,
+// zodat je de overgang in OBS kunt testen zonder 2 minuten te wachten. De gewone URL
+// blijft 120s / 20s (productie).
+const TEST = /[?&](test|snel)\b/.test(location.search);
+const POSTER_INTERVAL_MS = TEST ? 18000 : 120000; // elke 2 min (test: 18s)
+const POSTER_DUUR_MS = TEST ? 8000 : 20000;        // 20s tonen (test: 8s)
 const GORDIJN_MS = 1000;           // duur van dicht-/openschuiven (== CSS-transition)
 let posterBezig = false;
 const wacht = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -254,6 +258,8 @@ let posterBeschikbaar = false;
 posterImg.addEventListener('load', () => { posterBeschikbaar = true; });
 posterImg.addEventListener('error', () => { posterBeschikbaar = false; });
 setInterval(() => { if (!posterBezig && posterBeschikbaar) toonPoster(); }, POSTER_INTERVAL_MS);
+// In de test-stand meteen na een paar seconden een eerste keer, zodat je 'm snel ziet.
+if (TEST) setTimeout(() => { if (posterBeschikbaar) toonPoster(); }, 6000);
 </script>
 </body>
 </html>
