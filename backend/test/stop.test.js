@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { shouldStop } = require('../src/planning/stop');
+const { shouldStop, toernooiKlaar } = require('../src/planning/stop');
 
 const NOW = new Date('2026-07-14T21:00:00Z');
 
@@ -59,4 +59,49 @@ test('shouldStop: enkeldaags stopt als de finale gespeeld is en de tafel geen we
     { table: '1', start: '2026-07-14T20:00:00Z', status: 'finished', roundName: 'Halve finale' },
   ] };
   assert.strictEqual(shouldStop(entry, { type: 'tournament' }, tGeenFinale, NOW2), false);
+});
+
+// --- Podium-grace (#54/#57): na de finale eerst het medaillescherm ~1 min tonen ---
+const GRACE = 60 * 1000;
+const NOW3 = new Date('2026-07-14T22:00:00Z');
+const finaleKlaar = { finished: true };
+
+test('shouldStop met grace: klaar maar nog niet gestempeld → nog niet stoppen', () => {
+  const entry = { tableNumber: 1, tournamentId: 1 }; // geen finaleKlaarSinds
+  assert.strictEqual(shouldStop(entry, { type: 'tournament' }, finaleKlaar, NOW3, { graceMs: GRACE }), false);
+});
+
+test('shouldStop met grace: gestempeld < 1 min geleden → nog niet stoppen (podium blijft)', () => {
+  const entry = { tableNumber: 1, tournamentId: 1, finaleKlaarSinds: '2026-07-14T21:59:30Z' }; // 30s geleden
+  assert.strictEqual(shouldStop(entry, { type: 'tournament' }, finaleKlaar, NOW3, { graceMs: GRACE }), false);
+});
+
+test('shouldStop met grace: gestempeld >= 1 min geleden → stoppen', () => {
+  const entry = { tableNumber: 1, tournamentId: 1, finaleKlaarSinds: '2026-07-14T21:58:30Z' }; // 90s geleden
+  assert.strictEqual(shouldStop(entry, { type: 'tournament' }, finaleKlaar, NOW3, { graceMs: GRACE }), true);
+});
+
+test('shouldStop met grace: plannedStop-noodrem blijft direct (zonder grace)', () => {
+  const entry = { tableNumber: 1, tournamentId: 1 }; // niet gestempeld
+  const rec = { type: 'tournament', plannedStop: '2026-07-14T21:59:00Z' }; // voorbij
+  assert.strictEqual(shouldStop(entry, rec, { finished: false }, NOW3, { graceMs: GRACE }), true);
+});
+
+test('shouldStop met grace: competitie stopt direct (geen podium-grace)', () => {
+  const entry = { tableNumber: 1, tournamentId: 9 };
+  const rec = { type: 'competition', tafels: [1] };
+  const alleKlaar = { matches: [{ table: '1', start: '2026-07-14T18:00:00Z', status: 'finished' }] };
+  assert.strictEqual(shouldStop(entry, rec, alleKlaar, NOW3, { graceMs: GRACE }), true);
+});
+
+test('toernooiKlaar: Finished óf finale-gespeeld-zonder-restwedstrijd', () => {
+  const entry = { tableNumber: 1 };
+  assert.strictEqual(toernooiKlaar(entry, { finished: true }, NOW3), true);
+  assert.strictEqual(toernooiKlaar(entry, { finished: false, matches: [
+    { table: '1', status: 'finished', roundName: 'Final' },
+  ] }, NOW3), true);
+  assert.strictEqual(toernooiKlaar(entry, { finished: false, matches: [
+    { table: '1', status: 'finished', roundName: 'Semi final' },
+  ] }, NOW3), false);
+  assert.strictEqual(toernooiKlaar(entry, null, NOW3), false);
 });
