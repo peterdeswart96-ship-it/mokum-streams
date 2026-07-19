@@ -56,3 +56,26 @@ test('mergePlanning behoudt handmatige keuzes en ververst Cuescore-velden', () =
   const adhoc = merged.find((r) => r.tournamentId === 'adhoc-x');
   assert.ok(adhoc, 'ad-hoc record blijft behouden');
 });
+
+test('planningStatus: concept / gepland / live / klaar / geannuleerd', () => {
+  const { planningStatus } = require('../src/planning/planning');
+  const vandaag = '2026-07-19';
+  const rec = (o) => ({ tournamentId: 't1', planned: true, plannedStart: '2026-07-19T18:00:00Z', ...o });
+
+  // concept
+  assert.strictEqual(planningStatus(rec({ planned: false }), {}, vandaag), 'concept');
+  // geannuleerd wint
+  assert.strictEqual(planningStatus(rec({ geannuleerd: true }), {}, vandaag), 'geannuleerd');
+  // gepland (ingepland, nog geen broadcast, vandaag/toekomst)
+  assert.strictEqual(planningStatus(rec({}), {}, vandaag), 'gepland');
+  // live: een niet-gestopte broadcast van dit toernooi in de dag-store
+  const storeLive = { 1: { tournamentId: 't1', stopped: false }, 3: { tournamentId: 't1', stopped: true } };
+  assert.strictEqual(planningStatus(rec({}), storeLive, vandaag), 'live');
+  // klaar: broadcasts bestonden maar allemaal gestopt
+  const storeKlaar = { 1: { tournamentId: 't1', stopped: true } };
+  assert.strictEqual(planningStatus(rec({}), storeKlaar, vandaag), 'klaar');
+  // klaar: dag voorbij, geen broadcasts (meer) in de store van vandaag
+  assert.strictEqual(planningStatus(rec({ plannedStart: '2026-07-18T18:00:00Z' }), {}, vandaag), 'klaar');
+  // broadcast van een ánder toernooi telt niet mee
+  assert.strictEqual(planningStatus(rec({}), { 1: { tournamentId: 'anders', stopped: false } }, vandaag), 'gepland');
+});

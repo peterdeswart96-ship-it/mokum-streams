@@ -1,8 +1,9 @@
 const { app } = require('@azure/functions');
 const { readJson, writeJson } = require('../storage/blob');
-const { STANDAARD_DEFAULTS } = require('../planning/planning');
+const { STANDAARD_DEFAULTS, planningStatus } = require('../planning/planning');
 const { updatePlanningRecord, mergeDefaults } = require('../admin/planningStore');
 const { isAdmin } = require('../admin/auth');
+const { zaalDelen } = require('../schedule/schedule');
 
 // Admin-HTTP-endpoints voor het dashboard (auth vereist, zie api-contract v0.5).
 // Deze functies doen alleen lezen/schrijven van de Blob-JSON; de validatie- en
@@ -38,7 +39,12 @@ app.http('adminPlanningList', {
   handler: async (request) => {
     if (!isAdmin(request)) return unauthorized();
     const items = (await readJson('planning.json', [])) || [];
-    return json(200, { items });
+    // Verrijk met de lifecycle-status (Concept/Gepland/Live/Klaar/Geannuleerd) o.b.v. de
+    // broadcast-stand van vandaag — voor de statusweergave in de Toernooi planner (#42 fase 4).
+    const { datum } = zaalDelen(new Date());
+    const store = (await readJson(`broadcasts/${datum}.json`, {})) || {};
+    const verrijkt = items.map((r) => ({ ...r, status: planningStatus(r, store, datum) }));
+    return json(200, { items: verrijkt });
   },
 });
 

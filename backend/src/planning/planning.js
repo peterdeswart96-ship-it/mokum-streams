@@ -59,6 +59,28 @@ function dueRecords(records, now, opts) {
   return (records || []).filter((r) => planningDue(r, now, opts));
 }
 
+// Lifecycle-status van een planning-record voor de Toernooi planner (#42 fase 4).
+// Puur: kijkt naar de record-vlaggen + de broadcast-stand van vandaag (per tafel,
+// broadcasts/<datum>.json) + de datum.
+//   'geannuleerd' → expliciet geannuleerd
+//   'concept'     → nog niet ingepland (planned=false)
+//   'live'        → er draait nu een (niet-gestopte) broadcast van dit toernooi
+//   'klaar'       → broadcasts bestonden maar zijn gestopt, of de dag is voorbij
+//   'gepland'     → ingepland, nog niet gestart
+function planningStatus(record, todayStore, vandaagDatum) {
+  if (!record) return 'concept';
+  if (record.geannuleerd) return 'geannuleerd';
+  if (!record.planned) return 'concept';
+  const entries = Object.values(todayStore || {}).filter(
+    (e) => e && String(e.tournamentId) === String(record.tournamentId)
+  );
+  if (entries.some((e) => !e.stopped)) return 'live';
+  if (entries.length) return 'klaar';
+  const startDatum = afgeleideDatum(effectiveStart(record));
+  if (startDatum && vandaagDatum && startDatum < vandaagDatum) return 'klaar';
+  return 'gepland';
+}
+
 // Maakt een nieuw planning-record voor een geïmporteerd toernooi met de defaults.
 function defaultRecord(tournament, defaults = STANDAARD_DEFAULTS) {
   const ov = defaults.overlays || {};
@@ -128,4 +150,5 @@ module.exports = {
   dueRecords,
   defaultRecord,
   mergePlanning,
+  planningStatus,
 };

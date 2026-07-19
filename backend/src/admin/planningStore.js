@@ -3,7 +3,7 @@
 // van de Blob-JSON en roepen deze functies aan.
 
 // Velden die het dashboard aan een planning-record mag wijzigen.
-const TOEGESTAAN = ['enabled', 'startOverride', 'stopOverride', 'preRollMinuten', 'tafels', 'overlays', 'visibility', 'planned'];
+const TOEGESTAAN = ['enabled', 'startOverride', 'stopOverride', 'preRollMinuten', 'tafels', 'overlays', 'visibility', 'planned', 'geannuleerd'];
 
 // Geldige YouTube-zichtbaarheden; onbekende waarde valt terug op 'public'.
 const ZICHTBAARHEDEN = ['public', 'unlisted', 'private'];
@@ -40,6 +40,7 @@ function applyPlanningPatch(record, patch) {
     else if (k === 'overlays') uit.overlays = normaliseerOverlays(patch.overlays, record.overlays);
     else if (k === 'enabled') uit.enabled = !!patch.enabled;
     else if (k === 'planned') uit.planned = !!patch.planned;
+    else if (k === 'geannuleerd') uit.geannuleerd = !!patch.geannuleerd;
     else if (k === 'visibility') uit.visibility = normaliseerVisibility(patch.visibility);
     else if (k === 'preRollMinuten') uit.preRollMinuten = normaliseerPreRoll(patch.preRollMinuten);
     else uit[k] = patch[k] === null || patch[k] === '' ? null : String(patch[k]); // start/stopOverride

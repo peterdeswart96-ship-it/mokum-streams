@@ -129,6 +129,20 @@ function Badge({ status }) {
   return <span className={`text-xs px-2 py-0.5 rounded border ${map[status] || map.offline}`}>{label}</span>;
 }
 
+// Lifecycle-status van een toernooi in de planner (#42 fase 4): berekend door de
+// backend (planningStatus) uit de broadcast-stand. Bron: r.status uit /api/manage/planning.
+function PlannerStatus({ status }) {
+  const map = {
+    concept:     { t: 'Concept',     c: 'text-ink-muted' },
+    gepland:     { t: '● Gepland',   c: 'text-emerald-400' },
+    live:        { t: '● LIVE',      c: 'text-brand-light font-medium' },
+    klaar:       { t: '✓ Klaar',     c: 'text-neutral-400' },
+    geannuleerd: { t: 'Geannuleerd', c: 'text-neutral-500 line-through' },
+  };
+  const s = map[status] || map.concept;
+  return <span className={`text-xs whitespace-nowrap ${s.c}`}>{s.t}</span>;
+}
+
 // Zichtbaarheid van een lopende stream (uit YouTube) + uitleg-tooltip.
 const VIS_INFO = {
   public: { label: '🌐 Openbaar', tip: 'Openbaar — iedereen kan de stream vinden en bekijken (verschijnt ook op Mokum Live).' },
@@ -634,7 +648,10 @@ function ToernooiPlanner({ onGepland }) {
                 <tbody>
                   {records.map((r) => {
                     const cur = huidig(r);
-                    const gepland = !!r.planned;
+                    // Status uit de backend (concept/gepland/live/klaar/geannuleerd); val terug
+                    // op planned-vlag als de backend 'm (nog) niet meestuurt.
+                    const status = r.status || (r.planned ? 'gepland' : 'concept');
+                    const gepland = status !== 'concept'; // velden op slot zodra ingepland
                     return (
                       <tr key={r.tournamentId} className="border-b border-line/50">
                         <td className={cell}><span className="whitespace-nowrap">{datumLabel(r.date)}</span></td>
@@ -659,16 +676,16 @@ function ToernooiPlanner({ onGepland }) {
                             {OVERLAY_PRESETS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
                           </select>
                         </td>
+                        <td className={cell}><PlannerStatus status={status} /></td>
                         <td className={cell}>
-                          {gepland
-                            ? <span className="text-emerald-400 text-xs font-medium whitespace-nowrap">● Gepland</span>
-                            : <span className="text-ink-muted text-xs">Concept</span>}
-                        </td>
-                        <td className={cell}>
-                          {gepland
-                            ? <button onClick={() => annuleer(r)} disabled={bezig} className="text-xs text-brand-light underline disabled:opacity-50">Annuleren</button>
-                            : <button onClick={() => setConfirm(r)} disabled={bezig || cur.tafels.length === 0}
-                                      className="bg-brand hover:bg-brand-dark text-white rounded px-2.5 py-1 text-xs font-medium disabled:opacity-50">Plan</button>}
+                          {status === 'concept' && (
+                            <button onClick={() => setConfirm(r)} disabled={bezig || cur.tafels.length === 0}
+                                    className="bg-brand hover:bg-brand-dark text-white rounded px-2.5 py-1 text-xs font-medium disabled:opacity-50">Plan</button>
+                          )}
+                          {status === 'gepland' && (
+                            <button onClick={() => annuleer(r)} disabled={bezig} className="text-xs text-brand-light underline disabled:opacity-50">Annuleren</button>
+                          )}
+                          {status === 'live' && <span className="text-xs text-ink-muted">loopt…</span>}
                         </td>
                       </tr>
                     );
