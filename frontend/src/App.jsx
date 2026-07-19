@@ -350,6 +350,16 @@ function TableCard({ table, onStop, onOverlay, onPreview, busy }) {
 }
 
 // ── Start-wizard ───────────────────────────────────────────────────────────
+// Genummerd stap-bolletje met hover-uitleg in de nieuwe-stream-wizard.
+function Stap({ n, uitleg }) {
+  return (
+    <span title={uitleg}
+      className="inline-flex items-center justify-center w-5 h-5 shrink-0 rounded-full bg-brand text-white text-[11px] font-bold cursor-help">
+      {n}
+    </span>
+  );
+}
+
 function Wizard({ onClose, onStarted }) {
   const [tafel, setTafel] = useState(CAMERAS[0]);
   const [titel, setTitel] = useState('');
@@ -357,6 +367,29 @@ function Wizard({ onClose, onStarted }) {
   const [ov, setOv] = useState(standaardOverlays);
   const [bezig, setBezig] = useState(false);
   const [fout, setFout] = useState('');
+  const [toernooien, setToernooien] = useState([]); // aankomende Cuescore-toernooien voor de dropdown
+  const [gekozen, setGekozen] = useState('');        // geselecteerd tournamentId in de dropdown
+
+  // Aankomende toernooien uit de planning (Cuescore-import) — zelfde bron als de planner.
+  useEffect(() => {
+    getPlanning().then((d) => {
+      const drempel = Date.now() - 12 * 3600 * 1000; // vandaag telt nog mee
+      const lijst = (d.items || [])
+        .filter((r) => (r.type || 'tournament') !== 'competition' && r.name)
+        .filter((r) => {
+          const t = Date.parse(r.plannedStart || `${r.date}T00:00:00Z`);
+          return !Number.isNaN(t) && t >= drempel;
+        })
+        .sort((a, b) => String(a.plannedStart || a.date).localeCompare(String(b.plannedStart || b.date)))
+        .slice(0, 15);
+      setToernooien(lijst);
+    }).catch(() => setToernooien([]));
+  }, []);
+
+  const kopieerToernooi = () => {
+    const t = toernooien.find((x) => String(x.tournamentId) === gekozen);
+    if (t) setTitel(t.name);
+  };
 
   async function start() {
     setBezig(true); setFout('');
@@ -369,22 +402,40 @@ function Wizard({ onClose, onStarted }) {
     }
   }
 
+  const lbl = 'flex items-center gap-2 text-sm font-medium mb-1';
+
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-10">
-      <div className="bg-surface text-ink border border-line rounded-lg shadow-2xl w-full max-w-md p-6">
+      <div className="bg-surface text-ink border border-line rounded-lg shadow-2xl w-full max-w-md p-6 max-h-[92vh] overflow-y-auto">
         <h2 className="text-lg font-display mb-4">Nieuwe stream starten</h2>
-        <label className="block text-sm font-medium mb-1">Tafel</label>
+
+        <label className={lbl}><Stap n={1} uitleg="Kies de cameratafel waarop je wil streamen (1, 3, 15 of 16)." />Tafel</label>
         <select value={tafel} onChange={(e) => setTafel(Number(e.target.value))}
                 className="w-full bg-canvas border border-line rounded px-3 py-2 mb-3 text-ink">
           {CAMERAS.map((n) => <option key={n} value={n}>Tafel {n}</option>)}
         </select>
 
-        <label className="block text-sm font-medium mb-1">YouTube-titel</label>
+        <label className={lbl}><Stap n={2} uitleg="Snel de juiste titel: kies een aankomend Cuescore-toernooi en kopieer de naam, of gebruik het challenge-sjabloon voor een losse wedstrijd." />Titel snel invullen</label>
+        <div className="flex gap-2 mb-1.5">
+          <select value={gekozen} onChange={(e) => setGekozen(e.target.value)}
+                  className="flex-1 min-w-0 bg-canvas border border-line rounded px-2 py-2 text-ink text-sm">
+            <option value="">{toernooien.length ? '— kies een toernooi —' : '— geen komende toernooien —'}</option>
+            {toernooien.map((t) => (
+              <option key={t.tournamentId} value={String(t.tournamentId)}>{datumLabel(t.date)} · {t.name}</option>
+            ))}
+          </select>
+          <button type="button" onClick={kopieerToernooi} disabled={!gekozen}
+                  className="shrink-0 border border-line text-ink-muted hover:text-ink rounded px-3 py-2 text-sm disabled:opacity-40">Kopieer naam</button>
+        </div>
+        <button type="button" onClick={() => setTitel('Challenge match [NAAM] vs [NAAM]')}
+                className="text-xs text-brand-light underline mb-3">of: Challenge match-sjabloon</button>
+
+        <label className={lbl}><Stap n={3} uitleg="De YouTube-titel. 'Tafel {nr}' komt er automatisch voor — vul hier de rest in (of gebruik stap 2)." />YouTube-titel</label>
         <input value={titel} onChange={(e) => setTitel(e.target.value)} placeholder="bijv. Fluke ranking 9ball #22"
                className="w-full bg-canvas border border-line rounded px-3 py-2 mb-1 text-ink placeholder:text-neutral-500" />
         <p className="text-xs text-neutral-500 mb-3">Wordt: <span className="font-mono">Tafel {tafel} {titel}</span></p>
 
-        <label className="block text-sm font-medium mb-1">Zichtbaarheid</label>
+        <label className={lbl}><Stap n={4} uitleg="Wie de stream kan zien: Openbaar (iedereen, ook op Mokum Live), Verborgen (alleen met de link), Privé (alleen jij)." />Zichtbaarheid</label>
         <div className="flex gap-2 mb-3">
           {['unlisted', 'public', 'private'].map((p) => (
             <button key={p} onClick={() => setPrivacy(p)}
@@ -396,7 +447,7 @@ function Wizard({ onClose, onStarted }) {
           ))}
         </div>
 
-        <label className="block text-sm font-medium mb-1">Overlays</label>
+        <label className={lbl}><Stap n={5} uitleg="Welke overlays in beeld staan: de roterende sponsors en/of het Cuescore-scorebord." />Overlays</label>
         <div className="flex flex-wrap gap-2 mb-4">
           {CONTENT_OVERLAYS.map((o) => (
             <Toggle key={o.key} on={!!ov[o.key]} label={o.label} title={`${o.desc} — ${o.pos}`}
@@ -406,7 +457,8 @@ function Wizard({ onClose, onStarted }) {
 
         {fout && <p className="text-sm text-brand-light bg-brand/10 border border-brand/40 rounded p-2 mb-3">{fout}</p>}
 
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <Stap n={6} uitleg="Start de stream op de gekozen tafel met deze instellingen — of annuleer." />
           <button onClick={onClose} className="flex-1 border border-line text-ink rounded px-4 py-2">Annuleren</button>
           <button disabled={bezig} onClick={start}
                   className="flex-1 bg-brand hover:bg-brand-dark text-white rounded px-4 py-2 font-medium disabled:opacity-40">
