@@ -435,3 +435,15 @@ Body:
   pauze-automatiek stuurt dit bij **elke play/pauze-omslag** voor de bronnen in de nieuwe
   app-setting **`PAUZESCHERM_REFRESH`** (komma-gescheiden, standaard leeg; zet op `scoreboard`).
   Een oudere agent die het type niet kent, dropt het commando netjes (geen fout).
+- 2026-07-19: v0.33 — **podium-eindscherm in `GET /api/live`** (#54, winnaar-moment).
+  `GET /api/live` krijgt een top-level veld **`podium`**: `null` als er niks te tonen is,
+  anders `{ tournamentName, podium: [ { positie, medaille, speler } ] }`. Elke plek:
+  **`positie`** (1|2|3), **`medaille`** (`'goud'|'zilver'|'brons'`) en **`speler`**
+  `{ name, image, flag }` (foto-/vlag-URL uit Cuescore, mogelijk `null`). Afgeleid uit de
+  wedstrijden: winnaar Finale = 1e, verliezer Finale = 2e, beide halvefinale-verliezers =
+  gedeeld 3e (`podiumVan`). De zaalkeuze (`podiumVoorZaal`) toont het podium **alleen als er
+  NIEMAND meer speelt** in de zaal (toernooi afgelopen) én er een afgerond toernooi met finale
+  is — bij meerdere de laatste. Gevoed door de `liveMatches`-timer (`live-matches.json`), `null`
+  tot die draait of zolang er nog gespeeld wordt. Het pauzescherm (jumbotron-overlay) toont bij
+  een niet-lege `podium` een medaillescherm met de spelersfoto's + confetti/laser (finalewinnaar
+  extra) i.p.v. het roterende tafelraster.

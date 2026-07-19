@@ -37,10 +37,13 @@ app.http('publicLive', {
     // venueTables = zaalbreed raster (alle tafels met een wedstrijd) voor het eigen
     // Mokum-tafelraster in het pauzescherm (#54). Leeg tot de liveMatches-timer draait.
     const venueTables = Array.isArray(liveMatches.venueTables) ? liveMatches.venueTables : [];
+    // podium = medaillescherm van een net-afgerond toernooi (winnaar-moment #54), of null.
+    const podium = liveMatches.podium || null;
     return json(200, {
       generatedAt: now.toISOString(),
       venueLive,
       venueTables,
+      podium,
       agent,
       tables: buildLiveTables(cameras, store, status, liveMatches, liveVideos),
     });

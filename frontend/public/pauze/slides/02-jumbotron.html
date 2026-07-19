@@ -107,13 +107,97 @@
   .curtain.dicht .left  { transform: translateX(0); }
   .curtain.dicht .right { transform: translateX(0); }
 
-  @media (prefers-reduced-motion: reduce) { .card.in, .card.out, .curtain .panel { animation: none; transition: none; } }
+  /* ============ Podium-eindscherm (winnaar-moment #54) ============ */
+  .podium {
+    position: absolute; inset: 0; z-index: 2;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 30px; padding: 50px 40px;
+  }
+  .podium[hidden] { display: none; }
+  .podiumTitel { text-align: center; text-shadow: 0 4px 24px rgba(0,0,0,0.85); }
+  .podiumTitel .groot { font-size: 78px; line-height: 1; letter-spacing: 1px; }
+  .podiumTitel .sub {
+    display: block; margin-top: 14px; font-family: Arial, sans-serif; font-weight: bold;
+    font-size: 30px; color: #f4c430; text-transform: uppercase; letter-spacing: 4px;
+  }
+
+  .podiumRij { display: flex; align-items: flex-end; justify-content: center; gap: 46px; }
+  .plek { display: flex; flex-direction: column; align-items: center; width: 300px; position: relative; }
+  .kroon { font-size: 66px; line-height: 1; margin-bottom: 6px; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.6)); animation: zweef 2.6s ease-in-out infinite; }
+  @keyframes zweef { 0%,100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-12px) rotate(4deg); } }
+
+  .pfoto {
+    width: 160px; height: 160px; border-radius: 50%; object-fit: cover;
+    border: 6px solid var(--rand, #888); background: #2a3542;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+  }
+  .plek.winner .pfoto {
+    width: 200px; height: 200px;
+    box-shadow: 0 0 70px rgba(244,196,48,0.75), 0 12px 40px rgba(0,0,0,0.6);
+    animation: gloed 2.2s ease-in-out infinite;
+  }
+  @keyframes gloed {
+    0%,100% { box-shadow: 0 0 60px rgba(244,196,48,0.6), 0 12px 40px rgba(0,0,0,0.6); }
+    50% { box-shadow: 0 0 100px rgba(244,196,48,0.95), 0 12px 40px rgba(0,0,0,0.6); }
+  }
+  .pnaam {
+    margin-top: 18px; font-size: 34px; max-width: 290px; text-align: center;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .plek.winner .pnaam { font-size: 40px; color: #f7d55a; }
+  .pvlag {
+    width: 46px; height: 31px; margin-top: 10px; object-fit: cover; border-radius: 3px;
+    border: 1px solid rgba(255,255,255,0.35); box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  }
+  .podest {
+    margin-top: 22px; width: 100%;
+    background: linear-gradient(180deg, #1a2740, #0c1322);
+    border: 1px solid rgba(255,255,255,0.1); border-top: 5px solid var(--rand, #888);
+    border-radius: 10px 10px 0 0; box-shadow: inset 0 8px 30px rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .pnum { font-size: 120px; line-height: 1; color: var(--rand, #888); text-shadow: 0 4px 20px rgba(0,0,0,0.6); }
+
+  /* Laserstralen: dunne gekleurde balken die vanuit het midden sweepen (screen-blend). */
+  .lasers { position: absolute; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; }
+  .lasers[hidden] { display: none; }
+  .lasers .beam {
+    position: absolute; left: 50%; top: 42%; width: 1600px; height: 5px; transform-origin: left center;
+    mix-blend-mode: screen; opacity: 0.55; border-radius: 3px;
+    background: linear-gradient(90deg, var(--laser, #cc0000) 0%, rgba(0,0,0,0) 78%);
+    filter: blur(0.5px) drop-shadow(0 0 8px var(--laser, #cc0000));
+    animation: sweep var(--dur, 7s) ease-in-out infinite alternate;
+  }
+  @keyframes sweep { from { transform: rotate(var(--van, -35deg)); } to { transform: rotate(var(--tot, 35deg)); } }
+
+  .confetti { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+  .confetti[hidden] { display: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card.in, .card.out, .curtain .panel { animation: none; transition: none; }
+    .kroon, .plek.winner .pfoto, .lasers .beam { animation: none; }
+  }
 </style>
 </head>
 <body>
   <div class="bg"></div>
   <div class="stage" id="stage"></div>
   <div id="leeg" hidden>Op dit moment geen live wedstrijden</div>
+
+  <!-- Podium-eindscherm (winnaar-moment #54): laserstralen achter, podium in het midden, confetti ervoor. -->
+  <div class="lasers" id="lasers" hidden>
+    <span class="beam" style="--laser:#cc0000; --van:-42deg; --tot:20deg; --dur:6.5s"></span>
+    <span class="beam" style="--laser:#f4c430; --van:-18deg; --tot:44deg; --dur:8s"></span>
+    <span class="beam" style="--laser:#19c3ff; --van:-52deg; --tot:8deg; --dur:7.2s"></span>
+    <span class="beam" style="--laser:#ff2fd0; --van:6deg;  --tot:56deg; --dur:9s"></span>
+    <span class="beam" style="--laser:#38ff8e; --van:-30deg; --tot:34deg; --dur:7.8s"></span>
+  </div>
+  <div class="podium" id="podium" hidden>
+    <div class="podiumTitel"><span class="groot">🏆 Uitslag</span><span class="sub" id="podiumSub"></span></div>
+    <div class="podiumRij" id="podiumRij"></div>
+  </div>
+  <canvas class="confetti" id="confetti" width="1920" height="1080" hidden></canvas>
+
   <div class="poster" id="poster" hidden><img src="../img/poster-10ball.png" alt="Mokum 10-ball Summer Break"></div>
   <div class="curtain" id="curtain"><div class="panel left"></div><div class="panel right"></div></div>
 
@@ -178,7 +262,7 @@ function toon(t) {
 
 // Volgende live tafel tonen (rouleren). Bij 0 → "geen live wedstrijden".
 function volgende() {
-  if (posterBezig) return; // tijdens de poster niet rouleren (gebeurt achter het gordijn)
+  if (posterBezig || podiumActief) return; // niet rouleren achter de poster of het podium
   const leeg = document.getElementById('leeg');
   const stage = document.getElementById('stage');
   if (!liveTafels.length) {
@@ -214,15 +298,159 @@ async function ververs() {
       leegTeller += 1;
       if (leegTeller >= 2) liveTafels = [];
     }
+    // Podium (winnaar-moment): in demo-modus altijd de demo, anders wat de backend geeft.
+    updatePodium(DEMO ? demoPodium : (d.podium || null));
   } catch (e) {
     /* netwerkfout → vorige beeld laten staan */
   }
+}
+
+// ============ Podium-eindscherm (winnaar-moment #54) ============
+// Toont na de finale (niemand meer aan tafel) een medaillescherm met de Cuescore-
+// spelersfoto's, confetti en laserstralen. Winnaar (1e) krijgt extra: kroon + gouden
+// gloed + gouden confetti. Demo-modus met ?demo of ?podium (voor OBS-test / aan Mark
+// laten zien) toont een voorbeeldpodium met echte foto's.
+const DEMO = /[?&](demo|podium)\b/.test(location.search);
+const demoPodium = {
+  tournamentName: 'Mokum 8 & 10ball Ranking (10ball) #19',
+  podium: [
+    { positie: 1, medaille: 'goud',   speler: { name: 'Umut Sarkas', image: 'https://img.cuescore.com/image/d/4/ddf09df16c439b742ce1ec3dda06f0de.png?t=1781888546', flag: 'https://cuescore.com/img/flags/png-country-4x2-none/res-640x480/nl.png' } },
+    { positie: 2, medaille: 'zilver', speler: { name: 'Danny Bast',  image: 'https://img.cuescore.com/image/8/4/84d07f5dcd663a4c69840f57aa5828b1.png?t=1731743668', flag: 'https://cuescore.com/img/flags/png-country-4x2-none/res-640x480/nl.png' } },
+    { positie: 3, medaille: 'brons',  speler: { name: 'Jun Torres',  image: 'https://img.cuescore.com/image/8/4/862c792ba8eb7f97e626fbe6cbcc59f6.png', flag: 'https://cuescore.com/img/flags/png-country-4x2-none/res-640x480/nl.png' } },
+    { positie: 3, medaille: 'brons',  speler: { name: 'Mattias B',   image: 'https://img.cuescore.com/image/f/4/fb0490ea3bdaba5c7989a41d7f710d8f.png?t=1743937005', flag: 'https://cuescore.com/img/flags/png-country-4x2-none/res-640x480/nl.png' } },
+  ],
+};
+
+const MEDAILLE = {
+  goud:   { kleur: '#f4c430', hoogte: 250 },
+  zilver: { kleur: '#cbd5e1', hoogte: 190 },
+  brons:  { kleur: '#cd7f32', hoogte: 140 },
+};
+
+let podiumActief = false;
+let vorigePodiumSleutel = null; // om niet elke 15s opnieuw te renderen/confetti te herstarten
+
+function plekHtml(p) {
+  const m = MEDAILLE[p.medaille] || MEDAILLE.brons;
+  const s = p.speler || {};
+  const foto = s.image
+    ? `<img class="pfoto" src="${esc(s.image)}" alt="" onerror="this.removeAttribute('src')">`
+    : '<span class="pfoto"></span>';
+  const vlag = s.flag ? `<img class="pvlag" src="${esc(s.flag)}" alt="">` : '';
+  const kroon = p.positie === 1 ? '<div class="kroon">👑</div>' : '';
+  return `
+    <div class="plek ${esc(p.medaille)}${p.positie === 1 ? ' winner' : ''}" style="--rand:${m.kleur}">
+      ${kroon}${foto}
+      <div class="pnaam">${esc(s.name || '—')}</div>${vlag}
+      <div class="podest" style="height:${m.hoogte}px"><span class="pnum">${esc(p.positie)}</span></div>
+    </div>`;
+}
+
+function renderPodium(data) {
+  const lijst = (data && data.podium) || [];
+  const goud = lijst.find((x) => x.positie === 1);
+  const zilver = lijst.find((x) => x.positie === 2);
+  const brons = lijst.filter((x) => x.positie === 3);
+  // Volgorde: zilver links, goud in het midden, brons rechts (klassiek podium).
+  const volgorde = [zilver, goud, ...brons].filter(Boolean);
+  document.getElementById('podiumRij').innerHTML = volgorde.map(plekHtml).join('');
+  document.getElementById('podiumSub').textContent = (data && data.tournamentName) || '';
+}
+
+function updatePodium(data) {
+  const heeft = !!(data && Array.isArray(data.podium) && data.podium.length);
+  const podium = document.getElementById('podium');
+  const lasers = document.getElementById('lasers');
+  const canvas = document.getElementById('confetti');
+
+  if (!heeft) {
+    if (podiumActief) { // net afgelopen → alles opruimen
+      podiumActief = false;
+      podium.hidden = true; lasers.hidden = true; canvas.hidden = true;
+      stopConfetti();
+      document.getElementById('stage').innerHTML = ''; huidigeKey = null;
+      vorigePodiumSleutel = null;
+    }
+    return;
+  }
+
+  // Sleutel = namen + posities; alleen bij een echte wijziging opnieuw opbouwen.
+  const sleutel = data.podium.map((p) => `${p.positie}:${(p.speler && p.speler.name) || ''}`).join('|');
+  if (podiumActief && sleutel === vorigePodiumSleutel) return;
+  vorigePodiumSleutel = sleutel;
+
+  podiumActief = true;
+  renderPodium(data);
+  document.getElementById('leeg').hidden = true;
+  document.getElementById('stage').innerHTML = ''; huidigeKey = null; // tafelkaarten weg
+  podium.hidden = false; lasers.hidden = false; canvas.hidden = false;
+  startConfetti();
+}
+
+// --- Confetti (canvas) ---
+const cvs = document.getElementById('confetti');
+const cctx = cvs.getContext('2d');
+const CONFETTI_KLEUREN = ['#cc0000', '#f4c430', '#ffffff', '#19c3ff', '#38ff8e', '#ff2fd0'];
+let deeltjes = [];
+let confettiRaf = null;
+let confettiBurstTimer = null;
+
+function voegConfettiToe(aantal, gouden) {
+  for (let i = 0; i < aantal; i++) {
+    deeltjes.push({
+      x: Math.random() * cvs.width,
+      y: -20 - Math.random() * 200,
+      vx: (Math.random() - 0.5) * 3,
+      vy: 3 + Math.random() * 4,
+      rot: Math.random() * Math.PI,
+      vr: (Math.random() - 0.5) * 0.3,
+      grootte: 7 + Math.random() * 8,
+      kleur: gouden ? (Math.random() < 0.7 ? '#f4c430' : '#ffffff') : CONFETTI_KLEUREN[(Math.random() * CONFETTI_KLEUREN.length) | 0],
+    });
+  }
+}
+
+function confettiFrame() {
+  cctx.clearRect(0, 0, cvs.width, cvs.height);
+  for (const p of deeltjes) {
+    p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.vy += 0.04; // lichte zwaartekracht
+    cctx.save();
+    cctx.translate(p.x, p.y); cctx.rotate(p.rot);
+    cctx.fillStyle = p.kleur;
+    cctx.fillRect(-p.grootte / 2, -p.grootte / 2, p.grootte, p.grootte * 0.6);
+    cctx.restore();
+  }
+  deeltjes = deeltjes.filter((p) => p.y < cvs.height + 30);
+  confettiRaf = podiumActief ? requestAnimationFrame(confettiFrame) : null;
+}
+
+function startConfetti() {
+  voegConfettiToe(160, false);      // openingsknal
+  voegConfettiToe(80, true);        // extra goud voor de winnaar
+  if (!confettiRaf) confettiFrame();
+  // Elke paar seconden een nieuwe (kleinere) golf zodat het een minuut feestelijk blijft.
+  clearInterval(confettiBurstTimer);
+  confettiBurstTimer = setInterval(() => {
+    if (!podiumActief) return;
+    voegConfettiToe(50, false);
+    voegConfettiToe(24, true);
+  }, 2600);
+}
+
+function stopConfetti() {
+  clearInterval(confettiBurstTimer); confettiBurstTimer = null;
+  deeltjes = [];
+  if (confettiRaf) { cancelAnimationFrame(confettiRaf); confettiRaf = null; }
+  cctx.clearRect(0, 0, cvs.width, cvs.height);
 }
 
 // Eerste kaart meteen tonen zodra de eerste data binnen is (niet 6s wachten).
 ververs().then(volgende);
 setInterval(ververs, REFRESH_MS);
 setInterval(volgende, CARD_MS);
+
+// In demo-modus meteen tonen (niet op de eerste fetch wachten).
+if (DEMO) updatePodium(demoPodium);
 
 // --- Promo-poster met theatergordijn-overgang (#54) ---
 // Test-stand: met ?test (of ?snel) in de URL komt de poster al na een paar seconden,
@@ -257,9 +485,9 @@ const posterImg = document.querySelector('#poster img');
 let posterBeschikbaar = false;
 posterImg.addEventListener('load', () => { posterBeschikbaar = true; });
 posterImg.addEventListener('error', () => { posterBeschikbaar = false; });
-setInterval(() => { if (!posterBezig && posterBeschikbaar) toonPoster(); }, POSTER_INTERVAL_MS);
+setInterval(() => { if (!posterBezig && posterBeschikbaar && !podiumActief) toonPoster(); }, POSTER_INTERVAL_MS);
 // In de test-stand meteen na een paar seconden een eerste keer, zodat je 'm snel ziet.
-if (TEST) setTimeout(() => { if (posterBeschikbaar) toonPoster(); }, 6000);
+if (TEST) setTimeout(() => { if (posterBeschikbaar && !podiumActief) toonPoster(); }, 6000);
 </script>
 </body>
 </html>
