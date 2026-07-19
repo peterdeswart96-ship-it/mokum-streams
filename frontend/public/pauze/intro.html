@@ -16,17 +16,18 @@
 
   /* Lower-third: schuift van links in, boven de scorebord-zone (bottom ~150px). */
   .lower {
-    position: absolute; left: 0; bottom: 150px; display: flex; align-items: stretch;
-    transform: translateX(-120%);
+    position: absolute; left: 80px; bottom: 150px;
+    transform: translateX(-140%);
     transition: transform 0.7s cubic-bezier(0.22, 0.9, 0.3, 1);
-    filter: drop-shadow(0 22px 55px rgba(0,0,0,0.6));
   }
   .lower.aan { transform: translateX(0); }
 
-  .stripe { width: 16px; background: #cc0000; border-radius: 0 4px 4px 0; }
+  /* Zelfde kaart-look als de pauzescherm-kaarten (jumbotron): translucent zwart,
+     dunne witte rand, ronde hoeken, diepe slagschaduw. */
   .inhoud {
-    background: rgba(8,8,8,0.86); border: 1px solid rgba(255,255,255,0.1); border-left: none;
-    border-radius: 0 14px 14px 0; padding: 26px 64px 30px 40px; max-width: 1500px;
+    background: rgba(8,8,8,0.78); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 20px; box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+    padding: 34px 60px 38px 48px; max-width: 1500px;
   }
 
   .eyebrow {
@@ -50,7 +51,6 @@
 </head>
 <body>
   <div class="lower" id="lower">
-    <div class="stripe"></div>
     <div class="inhoud">
       <div class="eyebrow"><img src="../mokum-logo.png" alt="" onerror="this.style.display='none'">Mokum Pool &amp; Darts</div>
       <div class="naam" id="introNaam">Toernooinaam</div>
