@@ -37,3 +37,26 @@ test('shouldStop: competitie stopt als er vandaag geen niet-afgeronde wedstrijd 
   assert.strictEqual(shouldStop(entry, record, alleKlaar, NOW), true);
   assert.strictEqual(shouldStop(entry, record, nogBezig, NOW), false);
 });
+
+test('shouldStop: enkeldaags stopt als de finale gespeeld is en de tafel geen wedstrijd meer heeft', () => {
+  const NOW2 = new Date('2026-07-14T22:00:00Z');
+  const entry = { tableNumber: 1 };
+  // Finale klaar, en op tafel 1 staat geen niet-afgeronde wedstrijd meer vandaag.
+  const tFinaleKlaar = { finished: false, matches: [
+    { table: '1', start: '2026-07-14T20:00:00Z', status: 'finished', roundName: 'Final' },
+  ] };
+  assert.strictEqual(shouldStop(entry, { type: 'tournament' }, tFinaleKlaar, NOW2), true);
+
+  // Finale klaar, maar tafel 1 heeft nog een niet-afgeronde wedstrijd (bijv. brons) → NIET stoppen.
+  const tBronsLoopt = { finished: false, matches: [
+    { table: '1', start: '2026-07-14T20:00:00Z', status: 'finished', roundName: 'Final' },
+    { table: '1', start: '2026-07-14T22:30:00Z', status: 'scheduled', roundName: '3rd place' },
+  ] };
+  assert.strictEqual(shouldStop(entry, { type: 'tournament' }, tBronsLoopt, NOW2), false);
+
+  // Finale nog niet gespeeld, geen plannedStop → nog niet stoppen.
+  const tGeenFinale = { finished: false, matches: [
+    { table: '1', start: '2026-07-14T20:00:00Z', status: 'finished', roundName: 'Halve finale' },
+  ] };
+  assert.strictEqual(shouldStop(entry, { type: 'tournament' }, tGeenFinale, NOW2), false);
+});

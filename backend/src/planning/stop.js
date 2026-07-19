@@ -1,4 +1,5 @@
 const { cameraTablesWithMatchToday } = require('./league');
+const { isFinalFinished } = require('../cuescore/parse');
 
 // Pure beslislogica voor de auto-stop. Bepaalt of een lopende broadcast (één
 // entry uit broadcasts/<datum>.json) gestopt moet worden. Géén netwerk → testbaar.
@@ -37,7 +38,18 @@ function shouldStop(entry, record, tournament, now) {
   if (type === 'competition') {
     return cameraTablesWithMatchToday(tournament, [entry.tableNumber], now).length === 0;
   }
-  return tournament.finished === true;
+
+  // Enkeldaags: primair op de Cuescore-status 'Finished'.
+  if (tournament.finished === true) return true;
+  // Extra vangnet: is de FINALE gespeeld én heeft DEZE tafel geen niet-afgeronde
+  // wedstrijd meer? Dan stoppen — ook als Cuescore de status (nog) niet op 'Finished'
+  // zet. De tafel-check voorkomt dat we een tafel afkappen die zelf nog een wedstrijd
+  // heeft (bijv. een bronzen finale die na de finale doorloopt).
+  if (isFinalFinished(tournament) &&
+      cameraTablesWithMatchToday(tournament, [entry.tableNumber], now).length === 0) {
+    return true;
+  }
+  return false;
 }
 
 module.exports = { shouldStop };

@@ -149,7 +149,7 @@ function findTableMatch(tournament, tableNumber, { onlyPlaying = false } = {}) {
 
 // True als de finale-wedstrijd is afgerond (fijnere stop-trigger dan status).
 function isFinalFinished(tournament) {
-  return tournament.matches.some(
+  return ((tournament && tournament.matches) || []).some(
     (m) => FINALE_RE.test((m.roundName || '').trim()) && m.status === 'finished'
   );
 }
