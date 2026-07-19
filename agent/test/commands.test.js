@@ -21,3 +21,8 @@ test('setOverlay eist sourceName en boolean enabled', () => {
   assert.throws(() => valideerCommando({ type: 'setOverlay', tableNumber: 1, enabled: true }), /sourceName/);
   assert.throws(() => valideerCommando({ type: 'setOverlay', tableNumber: 1, sourceName: 'x' }), /enabled/);
 });
+
+test('valideerCommando: refreshSource vereist sourceName', () => {
+  assert.deepStrictEqual(valideerCommando({ type: 'refreshSource', tableNumber: 1, sourceName: 'Scoreboard' }).type, 'refreshSource');
+  assert.throws(() => valideerCommando({ type: 'refreshSource', tableNumber: 1 }), /sourceName/);
+});

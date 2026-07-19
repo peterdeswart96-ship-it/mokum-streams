@@ -112,3 +112,12 @@ test('bouwZaalRaster: lege/ongeldige invoer → lege lijst', () => {
   assert.deepStrictEqual(bouwZaalRaster(null), []);
   assert.deepStrictEqual(bouwZaalRaster([{ name: 'x', matches: [] }]), []);
 });
+
+test('refreshCommandos: bouwt refreshSource per bekende sleutel, slaat onbekende over', () => {
+  const { refreshCommandos } = require('../src/planning/pauze');
+  const bron = { scoreboard: 'Scoreboard', jumbotron: 'Jumbotron' };
+  assert.deepStrictEqual(refreshCommandos(3, bron, ['scoreboard', 'onbekend']), [
+    { type: 'refreshSource', tableNumber: 3, sourceName: 'Scoreboard' },
+  ]);
+  assert.deepStrictEqual(refreshCommandos(3, bron, []), []);
+});

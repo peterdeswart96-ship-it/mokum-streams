@@ -1,7 +1,7 @@
 // Pure logica voor de agent-commandowachtrij (opslag: commands.json). De
 // function-laag doet lezen/schrijven en id-/tijd-generatie. Géén netwerk → testbaar.
 
-const GELDIGE_TYPES = new Set(['startStream', 'stopStream', 'setOverlay']);
+const GELDIGE_TYPES = new Set(['startStream', 'stopStream', 'setOverlay', 'refreshSource']);
 
 // Standaard OBS-bronnamen voor de schakelbare overlays (zie docs/obs-standaard.md +
 // api-contract v0.9/v0.11). Content-overlays staan standaard aan; break-overlays

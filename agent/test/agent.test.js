@@ -244,3 +244,15 @@ test('runOnce: freeze-watchdog draait niet op een NIET-streamende tafel', async 
   await runOnce(config, pool, backend, { log() {} });
   assert.strictEqual(called, false); // niet streamend → geen watchdog
 });
+
+test('runOnce: refreshSource-commando → pool.refreshSource', async () => {
+  const pool = fakePool();
+  pool.refreshSource = async (t, s) => { pool.calls.push(['refresh', t, s]); };
+  const backend = {
+    async fetchCommands() { return [{ id: 'r1', type: 'refreshSource', tableNumber: 1, sourceName: 'Scoreboard' }]; },
+    async postStatus() {},
+  };
+  const config = { tables: [{ tableNumber: 1 }], backendUrl: 'x', agentToken: 'y' };
+  await runOnce(config, pool, backend, { log() {} });
+  assert.deepStrictEqual(pool.calls, [['refresh', 1, 'Scoreboard']]);
+});

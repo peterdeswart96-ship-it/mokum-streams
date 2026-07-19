@@ -132,4 +132,12 @@ function pauzeCommandos(tableNumber, toonPauze, overlayBron, keys) {
     .map((k) => ({ type: 'setOverlay', tableNumber: Number(tableNumber), sourceName: overlayBron[k], enabled: !!toonPauze }));
 }
 
-module.exports = { tafelSpeeltNu, volgendeToestand, pauzeCommandos, bouwLiveMatches, telZaalLive, bouwZaalRaster };
+// Bouwt de refreshSource-commando's om de cache van de opgegeven bronnen te verversen
+// (het Cuescore-scorebord opnieuw laten laden zodat oude toernooi-info verdwijnt).
+function refreshCommandos(tableNumber, overlayBron, keys) {
+  return (keys || [])
+    .filter((k) => overlayBron && overlayBron[k])
+    .map((k) => ({ type: 'refreshSource', tableNumber: Number(tableNumber), sourceName: overlayBron[k] }));
+}
+
+module.exports = { tafelSpeeltNu, volgendeToestand, pauzeCommandos, refreshCommandos, bouwLiveMatches, telZaalLive, bouwZaalRaster };

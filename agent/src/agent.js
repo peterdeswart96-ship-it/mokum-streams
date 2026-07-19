@@ -33,6 +33,8 @@ async function voerCommandoUit(pool, cmd) {
       return pool.stopStream(cmd.tableNumber);
     case 'setOverlay':
       return pool.setOverlay(cmd.tableNumber, cmd.sourceName, cmd.enabled);
+    case 'refreshSource':
+      return pool.refreshSource(cmd.tableNumber, cmd.sourceName);
     default:
       throw new Error(`onbekend type ${cmd.type}`);
   }

@@ -57,3 +57,12 @@ test('pauzeSchermUitKeys: komma-lijst geparsed (bijv. scoreboard)', () => {
   assert.deepStrictEqual(pauzeSchermUitKeys(), ['scoreboard', 'sponsors']);
   delete process.env.PAUZESCHERM_UIT;
 });
+
+test('pauzeSchermRefreshKeys: standaard leeg; komma-lijst geparsed', () => {
+  const { pauzeSchermRefreshKeys } = require('../src/config/automation');
+  delete process.env.PAUZESCHERM_REFRESH;
+  assert.deepStrictEqual(pauzeSchermRefreshKeys(), []);
+  process.env.PAUZESCHERM_REFRESH = 'scoreboard';
+  assert.deepStrictEqual(pauzeSchermRefreshKeys(), ['scoreboard']);
+  delete process.env.PAUZESCHERM_REFRESH;
+});

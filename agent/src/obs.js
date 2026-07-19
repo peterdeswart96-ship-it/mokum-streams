@@ -140,6 +140,14 @@ class ObsPool {
     }
   }
 
+  // Ververst de cache van een browserbron (== handmatig "Refresh cache of current page").
+  // Gebruikt om het Cuescore-scorebord opnieuw te laten laden zodat oude toernooi-info
+  // verdwijnt zodra er geen/een nieuwe wedstrijd is (#54).
+  async refreshSource(tableNumber, sourceName) {
+    const obs = await this.connect(tableNumber);
+    await obs.call('PressInputPropertiesButton', { inputName: sourceName, propertyName: 'refreshnocache' });
+  }
+
   // Idempotent: alleen stoppen als 'ie daadwerkelijk streamt.
   async stopStream(tableNumber) {
     const obs = await this.connect(tableNumber);

@@ -1,7 +1,7 @@
 // Pure validatie van agent-commando's (zie docs/api-contract.md v0.3). Géén
 // netwerk/OBS → unit-testbaar. Types: startStream | stopStream | setOverlay.
 
-const GELDIGE_TYPES = new Set(['startStream', 'stopStream', 'setOverlay']);
+const GELDIGE_TYPES = new Set(['startStream', 'stopStream', 'setOverlay', 'refreshSource']);
 
 function valideerCommando(cmd) {
   if (!cmd || typeof cmd !== 'object') throw new Error('commando is geen object');
@@ -11,6 +11,7 @@ function valideerCommando(cmd) {
     if (!cmd.sourceName) throw new Error('setOverlay vereist sourceName');
     if (typeof cmd.enabled !== 'boolean') throw new Error('setOverlay vereist enabled (boolean)');
   }
+  if (cmd.type === 'refreshSource' && !cmd.sourceName) throw new Error('refreshSource vereist sourceName');
   return cmd;
 }
 

@@ -428,3 +428,10 @@ Body:
   uitgesteld omdat de camera niet live is; `frozen` = de camera bevroor tijdens een stream
   (`recovered` geeft aan of het herstel lukte). Het dashboard toont dit als waarschuwing op de
   tafelkaart + een samenvatting bovenaan — bedoeld om onbewaakt auto-streamen observeerbaar te maken.
+- 2026-07-19: v0.31 — **nieuw agent-commando `refreshSource`** (#54). `{ type:'refreshSource',
+  tableNumber, sourceName }` — de agent drukt de "Refresh cache of current page"-knop van de
+  browserbron in (`PressInputPropertiesButton` → `refreshnocache`). Gebruikt om het
+  Cuescore-scorebord opnieuw te laten laden zodat oude toernooi-info verdwijnt. De
+  pauze-automatiek stuurt dit bij **elke play/pauze-omslag** voor de bronnen in de nieuwe
+  app-setting **`PAUZESCHERM_REFRESH`** (komma-gescheiden, standaard leeg; zet op `scoreboard`).
+  Een oudere agent die het type niet kent, dropt het commando netjes (geen fout).

@@ -45,4 +45,14 @@ function pauzeSchermUitKeys() {
   return raw.split(',').map((k) => k.trim()).filter(Boolean);
 }
 
-module.exports = { isArmed, isPauzeAutoOn, pauzeSchermKeys, pauzeSchermUitKeys };
+// Overlays die bij elke play/pauze-omslag VERVERST moeten worden (cache-refresh van de
+// browserbron), zodat het Cuescore-scorebord oude toernooi-info opruimt en fris terugkomt
+// bij de volgende wedstrijd (#54). Komma-gescheiden app-setting PAUZESCHERM_REFRESH;
+// standaard leeg.
+function pauzeSchermRefreshKeys() {
+  const raw = String(process.env.PAUZESCHERM_REFRESH || '').trim();
+  if (!raw) return [];
+  return raw.split(',').map((k) => k.trim()).filter(Boolean);
+}
+
+module.exports = { isArmed, isPauzeAutoOn, pauzeSchermKeys, pauzeSchermUitKeys, pauzeSchermRefreshKeys };

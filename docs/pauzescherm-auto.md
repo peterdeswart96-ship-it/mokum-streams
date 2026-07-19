@@ -121,6 +121,15 @@ worden die overlays bij een pauze uitgezet en bij spelen weer aan:
 - **niet gezet / leeg** → geen inverse toggling (standaard)
 - **`scoreboard`** → scorebord uit zodra er geen live wedstrijd is → geen oud toernooi in beeld
 
+### Scorebord verversen bij een omslag (`PAUZESCHERM_REFRESH`)
+Verbergen lost het beeld op tijdens de pauze, maar bij de **volgende** wedstrijd toont het
+Cuescore-scorebord soms nog de laatste (oude) wedstrijd tot het opnieuw geladen wordt.
+Met **`PAUZESCHERM_REFRESH`** (komma-gescheiden) stuurt de automatiek bij **elke
+play/pauze-omslag** een `refreshSource`-commando voor die bronnen — de agent drukt dan de
+"Refresh cache of current page"-knop in, precies wat het handmatig ook oploste. Zet op
+`scoreboard`. Vereist een agent die het `refreshSource`-commando kent (anders wordt het
+netjes gedropt).
+
 ## Beslissingen (vastgelegd 11-07)
 - Architectuur: **Optie 2 (backend-side)** — gekozen.
 - Debounce SPELEN→PAUZE: **20 s**.

@@ -2,8 +2,8 @@ const { app } = require('@azure/functions');
 const { readJson, writeJson } = require('../storage/blob');
 const { getTodaysTournaments } = require('../cuescore');
 const { enqueue, OVERLAY_BRON } = require('../agent/commandQueue');
-const { tafelSpeeltNu, volgendeToestand, pauzeCommandos } = require('../planning/pauze');
-const { isPauzeAutoOn, pauzeSchermKeys, pauzeSchermUitKeys } = require('../config/automation');
+const { tafelSpeeltNu, volgendeToestand, pauzeCommandos, refreshCommandos } = require('../planning/pauze');
+const { isPauzeAutoOn, pauzeSchermKeys, pauzeSchermUitKeys, pauzeSchermRefreshKeys } = require('../config/automation');
 
 // Timer-Function: automatisch pauzescherm (A auto-trigger, zie docs/pauzescherm-auto.md).
 // Per streamende tafel checkt 'ie via Cuescore of er een wedstrijd loopt; zo niet
@@ -40,8 +40,9 @@ async function verwerk(now, context) {
 
   const store = (await readJson(STATE_PAD, {})) || {};
   const nowMs = now.getTime();
-  const pauzeKeys = pauzeSchermKeys();      // aan tijdens pauze (bijv. jumbotron)
-  const pauzeUitKeys = pauzeSchermUitKeys(); // aan tijdens spelen, uit bij pauze (bijv. scoreboard)
+  const pauzeKeys = pauzeSchermKeys();          // aan tijdens pauze (bijv. jumbotron)
+  const pauzeUitKeys = pauzeSchermUitKeys();     // aan tijdens spelen, uit bij pauze (bijv. scoreboard)
+  const refreshKeys = pauzeSchermRefreshKeys();  // cache verversen bij elke omslag (bijv. scoreboard)
   const commands = [];
 
   for (const tn of streamend) {
@@ -57,6 +58,8 @@ async function verwerk(now, context) {
       const rauw = [
         ...pauzeCommandos(tn, toonPauze, OVERLAY_BRON, pauzeKeys),
         ...pauzeCommandos(tn, !toonPauze, OVERLAY_BRON, pauzeUitKeys),
+        // Bij elke omslag de cache van (bijv.) het scorebord verversen → geen oud toernooi.
+        ...refreshCommandos(tn, OVERLAY_BRON, refreshKeys),
       ];
       const cmds = rauw.map((c) => ({ id: crypto.randomUUID(), createdAt: now.toISOString(), ...c }));
       commands.push(...cmds);
