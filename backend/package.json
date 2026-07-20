@@ -16,6 +16,7 @@
     "@azure/identity": "^4.5.0",
     "@azure/keyvault-secrets": "^4.9.0",
     "@azure/storage-blob": "^12.25.0",
+    "@napi-rs/canvas": "^0.1.100",
     "googleapis": "^144.0.0"
   }
 }
