@@ -130,6 +130,7 @@ function normalizeTournament(data) {
     name: data.name || '',
     status: data.status || '',
     finished: data.status === 'Finished',
+    discipline: data.discipline || '', // spelsoort ("9-Ball", "10-Ball", ...) voor de thumbnail (#56)
     start: data.starttime || null, // geplande starttijd (uit Cuescore)
     stop: data.stoptime || null,   // geplande eindtijd (kan null zijn)
     matches,

@@ -1,0 +1,54 @@
+const { app } = require('@azure/functions');
+const { isAdmin } = require('../admin/auth');
+const { finaliseerToernooi, finaliseerChallenge, herstelVideo } = require('../video/finalize');
+
+// Handmatige finalize-endpoints (#56, bouwsteen 3b). Admin-beveiligd (Bearer ADMIN_TOKEN).
+// Bedoeld om de keten op ÉÉN video te testen vóór we het automatisch aanzetten. Elke
+// finalize maakt eerst een backup, dus /undo zet alles exact terug.
+//
+//  POST /api/manage/finalize        body: { videoId, tournamentId, tableNumber }        (toernooi)
+//                                     of  { videoId, spelerA, spelerB, tableNumber, spelsoort, type:'challenge' }
+//  POST /api/manage/finalize/undo   body: { videoId }
+
+const json = (status, body) => ({ status, jsonBody: body });
+
+async function leesBody(request) {
+  try { return await request.json(); } catch { return undefined; }
+}
+
+app.http('adminFinalize', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'manage/finalize',
+  handler: async (request, context) => {
+    if (!isAdmin(request)) return json(401, { error: 'niet geautoriseerd' });
+    const body = (await leesBody(request)) || {};
+    if (!body.videoId) return json(400, { error: 'videoId ontbreekt' });
+    try {
+      const res = body.type === 'challenge'
+        ? await finaliseerChallenge(body)
+        : await finaliseerToernooi(body);
+      return json(200, { ok: true, ...res });
+    } catch (e) {
+      context.log(`[finalize] fout: ${e.message}`);
+      return json(500, { ok: false, error: e.message });
+    }
+  },
+});
+
+app.http('adminFinalizeUndo', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'manage/finalize/undo',
+  handler: async (request, context) => {
+    if (!isAdmin(request)) return json(401, { error: 'niet geautoriseerd' });
+    const body = (await leesBody(request)) || {};
+    if (!body.videoId) return json(400, { error: 'videoId ontbreekt' });
+    try {
+      return json(200, { ok: true, ...(await herstelVideo(body.videoId)) });
+    } catch (e) {
+      context.log(`[finalize/undo] fout: ${e.message}`);
+      return json(500, { ok: false, error: e.message });
+    }
+  },
+});
