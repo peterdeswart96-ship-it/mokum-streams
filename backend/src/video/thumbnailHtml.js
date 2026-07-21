@@ -111,7 +111,23 @@ async function renderThumbnail(velden = {}) {
     await page.setContent(html, { waitUntil: 'load' });
     // Wacht tot de (ingebedde) webfonts geladen zijn, anders valt de render terug op een
     // systeemfont en klopt de layout niet.
-    await page.evaluate(() => (document.fonts && document.fonts.ready ? document.fonts.ready : null));
+    await page.evaluate(async () => { if (document.fonts && document.fonts.ready) await document.fonts.ready; });
+    // Titel passend maken NÁ het laden van de fonts: krimp vanaf de vaste 150px tot de titel
+    // binnen z'n vak past (hoogte én breedte). Korte namen blijven groot; lange krimpen net
+    // genoeg zodat er niets wordt afgekapt. (Deterministisch — de template doet dit niet meer.)
+    await page.evaluate(() => {
+      const t = document.querySelector('.title');
+      if (!t) return;
+      // Meet tegen het TOEGESTANE vak (max-height + eigen breedte), niet tegen de huidige
+      // box: het handschrift-font heeft hoge letters, dus scrollHeight > clientHeight is
+      // normaal en geen echte overflow. We krimpen alleen als de titel écht niet past.
+      const maxH = parseFloat(getComputedStyle(t).maxHeight) || 360;
+      let s = parseFloat(getComputedStyle(t).fontSize) || 150;
+      let guard = 60;
+      while (guard-- > 0 && s > 56 && (t.scrollHeight > maxH + 2 || t.scrollWidth > t.clientWidth + 2)) {
+        s -= 4; t.style.fontSize = `${s}px`;
+      }
+    });
     const el = await page.$('.canvas');
     const png = await (el || page).screenshot({ type: 'png', ...(el ? {} : { clip: { x: 0, y: 0, width: W, height: H } }) });
     return png;

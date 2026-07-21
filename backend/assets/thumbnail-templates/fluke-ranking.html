@@ -43,7 +43,7 @@
 .hero{position:absolute;inset:0}
 .logo{position:absolute;top:22px;right:28px;width:130px}
 .badge{position:absolute;right:180px;top:56px;background:#fff;color:#0a0a0a;font-size:30px;letter-spacing:2px;padding:8px 24px;border-radius:6px;transform:rotate(-2deg);box-shadow:0 4px 16px rgba(0,0,0,.5)}
-.titleblock{position:absolute;left:56px;top:96px;width:720px}
+.titleblock{position:absolute;left:56px;top:96px;width:660px}
 .kicker{font-size:48px;color:#fff;letter-spacing:6px;line-height:1}
 .title{font-family:'Permanent Marker','Comic Sans MS',cursive;font-size:150px;color:#cc0000;line-height:1.02;margin-top:10px;transform:rotate(-2deg);max-height:360px;overflow:hidden}
 .brushbar{width:420px;height:16px;background:#cc0000;border-radius:8px 3px 6px 2px;transform:rotate(-1.5deg);margin-top:18px}
@@ -74,6 +74,6 @@
 <div class="datepill">{{DATUM}}</div>
 <div class="marker" style="position:absolute;left:310px;bottom:64px;font-size:30px;transform:rotate(-3deg)">wekelijks!</div>
 </div>
-<script>(function(){var t=document.querySelector('.title');if(t){var s=parseFloat(getComputedStyle(t).fontSize);/* auto-verkleinen uit: vaste titel */}
+<script>(function(){var t=document.querySelector('.title');if(t){var s=parseFloat(getComputedStyle(t).fontSize);}
 var v=document.querySelector('[data-players]');if(v){var raw=v.getAttribute('data-players');if(raw&&raw.indexOf('{{')===-1){var p=raw.split(',');var a=document.querySelector('.p-a'),b=document.querySelector('.p-b');if(a&&p[0])a.textContent=p[0].trim();if(b&&p[1])b.textContent=p[1].trim()}}})();</script>
 </body></html>

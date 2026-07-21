@@ -27,6 +27,30 @@ function scriptBody(html, type) {
   return m ? m[1] : null;
 }
 
+// Huisstijl-regels die op ELKE template worden toegepast (op de schone HTML, vóór asset-
+// inlining). Zo hoeven we de losse Artifact-bundles niet te bewerken en blijft het ontwerp
+// centraal + reproduceerbaar. Aanpassen = hier één regel wijzigen, extractor opnieuw draaien.
+function huisstijl(html) {
+  // Titel groot en consistent (100→150px) + auto-verkleinen uit — we gebruiken vaste,
+  // korte titels per template, dus het meten-vóór-font-laadt-verkleinen is niet nodig.
+  html = html.replace(
+    'font-size:100px;color:#cc0000;line-height:1.04;margin-top:10px;transform:rotate(-2deg);max-height:240px',
+    'font-size:150px;color:#cc0000;line-height:1.02;margin-top:10px;transform:rotate(-2deg);max-height:360px');
+  html = html.replace(/<div class="brushbar"><\/div>/g, '');           // rode streep weg
+  html = html.replace(/while\(t\.scrollHeight>t\.clientHeight\+4&&s>40\)\{s-=4;t\.style\.fontSize=s\+'px'\}/g, '');
+  return html;
+}
+
+// Aanpassingen die maar op één template gelden.
+const PER_TEMPLATE = {
+  // Fluke: klavertje 4 + hoefijzer weg.
+  'fluke-ranking': (h) => h.replace(
+    /<div style="position:absolute;left:1090px;top:170px;transform:rotate\(12deg\)">[\s\S]*?transform:rotate\(200deg\)"><\/div>/,
+    ''),
+  // MEGA Ranking: de "I.S.M. Buffalo"-chip weg (Buffalo sponsort dit toernooi niet).
+  'mega-ranking-buffalo': (h) => h.replace(/<div class="extra">[\s\S]*?<\/div>/, ''),
+};
+
 // Zet één bundle om naar een self-contained template. Retourneert een korte rapportregel.
 function bouw(bronPad, doelPad) {
   const html = fs.readFileSync(bronPad, 'utf8');
@@ -35,6 +59,11 @@ function bouw(bronPad, doelPad) {
 
   let tpl = JSON.parse(tplRaw.trim());
   const manifest = JSON.parse(scriptBody(html, '__bundler/manifest') || '{}');
+
+  // Huisstijl + per-template aanpassingen op de schone HTML (vóór asset-inlining).
+  tpl = huisstijl(tpl);
+  const key = path.basename(doelPad).replace(/\.html$/, '');
+  if (PER_TEMPLATE[key]) tpl = PER_TEMPLATE[key](tpl);
 
   const gemist = new Set();
   let ingebed = 0;
