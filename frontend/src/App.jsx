@@ -394,7 +394,10 @@ function Wizard({ onClose, onStarted }) {
   async function start() {
     setBezig(true); setFout('');
     try {
-      await startStream({ tableNumber: tafel, title: titel, privacy, overlays: ov });
+      // Als een toernooi in stap 2 gekozen is: meesturen zodat de stream BEHEERD wordt
+      // (auto-close na de finale + automatische thumbnail/hoofdstukken). Anders ad-hoc.
+      const tournamentId = gekozen ? Number(gekozen) : undefined;
+      await startStream({ tableNumber: tafel, title: titel, privacy, overlays: ov, tournamentId });
       onStarted();
     } catch (e) {
       setFout(e.message);
@@ -428,7 +431,10 @@ function Wizard({ onClose, onStarted }) {
                   className="shrink-0 border border-line text-ink-muted hover:text-ink rounded px-3 py-2 text-sm disabled:opacity-40">Kopieer naam</button>
         </div>
         <button type="button" onClick={() => setTitel('Challenge match [NAAM] vs [NAAM]')}
-                className="text-xs text-brand-light underline mb-3">of: Challenge match-sjabloon</button>
+                className="text-xs text-brand-light underline mb-1">of: Challenge match-sjabloon</button>
+        {gekozen
+          ? <p className="text-xs mb-3" style={{ color: '#4ade80' }}>✓ Gekoppeld aan dit toernooi — sluit na de finale automatisch af (indien scherpgezet).</p>
+          : <p className="text-xs text-neutral-500 mb-3">Kies een toernooi om de stream te koppelen (auto-close + auto-thumbnail).</p>}
 
         <label className={lbl}><Stap n={3} uitleg="De YouTube-titel. 'Tafel {nr}' komt er automatisch voor — vul hier de rest in (of gebruik stap 2)." />YouTube-titel</label>
         <input value={titel} onChange={(e) => setTitel(e.target.value)} placeholder="bijv. Fluke ranking 9ball #22"

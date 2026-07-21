@@ -58,14 +58,19 @@ app.http('adminStreamStart', {
       return json(502, { error: `YouTube: ${e.message}` });
     }
 
+    // Koppel (optioneel) een Cuescore-toernooi. Met koppeling wordt de stream BEHEERD:
+    // de auto-stop (podium-grace) mag 'm sluiten na de finale en de finalize-timer zet
+    // er thumbnail + hoofdstukken op. Zonder koppeling blijft 'ie ad-hoc (handmatig sluiten).
+    const tournamentId = body.tournamentId != null && body.tournamentId !== '' ? Number(body.tournamentId) : null;
     store[String(tafelNr)] = {
       tableNumber: tafelNr,
+      tournamentId,
       tournamentName: body.title || '',
       videoId: broadcast.id,
       broadcastId: broadcast.id,
       title,
       scheduledStart: start,
-      adhoc: true,
+      adhoc: !tournamentId,
     };
     await writeJson(broadcastsPad, store);
 

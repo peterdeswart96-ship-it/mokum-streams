@@ -448,3 +448,12 @@ Body:
   `null` tot die draait of zolang een cameratafel nog speelt. Het pauzescherm (jumbotron-overlay) toont bij
   een niet-lege `podium` een medaillescherm met de spelersfoto's + confetti/laser (finalewinnaar
   extra) i.p.v. het roterende tafelraster.
+- 2026-07-21: v0.34 — **beheerde streams: toernooi koppelen bij handmatige start** (#40/#56).
+  `POST /api/manage/streams/start` accepteert optioneel **`tournamentId`** (Cuescore-id). Met
+  koppeling wordt de broadcast **beheerd** (`adhoc: false`, `tournamentId` opgeslagen): de
+  auto-stop (checkStops, podium-grace) mag 'm na de finale sluiten, en de nieuwe **finalize-timer**
+  (`finalizeVideos`, elke minuut, gated op `AUTOMATION_ARMED`) zet er automatisch de thumbnail +
+  hoofdstukken op zodra 'ie gestopt is (idempotent via `finalized`). Zonder `tournamentId` blijft
+  de stream ad-hoc (handmatig sluiten, geen finalize). De wizard stuurt het gekozen toernooi uit
+  de dropdown mee. Nieuw hulp-endpoint **`GET /api/manage/video?videoId=`** (admin) geeft
+  titel/starttijd van een video terug — om er één te identificeren vóór handmatig finaliseren.
