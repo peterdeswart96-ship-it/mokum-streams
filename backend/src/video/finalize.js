@@ -9,8 +9,9 @@ const { readJson, writeJson } = require('../storage/blob');
 const yt = require('../youtube/videos');
 const { getTournament } = require('../cuescore');
 const { bouwHoofdstukken, datumNL } = require('./hoofdstukken');
-const { spelsoortVanDiscipline, sponsorVanNaam, schoneTitel } = require('./detectie');
-const { genereerThumbnail } = require('./thumbnail');
+const { spelsoortVanDiscipline, sponsorVanNaam, schoneTitel, templateVoorToernooi, TEMPLATE_TEKST, datumThumb } = require('./detectie');
+const { genereerThumbnail } = require('./thumbnail');            // fallback (canvas)
+const { renderThumbnail, heeftTemplate } = require('./thumbnailHtml'); // per-toernooi HTML-ontwerp
 
 const BACKUP = (videoId) => `finalize-backup/${videoId}.json`;
 const INDEX = (videoId) => `video-index/${videoId}.json`; // per-wedstrijd-data voor #59
@@ -29,6 +30,35 @@ function uniekeSpelersOpTafel(tournament, tableNumber) {
     }
   }
   return seen;
+}
+
+// Kiest de per-toernooi HTML-template en rendert die naar een PNG. Valt terug op de
+// generieke canvas-thumbnail als er geen passende template is (onbekend toernooi).
+async function maakToernooiThumbnail({ naamRaw, sponsor, spelers, tableNumber, streamStart, discipline }) {
+  const templateKey = templateVoorToernooi(naamRaw);
+  if (heeftTemplate(templateKey)) {
+    const extra = TEMPLATE_TEKST[templateKey] || {};
+    // Vaste nette titel per template; anders de (van sponsor ontdane) Cuescore-naam.
+    const titel = extra.titel || (sponsor ? schoneTitel(naamRaw) : naamRaw);
+    return renderThumbnail({ templateKey, toernooinaam: titel, datum: datumThumb(streamStart), sponsor: extra.sponsor || '' });
+  }
+  return genereerThumbnail({
+    type: 'toernooi',
+    naam: sponsor ? schoneTitel(naamRaw) : naamRaw,
+    spelsoort: spelsoortVanDiscipline(discipline, naamRaw),
+    sponsor, spelers, tafel: tableNumber, datumLabel: datumNL(streamStart),
+  });
+}
+
+// Challenge-thumbnail: het VS-ontwerp (challenge-match.html), met canvas-fallback.
+async function maakChallengeThumbnail({ spelerA, spelerB, spelsoort, tableNumber, datum }) {
+  if (heeftTemplate('challenge-match')) {
+    return renderThumbnail({
+      templateKey: 'challenge-match', toernooinaam: 'Challenge',
+      spelers: `${spelerA || '?'}, ${spelerB || '?'}`, datum: datumThumb(datum),
+    });
+  }
+  return genereerThumbnail({ type: 'challenge', spelerA, spelerB, spelsoort: spelsoort || null, tafel: tableNumber, datumLabel: datumNL(datum) });
 }
 
 // Slaat het origineel op (idempotent: overschrijft een bestaande backup niet).
@@ -68,14 +98,8 @@ async function finaliseerToernooi({ videoId, tournamentId, tableNumber }, opts =
 
   const { beschrijving, hoofdstukken } = bouwHoofdstukken(streamStart, tournament, tableNumber);
 
-  const png = await genereerThumbnail({
-    type: 'toernooi',
-    naam: sponsor ? schoneTitel(naamRaw) : naamRaw,
-    spelsoort: spelsoortVanDiscipline(tournament.discipline, naamRaw),
-    sponsor,
-    spelers,
-    tafel: tableNumber,
-    datumLabel: datumNL(streamStart),
+  const png = await maakToernooiThumbnail({
+    naamRaw, sponsor, spelers, tableNumber, streamStart, discipline: tournament.discipline,
   });
 
   await yt.updateSnippetDescription(video, beschrijving);
@@ -98,10 +122,7 @@ async function finaliseerChallenge({ videoId, spelerA, spelerB, tableNumber, spe
   await maakBackup(video);
   const datum = datumISO || opts.streamStartISO || video.actualStartTime || video.scheduledStartTime;
 
-  const png = await genereerThumbnail({
-    type: 'challenge', spelerA, spelerB, spelsoort: spelsoort || null,
-    tafel: tableNumber, datumLabel: datumNL(datum),
-  });
+  const png = await maakChallengeThumbnail({ spelerA, spelerB, spelsoort, tableNumber, datum });
   const beschrijving = [
     `Challenge match — ${spelerA || '?'} vs ${spelerB || '?'} — Tafel ${tableNumber} — ${datumNL(datum)}`,
     '', 'Mokum Pool & Darts',

@@ -41,4 +41,53 @@ function schoneTitel(naam) {
   return t.replace(/\s{2,}/g, ' ').trim();
 }
 
-module.exports = { spelsoortVanDiscipline, sponsorVanNaam, schoneTitel, SPONSORS };
+// ---------- template-keuze (#56, HTML→PNG) ----------
+// Elke bekende Mokum-toernooitemplate is een apart ontwerp in assets/thumbnail-templates.
+// Deze functie kiest op basis van de toernooinaam wélke template past. null = geen match →
+// de renderer valt terug op de generieke canvas-thumbnail (thumbnail.js). Volgorde =
+// prioriteit; specifieke regels (buffalo/summer) staan bewust vóór algemene.
+function templateVoorToernooi(naam) {
+  const n = String(naam || '').toLowerCase();
+  if (n.includes('mega') && n.includes('buffalo')) return 'mega-ranking-buffalo';
+  if (n.includes('mega') && n.includes('summer')) return 'mega-summer-ranking';
+  if (/(?:8\s*(?:&|en|\/|\+|,|-)?\s*10|10\s*(?:&|en|\/|\+|,|-)?\s*8)/.test(n)) return '8-10-ball-ranking';
+  if (/14[.\-\s]?1(?!\d)/.test(n)) return '14-1-summer-league';
+  if (n.includes('fluke')) return 'fluke-ranking';
+  if (n.includes('speedy') || n.includes('multiball') || n.includes('multi ball') || n.includes('multi-ball')) return 'speedy-multi-ball';
+  if (n.includes('handicap')) return 'handicap-madness';
+  if (n.includes('blind')) return 'blind-double';
+  if (n.includes('best of one') || n.includes('best-of-one')) return 'best-of-one';
+  if (n.includes('go customs') || n.includes('customs')) return 'go-customs-amsterdam-open';
+  return null;
+}
+
+// Vaste, nette weergavetitel (en evt. sponsor-chip) per template. Zo komt de rommelige
+// Cuescore-staart (#nummer, "Seizoen X", "9ball") nooit op de thumbnail — de video-titel op
+// YouTube houdt de volledige naam. Pas hier een naam aan om de thumbnail-tekst te wijzigen.
+const TEMPLATE_TEKST = {
+  'fluke-ranking':             { titel: 'Fluke Ranking' },
+  'mega-summer-ranking':       { titel: 'MEGA Summer Ranking' },
+  'mega-ranking-buffalo':      { titel: 'MEGA Ranking' },              // Buffalo staat al als logo in de template
+  '8-10-ball-ranking':         { titel: '8 & 10ball Ranking' },
+  '14-1-summer-league':        { titel: '14.1 Summer League' },
+  'speedy-multi-ball':         { titel: 'Speedy Multiball' },
+  'handicap-madness':          { titel: 'Handicap Madness' },
+  'blind-double':              { titel: 'Blind Double' },
+  'best-of-one':               { titel: 'Best of One' },
+  'go-customs-amsterdam-open': { titel: 'Amsterdam Open', sponsor: 'GO CUSTOMS' },
+};
+
+// Korte, hoofdletter-datum voor de datumpil op de thumbnail, bv. "DI 22 JULI".
+// (De lange datumNL uit hoofdstukken.js past niet in de pil.)
+function datumThumb(iso, tz = 'Europe/Amsterdam') {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const wd = d.toLocaleDateString('nl-NL', { weekday: 'short', timeZone: tz }).replace('.', '');
+  const dm = d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', timeZone: tz });
+  return `${wd} ${dm}`.toUpperCase();
+}
+
+module.exports = {
+  spelsoortVanDiscipline, sponsorVanNaam, schoneTitel, SPONSORS,
+  templateVoorToernooi, TEMPLATE_TEKST, datumThumb,
+};

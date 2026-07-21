@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { spelsoortVanDiscipline, sponsorVanNaam, schoneTitel } = require('../src/video/detectie');
+const { spelsoortVanDiscipline, sponsorVanNaam, schoneTitel, templateVoorToernooi, datumThumb } = require('../src/video/detectie');
 
 test('spelsoortVanDiscipline: standaard disciplines', () => {
   assert.strictEqual(spelsoortVanDiscipline('9-Ball'), '9');
@@ -33,4 +33,29 @@ test('schoneTitel: strip alleen de herkende sponsor (+ evt. i.s.m.)', () => {
 
 test('schoneTitel: laat een naam zonder i.s.m. ongemoeid', () => {
   assert.strictEqual(schoneTitel('Fluke ranking 9ball Seizoen 3 #23'), 'Fluke ranking 9ball Seizoen 3 #23');
+});
+
+test('templateVoorToernooi: kiest de juiste template per (Cuescore-)naam', () => {
+  assert.strictEqual(templateVoorToernooi('MEGA Ranking i.s.m. Buffalo #22'), 'mega-ranking-buffalo');
+  assert.strictEqual(templateVoorToernooi('MEGA Summer Ranking #7'), 'mega-summer-ranking');
+  assert.strictEqual(templateVoorToernooi('Mokum 8 & 10ball Ranking (10ball) #19'), '8-10-ball-ranking');
+  assert.strictEqual(templateVoorToernooi('Mokum 8/10 ball #3'), '8-10-ball-ranking');
+  assert.strictEqual(templateVoorToernooi('14.1 Summer League #4'), '14-1-summer-league');
+  assert.strictEqual(templateVoorToernooi('Fluke ranking 9ball #23'), 'fluke-ranking');
+  assert.strictEqual(templateVoorToernooi('Speedy Multiball Sunday'), 'speedy-multi-ball');
+  assert.strictEqual(templateVoorToernooi('Handicap Madness #2'), 'handicap-madness');
+  assert.strictEqual(templateVoorToernooi('Blind Double Members'), 'blind-double');
+  assert.strictEqual(templateVoorToernooi('Best of One — alles of niets'), 'best-of-one');
+  assert.strictEqual(templateVoorToernooi('Go Customs Amsterdam Open 2026'), 'go-customs-amsterdam-open');
+});
+
+test('templateVoorToernooi: onbekend toernooi → null (canvas-fallback)', () => {
+  assert.strictEqual(templateVoorToernooi('Willekeurig Open Toernooi #1'), null);
+  assert.strictEqual(templateVoorToernooi(''), null);
+});
+
+test('datumThumb: korte hoofdletter-datum voor de datumpil', () => {
+  // 22 juli 2026 is een woensdag (Europe/Amsterdam).
+  assert.strictEqual(datumThumb('2026-07-22T19:30:00+02:00'), 'WO 22 JULI');
+  assert.strictEqual(datumThumb('geen datum'), '');
 });
