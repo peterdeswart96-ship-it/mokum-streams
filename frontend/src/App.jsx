@@ -433,7 +433,7 @@ function Wizard({ onClose, onStarted }) {
         <label className={lbl}><Stap n={3} uitleg="De YouTube-titel. 'Tafel {nr}' komt er automatisch voor — vul hier de rest in (of gebruik stap 2)." />YouTube-titel</label>
         <input value={titel} onChange={(e) => setTitel(e.target.value)} placeholder="bijv. Fluke ranking 9ball #22"
                className="w-full bg-canvas border border-line rounded px-3 py-2 mb-1 text-ink placeholder:text-neutral-500" />
-        <p className="text-xs text-neutral-500 mb-3">Wordt: <span className="font-mono">Tafel {tafel} {titel}</span></p>
+        <p className="text-xs text-neutral-500 mb-3">Wordt: <span className="font-mono">Tafel {tafel} {titel.replace(/^\s*tafel\s*\d+\s*/i, '')}</span></p>
 
         <label className={lbl}><Stap n={4} uitleg="Wie de stream kan zien: Openbaar (iedereen, ook op Mokum Live), Verborgen (alleen met de link), Privé (alleen jij)." />Zichtbaarheid</label>
         <div className="flex gap-2 mb-3">

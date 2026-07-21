@@ -13,7 +13,9 @@ function buildBroadcastTitle({ tafel, sponsor, toernooinaam }) {
   if (tafel === undefined || tafel === null || tafel === '') {
     throw new Error('tafel is verplicht voor de broadcast-titel');
   }
-  const naam = (toernooinaam || '').trim();
+  // Slot: haal een per ongeluk voorgetypte "Tafel N" vooraan weg — wij zetten 'm er zelf
+  // al voor. Anders wordt de titel dubbel ("Tafel 3 Tafel 3 ...").
+  const naam = (toernooinaam || '').trim().replace(/^tafel\s*\d+\s*/i, '');
   const sp = (sponsor || '').trim();
   const sponsorDeel = sp ? ` '${sp}'` : '';
   return `Tafel ${tafel}${sponsorDeel} ${naam}`.trim();

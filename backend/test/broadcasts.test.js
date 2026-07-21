@@ -33,6 +33,13 @@ test('ontbrekende tafel gooit een fout', () => {
   assert.throws(() => buildBroadcastTitle({ toernooinaam: 'x' }), /tafel is verplicht/);
 });
 
+test('slot: per ongeluk voorgetypte "Tafel N" wordt niet verdubbeld', () => {
+  assert.strictEqual(buildBroadcastTitle({ tafel: 3, toernooinaam: 'Tafel 3 Mokum 14.1 Summer league' }), 'Tafel 3 Mokum 14.1 Summer league');
+  assert.strictEqual(buildBroadcastTitle({ tafel: 1, toernooinaam: 'tafel1 Fluke ranking' }), 'Tafel 1 Fluke ranking');
+  // Alleen vooraan strippen — een "Tafel" midden in de naam blijft staan.
+  assert.strictEqual(buildBroadcastTitle({ tafel: 1, toernooinaam: 'Finale op Tafel 5' }), 'Tafel 1 Finale op Tafel 5');
+});
+
 test('beschrijving bevat de standen-link met UTM en de toernooinaam', () => {
   const d = buildBroadcastDescription({ toernooinaam: 'Fluke ranking' });
   assert.match(d, /Fluke ranking/);
