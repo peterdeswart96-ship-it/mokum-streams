@@ -3,7 +3,7 @@ const { isAdmin } = require('../admin/auth');
 const { readJson, writeJson } = require('../storage/blob');
 const { zaalDelen } = require('../schedule/schedule');
 const { isArmed } = require('../config/automation');
-const { finaliseerToernooi, finaliseerChallenge, herstelVideo } = require('../video/finalize');
+const { finaliseerToernooi, finaliseerChallenge, finaliseerAlleenThumbnail, herstelVideo } = require('../video/finalize');
 const { getVideoDetails } = require('../youtube/videos');
 
 // Handmatige finalize-endpoints (#56, bouwsteen 3b). Admin-beveiligd (Bearer ADMIN_TOKEN).
@@ -12,6 +12,7 @@ const { getVideoDetails } = require('../youtube/videos');
 //
 //  POST /api/manage/finalize        body: { videoId, tournamentId, tableNumber }        (toernooi)
 //                                     of  { videoId, spelerA, spelerB, tableNumber, spelsoort, type:'challenge' }
+//                                     of  { videoId, tournamentName, templateKey? }      (alleen thumbnail, geen id)
 //  POST /api/manage/finalize/undo   body: { videoId }
 
 const json = (status, body) => ({ status, jsonBody: body });
@@ -29,9 +30,12 @@ app.http('adminFinalize', {
     const body = (await leesBody(request)) || {};
     if (!body.videoId) return json(400, { error: 'videoId ontbreekt' });
     try {
+      const heeftTid = body.tournamentId != null && body.tournamentId !== '';
       const res = body.type === 'challenge'
         ? await finaliseerChallenge(body)
-        : await finaliseerToernooi(body);
+        : heeftTid
+          ? await finaliseerToernooi(body)
+          : await finaliseerAlleenThumbnail(body); // geen id → alleen thumbnail op naam
       return json(200, { ok: true, ...res });
     } catch (e) {
       context.log(`[finalize] fout: ${e.message}`);

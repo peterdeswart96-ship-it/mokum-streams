@@ -47,6 +47,9 @@ test('templateVoorToernooi: kiest de juiste template per (Cuescore-)naam', () =>
   assert.strictEqual(templateVoorToernooi('Blind Double Members'), 'blind-double');
   assert.strictEqual(templateVoorToernooi('Best of One — alles of niets'), 'best-of-one');
   assert.strictEqual(templateVoorToernooi('Go Customs Amsterdam Open 2026'), 'go-customs-amsterdam-open');
+  // "Summer Ranking" zonder "MEGA" in de naam (typefout) → toch de MEGA Summer-template:
+  assert.strictEqual(templateVoorToernooi('Mokum Summer Ranking 22'), 'mega-summer-ranking');
+  assert.strictEqual(templateVoorToernooi('Mokum Summer ranking #22'), 'mega-summer-ranking');
 });
 
 test('templateVoorToernooi: onbekend toernooi → null (canvas-fallback)', () => {

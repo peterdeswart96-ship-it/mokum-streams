@@ -50,6 +50,7 @@ function templateVoorToernooi(naam) {
   const n = String(naam || '').toLowerCase();
   if (n.includes('mega') && n.includes('buffalo')) return 'mega-ranking-buffalo';
   if (n.includes('mega') && n.includes('summer')) return 'mega-summer-ranking';
+  if (n.includes('summer') && n.includes('ranking')) return 'mega-summer-ranking'; // ook zonder "MEGA" in de naam (typefout)
   if (/(?:8\s*(?:&|en|\/|\+|,|-)?\s*10|10\s*(?:&|en|\/|\+|,|-)?\s*8)/.test(n)) return '8-10-ball-ranking';
   if (/14[.\-\s]?1(?!\d)/.test(n)) return '14-1-summer-league';
   if (n.includes('fluke')) return 'fluke-ranking';

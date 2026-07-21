@@ -133,6 +133,25 @@ async function finaliseerChallenge({ videoId, spelerA, spelerB, tableNumber, spe
   return { videoId, type: 'challenge', thumbnailBytes: png.length };
 }
 
+// Zet ALLEEN onze thumbnail op een video (geen hoofdstukken/beschrijving), op basis van de
+// toernooinaam — voor video's zonder Cuescore-tournamentId (#62). Maakt eerst een backup, dus
+// herstelVideo() zet 'm terug. Kies expliciet een templateKey, of laat 'm uit de naam afleiden.
+async function finaliseerAlleenThumbnail({ videoId, tournamentName, templateKey, datumISO }, opts = {}) {
+  const video = await yt.getVideoDetails(videoId);
+  if (!video) throw new Error(`video ${videoId} niet gevonden`);
+  const key = templateKey || templateVoorToernooi(tournamentName);
+  if (!heeftTemplate(key)) throw new Error(`geen template voor "${tournamentName || ''}"`);
+  await maakBackup(video);
+
+  const datum = datumISO || opts.streamStartISO || video.actualStartTime || video.scheduledStartTime;
+  const extra = TEMPLATE_TEKST[key] || {};
+  const titel = extra.titel || (sponsorVanNaam(tournamentName) ? schoneTitel(tournamentName) : tournamentName);
+  const png = await renderThumbnail({ templateKey: key, toernooinaam: titel, datum: datumThumb(datum), sponsor: extra.sponsor || '' });
+
+  await yt.setThumbnail(videoId, png, 'image/png');
+  return { videoId, type: 'thumbnail', template: key, thumbnailBytes: png.length };
+}
+
 // Zet de video exact terug naar het origineel (undo).
 async function herstelVideo(videoId) {
   const b = await readJson(BACKUP(videoId), null);
@@ -144,4 +163,4 @@ async function herstelVideo(videoId) {
   return { videoId, restored: true, thumbnailHersteld: !!b.thumbnailBase64 };
 }
 
-module.exports = { finaliseerToernooi, finaliseerChallenge, herstelVideo, uniekeSpelersOpTafel };
+module.exports = { finaliseerToernooi, finaliseerChallenge, finaliseerAlleenThumbnail, herstelVideo, uniekeSpelersOpTafel };
