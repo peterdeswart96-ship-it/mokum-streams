@@ -28,6 +28,7 @@ test('isTableBusy: een gestopte entry geeft de tafel weer vrij', () => {
 });
 
 test('startCommandsFor levert startStream + alle overlays op de gewenste stand', () => {
+  // Scoreboard hier UIT → geen refreshSource verwacht.
   const cmds = startCommandsFor({ overlays: { sponsors: true, scoreboard: false, jumbotron: true } }, 3);
   assert.deepStrictEqual(cmds, [
     { type: 'startStream', tableNumber: 3 },
@@ -36,6 +37,18 @@ test('startCommandsFor levert startStream + alle overlays op de gewenste stand',
     { type: 'setOverlay', tableNumber: 3, sourceName: 'Jumbotron', enabled: true }, // expliciet aan
     { type: 'setOverlay', tableNumber: 3, sourceName: 'Pauzemelding', enabled: false }, // break-overlay: standaard uit
   ]);
+});
+
+test('startCommandsFor: scorebord AAN → ook een refreshSource voor het scorebord (verse cache bij start)', () => {
+  const cmds = startCommandsFor({}, 3); // defaults: scoreboard aan
+  const refresh = cmds.filter((c) => c.type === 'refreshSource');
+  assert.deepStrictEqual(refresh, [{ type: 'refreshSource', tableNumber: 3, sourceName: 'Scoreboard' }]);
+  assert.strictEqual(cmds[cmds.length - 1].type, 'refreshSource'); // achteraan (na de setOverlays)
+});
+
+test('startCommandsFor: scorebord UIT → géén refreshSource', () => {
+  const cmds = startCommandsFor({ overlays: { scoreboard: false } }, 3);
+  assert.strictEqual(cmds.some((c) => c.type === 'refreshSource'), false);
 });
 
 test('startCommandsFor: zonder opts géén preflight-vlag (handmatige start)', () => {
@@ -52,7 +65,7 @@ test('startCommandsFor: opts.preflight → startStream krijgt preflight:true (au
 test('startCommandsFor: content-overlays standaard aan, break-overlays standaard uit', () => {
   const cmds = startCommandsFor({}, 1);
   const byBron = Object.fromEntries(cmds.filter((c) => c.type === 'setOverlay').map((c) => [c.sourceName, c.enabled]));
-  assert.strictEqual(cmds.length, 5); // startStream + 4 overlays
+  assert.strictEqual(cmds.length, 6); // startStream + 4 overlays + scorebord-refresh (scoreboard staat aan)
   assert.strictEqual(byBron['Sponsor slideshow'], true);
   assert.strictEqual(byBron['Scoreboard'], true);
   assert.strictEqual(byBron['Jumbotron'], false);      // break-overlay

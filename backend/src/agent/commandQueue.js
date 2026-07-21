@@ -36,15 +36,21 @@ function startCommandsFor(record, tableNumber, overlayBron = OVERLAY_BRON, opts 
   const ov = (record && record.overlays) || {};
   const startCmd = { type: 'startStream', tableNumber };
   if (opts.preflight) startCmd.preflight = true;
-  return [
-    startCmd,
-    ...Object.entries(overlayBron).map(([sleutel, sourceName]) => ({
-      type: 'setOverlay',
-      tableNumber,
-      sourceName,
-      enabled: typeof ov[sleutel] === 'boolean' ? ov[sleutel] : !OVERLAY_DEFAULT_OFF.has(sleutel),
-    })),
-  ];
+  const overlayCmds = Object.entries(overlayBron).map(([sleutel, sourceName]) => ({
+    type: 'setOverlay',
+    tableNumber,
+    sourceName,
+    enabled: typeof ov[sleutel] === 'boolean' ? ov[sleutel] : !OVERLAY_DEFAULT_OFF.has(sleutel),
+  }));
+  const cmds = [startCmd, ...overlayCmds];
+  // Ververs het scorebord bij de start (als het aan staat): anders houdt de OBS-browserbron
+  // de vorige-toernooi-pagina vast tot de eerste pauze-omslag. Zo staat er meteen het juiste
+  // toernooi op — geen handmatige cache-leging meer nodig.
+  const scoreboardAan = overlayCmds.some((c) => c.sourceName === overlayBron.scoreboard && c.enabled);
+  if (scoreboardAan) {
+    cmds.push({ type: 'refreshSource', tableNumber, sourceName: overlayBron.scoreboard });
+  }
+  return cmds;
 }
 
 // Verwijdert de commando's die de agent als verwerkt heeft bevestigd.
