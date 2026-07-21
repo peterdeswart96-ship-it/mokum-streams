@@ -48,7 +48,18 @@ async function getBrowser() {
       });
     }
     // Serverless (Azure Functions Linux): gebundelde Chromium.
-    const chromium = require('@sparticuz/chromium');
+    // @sparticuz/chromium is ESM; vanuit CommonJS zit de module onder .default.
+    const mod = require('@sparticuz/chromium');
+    const chromium = mod.default || mod;
+    // De gebundelde NSS-libs (libnspr4.so/libnss3.so) worden alléén op Amazon Linux
+    // automatisch uitgepakt. Azure draait op een andere Linux, dus doen we het zelf:
+    // al2023.tar.br uitpakken en LD_LIBRARY_PATH/FONTCONFIG_PATH/HOME zetten. Zonder dit
+    // faalt Chromium met "libnspr4.so: cannot open shared object file".
+    try {
+      const binDir = path.join(path.dirname(require.resolve('@sparticuz/chromium')), '..', 'bin');
+      const libDir = path.join(await mod.inflate(path.join(binDir, 'al2023.tar.br')), 'lib');
+      mod.setupLambdaEnvironment(libDir);
+    } catch (e) { /* al uitgepakt of niet nodig op deze host */ }
     return puppeteer.launch({
       args: chromium.args,
       executablePath: await chromium.executablePath(),
