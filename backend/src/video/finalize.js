@@ -80,8 +80,10 @@ async function maakBackup(video) {
   return backup;
 }
 
-// Finaliseert een toernooivideo.
-async function finaliseerToernooi({ videoId, tournamentId, tableNumber }, opts = {}) {
+// Finaliseert een toernooivideo. Met alleenHoofdstukken=true wordt ALLEEN de beschrijving
+// (hoofdstukken) gezet, zonder de thumbnail — handig voor bulk-hoofdstukken zonder tegen
+// YouTube's thumbnail-upload-limiet te lopen (#66).
+async function finaliseerToernooi({ videoId, tournamentId, tableNumber, alleenHoofdstukken }, opts = {}) {
   const video = await yt.getVideoDetails(videoId);
   if (!video) throw new Error(`video ${videoId} niet gevonden`);
   await maakBackup(video);
@@ -98,12 +100,15 @@ async function finaliseerToernooi({ videoId, tournamentId, tableNumber }, opts =
 
   const { beschrijving, hoofdstukken } = bouwHoofdstukken(streamStart, tournament, tableNumber);
 
-  const png = await maakToernooiThumbnail({
-    naamRaw, sponsor, spelers, tableNumber, streamStart, discipline: tournament.discipline,
-  });
-
   await yt.updateSnippetDescription(video, beschrijving);
-  await yt.setThumbnail(videoId, png, 'image/png');
+  let thumbnailBytes = 0;
+  if (!alleenHoofdstukken) {
+    const png = await maakToernooiThumbnail({
+      naamRaw, sponsor, spelers, tableNumber, streamStart, discipline: tournament.discipline,
+    });
+    await yt.setThumbnail(videoId, png, 'image/png');
+    thumbnailBytes = png.length;
+  }
 
   // Per-wedstrijd-data bewaren voor de spelers-index (#59).
   await writeJson(INDEX(videoId), {
@@ -112,7 +117,7 @@ async function finaliseerToernooi({ videoId, tournamentId, tableNumber }, opts =
     hoofdstukken: hoofdstukken.filter((h) => h.spelers.length).map((h) => ({ offsetSec: h.offsetSec, spelers: h.spelers })),
   });
 
-  return { videoId, type: 'toernooi', aantalHoofdstukken: hoofdstukken.length, spelers: spelers.length, thumbnailBytes: png.length };
+  return { videoId, type: 'toernooi', aantalHoofdstukken: hoofdstukken.length, spelers: spelers.length, thumbnailBytes };
 }
 
 // Finaliseert een losse challenge (geen Cuescore-data → geen hoofdstukken).
