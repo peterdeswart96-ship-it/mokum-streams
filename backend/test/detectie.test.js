@@ -41,6 +41,9 @@ test('templateVoorToernooi: kiest de juiste template per (Cuescore-)naam', () =>
   assert.strictEqual(templateVoorToernooi('Mokum 8 & 10ball Ranking (10ball) #19'), '8-10-ball-ranking');
   assert.strictEqual(templateVoorToernooi('Mokum 8/10 ball #3'), '8-10-ball-ranking');
   assert.strictEqual(templateVoorToernooi('14.1 Summer League #4'), '14-1-summer-league');
+  assert.strictEqual(templateVoorToernooi('Mokum 14.1 Summer league - Bob/Etienne'), '14-1-summer-league');
+  // NK-kwalificatie met 14.1 als discipline is GEEN Mokum-serie → geen template:
+  assert.strictEqual(templateVoorToernooi('NK Pool 2026 14.1 Kwalificatieronde - Mokum'), null);
   assert.strictEqual(templateVoorToernooi('Fluke ranking 9ball #23'), 'fluke-ranking');
   assert.strictEqual(templateVoorToernooi('Speedy Multiball Sunday'), 'speedy-multi-ball');
   assert.strictEqual(templateVoorToernooi('Handicap Madness #2'), 'handicap-madness');
