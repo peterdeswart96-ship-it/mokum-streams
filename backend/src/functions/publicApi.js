@@ -5,7 +5,22 @@ const { buildLiveTables, buildSchedule } = require('../public/live');
 
 // Publieke, alleen-lezen endpoints voor de live-pagina/widget (geen auth).
 
-const json = (status, body) => ({ status, jsonBody: body });
+// CORS in code (niet afhankelijk van de Azure-portal-instelling, die stil kan wegvallen):
+// echo de Origin terug als 'ie op de allowlist staat. Deze endpoints zijn simpele GET's,
+// dus er is geen preflight (OPTIONS) nodig. De OBS-overlays draaien op pdscloud.nl.
+const CORS_ALLOWLIST = new Set([
+  'https://mokum-streams.pdscloud.nl',
+  'http://localhost:5173',
+  'http://localhost:4173',
+]);
+function corsHeaders(request) {
+  const origin = request && request.headers && request.headers.get('origin');
+  return origin && CORS_ALLOWLIST.has(origin)
+    ? { 'Access-Control-Allow-Origin': origin, Vary: 'Origin' }
+    : {};
+}
+
+const json = (status, body, request) => ({ status, jsonBody: body, headers: corsHeaders(request) });
 const CAMERAS_DEFAULT = [1, 3, 15, 16];
 const AGENT_ONLINE_MS = 20000; // agent pollt elke ~3s → >20s stil = offline
 
@@ -14,7 +29,7 @@ app.http('publicLive', {
   methods: ['GET'],
   authLevel: 'anonymous',
   route: 'live',
-  handler: async () => {
+  handler: async (request) => {
     const now = new Date();
     const tables = (await readJson('config/tables.json', [])) || [];
     const cameras = tables.length ? tables.map((t) => Number(t.tableNumber)) : CAMERAS_DEFAULT;
@@ -46,7 +61,7 @@ app.http('publicLive', {
       podium,
       agent,
       tables: buildLiveTables(cameras, store, status, liveMatches, liveVideos),
-    });
+    }, request);
   },
 });
 
@@ -58,6 +73,6 @@ app.http('publicSchedule', {
   handler: async (request) => {
     const days = Number(request.query.get('days')) || 7;
     const planning = (await readJson('planning.json', [])) || [];
-    return json(200, { items: buildSchedule(planning, new Date(), days) });
+    return json(200, { items: buildSchedule(planning, new Date(), days) }, request);
   },
 });
