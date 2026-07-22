@@ -59,9 +59,11 @@ async function scrapeTournaments() {
   let ops = 0, chOk = 0, thOk = 0, thRate = false, quota = false;
 
   // 1) Hoofdstukken (alleen-hoofdstukken → geen thumbnail-rate-limit).
+  // Met env HERDOE_BESCHRIJVING=true worden ook al-gefinaliseerde video's opnieuw gedaan
+  // (backfill: bv. om het Mokum Live-blok bovenaan alsnog toe te voegen).
   for (const v of toernooiRows) {
     if (ops >= MAX_OPS || quota) break;
-    if (v.hoofdstukken) continue;
+    if (v.hoofdstukken && !process.env.HERDOE_BESCHRIJVING) continue;
     const hit = matchToern(v.naam, v.datum); if (!hit) continue;
     const tafel = (v.naam.match(/tafel\s*(\d+)/i) || [])[1];
     const tableNumber = tafel ? Number(tafel) : 3; // oude streams zonder "Tafel N" = tafel 3
