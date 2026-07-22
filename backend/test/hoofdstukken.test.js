@@ -60,6 +60,10 @@ test('bouwHoofdstukken: beschrijving begint met 0:00 (Aanvang toegevoegd) + kop 
     match(1, '2026-07-19T11:30:00Z', 'Chris Jones', 'Moudar Ali', 'Round 3'),
   ] };
   const { beschrijving, hoofdstukken } = bouwHoofdstukken(start, t, 1);
+  // Mokum Live-promo helemaal bovenaan (met UTM-tracking), gevolgd door de rest.
+  assert.ok(beschrijving.startsWith('Volg alle standen en livestreams via: https://mokum-streams.pdscloud.nl/mokumlive/?utm_source=youtube'));
+  assert.ok(beschrijving.includes('- Switch tussen alle streams'));
+  assert.ok(beschrijving.includes('- Zie alle toernooi standen (met filters)'));
   assert.ok(beschrijving.includes('MEGA Ranking #22 — Tafel 1 —'));
   assert.ok(beschrijving.includes('0:00 Aanvang'));
   assert.ok(beschrijving.includes('2:34 Maartje Dingemans vs Andy Fung'));

@@ -7,6 +7,16 @@
 // YouTube-eisen voor auto-hoofdstukken: minstens 3 tijdstempels, de eerste op 0:00,
 // oplopend, en elk hoofdstuk minstens ~10s lang.
 
+// Vaste promo-blok bovenaan elke videobeschrijving (verwijst naar de Mokum Live-pagina).
+// Zelfde UTM-getagde URL als de live-stream-beschrijving (broadcasts.js) → consistente
+// hits-tracking (utm_source=youtube).
+const MOKUM_LIVE = [
+  'Volg alle standen en livestreams via: https://mokum-streams.pdscloud.nl/mokumlive/?utm_source=youtube&utm_medium=description&utm_campaign=mokumlive',
+  '',
+  '- Switch tussen alle streams',
+  '- Zie alle toernooi standen (met filters)',
+].join('\n');
+
 // Seconden → "M:SS" of "H:MM:SS" (YouTube accepteert beide).
 function tijdstempel(sec) {
   const h = Math.floor(sec / 3600);
@@ -80,6 +90,8 @@ function bouwHoofdstukken(streamStartISO, tournament, tableNumber, opts = {}) {
   const regels = metNul.map((h) => `${tijdstempel(h.offsetSec)} ${h.label}`);
 
   const beschrijving = [
+    MOKUM_LIVE,
+    '',
     kop,
     '',
     'Hoofdstukken:',
@@ -91,4 +103,4 @@ function bouwHoofdstukken(streamStartISO, tournament, tableNumber, opts = {}) {
   return { beschrijving, hoofdstukken };
 }
 
-module.exports = { bouwHoofdstukken, hoofdstukData, tijdstempel, datumNL };
+module.exports = { bouwHoofdstukken, hoofdstukData, tijdstempel, datumNL, MOKUM_LIVE };

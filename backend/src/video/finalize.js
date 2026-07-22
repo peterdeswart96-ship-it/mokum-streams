@@ -8,7 +8,7 @@
 const { readJson, writeJson } = require('../storage/blob');
 const yt = require('../youtube/videos');
 const { getTournament } = require('../cuescore');
-const { bouwHoofdstukken, datumNL } = require('./hoofdstukken');
+const { bouwHoofdstukken, datumNL, MOKUM_LIVE } = require('./hoofdstukken');
 const { spelsoortVanDiscipline, sponsorVanNaam, schoneTitel, templateVoorToernooi, TEMPLATE_TEKST, datumThumb } = require('./detectie');
 const { genereerThumbnail } = require('./thumbnail');            // fallback (canvas)
 const { renderThumbnail, heeftTemplate } = require('./thumbnailHtml'); // per-toernooi HTML-ontwerp
@@ -129,6 +129,8 @@ async function finaliseerChallenge({ videoId, spelerA, spelerB, tableNumber, spe
 
   const png = await maakChallengeThumbnail({ spelerA, spelerB, spelsoort, tableNumber, datum });
   const beschrijving = [
+    MOKUM_LIVE,
+    '',
     `Challenge match — ${spelerA || '?'} vs ${spelerB || '?'} — Tafel ${tableNumber} — ${datumNL(datum)}`,
     '', 'Mokum Pool & Darts',
   ].join('\n');
