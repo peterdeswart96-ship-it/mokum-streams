@@ -64,4 +64,51 @@ async function setThumbnail(videoId, buffer, mime = 'image/png') {
   await yt.thumbnails.set({ videoId, media: { mimeType: mime, body: Readable.from(buffer) } });
 }
 
-module.exports = { getVideoDetails, besteThumbnailUrl, downloadThumbnail, updateSnippetDescription, setThumbnail };
+// Alle video-id's van het kanaal (de uploads-playlist), gepagineerd. Voor de inventarisatie (#66).
+async function listUploadVideoIds() {
+  const yt = await getYouTubeClient();
+  const ch = await yt.channels.list({ part: ['contentDetails'], mine: true });
+  const uploads = ch.data.items && ch.data.items[0]
+    && ch.data.items[0].contentDetails
+    && ch.data.items[0].contentDetails.relatedPlaylists
+    && ch.data.items[0].contentDetails.relatedPlaylists.uploads;
+  if (!uploads) throw new Error('geen uploads-playlist gevonden voor dit kanaal');
+
+  const ids = [];
+  let pageToken;
+  do {
+    const res = await yt.playlistItems.list({ part: ['contentDetails'], playlistId: uploads, maxResults: 50, pageToken });
+    for (const it of res.data.items || []) {
+      const id = it.contentDetails && it.contentDetails.videoId;
+      if (id) ids.push(id);
+    }
+    pageToken = res.data.nextPageToken;
+  } while (pageToken);
+  return ids;
+}
+
+// Details voor een lijst video-id's (batches van 50): titel, duur, live-tijden, publicatiedatum.
+async function getVideosDetails(ids) {
+  const yt = await getYouTubeClient();
+  const out = [];
+  for (let i = 0; i < ids.length; i += 50) {
+    const res = await yt.videos.list({
+      part: ['snippet', 'contentDetails', 'liveStreamingDetails'],
+      id: ids.slice(i, i + 50), maxResults: 50,
+    });
+    for (const v of res.data.items || []) {
+      const s = v.snippet || {}, cd = v.contentDetails || {}, lsd = v.liveStreamingDetails || {};
+      out.push({
+        id: v.id,
+        title: s.title || '',
+        publishedAt: s.publishedAt || null,
+        duration: cd.duration || null, // ISO 8601 (PT#H#M#S)
+        actualStartTime: lsd.actualStartTime || null,
+        actualEndTime: lsd.actualEndTime || null,
+      });
+    }
+  }
+  return out;
+}
+
+module.exports = { getVideoDetails, besteThumbnailUrl, downloadThumbnail, updateSnippetDescription, setThumbnail, listUploadVideoIds, getVideosDetails };
