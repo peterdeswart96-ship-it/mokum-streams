@@ -74,7 +74,7 @@ app.http('adminVideoDetails', {
     try {
       const v = await getVideoDetails(videoId);
       if (!v) return json(404, { error: 'video niet gevonden' });
-      return json(200, { id: v.id, title: v.title, actualStartTime: v.actualStartTime, description: (v.description || '').slice(0, 200) });
+      return json(200, { id: v.id, title: v.title, actualStartTime: v.actualStartTime, actualEndTime: v.actualEndTime, description: (v.description || '').slice(0, 200) });
     } catch (e) {
       context.log(`[video-details] fout: ${e.message}`);
       return json(500, { error: e.message });
@@ -89,21 +89,27 @@ app.timer('finalizeVideos', {
   schedule: '0 * * * * *', // elke minuut
   handler: async (myTimer, context) => {
     if (!isArmed()) return; // slapend tot scherpgezet
-    const { datum } = zaalDelen(new Date());
-    const pad = `broadcasts/${datum}.json`;
-    const store = (await readJson(pad, {})) || {};
-    let gewijzigd = false;
-    for (const key of Object.keys(store)) {
-      const e = store[key];
-      if (!e || !e.stopped || e.finalized || !e.videoId || e.tournamentId == null) continue;
-      try {
-        const res = await finaliseerToernooi({ videoId: e.videoId, tournamentId: e.tournamentId, tableNumber: e.tableNumber });
-        e.finalized = true; gewijzigd = true;
-        context.log(`[finalizeVideos] tafel ${e.tableNumber} gefinaliseerd (${e.videoId}) — ${res.aantalHoofdstukken} hoofdstukken`);
-      } catch (err) {
-        context.log(`[finalizeVideos] tafel ${e.tableNumber} nog niet gelukt (${err.message}) — volgende ronde opnieuw`);
+    // Beide dagen: een avondstream die ná middernacht stopt zit nog in de store van gisteren
+    // → anders wordt 'ie nooit gefinaliseerd (incident 21-07, tafel 3 zonder thumbnail).
+    const now = new Date();
+    const datum = zaalDelen(now).datum;
+    const datumGisteren = zaalDelen(new Date(now.getTime() - 24 * 3600 * 1000)).datum;
+    const paden = [...new Set([`broadcasts/${datum}.json`, `broadcasts/${datumGisteren}.json`])];
+    for (const pad of paden) {
+      const store = (await readJson(pad, {})) || {};
+      let gewijzigd = false;
+      for (const key of Object.keys(store)) {
+        const e = store[key];
+        if (!e || !e.stopped || e.finalized || !e.videoId || e.tournamentId == null) continue;
+        try {
+          const res = await finaliseerToernooi({ videoId: e.videoId, tournamentId: e.tournamentId, tableNumber: e.tableNumber });
+          e.finalized = true; gewijzigd = true;
+          context.log(`[finalizeVideos] tafel ${e.tableNumber} gefinaliseerd (${e.videoId}) — ${res.aantalHoofdstukken} hoofdstukken`);
+        } catch (err) {
+          context.log(`[finalizeVideos] tafel ${e.tableNumber} nog niet gelukt (${err.message}) — volgende ronde opnieuw`);
+        }
       }
+      if (gewijzigd) await writeJson(pad, store);
     }
-    if (gewijzigd) await writeJson(pad, store);
   },
 });

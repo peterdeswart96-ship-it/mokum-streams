@@ -21,6 +21,7 @@ async function getVideoDetails(videoId) {
     tags: Array.isArray(s.tags) ? s.tags : null,
     thumbnails: s.thumbnails || {},
     actualStartTime: lsd.actualStartTime || null,
+    actualEndTime: lsd.actualEndTime || null,
     scheduledStartTime: lsd.scheduledStartTime || null,
   };
 }

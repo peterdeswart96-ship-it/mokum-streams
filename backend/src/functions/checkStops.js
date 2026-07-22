@@ -24,51 +24,60 @@ async function verwerk(now, context) {
     context.log('[checkStops] AUTOMATION_ARMED != true → slapend; geen automatische stops.');
     return;
   }
-  const { datum } = zaalDelen(now);
-  const pad = `broadcasts/${datum}.json`;
-  const store = (await readJson(pad, {})) || {};
+  // Een avondstream zit ná middernacht nog in de store van gisteren → check beide dagen
+  // (net als nachtStop). Anders wordt zo'n stream na 0:00 niet meer gestopt/gefinaliseerd
+  // en blijft de podium-grace uit (incident 21-07).
+  const datum = zaalDelen(now).datum;
+  const datumGisteren = zaalDelen(new Date(now.getTime() - 24 * 3600 * 1000)).datum;
+  const paden = [...new Set([`broadcasts/${datum}.json`, `broadcasts/${datumGisteren}.json`])];
   const planning = (await readJson('planning.json', [])) || [];
   const recById = new Map(planning.map((r) => [String(r.tournamentId), r]));
 
   const teStoppen = [];
   const cache = new Map();
-  let storeGewijzigd = false;
 
-  for (const key of Object.keys(store)) {
-    const entry = store[key];
-    if (!entry || entry.stopped || entry.adhoc) continue;
+  for (const pad of paden) {
+    const store = (await readJson(pad, {})) || {};
+    let storeGewijzigd = false;
 
-    let tournament = null;
-    if (entry.tournamentId != null) {
-      const id = String(entry.tournamentId);
-      if (cache.has(id)) tournament = cache.get(id);
-      else {
-        try {
-          tournament = await getTournament(entry.tournamentId);
-        } catch (e) {
-          context.log(`[WAARSCHUWING] stop-check ${id}: ${e.message}`);
+    for (const key of Object.keys(store)) {
+      const entry = store[key];
+      if (!entry || entry.stopped || entry.adhoc) continue;
+
+      let tournament = null;
+      if (entry.tournamentId != null) {
+        const id = String(entry.tournamentId);
+        if (cache.has(id)) tournament = cache.get(id);
+        else {
+          try {
+            tournament = await getTournament(entry.tournamentId);
+          } catch (e) {
+            context.log(`[WAARSCHUWING] stop-check ${id}: ${e.message}`);
+          }
+          cache.set(id, tournament);
         }
-        cache.set(id, tournament);
+      }
+
+      const rec = recById.get(String(entry.tournamentId));
+      const type = (rec && rec.type) || 'tournament';
+
+      // Stempel het moment waarop het toernooi klaar is (voor de podium-grace) — óók als
+      // we nu nog niet stoppen. Zo weet shouldStop volgende ronde hoelang het podium al staat.
+      if (type !== 'competition' && !entry.finaleKlaarSinds && toernooiKlaar(entry, tournament, now)) {
+        entry.finaleKlaarSinds = now.toISOString();
+        store[key] = entry;
+        storeGewijzigd = true;
+        context.log(`[checkStops] tafel ${entry.tableNumber}: toernooi klaar → podium-grace gestart.`);
+      }
+
+      if (shouldStop(entry, rec, tournament, now, { graceMs: STOP_GRACE_MS })) {
+        teStoppen.push(entry.tableNumber);
+        store[key] = { ...entry, stopped: true };
+        storeGewijzigd = true;
       }
     }
 
-    const rec = recById.get(String(entry.tournamentId));
-    const type = (rec && rec.type) || 'tournament';
-
-    // Stempel het moment waarop het toernooi klaar is (voor de podium-grace) — óók als
-    // we nu nog niet stoppen. Zo weet shouldStop volgende ronde hoelang het podium al staat.
-    if (type !== 'competition' && !entry.finaleKlaarSinds && toernooiKlaar(entry, tournament, now)) {
-      entry.finaleKlaarSinds = now.toISOString();
-      store[key] = entry;
-      storeGewijzigd = true;
-      context.log(`[checkStops] tafel ${entry.tableNumber}: toernooi klaar → podium-grace gestart.`);
-    }
-
-    if (shouldStop(entry, rec, tournament, now, { graceMs: STOP_GRACE_MS })) {
-      teStoppen.push(entry.tableNumber);
-      store[key] = { ...entry, stopped: true };
-      storeGewijzigd = true;
-    }
+    if (storeGewijzigd) await writeJson(pad, store);
   }
 
   if (teStoppen.length > 0) {
@@ -82,7 +91,6 @@ async function verwerk(now, context) {
     await writeJson('commands.json', enqueue(commands, nieuw));
     context.log(`[OK] ${teStoppen.length} stopStream-commando(s): tafels ${teStoppen.join(', ')}`);
   }
-  if (storeGewijzigd) await writeJson(pad, store);
 }
 
 app.timer('checkStops', {
