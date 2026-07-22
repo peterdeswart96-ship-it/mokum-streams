@@ -61,7 +61,7 @@
 <script>
 const APP_API = 'https://mokum-streams-func.azurewebsites.net';
 const POLL_MS = 4000;              // hoe vaak we /api/live checken
-const MAX_LEEFTIJD_MS = 5 * 60000; // alleen intro als de stream < 5 min geleden startte
+const MAX_LEEFTIJD_MS = 10 * 60000; // ruim venster als de tafel al live is bij de eerste poll
 const IN_MS = 700;                 // duur van het inschuiven (== CSS-transition)
 const HOUD_MS = 9300;              // hoe lang de intro blijft staan (~10s inclusief inschuiven)
 
@@ -74,6 +74,7 @@ const lower = document.getElementById('lower');
 const wacht = (ms) => new Promise((r) => setTimeout(r, ms));
 let bezig = false;
 const getoond = new Set(); // videoId's waarvoor de intro al speelde (voorkomt herhaling)
+let vorigeLiveVideoId;     // videoId van de vorige GESLAAGDE poll (undefined = nog niet gepolld)
 
 // ISO → "zaterdag 19 juli 2026" (zaal-tijdzone). Leeg bij onbekend.
 function datumTekst(iso) {
@@ -97,18 +98,33 @@ async function speelIntro(naam, iso) {
 }
 
 async function poll() {
+  let d;
   try {
     const r = await fetch(`${APP_API}/api/live`, { cache: 'no-store' });
-    const d = await r.json();
-    const t = (d.tables || []).find((x) => Number(x.tableNumber) === TAFEL);
-    if (!t || t.status !== 'live' || !t.videoId || getoond.has(t.videoId)) return;
-    // Alleen bij een VERSE start: oude streams (of een OBS-bronherlading midden in de
-    // stream) niet opnieuw introduceren.
-    const start = Date.parse(t.scheduledStart || '');
-    getoond.add(t.videoId);
-    if (!Number.isNaN(start) && Date.now() - start > MAX_LEEFTIJD_MS) return;
-    speelIntro(t.tournamentName || t.title || '', t.scheduledStart);
-  } catch (e) { /* netwerkfout → stil overslaan */ }
+    d = await r.json();
+  } catch (e) {
+    return; // netwerk/CORS-fout → vorigeLiveVideoId onaangeroerd, zodat een overgang na een
+            // korte hapering (cold start, CORS-blip) alsnog gedetecteerd wordt.
+  }
+
+  const t = (d.tables || []).find((x) => Number(x.tableNumber) === TAFEL);
+  const nu = (t && t.status === 'live' && t.videoId) ? t.videoId : null;
+  const vorige = vorigeLiveVideoId;
+  vorigeLiveVideoId = nu;
+
+  if (!nu || getoond.has(nu)) return;
+
+  // Speel bij een ECHTE live-overgang (de vorige geslaagde poll was deze stream nog niet) —
+  // ongeacht hoe lang geleden de stream startte. Zo mist de intro niet meer als de eerste
+  // minuten haperen (CORS/cold start). Was de tafel al live bij de éérste poll (waarschijnlijk
+  // een OBS-bronherlaad midden in de stream), speel dan alleen nog als 'ie jong is — anders
+  // zou een herlaad uren later de intro herhalen.
+  const overgang = vorige !== undefined && vorige !== nu;
+  const start = Date.parse(t.scheduledStart || '');
+  const jong = Number.isNaN(start) || (Date.now() - start) <= MAX_LEEFTIJD_MS;
+
+  getoond.add(nu);
+  if (overgang || jong) speelIntro(t.tournamentName || t.title || '', t.scheduledStart);
 }
 
 if (DEMO) {
