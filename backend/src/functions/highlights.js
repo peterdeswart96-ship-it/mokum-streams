@@ -8,8 +8,10 @@ const { zetKeuring, metKeuring, goedgekeurd, tel, clipSleutel } = require('../pu
 //
 //  GET  /api/highlights                 (publiek) → alleen GOEDGEKEURDE clips, voor de uitzending
 //  GET  /api/manage/highlights          (admin)   → ALLE clips met hun oordeel, voor de keuringspagina
-//  POST /api/manage/highlights          (admin)   → body { sleutel, status } met status
-//                                                   'goed' | 'afgekeurd' | null (= terugdraaien)
+//  POST /api/manage/highlights          (admin)   → body { sleutel, status?, start? }
+//                                                   status: 'goed' | 'afgekeurd' | null
+//                                                   start:  eigen beginseconde in de video
+//                                                           (null = terug naar het standaard-venster)
 //
 // Niet elke run-out levert bruikbaar beeld op (pauzescherm in beeld, camera verkeerd), dus
 // de uitzending speelt uitsluitend wat vooraf is goedgekeurd.
@@ -75,11 +77,20 @@ app.http('adminHighlightsKeur', {
     const sleutel = body && body.sleutel;
     if (!sleutel) return json(400, { error: 'sleutel ontbreekt' }, request);
 
+    // Alleen meesturen wat de aanroeper echt bedoelt: zo blijft de rest van de regel staan.
+    const patch = {};
+    if ('status' in body) patch.status = body.status;
+    if ('start' in body) patch.start = body.start;
+
     const nu = new Date().toISOString();
-    const nieuw = await updateJson(PAD, (huidig) => zetKeuring(huidig, sleutel, body.status, nu), {});
-    context.log(`[highlights] ${sleutel} → ${body.status || 'ongekeurd'}`);
+    const nieuw = await updateJson(PAD, (huidig) => zetKeuring(huidig, sleutel, patch, nu), {});
+    context.log(`[highlights] ${sleutel} → ${JSON.stringify(patch)}`);
     const alle = await clips();
-    return json(200, { ok: true, sleutel, status: (nieuw[sleutel] && nieuw[sleutel].status) || null, ...tel(alle, nieuw) }, request);
+    const rec = nieuw[sleutel] || {};
+    return json(200, {
+      ok: true, sleutel, status: rec.status || null, start: rec.start != null ? rec.start : null,
+      ...tel(alle, nieuw),
+    }, request);
   },
 });
 

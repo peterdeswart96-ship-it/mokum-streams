@@ -4,15 +4,16 @@
 // de camera verkeerd, of gebeurt er buiten beeld iets. Daarom keurt Peter de clips vooraf,
 // en speelt de uitzending alleen goedgekeurde fragmenten af.
 //
-// Sleutel per clip = videoId + startseconde van het clipvenster. Die blijft gelijk zolang
-// het rack en de video hetzelfde zijn, ook als het archief opnieuw wordt opgebouwd.
+// Sleutel per clip = videoId + het RACK-moment (offsetSec), bewust NIET de start van het
+// clipvenster: dat venster kunnen we later bijstellen, en dan mag een oordeel niet
+// verdampen. Het rack-moment ligt vast zolang de video en de wedstrijd hetzelfde zijn.
 
 const GOED = 'goed';
 const AFGEKEURD = 'afgekeurd';
 
 function clipSleutel(clip) {
-  if (!clip || !clip.videoId || clip.clipVan == null) return null;
-  return `${clip.videoId}:${clip.clipVan}`;
+  if (!clip || !clip.videoId || clip.offsetSec == null) return null;
+  return `${clip.videoId}:${clip.offsetSec}`;
 }
 
 // Alleen deze twee statussen slaan we op; alles anders betekent "nog niet gekeurd".
@@ -21,13 +22,23 @@ function normaliseerStatus(status) {
   return s === GOED || s === AFGEKEURD ? s : null;
 }
 
-// Zet (of wist) het oordeel over één clip. Retour: een NIEUW object, het origineel blijft heel.
-function zetKeuring(bestaand, sleutel, status, nu) {
+// Zet het oordeel en/of de eigen startseconde van één clip. `wijziging` mag een status zijn
+// ('goed' | 'afgekeurd' | null) of een object { status?, start? }; wat je niet meestuurt
+// blijft staan. Retour: een NIEUW object, het origineel blijft heel.
+function zetKeuring(bestaand, sleutel, wijziging, nu) {
   const uit = { ...(bestaand || {}) };
-  const s = normaliseerStatus(status);
   if (!sleutel) return uit;
-  if (!s) delete uit[sleutel];               // terug naar "nog niet gekeurd"
-  else uit[sleutel] = { status: s, at: nu || null };
+  const patch = wijziging && typeof wijziging === 'object' ? wijziging : { status: wijziging };
+  const huidig = uit[sleutel] || {};
+
+  const status = 'status' in patch ? normaliseerStatus(patch.status) : normaliseerStatus(huidig.status);
+  const ruweStart = 'start' in patch ? patch.start : huidig.start;
+  const n = Number(ruweStart);
+  const start = ruweStart != null && Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
+
+  // Niets meer te onthouden → de regel weg (weer "nog niet gekeurd", standaard-venster).
+  if (!status && start == null) { delete uit[sleutel]; return uit; }
+  uit[sleutel] = { ...(status ? { status } : {}), ...(start != null ? { start } : {}), at: nu || null };
   return uit;
 }
 
@@ -38,7 +49,15 @@ function metKeuring(clips, keuring) {
   return (clips || []).map((c) => {
     const sleutel = clipSleutel(c);
     const rec = sleutel ? k[sleutel] : null;
-    return { ...c, sleutel, keuring: (rec && normaliseerStatus(rec.status)) || null };
+    // Eigen startseconde gaat vóór het standaard-venster, maar nooit voorbij het einde.
+    const eigen = rec && rec.start != null ? Math.min(rec.start, (c.clipTot || 0) - 5) : null;
+    return {
+      ...c,
+      sleutel,
+      keuring: (rec && normaliseerStatus(rec.status)) || null,
+      clipVan: eigen != null && eigen >= 0 ? eigen : c.clipVan,
+      startAangepast: eigen != null && eigen >= 0,
+    };
   });
 }
 

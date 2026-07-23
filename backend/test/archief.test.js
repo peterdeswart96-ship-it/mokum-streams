@@ -60,7 +60,7 @@ test('run-out linkt naar het begin van dát rack, niet naar het begin van de par
   const uit = wedstrijdenVoorVideo(INDEX, t);
   assert.strictEqual(uit[0].offsetSec, 1500);              // partij zelf onveranderd
   assert.deepStrictEqual(uit[0].runouts, [{
-    speler: 'Chris Jones', offsetSec: 2250, eindSec: 2460, clipVan: 2310, clipTot: 2464,
+    speler: 'Chris Jones', offsetSec: 2250, eindSec: 2460, clipVan: 2280, clipTot: 2464,
     url: 'https://youtu.be/abc123?t=2250', exact: true,
   }]);
 });
@@ -197,16 +197,16 @@ test('elke archiefregel krijgt de soort mee', () => {
   assert.strictEqual(wedstrijdenVoorVideo(rec, t)[0].soort, 'Fluke Ranking');
 });
 
-test('clipvenster telt terug vanaf het einde van het rack', () => {
-  // Rack van 10 min: alleen de laatste 150s + 4s naloop is interessant (de rest is opzetten).
+test('clipvenster: kort rack heel (met afstoot), lang rack de laatste 3 min', () => {
+  // Rack van 10 min > 3 min → tel 3 min terug vanaf de laatste bal (600 - 180 = 420).
   const lang = { name: 'T', matches: [wedstrijd(3, 'Panchi Chen', 'Andy Fung', {
     start: '2026-07-22T19:00:00Z', runoutsA: 1,
     runoutRacks: [{ kant: 'A', start: '2026-07-22T19:00:00Z', eind: '2026-07-22T19:10:00Z', duurSec: 600 }],
   })] };
   const a = wedstrijdenVoorVideo(INDEX, lang)[0].runouts[0];
-  assert.deepStrictEqual([a.offsetSec, a.eindSec, a.clipVan, a.clipTot], [0, 600, 450, 604]);
+  assert.deepStrictEqual([a.offsetSec, a.eindSec, a.clipVan, a.clipTot], [0, 600, 420, 604]);
 
-  // Kort rack (2 min): helemaal meenemen, niets te trimmen.
+  // Rack van 2 min < 3 min → helemaal, inclusief de afstoot bij 0.
   const kort = { name: 'T', matches: [wedstrijd(3, 'Panchi Chen', 'Andy Fung', {
     start: '2026-07-22T19:00:00Z', runoutsA: 1,
     runoutRacks: [{ kant: 'A', start: '2026-07-22T19:00:00Z', eind: '2026-07-22T19:02:00Z', duurSec: 120 }],

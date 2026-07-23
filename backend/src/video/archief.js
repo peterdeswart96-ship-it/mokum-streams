@@ -45,18 +45,17 @@ const MIN_RACK_SEC = 30;
 
 const echtRack = (rack) => rack && (rack.duurSec == null || rack.duurSec >= MIN_RACK_SEC);
 
-// Clipvenster voor het afspelen van een run-out (#71). De rackduur telt vanaf het einde van
-// het vórige rack, dus de eerste minuut is meestal ballen opzetten. We tellen daarom terug
-// vanáf het einde: korte racks houden hun aanloop, lange worden getrimd tot de run zelf.
-const CLIP_MAX_SEC = 150; // hoever we maximaal terugtellen vanaf de laatste bal
+// Clipvenster voor het afspelen van een run-out (#71): het rack tot even na de laatste bal,
+// maar hoogstens de laatste 3 minuten (besluit Peter). Is het rack korter, dan speelt 'ie
+// helemaal — inclusief de afstoot. Is het langer, dan tellen we 3 min terug vanaf de laatste
+// bal; de afstoot van zo'n lang rack valt dan buiten beeld en die clip keur je af.
+// Zo blijft geen enkele clip langer dan ~3 min (eerder tot 11 min bij een lang rack).
+const CLIP_MAX_SEC = 180; // hoogstens de laatste 3 min
 const CLIP_NA_SEC = 4;    // naloop, zodat de clip niet op de bal zelf afkapt
 
 function clipVenster(startSec, eindSec) {
   if (eindSec == null) return { clipVan: null, clipTot: null };
-  return {
-    clipVan: Math.max(0, Math.max(startSec, eindSec - CLIP_MAX_SEC)),
-    clipTot: eindSec + CLIP_NA_SEC,
-  };
+  return { clipVan: Math.max(0, Math.max(startSec, eindSec - CLIP_MAX_SEC)), clipTot: eindSec + CLIP_NA_SEC };
 }
 
 // Bouwt de archiefregels van één video. `indexRecord` = video-index/<id>.json,

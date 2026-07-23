@@ -3,15 +3,39 @@ const assert = require('node:assert');
 const { clipSleutel, zetKeuring, metKeuring, goedgekeurd, tel } = require('../src/public/keuring');
 
 const CLIPS = [
-  { videoId: 'aaa', clipVan: 100, clipTot: 250, speler: 'A' },
-  { videoId: 'aaa', clipVan: 900, clipTot: 1050, speler: 'B' },
-  { videoId: 'bbb', clipVan: 40, clipTot: 190, speler: 'C' },
+  { videoId: 'aaa', offsetSec: 100, clipVan: 100, clipTot: 250, speler: 'A' },
+  { videoId: 'aaa', offsetSec: 900, clipVan: 900, clipTot: 1050, speler: 'B' },
+  { videoId: 'bbb', offsetSec: 40, clipVan: 40, clipTot: 190, speler: 'C' },
 ];
 
-test('clipSleutel is video + startseconde, en null zonder clipvenster', () => {
+test('clipSleutel hangt aan het RACK-moment, niet aan het clipvenster', () => {
   assert.strictEqual(clipSleutel(CLIPS[0]), 'aaa:100');
+  // Venster verschoven, rack gelijk → zelfde sleutel, dus het oordeel blijft staan.
+  assert.strictEqual(clipSleutel({ ...CLIPS[0], clipVan: 55 }), 'aaa:100');
   assert.strictEqual(clipSleutel({ videoId: 'aaa' }), null);
   assert.strictEqual(clipSleutel(null), null);
+});
+
+test('een eigen startseconde verschuift het clipvenster', () => {
+  const k = { 'aaa:100': { status: 'goed', start: 130 } };
+  const c = metKeuring(CLIPS, k)[0];
+  assert.strictEqual(c.clipVan, 130);
+  assert.strictEqual(c.startAangepast, true);
+  assert.strictEqual(c.clipTot, 250, 'einde blijft ongemoeid');
+});
+
+test('een startseconde voorbij het einde wordt teruggeduwd', () => {
+  const c = metKeuring(CLIPS, { 'aaa:100': { start: 9999 } })[0];
+  assert.strictEqual(c.clipVan, 245); // clipTot - 5
+});
+
+test('status en startseconde staan los van elkaar', () => {
+  let k = zetKeuring({}, 'aaa:100', { start: 140 }, 'nu');
+  assert.deepStrictEqual(k['aaa:100'], { start: 140, at: 'nu' });
+  k = zetKeuring(k, 'aaa:100', { status: 'goed' }, 'nu2');
+  assert.deepStrictEqual(k['aaa:100'], { status: 'goed', start: 140, at: 'nu2' }, 'start blijft staan');
+  k = zetKeuring(k, 'aaa:100', { start: null }, 'nu3');
+  assert.deepStrictEqual(k['aaa:100'], { status: 'goed', at: 'nu3' }, 'terug naar standaard-venster');
 });
 
 test('zetKeuring bewaart alleen geldige statussen en laat het origineel heel', () => {

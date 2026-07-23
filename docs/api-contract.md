@@ -533,9 +533,10 @@ Body:
   `GET /api/runouts` (en in `runouts[]` op een archiefregel) heeft er drie velden bij:
   **`eindSec`** (moment waarop het rack gewonnen werd) en **`clipVan`/`clipTot`** — het
   venster om af te spelen. De rackduur telt vanaf het einde van het vórige rack, dus de
-  eerste minuut is meestal ballen opzetten; we tellen daarom terug vanáf het einde:
-  `clipVan = max(rackstart, eind − 150s)`, `clipTot = eind + 4s`. Korte racks blijven heel,
-  lange worden getrimd tot de run zelf. Zonder rack-log (2 van de 131) blijven ze `null` —
+  clipvenster is het rack tot even na de laatste bal, **hoogstens de laatste 3 min**:
+  `clipVan = max(rackstart, eind − 180s)`, `clipTot = eind + 4s`. Kort rack → helemaal (met
+  afstoot); lang rack → de laatste 3 min (afstoot valt weg, die clip keur je af). Zonder
+  rack-log (2 van de 131) blijven ze `null` —
   die zijn niet af te spelen. Gemeten: 129 clips, mediaan 154s, kortste 38s.
   Afspelen gebeurt met een **ingesloten YouTube-speler** (`start`/`end` werken daar wél; het
   zijn `startAt`/`endAt` op playlist-items die zijn afgeschaft), dus zonder knippen of
@@ -551,8 +552,19 @@ Body:
     `keuring: "goed" | "afgekeurd" | null`.
   - **`POST /api/manage/highlights`** (admin) → body `{ sleutel, status }` met status
     `"goed"`, `"afgekeurd"` of `null` (oordeel terugdraaien).
-  - Sleutel per clip = **`<videoId>:<clipVan>`**; die blijft gelijk als het archief opnieuw
-    wordt opgebouwd, dus een keuring gaat niet verloren. Opslag: `highlight-keuring.json`.
+  - Sleutel per clip = **`<videoId>:<offsetSec>`** (het rack-moment, v0.41 — niet meer de
+    start van het clipvenster, zodat een aangepast venster het oordeel niet wist). Blijft
+    gelijk bij een herbouw van het archief. Opslag: `highlight-keuring.json`.
   - Keuringspagina: `frontend/public/keuring/` — clip voor clip bekijken en met de pijltjes
     (of J/N) goed- of afkeuren. Gebruikt hetzelfde admin-token als het dashboard
     (localStorage `mokum_admin_token`).
+- 2026-07-23: v0.41 — **highlight-clips: hele rack + eigen startseconde (#71)**. Peter keurde
+  43 van de 129 clips af; veel hadden een lang rack waarbij de afstoot buiten beeld viel door
+  de 150s-trim. Cap verruimd naar **180s** (max 3 min): korte racks spelen nu helemaal
+  inclusief afstoot, lange blijven getrimd (die keur je af). Voor de uitschieter kan de start
+  per clip met de hand: `POST
+  /api/manage/highlights` accepteert nu **`start`** (beginseconde in de video; `null` = terug
+  naar het rack-moment), naast `status`. De keuringspagina heeft daarvoor knoppen (`[` / `]` =
+  −5/+5s, `0` = standaard). De keuring-sleutel hangt voortaan aan het rack-moment
+  (`<videoId>:<offsetSec>`), niet aan `clipVan`, zodat het bijstellen van een venster de al
+  gegeven oordelen niet wist.
