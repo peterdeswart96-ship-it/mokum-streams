@@ -68,4 +68,4 @@ function leagueDueTables(tournament, record, now, { graceMinuten = 30 } = {}) {
   });
 }
 
-module.exports = { cameraTablesWithMatchToday, leagueDueTables, herresolveerTafels };
+module.exports = { cameraTablesWithMatchToday, leagueDueTables, herresolveerTafels, datumInZaal };

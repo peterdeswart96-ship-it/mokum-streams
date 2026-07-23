@@ -457,3 +457,23 @@ Body:
   de stream ad-hoc (handmatig sluiten, geen finalize). De wizard stuurt het gekozen toernooi uit
   de dropdown mee. Nieuw hulp-endpoint **`GET /api/manage/video?videoId=`** (admin) geeft
   titel/starttijd van een video terug — om er één te identificeren vóór handmatig finaliseren.
+- 2026-07-23: v0.35 — **ad-hoc streams doen mee met de automatisering** (#69). Twee fixes na het
+  incident van 22-07 (tafels handmatig gestart, nooit automatisch gesloten, geen medaillescherm,
+  geen thumbnail/hoofdstukken):
+  1. **Cuescore-import zag nooit iets.** De toernooien-pagina staat standaard op "Active/Finished"
+     (`s=2`); toernooien die nog moeten beginnen staan onder **"Upcoming" (`s=0`)**. We halen nu
+     **beide** weergaven op (`getTodaysTournamentIds` + `getUpcomingTournaments`), zodat een
+     toernooi van vanavond al vóór de start bekend is. Faalt één weergave, dan werken we door met
+     de andere. Geverifieerd: 0 → 8 toernooien in het venster van 14 dagen.
+  2. **Automatische koppeling van ad-hoc streams.** `checkStops` koppelt een handmatig gestarte
+     stream (`adhoc: true`, `tournamentId: null`) alsnog aan het Cuescore-toernooi dat op die tafel
+     speelt (`backend/src/planning/koppel.js`, puur + getest). Lukt dat, dan wordt de entry
+     **beheerd** (`adhoc: false`, `tournamentId` gezet, extra veld **`autoGekoppeld`** =
+     ISO-tijdstip) en loopt de bestaande keten door: podium-grace → `stopStream` → `finalizeVideos`
+     (thumbnail + hoofdstukken). Bewust conservatief: alleen bij een **ondubbelzinnige** match
+     (het toernooi dat nú op die tafel speelt, of precies één toernooi met wedstrijden op die tafel
+     die dag) — anders blijft de stream handmatig. Een automatisch gekoppelde tafel sluit pas als er
+     die dag ook in een **ander** toernooi niets meer op die tafel staat (twee qualifiers op één avond).
+  3. **Podium-grace van 60s → 180s**, instelbaar via app-setting **`PODIUM_GRACE_SEC`**. De keten
+     liveMatches (1×/min) → pauzescherm (debounce 20s) → overlay-poll had aan één minuut te weinig
+     om het medaillescherm daadwerkelijk op de uitzending te krijgen vóór de stop.
