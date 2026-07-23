@@ -495,3 +495,25 @@ Body:
   - `normalizeMatch` neemt voortaan **`runoutsA`/`runoutsB`** mee uit de Cuescore-API.
   - CORS-allowlist gelijk aan `/api/live`. YouTube kent geen clip-/timestamp-playlists
     (startAt/endAt afgeschaft), vandaar deep-links; echte clips zijn #67 fase 2 (1.600 quota/upload).
+- 2026-07-23: v0.37 — **run-out-precisie + soort-filter (#67)**. Drie correcties op het archief
+  na test met echte data:
+  1. **Run-out linkt naar het rack, niet naar de partij.** Cuescore houdt per wedstrijd een
+     rack-log bij (`notes`: "frame start" / "B frame win runout", met tijdstempel).
+     `normalizeMatch` geeft die mee als **`runoutRacks: [{ kant, start, eind, duurSec }]`**.
+     Een archiefregel heeft nu `runouts: [{ speler, offsetSec, url, exact }]` — één per
+     gewonnen rack, met een eigen moment. Zonder rack-log (oudere data) valt 'ie terug op
+     het begin van de partij met `exact: false`.
+  2. **Valse run-outs eruit.** Een rack korter dan **30 s** telt niet mee: als de teller de
+     stand achteraf in één keer intikt, logt Cuescore racks van tienden van seconden.
+     Gemeten over 590 racks: mediaan 205 s, alles onder 30 s zat in dat ingetikte cluster.
+     Is er wél een log maar blijft er niets over, dan géén terugval op `runoutsA/B` — die
+     tellers komen uit dezelfde tikken.
+  3. **Hoofdstukken begrensd op de videolengte** (`hoofdstukData(..., { eindISO })`, gevoed uit
+     `video.actualEndTime`). Een afgebroken stream kreeg anders alle wedstrijden van die tafel
+     als hoofdstuk, wat elke partij dubbel in het archief zette. De herbouw filtert bestaande
+     records alsnog op de echte duur (`videos.list`, 1 quota-eenheid per 50 id's).
+
+  Verder heeft elke archiefregel nu **`soort`**: de toernooi-serie los van seizoen/editienummer
+  ("Fluke ranking 9ball Seizoen 3 #24" → `"Fluke Ranking"`), afgeleid met dezelfde
+  `templateVoorToernooi`-classificatie als de thumbnails. De archiefpagina filtert daarop, zodat
+  de keuzelijst 6 opties heeft in plaats van ruim honderd. Onbekende series → `"Overig"`.

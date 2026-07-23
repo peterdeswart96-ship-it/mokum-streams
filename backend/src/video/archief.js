@@ -12,6 +12,18 @@
 // in seconden t.o.v. het begin van de stream. Zo werkt dit ook voor video's die al
 // gefinaliseerd waren vóór dit issue — de index hoeft niet herschreven te worden.
 
+const { templateVoorToernooi, TEMPLATE_TEKST } = require('./detectie');
+
+// Soort toernooi (de serie), los van seizoen en editienummer: "Fluke ranking 9ball
+// Seizoen 3 #24" en "Fluke ranking 9ball #11" horen allebei bij "Fluke Ranking". Zo houdt
+// het filter op de archiefpagina een handvol keuzes over in plaats van ruim honderd losse
+// toernooien. Hergebruikt dezelfde classificatie als de thumbnails → één plek om te wijzigen.
+function soortVanToernooi(naam) {
+  const key = templateVoorToernooi(naam);
+  const tekst = key && TEMPLATE_TEKST[key];
+  return (tekst && tekst.titel) || 'Overig';
+}
+
 // Spelers als vergelijkbare sleutel (volgorde-onafhankelijk, hoofdletter-ongevoelig).
 function spelersSleutel(namen) {
   return (namen || [])
@@ -47,6 +59,8 @@ function wedstrijdenVoorVideo(indexRecord, tournament) {
     // Eerste voorkomen wint (een paar speelt zelden twee keer op dezelfde tafel).
     if (sleutel && !offsetPerPaar.has(sleutel)) offsetPerPaar.set(sleutel, h.offsetSec);
   }
+
+  const naamToernooi = rec.tournamentName || (tournament && tournament.name) || '';
 
   const uit = [];
   for (const m of (tournament && tournament.matches) || []) {
@@ -87,7 +101,8 @@ function wedstrijdenVoorVideo(indexRecord, tournament) {
       offsetSec: offset,
       datum: rec.datum || null,
       tafel: Number(rec.tableNumber),
-      toernooi: rec.tournamentName || (tournament && tournament.name) || '',
+      toernooi: naamToernooi,
+      soort: soortVanToernooi(naamToernooi),
       tournamentId: rec.tournamentId != null ? rec.tournamentId : (tournament && tournament.id) || null,
       ronde: m.roundName || null,
       spelers: [a, b].filter(Boolean),
@@ -127,7 +142,7 @@ function runoutsUitArchief(lijst) {
         offsetSec: ro.offsetSec != null ? ro.offsetSec : r.offsetSec,
         exact: ro.exact === true,
         speler: ro.speler, tegenstander: tegen,
-        ronde: r.ronde, tafel: r.tafel, toernooi: r.toernooi,
+        ronde: r.ronde, tafel: r.tafel, toernooi: r.toernooi, soort: r.soort,
         tournamentId: r.tournamentId, datum: r.datum,
       });
     }
@@ -136,6 +151,7 @@ function runoutsUitArchief(lijst) {
 }
 
 module.exports = {
+  soortVanToernooi,
   wedstrijdenVoorVideo,
   mergeWedstrijden,
   sorteerWedstrijden,

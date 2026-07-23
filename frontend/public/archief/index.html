@@ -115,7 +115,7 @@
     </div>
 
     <div class="rij-select">
-      <select id="fToernooi"><option value="">Alle toernooien</option></select>
+      <select id="fSoort"><option value="">Alle toernooien</option></select>
       <select id="fTafel"><option value="">Alle tafels</option></select>
       <select id="fJaar"><option value="">Alle jaren</option></select>
     </div>
@@ -156,17 +156,17 @@ function huidigeFilters() {
     q: norm($('zoek').value.trim()),
     runout: $('cRunout').getAttribute('aria-pressed') === 'true',
     finale: $('cFinales').getAttribute('aria-pressed') === 'true',
-    toernooi: $('fToernooi').value,
+    soort: $('fSoort').value,
     tafel: $('fTafel').value,
     jaar: $('fJaar').value,
   };
 }
-const filtersActief = (f) => !!(f.q || f.runout || f.finale || f.toernooi || f.tafel || f.jaar);
+const filtersActief = (f) => !!(f.q || f.runout || f.finale || f.soort || f.tafel || f.jaar);
 
 function pastBij(r, f) {
   if (f.runout && !(r.runouts || []).length) return false;
   if (f.finale && !FINALE_RE.test(r.ronde || '')) return false;
-  if (f.toernooi && r.toernooi !== f.toernooi) return false;
+  if (f.soort && r.soort !== f.soort) return false;
   if (f.tafel && String(r.tafel) !== f.tafel) return false;
   if (f.jaar && String(r.datum || '').slice(0, 4) !== f.jaar) return false;
   if (!f.q) return true;
@@ -253,7 +253,10 @@ function opnieuw() { getoond = PAGINA; teken(); }
 
 // --- keuzelijsten vullen ----------------------------------------------------
 function vulKeuzes() {
-  const toernooien = [...new Set(ALLES.map((r) => r.toernooi).filter(Boolean))].sort();
+  // Filteren op SOORT toernooi (de serie), niet op elke losse editie: anders staan er
+  // ruim honderd keuzes in de lijst. 'Overig' onderaan, de rest alfabetisch.
+  const soorten = [...new Set(ALLES.map((r) => r.soort).filter(Boolean))]
+    .sort((a, b) => (a === 'Overig') - (b === 'Overig') || a.localeCompare(b));
   const tafels = [...new Set(ALLES.map((r) => r.tafel).filter((t) => t != null))].sort((a, b) => a - b);
   const jaren = [...new Set(ALLES.map((r) => String(r.datum || '').slice(0, 4)).filter(Boolean))].sort().reverse();
   const spelers = [...new Set(ALLES.flatMap((r) => r.spelers || []))].sort();
@@ -261,7 +264,7 @@ function vulKeuzes() {
   const vul = (el, waarden, label) => {
     el.insertAdjacentHTML('beforeend', waarden.map((w) => `<option value="${esc(w)}">${esc(label ? label(w) : w)}</option>`).join(''));
   };
-  vul($('fToernooi'), toernooien);
+  vul($('fSoort'), soorten);
   vul($('fTafel'), tafels, (t) => `Tafel ${t}`);
   vul($('fJaar'), jaren);
   $('spelerlijst').innerHTML = spelers.map((s) => `<option value="${esc(s)}">`).join('');
@@ -270,7 +273,7 @@ function vulKeuzes() {
 // --- opstarten --------------------------------------------------------------
 function koppelGebeurtenissen() {
   $('zoek').addEventListener('input', opnieuw);
-  for (const id of ['fToernooi', 'fTafel', 'fJaar']) $(id).addEventListener('change', opnieuw);
+  for (const id of ['fSoort', 'fTafel', 'fJaar']) $(id).addEventListener('change', opnieuw);
   for (const id of ['cRunout', 'cFinales']) {
     $(id).addEventListener('click', (e) => {
       const knop = e.currentTarget;
@@ -281,7 +284,7 @@ function koppelGebeurtenissen() {
   $('meer').addEventListener('click', () => { getoond += PAGINA; teken(); });
   $('reset').addEventListener('click', () => {
     $('zoek').value = '';
-    for (const id of ['fToernooi', 'fTafel', 'fJaar']) $(id).value = '';
+    for (const id of ['fSoort', 'fTafel', 'fJaar']) $(id).value = '';
     for (const id of ['cRunout', 'cFinales']) $(id).setAttribute('aria-pressed', 'false');
     opnieuw();
   });

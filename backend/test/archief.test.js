@@ -177,3 +177,19 @@ test('runoutRacksUitNotes berekent de rackduur', () => {
   ]);
   assert.strictEqual(racks[0].duurSec, 0);
 });
+
+test('soortVanToernooi groepeert seizoenen en edities op serie', () => {
+  const { soortVanToernooi } = require('../src/video/archief');
+  assert.strictEqual(soortVanToernooi('Fluke ranking 9ball Seizoen 3  #24'), 'Fluke Ranking');
+  assert.strictEqual(soortVanToernooi('MOKUM FLUKE RANKING 9BALL #11'), 'Fluke Ranking');
+  assert.strictEqual(soortVanToernooi('Mokum MEGA Summer Ranking #24'), 'MEGA Summer Ranking');
+  assert.strictEqual(soortVanToernooi('MEGA Ranking i.s.m. Buffalo #37'), 'MEGA Ranking');
+  assert.strictEqual(soortVanToernooi("'GO Customs' Amsterdam open @ Mokum Final day"), 'Amsterdam Open');
+  assert.strictEqual(soortVanToernooi('KNBB derde divisie'), 'Overig');
+});
+
+test('elke archiefregel krijgt de soort mee', () => {
+  const t = { name: 'X', matches: [wedstrijd(3, 'Panchi Chen', 'Andy Fung', {})] };
+  const rec = { ...INDEX, tournamentName: 'Fluke ranking 9ball Seizoen 2 #13' };
+  assert.strictEqual(wedstrijdenVoorVideo(rec, t)[0].soort, 'Fluke Ranking');
+});
