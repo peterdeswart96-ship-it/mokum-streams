@@ -23,6 +23,16 @@ function spelersSleutel(namen) {
 
 const YT_URL = (videoId, offsetSec) => `https://youtu.be/${videoId}?t=${Math.max(0, offsetSec | 0)}`;
 
+// Kortste rack dat we als een écht gespeelde run-out accepteren.
+// Waarom: als de teller de stand achteraf in één keer intikt, logt Cuescore alle racks
+// binnen enkele seconden — we zagen racks van 0,2 s. Breken en negen ballen wegwerken
+// kan fysiek niet onder de halve minuut. Gemeten over 590 run-out-racks in het archief
+// ligt de mediaan op 205 s en zit alles ónder 30 s in dat ingetikte cluster; de
+// snelste échte (losstaande) run-outs zitten op 35–59 s en blijven dus staan.
+const MIN_RACK_SEC = 30;
+
+const echtRack = (rack) => rack && (rack.duurSec == null || rack.duurSec >= MIN_RACK_SEC);
+
 // Bouwt de archiefregels van één video. `indexRecord` = video-index/<id>.json,
 // `tournament` = genormaliseerd Cuescore-toernooi. Retour: array (kan leeg zijn).
 function wedstrijdenVoorVideo(indexRecord, tournament) {
@@ -52,15 +62,18 @@ function wedstrijdenVoorVideo(indexRecord, tournament) {
     // Het rack-moment = wedstrijd-offset + (rackstart − wedstrijdstart).
     const runouts = [];
     const wedstrijdStart = Date.parse(m.start || '');
-    for (const rack of m.runoutRacks || []) {
+    const heeftLog = (m.runoutRacks || []).length > 0;
+    for (const rack of (m.runoutRacks || []).filter(echtRack)) {
       const speler = rack.kant === 'A' ? a : b;
       const rackStart = Date.parse(rack.start || '');
       if (!speler || Number.isNaN(rackStart) || Number.isNaN(wedstrijdStart)) continue;
       const rackOffset = Math.max(0, offset + Math.round((rackStart - wedstrijdStart) / 1000));
       runouts.push({ speler, offsetSec: rackOffset, url: YT_URL(rec.videoId, rackOffset), exact: true });
     }
-    // Geen rack-log (oudere wedstrijden): val terug op het begin van de partij.
-    if (!runouts.length) {
+    // Geen rack-log (oudere wedstrijden): val terug op het begin van de partij. Is er WÉL
+    // een log maar bleef er niets van over, dan waren het geen echte run-outs — dan ook
+    // geen terugval, want dan zetten we de valse meldingen alsnog terug.
+    if (!heeftLog) {
       for (const [speler, aantal] of [[a, m.runoutsA], [b, m.runoutsB]]) {
         for (let i = 0; speler && i < (Number(aantal) || 0); i++) {
           runouts.push({ speler, offsetSec: offset, url: YT_URL(rec.videoId, offset), exact: false });

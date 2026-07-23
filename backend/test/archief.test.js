@@ -127,7 +127,7 @@ test('runoutRacksUitNotes leest de rack-log van Cuescore', () => {
     { note: 'frame end', time: '2026-07-22T17:41:31Z' },
   ];
   assert.deepStrictEqual(runoutRacksUitNotes(notes), [
-    { kant: 'B', start: '2026-07-22T17:37:56Z', eind: '2026-07-22T17:41:31Z' },
+    { kant: 'B', start: '2026-07-22T17:37:56Z', eind: '2026-07-22T17:41:31Z', duurSec: 215 },
   ]);
   assert.deepStrictEqual(runoutRacksUitNotes([]), []);
 });
@@ -140,4 +140,40 @@ test('mergeWedstrijden vervangt de regels van één video en sorteert nieuwste e
   const nieuw = [{ videoId: 'abc123', datum: '2026-07-22', offsetSec: 1500, spelers: ['Nieuw'] }];
   const uit = mergeWedstrijden(oud, 'abc123', nieuw);
   assert.deepStrictEqual(uit.map((r) => r.spelers[0]), ['Nieuw', 'Ander']);
+});
+
+test('achteraf ingetikte stand telt niet als run-out (racks van seconden)', () => {
+  // Echte casus 09-02-2026: zes "run-outs" binnen 28 seconden ingetikt.
+  const t = { name: 'T', matches: [wedstrijd(3, 'Panchi Chen', 'Andy Fung', {
+    start: '2026-02-09T23:17:28Z',
+    runoutsA: 3, runoutsB: 3,
+    runoutRacks: [
+      { kant: 'B', start: '2026-02-09T23:19:14Z', duurSec: 7 },
+      { kant: 'B', start: '2026-02-09T23:19:22Z', duurSec: 0 },
+      { kant: 'A', start: '2026-02-09T23:19:24Z', duurSec: 17 },
+    ],
+  })] };
+  const uit = wedstrijdenVoorVideo(INDEX, t);
+  // Er wás een rack-log, dus geen terugval op de (even onbetrouwbare) tellers.
+  assert.deepStrictEqual(uit[0].runouts, []);
+});
+
+test('een snelle maar echte run-out blijft staan', () => {
+  const t = { name: 'T', matches: [wedstrijd(3, 'Panchi Chen', 'Andy Fung', {
+    start: '2026-07-22T19:00:00Z',
+    runoutsA: 1,
+    runoutRacks: [{ kant: 'A', start: '2026-07-22T19:04:00Z', duurSec: 47 }],
+  })] };
+  assert.deepStrictEqual(wedstrijdenVoorVideo(INDEX, t)[0].runouts, [
+    { speler: 'Panchi Chen', offsetSec: 240, url: 'https://youtu.be/abc123?t=240', exact: true },
+  ]);
+});
+
+test('runoutRacksUitNotes berekent de rackduur', () => {
+  const { runoutRacksUitNotes } = require('../src/cuescore/parse');
+  const racks = runoutRacksUitNotes([
+    { note: 'frame start', time: '2026-02-09T23:19:22.069Z' },
+    { note: 'B frame win runout', time: '2026-02-09T23:19:22.284Z' },
+  ]);
+  assert.strictEqual(racks[0].duurSec, 0);
 });

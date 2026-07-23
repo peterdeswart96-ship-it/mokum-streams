@@ -111,7 +111,17 @@ function runoutRacksUitNotes(notes) {
     const tekst = String((n && n.note) || '');
     if (/^frame start$/i.test(tekst)) { frameStart = n.time || null; continue; }
     const m = /^([AB])\s+frame win\s+runout$/i.exec(tekst.trim());
-    if (m) uit.push({ kant: m[1].toUpperCase(), start: frameStart, eind: n.time || null });
+    if (!m) continue;
+    const van = Date.parse(frameStart || '');
+    const tot = Date.parse(n.time || '');
+    uit.push({
+      kant: m[1].toUpperCase(),
+      start: frameStart,
+      eind: n.time || null,
+      // Hoelang het rack duurde. Onmisbaar om ingetikte-achteraf-standen te herkennen:
+      // die leveren racks van een paar tienden van een seconde op (zie archief.js).
+      duurSec: Number.isNaN(van) || Number.isNaN(tot) ? null : Math.round((tot - van) / 1000),
+    });
   }
   return uit;
 }
