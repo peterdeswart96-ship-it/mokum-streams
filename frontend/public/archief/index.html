@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0a">
+<title>Mokum Archief — zoek een partij</title>
+<link rel="icon" href="/mokum-logo.png">
+<link rel="apple-touch-icon" href="/mokum-logo.png">
+<meta name="description" content="Zoek in alle gefilmde partijen van Mokum Pool &amp; Darts en spring direct naar het moment in de video.">
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: #0a0a0a; color: #ccc; -webkit-font-smoothing: antialiased; }
+  a { color: inherit; }
+
+  header {
+    position: sticky; top: 0; z-index: 5; background: #1a1a1a;
+    padding: 14px 16px; border-bottom: 1px solid #2a2a2a;
+    display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px;
+  }
+  header .logo { height: 34px; display: block; }
+  .kop-titel { text-align: center; }
+  .kop-titel .titel { font-family: "Arial Black", Arial, sans-serif; font-size: 22px; color: #fff; line-height: 1.05; }
+  .kop-titel .titel .m { color: #cc0000; }
+  .kop-titel .titel-sub { font-size: 12px; color: #999; margin-top: 3px; }
+  header .terug { justify-self: end; font-size: 12px; color: #999; text-decoration: none; border: 1px solid #2a2a2a; border-radius: 8px; padding: 6px 10px; white-space: nowrap; }
+  header .terug:hover { border-color: #cc0000; color: #fff; }
+  @media (max-width: 620px) {
+    header { grid-template-columns: auto 1fr; }
+    .kop-titel .titel { font-size: 18px; }
+    header .terug { display: none; }
+  }
+
+  main { padding: 12px 12px 48px; max-width: 720px; margin: 0 auto; }
+
+  .zoek {
+    width: 100%; background: #1a1a1a; border: 1px solid #2a2a2a; color: #fff;
+    border-radius: 10px; padding: 12px 14px; font: inherit; font-size: 16px;
+  }
+  .zoek:focus { outline: none; border-color: #cc0000; }
+  .zoek::placeholder { color: #777; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }
+  .chip {
+    background: #1a1a1a; border: 1px solid #2a2a2a; color: #ccc; border-radius: 999px;
+    padding: 7px 13px; font: inherit; font-size: 13px; cursor: pointer;
+  }
+  .chip:hover { border-color: #444; }
+  .chip[aria-pressed="true"] { background: #cc0000; border-color: #cc0000; color: #fff; }
+
+  .rij-select { display: flex; gap: 8px; margin: 8px 0 2px; }
+  .rij-select select {
+    flex: 1; min-width: 0; background: #1a1a1a; border: 1px solid #2a2a2a; color: #ccc;
+    border-radius: 8px; padding: 9px 10px; font: inherit; font-size: 13px;
+  }
+  .rij-select select:focus { outline: none; border-color: #cc0000; }
+
+  .telling { font-size: 12px; color: #999; margin: 14px 4px 8px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .telling .reset { background: transparent; border: 0; color: #ff6b6b; font: inherit; font-size: 12px; cursor: pointer; padding: 0; }
+  .telling .reset[hidden] { display: none; }
+
+  .rij {
+    display: block; text-decoration: none; background: #1a1a1a; border: 1px solid transparent;
+    border-radius: 10px; padding: 11px 13px; margin-bottom: 8px;
+  }
+  .rij:hover { border-color: #cc0000; }
+  .rij .top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 11px; color: #999; }
+  .rij .tafel { font-family: "Arial Black", Arial, sans-serif; font-size: 11px; background: #2a2a2a; color: #fff; border-radius: 5px; padding: 2px 7px; }
+  .rij .toernooi { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .rij .datum { flex: none; }
+  .rij .spelers { font-size: 15px; color: #fff; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .rij .vs { color: #777; font-size: 12px; }
+  .rij .score { font-family: "Arial Black", Arial, sans-serif; font-size: 14px; color: #ccc; }
+  .rij .onder { margin-top: 6px; display: flex; align-items: center; gap: 8px; font-size: 11px; color: #777; flex-wrap: wrap; }
+  .rij .ronde { text-transform: uppercase; letter-spacing: .4px; }
+  .rij .kijk { margin-left: auto; color: #cc0000; font-weight: bold; }
+  .badge { background: rgba(204,0,0,.15); border: 1px solid #cc0000; color: #ff6b6b; border-radius: 5px; padding: 2px 7px; font-size: 10px; letter-spacing: .3px; }
+  mark { background: rgba(204,0,0,.35); color: #fff; border-radius: 3px; padding: 0 2px; }
+
+  .melding { color: #999; text-align: center; padding: 40px 16px; font-size: 15px; }
+  .meer { width: 100%; background: #1a1a1a; border: 1px solid #2a2a2a; color: #ccc; border-radius: 10px; padding: 12px; font: inherit; cursor: pointer; }
+  .meer:hover { border-color: #cc0000; }
+  footer { text-align: center; font-size: 11px; color: #666; padding: 20px 12px 40px; }
+</style>
+</head>
+<body>
+  <header>
+    <img class="logo" src="/mokum-logo.png" alt="Mokum Pool &amp; Darts">
+    <div class="kop-titel">
+      <div class="titel"><span class="m">Mokum</span> Archief</div>
+      <div class="titel-sub">Zoek een eerder gespeelde partij</div>
+    </div>
+    <a class="terug" href="/mokumlive/">← Live</a>
+  </header>
+
+  <main>
+    <input id="zoek" class="zoek" type="search" placeholder="Zoek op speler, toernooi of ronde…" autocomplete="off" list="spelerlijst">
+    <datalist id="spelerlijst"></datalist>
+
+    <div class="chips">
+      <button class="chip" id="cRunout" type="button" aria-pressed="false">🎱 Alleen run-outs</button>
+      <button class="chip" id="cFinales" type="button" aria-pressed="false">🏆 Alleen finales</button>
+    </div>
+
+    <div class="rij-select">
+      <select id="fToernooi"><option value="">Alle toernooien</option></select>
+      <select id="fTafel"><option value="">Alle tafels</option></select>
+      <select id="fJaar"><option value="">Alle jaren</option></select>
+    </div>
+
+    <div class="telling">
+      <span id="telling">Laden…</span>
+      <button class="reset" id="reset" type="button" hidden>Filters wissen</button>
+    </div>
+
+    <div id="lijst"><div class="melding">Laden…</div></div>
+    <button class="meer" id="meer" type="button" hidden>Toon meer</button>
+  </main>
+
+  <footer>Partijen uit onze eigen streams · standen via Cuescore</footer>
+
+<script>
+// Zoekmachine over het wedstrijd-archief (#59/#67). We halen het archief ÉÉN keer op
+// (paar honderd kB) en filteren volledig in de browser — dus geen backend-call per
+// toetsaanslag en instant resultaat. Elke regel linkt met ?t= naar het exacte moment
+// in de YouTube-video (YouTube kent geen clip-playlists; zie api-contract v0.36).
+const API = 'https://mokum-streams-func.azurewebsites.net';
+const PAGINA = 60; // hoeveel regels we per keer tonen
+
+let ALLES = [];
+let getoond = PAGINA;
+
+const $ = (id) => document.getElementById(id);
+const norm = (s) => String(s || '').toLowerCase()
+  .normalize('NFD').replace(/\p{Diacritic}/gu, ''); // accenten weg: "Jose" vindt ook "Jose" met accent
+
+// Alleen de échte finale — niet "Semi final"/"Quarter final" (die zouden 1 op de 3
+// partijen matchen en de filter zinloos maken).
+const FINALE_RE = /^\s*final(e)?\s*$/i;
+
+// --- filters uitlezen -------------------------------------------------------
+function huidigeFilters() {
+  return {
+    q: norm($('zoek').value.trim()),
+    runout: $('cRunout').getAttribute('aria-pressed') === 'true',
+    finale: $('cFinales').getAttribute('aria-pressed') === 'true',
+    toernooi: $('fToernooi').value,
+    tafel: $('fTafel').value,
+    jaar: $('fJaar').value,
+  };
+}
+const filtersActief = (f) => !!(f.q || f.runout || f.finale || f.toernooi || f.tafel || f.jaar);
+
+function pastBij(r, f) {
+  if (f.runout && !(r.runouts || []).length) return false;
+  if (f.finale && !FINALE_RE.test(r.ronde || '')) return false;
+  if (f.toernooi && r.toernooi !== f.toernooi) return false;
+  if (f.tafel && String(r.tafel) !== f.tafel) return false;
+  if (f.jaar && String(r.datum || '').slice(0, 4) !== f.jaar) return false;
+  if (!f.q) return true;
+  // Zoekterm mag in een spelersnaam, het toernooi of de ronde zitten.
+  return r._zoek.includes(f.q);
+}
+
+// --- weergave ---------------------------------------------------------------
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// Markeert de zoekterm in een naam (accent-ongevoelig, dus op index werken).
+function markeer(tekst, q) {
+  const veilig = esc(tekst);
+  if (!q) return veilig;
+  const i = norm(tekst).indexOf(q);
+  if (i < 0) return veilig;
+  const deel = tekst.slice(i, i + q.length);
+  return esc(tekst.slice(0, i)) + '<mark>' + esc(deel) + '</mark>' + esc(tekst.slice(i + q.length));
+}
+
+const DATUM_KORT = (iso) => {
+  const d = new Date(`${iso}T12:00:00Z`);
+  return Number.isNaN(d.getTime()) ? (iso || '') : d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
+function rijHtml(r, q) {
+  const [a, b] = r.spelers || [];
+  const [sa, sb] = r.score || [];
+  const heeftScore = sa != null && sb != null;
+  const ro = (r.runouts || []).map((x) => `${esc(x.speler)}${x.aantal > 1 ? ` ${x.aantal}×` : ''}`).join(' · ');
+  return `<a class="rij" href="${esc(r.url)}" target="_blank" rel="noopener">
+    <div class="top">
+      <span class="tafel">Tafel ${esc(r.tafel)}</span>
+      <span class="toernooi">${markeer(r.toernooi, q)}</span>
+      <span class="datum">${esc(DATUM_KORT(r.datum))}</span>
+    </div>
+    <div class="spelers">
+      <span>${markeer(a || '?', q)}</span><span class="vs">vs</span><span>${markeer(b || '?', q)}</span>
+      ${heeftScore ? `<span class="score">${esc(sa)}–${esc(sb)}</span>` : ''}
+    </div>
+    <div class="onder">
+      ${r.ronde ? `<span class="ronde">${markeer(r.ronde, q)}</span>` : ''}
+      ${ro ? `<span class="badge">🎱 run-out ${esc(ro)}</span>` : ''}
+      <span class="kijk">▶ Bekijk het moment</span>
+    </div>
+  </a>`;
+}
+
+function teken() {
+  const f = huidigeFilters();
+  const hits = ALLES.filter((r) => pastBij(r, f));
+  const zichtbaar = hits.slice(0, getoond);
+
+  $('lijst').innerHTML = zichtbaar.length
+    ? zichtbaar.map((r) => rijHtml(r, f.q)).join('')
+    : '<div class="melding">Niets gevonden. Probeer een andere naam of wis de filters.</div>';
+
+  const runouts = hits.reduce((n, r) => n + (r.runouts || []).length, 0);
+  $('telling').textContent = `${hits.length} van ${ALLES.length} partijen${runouts ? ` · ${runouts} run-outs` : ''}`;
+  $('reset').hidden = !filtersActief(f);
+  $('meer').hidden = hits.length <= zichtbaar.length;
+  $('meer').textContent = `Toon meer (${hits.length - zichtbaar.length} resterend)`;
+}
+
+function opnieuw() { getoond = PAGINA; teken(); }
+
+// --- keuzelijsten vullen ----------------------------------------------------
+function vulKeuzes() {
+  const toernooien = [...new Set(ALLES.map((r) => r.toernooi).filter(Boolean))].sort();
+  const tafels = [...new Set(ALLES.map((r) => r.tafel).filter((t) => t != null))].sort((a, b) => a - b);
+  const jaren = [...new Set(ALLES.map((r) => String(r.datum || '').slice(0, 4)).filter(Boolean))].sort().reverse();
+  const spelers = [...new Set(ALLES.flatMap((r) => r.spelers || []))].sort();
+
+  const vul = (el, waarden, label) => {
+    el.insertAdjacentHTML('beforeend', waarden.map((w) => `<option value="${esc(w)}">${esc(label ? label(w) : w)}</option>`).join(''));
+  };
+  vul($('fToernooi'), toernooien);
+  vul($('fTafel'), tafels, (t) => `Tafel ${t}`);
+  vul($('fJaar'), jaren);
+  $('spelerlijst').innerHTML = spelers.map((s) => `<option value="${esc(s)}">`).join('');
+}
+
+// --- opstarten --------------------------------------------------------------
+function koppelGebeurtenissen() {
+  $('zoek').addEventListener('input', opnieuw);
+  for (const id of ['fToernooi', 'fTafel', 'fJaar']) $(id).addEventListener('change', opnieuw);
+  for (const id of ['cRunout', 'cFinales']) {
+    $(id).addEventListener('click', (e) => {
+      const knop = e.currentTarget;
+      knop.setAttribute('aria-pressed', knop.getAttribute('aria-pressed') === 'true' ? 'false' : 'true');
+      opnieuw();
+    });
+  }
+  $('meer').addEventListener('click', () => { getoond += PAGINA; teken(); });
+  $('reset').addEventListener('click', () => {
+    $('zoek').value = '';
+    for (const id of ['fToernooi', 'fTafel', 'fJaar']) $(id).value = '';
+    for (const id of ['cRunout', 'cFinales']) $(id).setAttribute('aria-pressed', 'false');
+    opnieuw();
+  });
+}
+
+(async function start() {
+  koppelGebeurtenissen();
+
+  // Diepe link ondersteunen: /archief/?q=Peter of ?runout=1 (deelbaar).
+  const p = new URLSearchParams(location.search);
+  if (p.get('q')) $('zoek').value = p.get('q');
+  if (p.get('runout')) $('cRunout').setAttribute('aria-pressed', 'true');
+
+  try {
+    const res = await fetch(`${API}/api/archief`, { cache: 'no-store' });
+    const data = await res.json();
+    ALLES = (data.items || []).map((r) => ({
+      ...r,
+      // Voorgekookt zoekveld: één keer normaliseren i.p.v. bij elke toetsaanslag.
+      _zoek: norm([...(r.spelers || []), r.toernooi, r.ronde].join(' ')),
+    }));
+    vulKeuzes();
+    teken();
+  } catch (e) {
+    $('lijst').innerHTML = '<div class="melding">Het archief kon niet geladen worden. Probeer het later nog eens.</div>';
+    $('telling').textContent = '';
+  }
+})();
+</script>
+</body>
+</html>

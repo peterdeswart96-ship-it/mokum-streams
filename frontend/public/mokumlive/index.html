@@ -181,6 +181,14 @@
   .filters input[type=checkbox] { width: 18px; height: 18px; accent-color: #cc0000; flex: none; }
   .filters .reset { margin-top: 6px; background: transparent; border: 1px solid #2a2a2a; color: #ff6b6b; border-radius: 8px; padding: 8px 12px; cursor: pointer; font: inherit; font-size: 13px; }
   .filters .reset:hover { border-color: #cc0000; }
+
+  /* Link naar het wedstrijd-archief (zoekmachine, #59/#67). */
+  .archief-knop {
+    justify-self: end; font-size: 12px; color: #999; text-decoration: none;
+    border: 1px solid #2a2a2a; border-radius: 8px; padding: 6px 10px; white-space: nowrap;
+  }
+  .archief-knop:hover { border-color: #cc0000; color: #fff; }
+  @media (max-width: 620px) { .archief-knop { padding: 6px 8px; } }
 </style>
 </head>
 <body>
@@ -192,6 +200,7 @@
       <div class="titel"><span class="m">Mokum</span> Live</div>
       <div class="titel-sub">Standen en livestreams</div>
     </div>
+    <a class="archief-knop" href="/archief/" title="Zoek een eerder gespeelde partij terug">🔎 Archief</a>
   </header>
   <main>
     <div id="kolomlinks">
