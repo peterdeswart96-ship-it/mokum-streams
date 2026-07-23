@@ -542,3 +542,17 @@ Body:
   her-uploaden. Alle 61 video's met run-outs zijn openbaar én insluitbaar (geverifieerd).
   Testpagina voor OBS: `frontend/public/pauze/highlight-test.html` (`?debug=1` toont de
   speler-status, `?aantal=` het aantal clips in de roulatie).
+- 2026-07-23: v0.40 — **Keuring van highlight-clips (#71)**. Niet elke run-out levert bruikbaar
+  beeld op (pauzescherm in beeld, camera de verkeerde kant op), dus clips worden vooraf
+  goedgekeurd en de uitzending speelt uitsluitend wat is goedgekeurd.
+  - **`GET /api/highlights?limit=`** (publiek) → alleen goedgekeurde clips, plus de tellers
+    `{ totaal, goed, afgekeurd, tekeuren }`.
+  - **`GET /api/manage/highlights`** (admin) → álle clips met `sleutel` en
+    `keuring: "goed" | "afgekeurd" | null`.
+  - **`POST /api/manage/highlights`** (admin) → body `{ sleutel, status }` met status
+    `"goed"`, `"afgekeurd"` of `null` (oordeel terugdraaien).
+  - Sleutel per clip = **`<videoId>:<clipVan>`**; die blijft gelijk als het archief opnieuw
+    wordt opgebouwd, dus een keuring gaat niet verloren. Opslag: `highlight-keuring.json`.
+  - Keuringspagina: `frontend/public/keuring/` — clip voor clip bekijken en met de pijltjes
+    (of J/N) goed- of afkeuren. Gebruikt hetzelfde admin-token als het dashboard
+    (localStorage `mokum_admin_token`).

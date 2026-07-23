@@ -138,11 +138,12 @@ const datumKort = (iso) => {
 };
 
 async function haalClips() {
-  const r = await fetch(`${APP_API}/api/runouts?limit=200`, { cache: 'no-store' });
+  // Alleen GOEDGEKEURDE clips: niet elke run-out levert bruikbaar beeld op (pauzescherm in
+  // beeld, camera verkeerd). Keuren doe je op /keuring/.
+  const r = await fetch(`${APP_API}/api/highlights`, { cache: 'no-store' });
   const d = await r.json();
-  // Alleen run-outs met een echt clipvenster (rack-log aanwezig). Nieuwste eerst.
-  clips = (d.items || []).filter((x) => x.clipVan != null && x.clipTot != null).slice(0, MAX_CLIPS);
-  $('tel').textContent = `${d.aantal} in het archief`;
+  clips = (d.items || []).slice(0, MAX_CLIPS);
+  $('tel').textContent = `${d.goed} goedgekeurd`;
   return clips.length;
 }
 
@@ -191,7 +192,7 @@ function startSpeler() {
 (async function start() {
   try {
     if (!(await haalClips())) {
-      $('melding').textContent = 'Geen run-outs met een clipvenster gevonden.';
+      $('melding').textContent = 'Nog geen goedgekeurde clips — keur ze eerst op /keuring/.';
       return;
     }
   } catch (e) {

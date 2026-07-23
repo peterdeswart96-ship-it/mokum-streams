@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mokum — highlights keuren</title>
+<link rel="icon" href="/mokum-logo.png">
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: #0a0a0a; color: #ccc; }
+  header {
+    position: sticky; top: 0; z-index: 5; background: #1a1a1a; border-bottom: 1px solid #2a2a2a;
+    padding: 12px 16px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  header .titel { font-family: "Arial Black", Arial, sans-serif; font-size: 18px; color: #fff; }
+  header .titel .m { color: #cc0000; }
+  .telling { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+  .pil { border-radius: 999px; padding: 5px 12px; font-size: 13px; background: #2a2a2a; }
+  .pil.goed { background: #14532d; color: #b7f7c8; }
+  .pil.af   { background: #4a1212; color: #ffb3b3; }
+
+  main { max-width: 960px; margin: 0 auto; padding: 16px 16px 60px; }
+  .doek { position: relative; aspect-ratio: 16 / 9; background: #000; border-radius: 10px; overflow: hidden; border: 1px solid #2a2a2a; }
+  .doek iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+
+  .info { display: flex; align-items: baseline; gap: 12px; margin: 14px 2px 4px; flex-wrap: wrap; }
+  .info .naam { font-family: "Arial Black", Arial, sans-serif; font-size: 24px; color: #fff; }
+  .info .tegen { font-size: 14px; color: #999; }
+  .info .meta { margin-left: auto; font-size: 13px; color: #888; text-align: right; }
+
+  .knoppen { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+  button {
+    background: #1a1a1a; border: 1px solid #2a2a2a; color: #ccc; border-radius: 10px;
+    padding: 12px 18px; font: inherit; font-size: 15px; cursor: pointer;
+  }
+  button:hover { border-color: #444; }
+  button.goed { background: #14532d; border-color: #1c6b3c; color: #d6ffe3; }
+  button.goed:hover { background: #1c6b3c; }
+  button.af { background: #4a1212; border-color: #6b1c1c; color: #ffd6d6; }
+  button.af:hover { background: #6b1c1c; }
+  button.groei { flex: 1; }
+  kbd {
+    background: #000; border: 1px solid #333; border-radius: 4px; padding: 1px 6px;
+    font-family: Consolas, monospace; font-size: 12px; color: #999; margin-left: 6px;
+  }
+
+  .balk { height: 6px; background: #1a1a1a; border-radius: 3px; overflow: hidden; margin: 16px 0 4px; }
+  .balk span { display: block; height: 100%; background: #cc0000; width: 0; transition: width .25s; }
+  .voortgang { font-size: 12px; color: #888; text-align: center; }
+  .melding { text-align: center; color: #999; padding: 50px 16px; font-size: 15px; }
+  .fout { color: #ff6b6b; }
+  .rij-filter { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #999; margin-top: 12px; }
+  input[type=checkbox] { width: 16px; height: 16px; accent-color: #cc0000; }
+  .token { display: flex; gap: 8px; }
+  .token input {
+    flex: 1; background: #1a1a1a; border: 1px solid #2a2a2a; color: #fff;
+    border-radius: 8px; padding: 10px 12px; font: inherit;
+  }
+</style>
+</head>
+<body>
+  <header>
+    <span class="titel"><span class="m">Mokum</span> — highlights keuren</span>
+    <span class="telling">
+      <span class="pil goed" id="pGoed">0 goed</span>
+      <span class="pil af" id="pAf">0 afgekeurd</span>
+      <span class="pil" id="pTeDoen">0 te keuren</span>
+    </span>
+  </header>
+
+  <main>
+    <div id="inlog" hidden>
+      <p class="melding">Vul je ADMIN_TOKEN in om te kunnen keuren.</p>
+      <div class="token">
+        <input id="tokenVeld" type="password" placeholder="ADMIN_TOKEN" autocomplete="off">
+        <button id="tokenOk">Opslaan</button>
+      </div>
+    </div>
+
+    <div id="werk" hidden>
+      <div class="doek"><div id="speler"></div></div>
+
+      <div class="info">
+        <span class="naam" id="naam">—</span>
+        <span class="tegen" id="tegen"></span>
+        <span class="meta" id="meta"></span>
+      </div>
+
+      <div class="knoppen">
+        <button class="af groei" id="bAf">✗ Afkeuren <kbd>←</kbd></button>
+        <button id="bOpnieuw">↻ Opnieuw <kbd>R</kbd></button>
+        <button id="bVorige">‹ Vorige <kbd>P</kbd></button>
+        <button class="goed groei" id="bGoed">✓ Goedkeuren <kbd>→</kbd></button>
+      </div>
+
+      <div class="balk"><span id="balk"></span></div>
+      <div class="voortgang" id="voortgang">—</div>
+
+      <label class="rij-filter">
+        <input type="checkbox" id="fAlles"> Ook al gekeurde clips tonen
+      </label>
+    </div>
+
+    <div class="melding" id="melding">Laden…</div>
+  </main>
+
+<script>
+// Keuringspagina voor de highlight-clips (#71). Niet elke run-out levert bruikbaar beeld op
+// — soms staat het pauzescherm in beeld of kijkt de camera de verkeerde kant op. Hier loop
+// je ze één voor één door en keur je ze goed of af; de uitzending speelt daarna alleen wat
+// is goedgekeurd.
+//
+// Auth: hetzelfde admin-token als het dashboard (localStorage-sleutel mokum_admin_token),
+// dus wie daar al ingelogd is hoeft hier niets in te vullen. Het token staat NOOIT in de
+// code — het wordt eenmalig ingevuld en lokaal bewaard.
+const API = 'https://mokum-streams-func.azurewebsites.net';
+const TOKEN_KEY = 'mokum_admin_token';
+
+const $ = (id) => document.getElementById(id);
+const token = () => localStorage.getItem(TOKEN_KEY) || '';
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => (
+  { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+let alle = [];      // alle clips met hun oordeel
+let lijst = [];     // wat we nu doorlopen (afhankelijk van het filter)
+let idx = 0;
+let speler = null;
+
+const datumKort = (iso) => {
+  const d = new Date(`${iso}T12:00:00Z`);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
+async function api(pad, opts = {}) {
+  const res = await fetch(`${API}${pad}`, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}`, ...(opts.headers || {}) },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+function tellingTonen(t) {
+  $('pGoed').textContent = `${t.goed} goed`;
+  $('pAf').textContent = `${t.afgekeurd} afgekeurd`;
+  $('pTeDoen').textContent = `${t.tekeuren} te keuren`;
+  const gedaan = t.goed + t.afgekeurd;
+  $('balk').style.width = t.totaal ? `${(gedaan / t.totaal) * 100}%` : '0';
+}
+
+function bouwLijst() {
+  lijst = $('fAlles').checked ? alle : alle.filter((c) => c.keuring === null);
+  if (idx >= lijst.length) idx = Math.max(0, lijst.length - 1);
+}
+
+function toon() {
+  if (!lijst.length) {
+    $('melding').hidden = false;
+    $('melding').textContent = $('fAlles').checked
+      ? 'Geen clips gevonden.'
+      : 'Alles gekeurd. Zet het vinkje aan om je eerdere oordelen te herzien.';
+    $('werk').hidden = true;
+    return;
+  }
+  $('melding').hidden = true;
+  $('werk').hidden = false;
+
+  const c = lijst[idx];
+  $('naam').textContent = c.speler;
+  $('tegen').textContent = `tegen ${c.tegenstander || '?'}${c.ronde ? ` · ${c.ronde}` : ''}`;
+  $('meta').innerHTML = `${esc(c.toernooi || '')}<br>${esc(datumKort(c.datum))} · tafel ${esc(c.tafel)} · ${c.clipTot - c.clipVan}s${c.keuring ? ` · <b>${esc(c.keuring)}</b>` : ''}`;
+  $('voortgang').textContent = `${idx + 1} van ${lijst.length}`;
+  if (speler) speler.loadVideoById({ videoId: c.videoId, startSeconds: c.clipVan, endSeconds: c.clipTot });
+}
+
+async function keur(status) {
+  const c = lijst[idx];
+  if (!c) return;
+  try {
+    const t = await api('/api/manage/highlights', { method: 'POST', body: JSON.stringify({ sleutel: c.sleutel, status }) });
+    c.keuring = t.status;
+    tellingTonen(t);
+  } catch (e) {
+    $('meta').innerHTML = `<span class="fout">opslaan mislukt (${esc(e.message)})</span>`;
+    return;
+  }
+  // Bij "alles tonen" blijven we staan zodat je je oordeel ziet; anders door naar de volgende.
+  if ($('fAlles').checked) { volgende(); return; }
+  bouwLijst();
+  toon();
+}
+
+function volgende() { if (idx < lijst.length - 1) idx += 1; toon(); }
+function vorige()   { if (idx > 0) idx -= 1; toon(); }
+
+function koppel() {
+  $('bGoed').onclick = () => keur('goed');
+  $('bAf').onclick = () => keur('afgekeurd');
+  $('bVorige').onclick = vorige;
+  $('bOpnieuw').onclick = toon;
+  $('fAlles').onchange = () => { idx = 0; bouwLijst(); toon(); };
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'j') { e.preventDefault(); keur('goed'); }
+    if (e.key === 'ArrowLeft'  || e.key.toLowerCase() === 'n') { e.preventDefault(); keur('afgekeurd'); }
+    if (e.key.toLowerCase() === 'r') toon();
+    if (e.key.toLowerCase() === 'p') vorige();
+  });
+}
+
+function startSpeler() {
+  speler = new YT.Player('speler', {
+    width: '100%', height: '100%',
+    playerVars: { autoplay: 1, mute: 1, controls: 1, modestbranding: 1, rel: 0, playsinline: 1 },
+    events: { onReady: toon },
+  });
+}
+
+async function laden() {
+  try {
+    const d = await api('/api/manage/highlights');
+    alle = d.items || [];
+    tellingTonen(d);
+    bouwLijst();
+    $('inlog').hidden = true;
+    window.onYouTubeIframeAPIReady = startSpeler;
+    const s = document.createElement('script');
+    s.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(s);
+  } catch (e) {
+    $('melding').hidden = false;
+    $('melding').innerHTML = `<span class="fout">Kon de clips niet laden (${esc(e.message)}).</span>`;
+    $('inlog').hidden = false;
+  }
+}
+
+(function start() {
+  koppel();
+  $('tokenOk').onclick = () => {
+    localStorage.setItem(TOKEN_KEY, $('tokenVeld').value.trim());
+    $('tokenVeld').value = '';
+    $('melding').textContent = 'Laden…';
+    laden();
+  };
+  if (!token()) {
+    $('melding').hidden = true;
+    $('inlog').hidden = false;
+    return;
+  }
+  laden();
+})();
+</script>
+</body>
+</html>
