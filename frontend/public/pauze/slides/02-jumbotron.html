@@ -64,8 +64,10 @@
     height: var(--ticker-hoogte);
     overflow: hidden;
     display: flex; align-items: center;
-    background: rgba(8,8,8,0.38);
-    border: 1px solid rgba(255,255,255,0.07);
+    background: rgba(8,8,8,0.22);
+    /* Rand zwart i.p.v. wit: een lichte lijn bovenlangs verraadt de balk als 'plaatje op
+       de foto'. Zwart valt weg in de donkere vloer. */
+    border: 1px solid rgba(0,0,0,0.55);
     border-radius: 10px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.30);
     /* Randen zacht laten uitvloeien, zodat tekst niet hard afgekapt in/uit beeld schuift. */
