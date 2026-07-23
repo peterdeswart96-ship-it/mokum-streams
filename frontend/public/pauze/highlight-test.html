@@ -34,14 +34,6 @@
     border-radius: 20px; box-shadow: 0 30px 80px rgba(0,0,0,0.6);
     display: flex; flex-direction: column; gap: 1.85vh; overflow: hidden;
   }
-  .kop { display: flex; align-items: flex-end; gap: 1.85vh; flex: none; }
-  .titel { font-size: 5.4vh; line-height: 1; }
-  .sub { font-family: Arial, sans-serif; font-size: 2.4vh; color: rgba(255,255,255,0.6); }
-  .tel {
-    margin-left: auto; background: #cc0000; color: #fff;
-    padding: 0.75vh 1.85vh; border-radius: 999px; font-size: 2.2vh;
-  }
-
   /* Videovlak. De speler krijgt geen knoppen; een dun kader eromheen houdt 'm netjes. */
   .doek {
     position: relative; flex: 1; min-height: 0;
@@ -56,13 +48,50 @@
     background: linear-gradient(180deg, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0) 100%);
   }
 
+  /* Eén regel onder het beeld: wie tegen wie, en wanneer. */
   .voet { flex: none; display: flex; align-items: baseline; gap: 1.6vh; }
   .voetNaam { font-size: 3.3vh; }
-  .voetTegen { font-family: Arial, sans-serif; font-size: 2vh; color: rgba(255,255,255,0.55); }
-  .voetMeta {
-    margin-left: auto; font-family: Arial, sans-serif; font-size: 2vh;
-    color: rgba(255,255,255,0.55); text-align: right;
+  .voetVs { font-family: Arial, sans-serif; font-size: 2.2vh; color: rgba(255,255,255,0.5); }
+  .voetDatum {
+    margin-left: auto; font-family: Arial, sans-serif; font-size: 2.2vh;
+    color: rgba(255,255,255,0.55);
   }
+
+  /* Balk bóven de kaart: links de QR naar het archief, rechts de neon-kop. */
+  .qr {
+    position: absolute; z-index: 2; left: 6.5%; top: 2.4%;
+    display: flex; align-items: center; gap: 1.8vh;
+  }
+  .qr img {
+    width: 9vh; height: 9vh; display: block;
+    background: #fff; padding: 0.6vh; border-radius: 0.8vh;
+  }
+  .qr .label { font-size: 3vh; line-height: 1.15; }
+  .qr .label .m { color: #cc0000; }
+  .qr .label .sub { display: block; font-family: Arial, sans-serif; font-size: 1.7vh; color: rgba(255,255,255,0.5); margin-top: 0.3vh; }
+
+  /* Neon-kop: witte kern met rode gloed, en af en toe een flikker zoals een echt bord. */
+  .neon {
+    position: absolute; z-index: 2; right: 6.5%; top: 3.2%;
+    font-size: 6vh; letter-spacing: 0.9vh; color: #fff;
+    text-shadow:
+      0 0 0.6vh #fff,
+      0 0 1.4vh #ff4d4d,
+      0 0 2.8vh #cc0000,
+      0 0 5.6vh #cc0000,
+      0 0 9vh rgba(204,0,0,0.7);
+    animation: flikker 7s linear infinite;
+  }
+  @keyframes flikker {
+    0%, 88%, 100% { opacity: 1; }
+    89% { opacity: 0.45; }
+    90% { opacity: 1; }
+    91% { opacity: 0.65; }
+    92% { opacity: 1; }
+    96% { opacity: 0.8; }
+    97% { opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) { .neon { animation: none; } }
 
   .melding {
     position: absolute; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center;
@@ -81,20 +110,23 @@
 <body>
   <div class="bg"></div>
 
+  <div class="qr">
+    <img src="img/qr-archief.svg" alt="QR naar mokum-streams.pdscloud.nl/archief">
+    <span class="label"><span class="m">Mokum</span> Archief
+      <span class="sub">scan en kijk terug</span>
+    </span>
+  </div>
+  <div class="neon">HIGHLIGHTS</div>
+
   <div class="kaart">
-    <div class="kop">
-      <span class="titel">RUN-OUT</span>
-      <span class="sub" id="sub">van de afgelopen weken</span>
-      <span class="tel" id="tel">—</span>
-    </div>
     <div class="doek">
       <div id="speler"></div>
       <div class="afdekking"></div>
     </div>
     <div class="voet">
       <span class="voetNaam" id="vNaam">—</span>
-      <span class="voetTegen" id="vTegen"></span>
-      <span class="voetMeta" id="vMeta"></span>
+      <span class="voetVs" id="vVs"></span>
+      <span class="voetDatum" id="vDatum"></span>
     </div>
   </div>
 
@@ -143,14 +175,13 @@ async function haalClips() {
   const r = await fetch(`${APP_API}/api/highlights`, { cache: 'no-store' });
   const d = await r.json();
   clips = (d.items || []).slice(0, MAX_CLIPS);
-  $('tel').textContent = `${d.goed} goedgekeurd`;
   return clips.length;
 }
 
 function toonTekst(c) {
-  $('vNaam').textContent = c.speler;
-  $('vTegen').textContent = `tegen ${c.tegenstander || '?'}${c.ronde ? ` · ${c.ronde}` : ''}`;
-  $('vMeta').innerHTML = `${esc(c.toernooi || '')}<br>${esc(datumKort(c.datum))} · tafel ${esc(c.tafel)}`;
+  $('vNaam').textContent = `${c.speler} VS ${c.tegenstander || '?'}`;
+  $('vVs').textContent = '';
+  $('vDatum').textContent = datumKort(c.datum);
 }
 
 function volgendeClip() {
