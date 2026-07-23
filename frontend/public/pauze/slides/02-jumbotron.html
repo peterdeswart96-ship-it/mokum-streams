@@ -100,39 +100,49 @@
      wanneer er géén wedstrijd loopt. Bedoeld als drager voor wisselende "sheets" —
      nu de run-outs, later ook andere overzichten. */
   .card.sheet {
-    top: 51%; width: 1240px; height: 770px; margin-left: -620px; margin-top: -385px;
+    /* Volledig in PROCENTEN: met vaste pixels klopt de kaart alleen in een venster dat
+       toevallig 1080 hoog is — elders liep 'ie over het MOKUM-bord en de ticker heen.
+       Verticaal via top+bottom (niet via height + negatieve margin, want een procentuele
+       margin-top rekent met de BREEDTE van het venster, niet de hoogte).
+       Op 1920x1080 komt dit uit op x 340-1580, y 166-936. */
+    top: 15.4%; bottom: 13.3%; height: auto; margin-top: 0;
+    width: 64.6%; margin-left: -32.3%;
     gap: 20px; overflow: hidden; /* nooit buiten de kaart lopen (zou de ticker raken) */
   }
-  .sheet .sheetKop { display: flex; align-items: flex-end; gap: 20px; }
-  .sheet .sheetTitel { font-size: 58px; line-height: 1; }
-  .sheet .sheetSub { font-family: Arial, sans-serif; font-size: 26px; color: rgba(255,255,255,0.6); }
+  /* Alles binnen de kaart in vh: dan schaalt de inhoud mee met de kaart zelf en klopt
+     een preview in een willekeurig venster met wat er straks op 1920x1080 uitgaat.
+     1vh = 10,8px bij 1080 hoog. */
+  .card.sheet { padding: 3.7vh 4.8vh 4.1vh; gap: 1.85vh; }
+  .sheet .sheetKop { display: flex; align-items: flex-end; gap: 1.85vh; }
+  .sheet .sheetTitel { font-size: 5.4vh; line-height: 1; }
+  .sheet .sheetSub { font-family: Arial, sans-serif; font-size: 2.4vh; color: rgba(255,255,255,0.6); }
   .sheet .sheetTel {
     margin-left: auto; background: #cc0000; color: #fff;
-    padding: 8px 20px; border-radius: 999px; font-size: 24px;
+    padding: 0.75vh 1.85vh; border-radius: 999px; font-size: 2.2vh;
   }
-  .sheet .rijen { display: flex; flex-direction: column; gap: 12px; flex: 1; overflow: hidden; }
+  .sheet .rijen { display: flex; flex-direction: column; gap: 1.1vh; flex: 1; overflow: hidden; }
   .sheet .rij {
-    display: flex; align-items: center; gap: 22px;
+    display: flex; align-items: center; gap: 2vh;
     background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 14px; padding: 12px 24px;
+    border-radius: 1.3vh; padding: 1.1vh 2.2vh;
   }
   .sheet .bal {
-    width: 54px; height: 54px; flex: none; border-radius: 50%;
-    background: #cc0000; color: #fff; font-size: 24px;
+    width: 5vh; height: 5vh; flex: none; border-radius: 50%;
+    background: #cc0000; color: #fff; font-size: 2.2vh;
     display: flex; align-items: center; justify-content: center;
     box-shadow: 0 4px 14px rgba(204,0,0,0.4);
   }
   .sheet .wie { flex: 1; min-width: 0; }
-  .sheet .wieNaam { font-size: 36px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .sheet .wieTegen { font-family: Arial, sans-serif; font-size: 21px; color: rgba(255,255,255,0.55); margin-top: 3px; }
-  .sheet .meta { text-align: right; flex: none; max-width: 420px; }
+  .sheet .wieNaam { font-size: 3.3vh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sheet .wieTegen { font-family: Arial, sans-serif; font-size: 1.95vh; color: rgba(255,255,255,0.55); margin-top: 0.3vh; }
+  .sheet .meta { text-align: right; flex: none; max-width: 39vh; }
   .sheet .metaToernooi {
-    font-family: Arial, sans-serif; font-size: 21px; color: rgba(255,255,255,0.75);
+    font-family: Arial, sans-serif; font-size: 1.95vh; color: rgba(255,255,255,0.75);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .sheet .metaDatum { font-family: Arial, sans-serif; font-size: 19px; color: rgba(255,255,255,0.45); margin-top: 3px; }
+  .sheet .metaDatum { font-family: Arial, sans-serif; font-size: 1.75vh; color: rgba(255,255,255,0.45); margin-top: 0.3vh; }
   .sheet .voet {
-    font-family: Arial, sans-serif; font-size: 21px; color: rgba(255,255,255,0.45);
+    font-family: Arial, sans-serif; font-size: 1.95vh; color: rgba(255,255,255,0.45);
     text-align: center; letter-spacing: 0.3px;
   }
 
