@@ -89,6 +89,9 @@
 
       <div class="knoppen">
         <button class="af groei" id="bAf">✗ Afkeuren <kbd>←</kbd></button>
+        <button id="bLater">Start +5s <kbd>]</kbd></button>
+        <button id="bVroeger">Start −5s <kbd>[</kbd></button>
+        <button id="bResetStart">Start standaard <kbd>0</kbd></button>
         <button id="bOpnieuw">↻ Opnieuw <kbd>R</kbd></button>
         <button id="bVorige">‹ Vorige <kbd>P</kbd></button>
         <button class="goed groei" id="bGoed">✓ Goedkeuren <kbd>→</kbd></button>
@@ -169,7 +172,8 @@ function toon() {
   const c = lijst[idx];
   $('naam').textContent = c.speler;
   $('tegen').textContent = `tegen ${c.tegenstander || '?'}${c.ronde ? ` · ${c.ronde}` : ''}`;
-  $('meta').innerHTML = `${esc(c.toernooi || '')}<br>${esc(datumKort(c.datum))} · tafel ${esc(c.tafel)} · ${c.clipTot - c.clipVan}s${c.keuring ? ` · <b>${esc(c.keuring)}</b>` : ''}`;
+  const startLabel = c.startAangepast ? ` · start +${c.clipVan - c.offsetSec}s` : '';
+  $('meta').innerHTML = `${esc(c.toernooi || '')}<br>${esc(datumKort(c.datum))} · tafel ${esc(c.tafel)} · ${c.clipTot - c.clipVan}s${startLabel}${c.keuring ? ` · <b>${esc(c.keuring)}</b>` : ''}`;
   $('voortgang').textContent = `${idx + 1} van ${lijst.length}`;
   if (speler) speler.loadVideoById({ videoId: c.videoId, startSeconds: c.clipVan, endSeconds: c.clipTot });
 }
@@ -194,11 +198,34 @@ async function keur(status) {
 function volgende() { if (idx < lijst.length - 1) idx += 1; toon(); }
 function vorige()   { if (idx > 0) idx -= 1; toon(); }
 
+// Startseconde bijstellen. `delta` = seconden t.o.v. de HUIDIGE start; null = terug naar
+// het standaard-venster (vanaf het rack-moment).
+async function schuifStart(delta) {
+  const c = lijst[idx];
+  if (!c) return;
+  const start = delta == null ? null
+    : Math.max(c.offsetSec, Math.min((c.clipVan || c.offsetSec) + delta, c.clipTot - 5));
+  try {
+    await api('/api/manage/highlights', { method: 'POST', body: JSON.stringify({ sleutel: c.sleutel, start }) });
+    c.clipVan = start == null ? c.offsetSec : start;
+    c.startAangepast = start != null;
+    if (speler) speler.loadVideoById({ videoId: c.videoId, startSeconds: c.clipVan, endSeconds: c.clipTot });
+    // meta bijwerken zonder de clip opnieuw te laden
+    const startLabel = c.startAangepast ? ` · start +${c.clipVan - c.offsetSec}s` : '';
+    $('meta').innerHTML = `${esc(c.toernooi || '')}<br>${esc(datumKort(c.datum))} · tafel ${esc(c.tafel)} · ${c.clipTot - c.clipVan}s${startLabel}${c.keuring ? ` · <b>${esc(c.keuring)}</b>` : ''}`;
+  } catch (e) {
+    $('meta').innerHTML = `<span class="fout">start opslaan mislukt (${esc(e.message)})</span>`;
+  }
+}
+
 function koppel() {
   $('bGoed').onclick = () => keur('goed');
   $('bAf').onclick = () => keur('afgekeurd');
   $('bVorige').onclick = vorige;
   $('bOpnieuw').onclick = toon;
+  $('bLater').onclick = () => schuifStart(5);
+  $('bVroeger').onclick = () => schuifStart(-5);
+  $('bResetStart').onclick = () => schuifStart(null);
   $('fAlles').onchange = () => { idx = 0; bouwLijst(); toon(); };
   document.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT') return;
@@ -206,6 +233,9 @@ function koppel() {
     if (e.key === 'ArrowLeft'  || e.key.toLowerCase() === 'n') { e.preventDefault(); keur('afgekeurd'); }
     if (e.key.toLowerCase() === 'r') toon();
     if (e.key.toLowerCase() === 'p') vorige();
+    if (e.key === ']') { e.preventDefault(); schuifStart(5); }
+    if (e.key === '[') { e.preventDefault(); schuifStart(-5); }
+    if (e.key === '0') { e.preventDefault(); schuifStart(null); }
   });
 }
 

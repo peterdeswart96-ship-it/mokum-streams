@@ -96,55 +96,60 @@
     background: #cc0000; flex: none;
   }
 
-  /* Pauzekaart (#71): dezelfde kaart als de scorekaart, maar groter, en alleen te zien
-     wanneer er géén wedstrijd loopt. Bedoeld als drager voor wisselende "sheets" —
-     nu de run-outs, later ook andere overzichten. */
-  .card.sheet {
-    /* Volledig in PROCENTEN: met vaste pixels klopt de kaart alleen in een venster dat
-       toevallig 1080 hoog is — elders liep 'ie over het MOKUM-bord en de ticker heen.
-       Verticaal via top+bottom (niet via height + negatieve margin, want een procentuele
-       margin-top rekent met de BREEDTE van het venster, niet de hoogte).
-       Op 1920x1080 komt dit uit op x 340-1580, y 166-936. */
-    top: 15.4%; bottom: 13.3%; height: auto; margin-top: 0;
+  /* Highlight-scherm (#71): tussen de wedstrijden door speelt hier een run-out-clip, in
+     dezelfde kaartstijl als de scorekaart. Eigen overlay-laag (net als het podium), NIET
+     in het rouleer-systeem — anders zou de YouTube-speler elke tik herladen.
+     Maten in procenten/vh, zodat een preview in een willekeurig venster klopt met OBS. */
+  .highlight { position: absolute; inset: 0; z-index: 1; }
+  .highlight[hidden] { display: none; }
+  .highlight .hcard {
+    position: absolute; left: 50%; top: 15.4%; bottom: 13.3%;
     width: 64.6%; margin-left: -32.3%;
-    gap: 20px; overflow: hidden; /* nooit buiten de kaart lopen (zou de ticker raken) */
+    box-sizing: border-box; padding: 2vh 2vh 1.6vh;
+    background: rgba(8,8,8,0.78); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 2vh; box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+    display: flex; flex-direction: column; gap: 1.4vh; overflow: hidden;
   }
-  /* Alles binnen de kaart in vh: dan schaalt de inhoud mee met de kaart zelf en klopt
-     een preview in een willekeurig venster met wat er straks op 1920x1080 uitgaat.
-     1vh = 10,8px bij 1080 hoog. */
-  .card.sheet { padding: 3.7vh 4.8vh 4.1vh; gap: 1.85vh; }
-  .sheet .sheetKop { display: flex; align-items: flex-end; gap: 1.85vh; }
-  .sheet .sheetTitel { font-size: 5.4vh; line-height: 1; }
-  .sheet .sheetSub { font-family: Arial, sans-serif; font-size: 2.4vh; color: rgba(255,255,255,0.6); }
-  .sheet .sheetTel {
-    margin-left: auto; background: #cc0000; color: #fff;
-    padding: 0.75vh 1.85vh; border-radius: 999px; font-size: 2.2vh;
+  .highlight .hdoek {
+    position: relative; flex: 1; min-height: 0;
+    border-radius: 1.3vh; overflow: hidden; background: #000;
+    border: 1px solid rgba(255,255,255,0.08);
   }
-  .sheet .rijen { display: flex; flex-direction: column; gap: 1.1vh; flex: 1; overflow: hidden; }
-  .sheet .rij {
-    display: flex; align-items: center; gap: 2vh;
-    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 1.3vh; padding: 1.1vh 2.2vh;
+  .highlight .hdoek iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  /* Vangt klikken/hover af én dekt de titelbalk die YouTube bovenin toont. */
+  .highlight .hafdek { position: absolute; inset: 0; z-index: 2; }
+  .highlight .hafdek::before {
+    content: ''; position: absolute; left: 0; right: 0; top: 0; height: 9vh;
+    background: linear-gradient(180deg, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0) 100%);
   }
-  .sheet .bal {
-    width: 5vh; height: 5vh; flex: none; border-radius: 50%;
-    background: #cc0000; color: #fff; font-size: 2.2vh;
-    display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 4px 14px rgba(204,0,0,0.4);
+  .highlight .hvoet { flex: none; display: flex; align-items: baseline; gap: 1.6vh; padding: 0 1vh; }
+  .highlight .hvoetNaam { font-size: 3vh; }
+  .highlight .hvoetDatum { margin-left: auto; font-family: Arial, sans-serif; font-size: 2vh; color: rgba(255,255,255,0.55); }
+  .highlight .hmelding {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-family: Arial, sans-serif; font-size: 2.6vh; color: rgba(255,255,255,0.7);
   }
-  .sheet .wie { flex: 1; min-width: 0; }
-  .sheet .wieNaam { font-size: 3.3vh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .sheet .wieTegen { font-family: Arial, sans-serif; font-size: 1.95vh; color: rgba(255,255,255,0.55); margin-top: 0.3vh; }
-  .sheet .meta { text-align: right; flex: none; max-width: 39vh; }
-  .sheet .metaToernooi {
-    font-family: Arial, sans-serif; font-size: 1.95vh; color: rgba(255,255,255,0.75);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  .highlight .hmelding[hidden] { display: none; }
+
+  /* QR naar het archief, linksboven. */
+  .highlight .qr { position: absolute; left: 2.5%; top: 2.5%; display: flex; align-items: center; gap: 1.3vh; }
+  .highlight .qr img { width: 8vh; height: 8vh; display: block; background: #fff; padding: 0.5vh; border-radius: 0.7vh; }
+  .highlight .qr .label { font-family: 'Arial Black', Arial, sans-serif; font-size: 3vh; line-height: 1.15; }
+  .highlight .qr .label .m { color: #cc0000; }
+  .highlight .qr .label .sub { display: block; font-family: Arial, sans-serif; font-size: 1.7vh; color: rgba(255,255,255,0.5); margin-top: 0.3vh; }
+
+  /* Neon-kop "HIGHLIGHTS", rechtsboven — 20% kleiner zodat 'ie het MOKUM-bord niet raakt. */
+  .highlight .neon {
+    position: absolute; right: 2.5%; top: 3.2%;
+    font-size: 4.8vh; letter-spacing: 0.72vh; color: #fff;
+    text-shadow: 0 0 0.6vh #fff, 0 0 1.4vh #ff4d4d, 0 0 2.8vh #cc0000, 0 0 5.6vh #cc0000, 0 0 9vh rgba(204,0,0,0.7);
+    animation: flikker 7s linear infinite;
   }
-  .sheet .metaDatum { font-family: Arial, sans-serif; font-size: 1.75vh; color: rgba(255,255,255,0.45); margin-top: 0.3vh; }
-  .sheet .voet {
-    font-family: Arial, sans-serif; font-size: 1.95vh; color: rgba(255,255,255,0.45);
-    text-align: center; letter-spacing: 0.3px;
+  @keyframes flikker {
+    0%, 88%, 100% { opacity: 1; } 89% { opacity: 0.45; } 90% { opacity: 1; }
+    91% { opacity: 0.65; } 92% { opacity: 1; } 96% { opacity: 0.8; } 97% { opacity: 1; }
   }
+  @media (prefers-reduced-motion: reduce) { .neon { animation: none; } }
 
   .kop { display: flex; align-items: center; gap: 22px; }
   .tafel { font-size: 58px; line-height: 1; }
@@ -287,6 +292,26 @@
   <div class="bg"></div>
   <div class="stage" id="stage"></div>
 
+  <!-- Highlight-scherm (#71): run-out-clip tussen de wedstrijden door. -->
+  <div class="highlight" id="highlight" hidden>
+    <div class="qr">
+      <img src="../img/qr-archief.svg" alt="QR naar mokum-streams.pdscloud.nl/archief">
+      <span class="label"><span class="m">Mokum</span> Archief<span class="sub">scan en kijk terug</span></span>
+    </div>
+    <div class="neon">HIGHLIGHTS</div>
+    <div class="hcard">
+      <div class="hdoek">
+        <div id="hplayer"></div>
+        <div class="hafdek"></div>
+        <div class="hmelding" id="hmelding">Highlights laden…</div>
+      </div>
+      <div class="hvoet">
+        <span class="hvoetNaam" id="hNaam">—</span>
+        <span class="hvoetDatum" id="hDatum"></span>
+      </div>
+    </div>
+  </div>
+
   <!-- Ticker (#65): scrollende berichtenbalk in de middengang, onder de kaart. -->
   <div class="ticker" id="ticker" hidden><div class="spoor" id="tickerSpoor"></div></div>
 
@@ -368,25 +393,6 @@ function toon(t) {
   huidigeKey = t.table;
 }
 
-// Volgende live tafel tonen (rouleren). Speelt er niets, dan komt de pauzekaart in beeld.
-function volgende() {
-  if (posterBezig || podiumActief) return; // niet rouleren achter de poster of het podium
-  const stage = document.getElementById('stage');
-  if (!liveTafels.length) {
-    toonSheet(); return;
-  }
-  if (idx >= liveTafels.length) idx = 0;
-  const t = liveTafels[idx];
-  idx += 1;
-  // Bij één tafel niet steeds opnieuw inschuiven als 'ie al staat.
-  if (liveTafels.length === 1 && huidigeKey === t.table && stage.querySelector('.card')) {
-    // alleen de standen verversen zonder animatie
-    stage.querySelector('.card').innerHTML = kaartHtml(t);
-    return;
-  }
-  toon(t);
-}
-
 let leegTeller = 0; // aantal opeenvolgende ophaal-rondes zonder live tafels (debounce)
 
 async function ververs() {
@@ -415,75 +421,159 @@ async function ververs() {
   zetTicker(tickerRegels);
 }
 
-// ============ Pauzekaart met wisselende sheets (#71) ============
-// Zodra er geen wedstrijd loopt, komt hier een kaart in beeld in dezelfde stijl als de
-// scorekaart. Nu met de recente run-outs; later kunnen er sheets bij (komende toernooien,
-// klassement, highlight-clips). Elke sheet is een functie die HTML teruggeeft, of null als
-// 'ie nu niets te melden heeft — dan slaan we 'm over.
-const SHEET_VERVERS_MS = 10 * 60 * 1000; // het archief verandert zelden
-let runouts = null;
-let sheetIdx = 0;
-
-async function haalRunouts() {
-  try {
-    const r = await fetch(`${APP_API}/api/runouts?limit=5`, { cache: 'no-store' });
-    runouts = await r.json();
-  } catch (e) { /* netwerkfout → vorige lijst laten staan */ }
-}
-
 const datumKort = (iso) => {
   const d = new Date(`${iso}T12:00:00Z`);
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
-function sheetRunouts() {
-  const items = (runouts && runouts.items) || [];
-  if (!items.length) return null;
-  const rijen = items.map((r) => `
-    <div class="rij">
-      <span class="bal">9</span>
-      <span class="wie">
-        <div class="wieNaam">${esc(r.speler)}</div>
-        <div class="wieTegen">tegen ${esc(r.tegenstander || '?')}${r.ronde ? ` · ${esc(r.ronde)}` : ''}</div>
-      </span>
-      <span class="meta">
-        <div class="metaToernooi">${esc(r.toernooi || '')}</div>
-        <div class="metaDatum">${esc(datumKort(r.datum))} · tafel ${esc(r.tafel)}</div>
-      </span>
-    </div>`).join('');
-  return `
-    <div class="sheetKop">
-      <span class="sheetTitel">RUN-OUTS</span>
-      <span class="sheetSub">recent op onze tafels</span>
-      <span class="sheetTel">${esc(runouts.aantal)} in het archief</span>
-    </div>
-    <div class="rijen">${rijen}</div>
-    <div class="voet">Terugkijken kan — mokum-streams.pdscloud.nl/archief</div>`;
+// ============ Highlight-clips (#71) ============
+// Tussen de wedstrijden door speelt een goedgekeurde run-out af (bron: /api/highlights).
+// De speler leeft in een eigen overlay-laag (#highlight), NIET in het rouleer-systeem —
+// een YouTube-speler die elke tik opnieuw wordt opgebouwd zou steeds herladen. We gebruiken
+// de IFrame-API om het EINDE van een fragment op te vangen; laat je de speler zelf uitlopen,
+// dan toont YouTube zijn eigen scherm met gerelateerde video's.
+const HIGHLIGHTS_VERVERS_MS = 10 * 60 * 1000; // keuring verandert zelden
+const CLIP_NOOD_MS = 20000;                   // vangnet als het eind-event uitblijft
+let hlClips = [];
+let hlIdx = -1;
+let hlSpeler = null;
+let hlKlaar = false;   // speler geïnitialiseerd?
+let hlActief = false;  // speelt de highlight-laag nu?
+let hlNoodTimer = null;
+
+async function haalHighlights() {
+  try {
+    const r = await fetch(`${APP_API}/api/highlights`, { cache: 'no-store' });
+    const d = await r.json();
+    hlClips = d.items || [];
+  } catch (e) { /* netwerkfout → vorige lijst laten staan */ }
 }
 
-const SHEETS = [sheetRunouts];
+function hlTekst(c) {
+  document.getElementById('hNaam').textContent = `${c.speler} VS ${c.tegenstander || '?'}`;
+  document.getElementById('hDatum').textContent = datumKort(c.datum);
+}
 
-// Toont de volgende sheet die inhoud heeft. Staat dezelfde sheet al in beeld, dan laten we
-// 'm staan (niet elke tik opnieuw inschuiven).
-function toonSheet() {
-  const stage = document.getElementById('stage');
-  for (let poging = 0; poging < SHEETS.length; poging++) {
-    const maker = SHEETS[sheetIdx % SHEETS.length];
-    sheetIdx += 1;
-    const html = maker();
-    if (!html) continue;
-    const sleutel = `sheet:${maker.name}`;
-    if (huidigeKey === sleutel && stage.querySelector('.sheet')) return; // staat er al
-    const el = document.createElement('div');
-    el.className = 'card sheet in';
-    el.innerHTML = html;
-    stage.innerHTML = '';
-    stage.appendChild(el);
-    huidigeKey = sleutel;
-    return;
+function hlVolgendeClip() {
+  clearTimeout(hlNoodTimer);
+  if (!hlKlaar || !hlClips.length) return;
+  hlIdx = (hlIdx + 1) % hlClips.length;
+  const c = hlClips[hlIdx];
+  hlTekst(c);
+  document.getElementById('hmelding').hidden = true;
+  hlSpeler.loadVideoById({ videoId: c.videoId, startSeconds: c.clipVan, endSeconds: c.clipTot });
+  hlNoodTimer = setTimeout(hlVolgendeClip, (c.clipTot - c.clipVan) * 1000 + CLIP_NOOD_MS);
+}
+
+// Highlight-laag aanzetten. Retourneert false als er niets te tonen is (geen goedgekeurde
+// clips) → dan slaat het schema deze fase over.
+function hlAan() {
+  if (!hlClips.length) return false;
+  if (hlActief) return true;
+  hlActief = true;
+  document.getElementById('highlight').hidden = false;
+  document.getElementById('stage').innerHTML = ''; huidigeKey = null; // tafelkaarten weg
+  if (hlKlaar) { if (hlIdx < 0) hlVolgendeClip(); else if (hlSpeler.playVideo) hlSpeler.playVideo(); }
+  return true;
+}
+
+function hlUit() {
+  if (!hlActief) return;
+  hlActief = false;
+  clearTimeout(hlNoodTimer);
+  document.getElementById('highlight').hidden = true;
+  if (hlKlaar && hlSpeler.pauseVideo) hlSpeler.pauseVideo();
+}
+
+function hlStartSpeler() {
+  hlSpeler = new YT.Player('hplayer', {
+    width: '100%', height: '100%',
+    playerVars: {
+      autoplay: 1, mute: 1, controls: 0, disablekb: 1,
+      modestbranding: 1, rel: 0, fs: 0, iv_load_policy: 3, playsinline: 1,
+    },
+    events: {
+      onReady: () => { hlKlaar = true; if (hlActief) hlVolgendeClip(); },
+      onStateChange: (e) => { if (e.data === YT.PlayerState.ENDED && hlActief) hlVolgendeClip(); },
+      onError: () => { if (hlActief) hlVolgendeClip(); },
+    },
+  });
+}
+
+// ============ Pauze-schema (#71) ============
+// Tijdens een pauze (deze tafel speelt niet) rouleert de jumbotron: eerst een tijd
+// highlights, dan de live scores van de andere tafels, dan kort de poster. Instelbaar in OBS
+// met ?highlightsMin= / ?scoresMin= / ?posterSec= .
+const zoekSchema = new URLSearchParams(location.search);
+const FASE_MS = {
+  highlights: (Number(zoekSchema.get('highlightsMin')) || 3) * 60000,
+  scores:     (Number(zoekSchema.get('scoresMin')) || 1) * 60000,
+  poster:     (Number(zoekSchema.get('posterSec')) || 5) * 1000,
+};
+const FASE_VOLGORDE = { highlights: 'scores', scores: 'poster', poster: 'highlights' };
+let fase = 'highlights';
+let faseSinds = 0; // ms-teller; loopt op via de scheduler-tik (geen Date.now → OBS-safe)
+
+// Bepaalt of een fase iets te tonen heeft; zo niet, dan slaan we 'm over (geen leeg scherm).
+function faseHeeftInhoud(f) {
+  if (f === 'highlights') return hlClips.length > 0;
+  if (f === 'scores') return liveTafels.length > 0;
+  if (f === 'poster') return posterBeschikbaar;
+  return false;
+}
+
+function naVolgendeFase() {
+  // Zoek de volgende fase die iets te tonen heeft; hoogstens één rondje.
+  for (let i = 0; i < 3; i++) {
+    fase = FASE_VOLGORDE[fase];
+    faseSinds = 0;
+    if (faseHeeftInhoud(fase)) return;
   }
-  stage.innerHTML = ''; // geen enkele sheet heeft iets te melden
-  huidigeKey = null;
+  // Niets te tonen in geen enkele fase → op highlights blijven (toont dan de lege melding).
+  fase = 'highlights'; faseSinds = 0;
+}
+
+const SCHEMA_TIK_MS = 1000;
+
+// Eén tik van het pauze-schema. Podium heeft altijd voorrang (winnaar-moment).
+function schemaTik() {
+  if (podiumActief) { hlUit(); faseSinds = 0; fase = 'highlights'; return; }
+  if (posterBezig) return; // poster-animatie loopt; even niet ingrijpen
+
+  faseSinds += SCHEMA_TIK_MS;
+
+  if (fase === 'highlights') {
+    if (!hlAan()) { naVolgendeFase(); return; }              // geen clips → door
+    if (faseSinds >= FASE_MS.highlights) naVolgendeFase();   // tijd om; clip loopt vanzelf door
+  } else if (fase === 'scores') {
+    hlUit();
+    if (!liveTafels.length) { naVolgendeFase(); return; }    // geen live tafel → door
+    scoresRotatie();
+    if (faseSinds >= FASE_MS.scores) naVolgendeFase();
+  } else if (fase === 'poster') {
+    hlUit();
+    if (!posterBeschikbaar) { naVolgendeFase(); return; }
+    toonPoster();                 // eigen curtain-animatie; zet posterBezig
+    naVolgendeFase();             // meteen door: de poster loopt zijn eigen 5s uit
+  }
+}
+
+// Live scores van de (andere) tafels rouleren tijdens de scores-fase, ~elke 6s één kaart.
+let scoresTeller = 0;
+function scoresRotatie() {
+  scoresTeller += SCHEMA_TIK_MS;
+  const stage = document.getElementById('stage');
+  if (scoresTeller >= CARD_MS || !stage.querySelector('.card')) {
+    scoresTeller = 0;
+    if (idx >= liveTafels.length) idx = 0;
+    const t = liveTafels[idx];
+    idx += 1;
+    if (liveTafels.length === 1 && huidigeKey === t.table && stage.querySelector('.card')) {
+      stage.querySelector('.card').innerHTML = kaartHtml(t); // alleen standen verversen
+    } else {
+      toon(t);
+    }
+  }
 }
 
 // ============ Ticker (#65) ============
@@ -671,13 +761,18 @@ function stopConfetti() {
   cctx.clearRect(0, 0, cvs.width, cvs.height);
 }
 
-// Eerste kaart meteen tonen zodra de eerste data binnen is (niet 6s wachten).
-zetTicker(null); // balk meteen tonen met de standaardtekst, niet pas na de eerste fetch
-haalRunouts().then(volgende);
-setInterval(haalRunouts, SHEET_VERVERS_MS);
-ververs().then(volgende);
+// Opstarten: ticker meteen met de standaardtekst, data + highlights ophalen, dan het
+// pauze-schema starten. De YouTube-IFrame-API laadt async en roept hlStartSpeler aan.
+zetTicker(null);
+ververs();
 setInterval(ververs, REFRESH_MS);
-setInterval(volgende, CARD_MS);
+haalHighlights();
+setInterval(haalHighlights, HIGHLIGHTS_VERVERS_MS);
+
+window.onYouTubeIframeAPIReady = hlStartSpeler;
+const ytApi = document.createElement('script');
+ytApi.src = 'https://www.youtube.com/iframe_api';
+document.head.appendChild(ytApi);
 
 // In demo-modus meteen tonen (niet op de eerste fetch wachten).
 if (DEMO) updatePodium(demoPodium);
@@ -687,8 +782,9 @@ if (DEMO) updatePodium(demoPodium);
 // zodat je de overgang in OBS kunt testen zonder 2 minuten te wachten. De gewone URL
 // blijft 120s / 20s (productie).
 const TEST = /[?&](test|snel)\b/.test(location.search);
-const POSTER_INTERVAL_MS = TEST ? 18000 : 120000; // elke 2 min (test: 18s)
-const POSTER_DUUR_MS = TEST ? 8000 : 10000;        // 10s tonen (test: 8s)
+// De poster hoort nu in het pauze-schema: hij komt aan de beurt na de scores-fase en blijft
+// FASE_MS.poster in beeld (standaard 5s, in te stellen met ?posterSec=).
+const POSTER_DUUR_MS = FASE_MS.poster;
 const GORDIJN_MS = 1000;           // duur van dicht-/openschuiven (== CSS-transition)
 let posterBezig = false;
 const wacht = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -717,7 +813,10 @@ const posterImg = document.querySelector('#poster img');
 let posterBeschikbaar = false;
 posterImg.addEventListener('load', () => { posterBeschikbaar = true; });
 posterImg.addEventListener('error', () => { posterBeschikbaar = false; });
-setInterval(() => { if (!posterBezig && posterBeschikbaar && !podiumActief) toonPoster(); }, POSTER_INTERVAL_MS);
+
+// Pauze-schema starten: highlights → scores → poster → herhaal (zie schemaTik). Helemaal
+// onderaan, zodat alle functies en poster-variabelen die 'ie aanroept al bestaan.
+setInterval(schemaTik, SCHEMA_TIK_MS);
 // In de test-stand meteen na een paar seconden een eerste keer, zodat je 'm snel ziet.
 if (TEST) setTimeout(() => { if (posterBeschikbaar && !podiumActief) toonPoster(); }, 6000);
 </script>
