@@ -50,16 +50,16 @@
      scrollende tekst. Maten staan als variabelen zodat ze in OBS bij te stellen zijn
      (ook live via ?tickerTop= / ?tickerBreedte= / ?tickerHoogte= / ?tickerSnelheid=). */
   :root {
-    /* Verticaal in PROCENTEN, net als de kaart (top:44%), zodat de balk op elke
-       venstergrootte op dezelfde relatieve plek staat — 70.4% van 1080 = 760px. Met vaste
-       pixels klopt het alleen in een venster dat toevallig 1080 hoog is. */
-    --ticker-top: 73%;
-    --ticker-breedte: 47%;
-    --ticker-hoogte: 60px;
+    /* Verankerd aan de ONDERKANT: de balk hoort altijd onderin beeld te plakken,
+       ongeacht de hoogte van het venster. Breedte in procenten zodat 'ie meeschaalt;
+       op 1920 breed is 54% ruim 1030px — precies de vrije gang tussen de tafelhoeken. */
+    --ticker-onder: 1%;
+    --ticker-breedte: 54%;
+    --ticker-hoogte: 72px;
   }
   .ticker {
     position: absolute; z-index: 2;
-    left: 50%; top: var(--ticker-top);
+    left: 50%; bottom: var(--ticker-onder);
     width: var(--ticker-breedte); margin-left: calc(var(--ticker-breedte) / -2);
     height: var(--ticker-hoogte);
     overflow: hidden;
@@ -374,13 +374,13 @@ const tickerSpoor = document.getElementById('tickerSpoor');
 let tickerNu = '';        // laatst getoonde inhoud (om niet elke poll opnieuw te bouwen)
 let tickerRegels = null;  // laatst ontvangen regels; null → standaardtekst
 
-// Maten bijstellen zonder deploy: ?tickerTop=72%&tickerBreedte=700px&tickerHoogte=60px.
-// Een kale waarde wordt als pixels gelezen (?tickerTop=780 == 780px). Let op: procenten
-// schalen mee met het venster (zoals de kaart), pixels niet — in OBS is het beeld exact
-// 1920x1080, dus daar komt het op hetzelfde neer.
+// Maten bijstellen zonder deploy: ?tickerOnder=2%&tickerBreedte=1100px&tickerHoogte=80px.
+// tickerOnder = afstand tot de ONDERRAND. Een kale waarde wordt als pixels gelezen
+// (?tickerOnder=20 == 20px). Procenten schalen mee met het venster, pixels niet — in OBS
+// is het beeld exact 1920x1080, dus daar komt het op hetzelfde neer.
 const zoek = new URLSearchParams(location.search);
 const TICKER_SNELHEID = Number(zoek.get('tickerSnelheid')) || 60; // px per seconde
-for (const [param, css] of [['tickerTop', '--ticker-top'], ['tickerBreedte', '--ticker-breedte'], ['tickerHoogte', '--ticker-hoogte']]) {
+for (const [param, css] of [['tickerOnder', '--ticker-onder'], ['tickerBreedte', '--ticker-breedte'], ['tickerHoogte', '--ticker-hoogte']]) {
   const rauw = String(zoek.get(param) || '').trim();
   if (!rauw) continue;
   const waarde = /^[\d.]+$/.test(rauw) ? `${rauw}px` : rauw;

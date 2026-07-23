@@ -524,6 +524,8 @@ Body:
   **`POST /api/manage/ticker`** (admin, body `{ regels: string[] }`) → opgeslagen als
   `ticker.json`. Regels worden genormaliseerd: getrimd, lege regels weg, maximaal 20 regels
   van elk 200 tekens. Bewust géén scores in de ticker — die staan al in de tafelkaarten.
-  De jumbotron-slide leest het veld uit de bestaande 15s-poll (geen extra verzoek) en is in
-  OBS bij te stellen met de URL-parameters `?tickerTop=`, `?tickerBreedte=`, `?tickerHoogte=`
-  en `?tickerSnelheid=` (px/s).
+  De jumbotron-slide leest het veld uit de bestaande 15s-poll (geen extra verzoek). De balk is
+  verankerd aan de ONDERRAND van het beeld (onderin de middengang tussen de twee tafels) en in
+  OBS bij te stellen met de URL-parameters `?tickerOnder=` (afstand tot de onderrand),
+  `?tickerBreedte=`, `?tickerHoogte=` en `?tickerSnelheid=` (px/s). Kale getallen gelden als
+  pixels, procenten schalen mee met het venster.
