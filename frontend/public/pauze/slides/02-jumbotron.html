@@ -50,9 +50,12 @@
      scrollende tekst. Maten staan als variabelen zodat ze in OBS bij te stellen zijn
      (ook live via ?tickerTop= / ?tickerBreedte= / ?tickerHoogte= / ?tickerSnelheid=). */
   :root {
-    --ticker-top: 760px;
-    --ticker-breedte: 640px;
-    --ticker-hoogte: 56px;
+    /* Verticaal in PROCENTEN, net als de kaart (top:44%), zodat de balk op elke
+       venstergrootte op dezelfde relatieve plek staat — 70.4% van 1080 = 760px. Met vaste
+       pixels klopt het alleen in een venster dat toevallig 1080 hoog is. */
+    --ticker-top: 73%;
+    --ticker-breedte: 47%;
+    --ticker-hoogte: 60px;
   }
   .ticker {
     position: absolute; z-index: 2;
@@ -61,10 +64,10 @@
     height: var(--ticker-hoogte);
     overflow: hidden;
     display: flex; align-items: center;
-    background: rgba(8,8,8,0.72);
-    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(8,8,8,0.38);
+    border: 1px solid rgba(255,255,255,0.07);
     border-radius: 10px;
-    box-shadow: 0 14px 40px rgba(0,0,0,0.45);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.30);
     /* Randen zacht laten uitvloeien, zodat tekst niet hard afgekapt in/uit beeld schuift. */
     -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 48px, #000 calc(100% - 48px), transparent 100%);
             mask-image: linear-gradient(90deg, transparent 0, #000 48px, #000 calc(100% - 48px), transparent 100%);
@@ -121,15 +124,6 @@
     background: #cc0000; color: #fff; font-size: 52px; border-radius: 12px;
     box-shadow: 0 6px 20px rgba(204,0,0,0.4); font-variant-numeric: tabular-nums;
   }
-
-  #leeg {
-    position: absolute; inset: 0; z-index: 1; display: flex; align-items: center; justify-content: center;
-    font-family: Arial, sans-serif; font-size: 34px; color: rgba(255,255,255,0.7);
-    text-shadow: 0 2px 12px rgba(0,0,0,0.8);
-  }
-  /* Cruciaal: laat de hidden-stand winnen van de display:flex hierboven (anders bleef
-     de "geen live wedstrijden"-melding altijd zichtbaar, ook onder een kaart). */
-  #leeg[hidden] { display: none; }
 
   /* --- Promo-poster (#54): om de 120s even tonen met een gordijn-overgang --- */
   .poster {
@@ -240,7 +234,6 @@
 <body>
   <div class="bg"></div>
   <div class="stage" id="stage"></div>
-  <div id="leeg" hidden>Op dit moment geen live wedstrijden</div>
 
   <!-- Ticker (#65): scrollende berichtenbalk in de middengang, onder de kaart. -->
   <div class="ticker" id="ticker" hidden><div class="spoor" id="tickerSpoor"></div></div>
@@ -320,19 +313,17 @@ function toon(t) {
     oud.addEventListener('animationend', () => oud.remove(), { once: true });
   }
   stage.appendChild(nieuw);
-  document.getElementById('leeg').hidden = true; // nooit de leeg-melding onder een kaart
   huidigeKey = t.table;
 }
 
-// Volgende live tafel tonen (rouleren). Bij 0 → "geen live wedstrijden".
+// Volgende live tafel tonen (rouleren). Speelt er niets, dan blijft alleen de
+// achtergrond met de ticker staan — die meldt zelf al "Waiting for next match...".
 function volgende() {
   if (posterBezig || podiumActief) return; // niet rouleren achter de poster of het podium
-  const leeg = document.getElementById('leeg');
   const stage = document.getElementById('stage');
   if (!liveTafels.length) {
-    leeg.hidden = false; stage.innerHTML = ''; huidigeKey = null; return;
+    stage.innerHTML = ''; huidigeKey = null; return;
   }
-  leeg.hidden = true;
   if (idx >= liveTafels.length) idx = 0;
   const t = liveTafels[idx];
   idx += 1;
@@ -364,10 +355,13 @@ async function ververs() {
     }
     // Podium (winnaar-moment): in demo-modus altijd de demo, anders wat de backend geeft.
     updatePodium(DEMO ? demoPodium : (d.podium || null));
-    zetTicker(d.ticker);
+    tickerRegels = d.ticker;
   } catch (e) {
     /* netwerkfout → vorige beeld laten staan */
   }
+  // Bewust BUITEN de try: een fout in de ticker mag niet verdwijnen in de netwerk-catch,
+  // en de balk moet ook staan als /api/live even onbereikbaar is (dan met standaardtekst).
+  zetTicker(tickerRegels);
 }
 
 // ============ Ticker (#65) ============
@@ -377,14 +371,20 @@ async function ververs() {
 const TICKER_STANDAARD = ['Waiting for next match...'];
 const tickerEl = document.getElementById('ticker');
 const tickerSpoor = document.getElementById('tickerSpoor');
-let tickerNu = ''; // laatst getoonde inhoud (om niet elke poll opnieuw te bouwen)
+let tickerNu = '';        // laatst getoonde inhoud (om niet elke poll opnieuw te bouwen)
+let tickerRegels = null;  // laatst ontvangen regels; null → standaardtekst
 
-// Maten in OBS bijstellen zonder deploy: ?tickerTop=780&tickerBreedte=700&tickerHoogte=60
+// Maten bijstellen zonder deploy: ?tickerTop=72%&tickerBreedte=700px&tickerHoogte=60px.
+// Een kale waarde wordt als pixels gelezen (?tickerTop=780 == 780px). Let op: procenten
+// schalen mee met het venster (zoals de kaart), pixels niet — in OBS is het beeld exact
+// 1920x1080, dus daar komt het op hetzelfde neer.
 const zoek = new URLSearchParams(location.search);
-const TICKER_SNELHEID = Number(zoek.get('tickerSnelheid')) || 70; // px per seconde
+const TICKER_SNELHEID = Number(zoek.get('tickerSnelheid')) || 60; // px per seconde
 for (const [param, css] of [['tickerTop', '--ticker-top'], ['tickerBreedte', '--ticker-breedte'], ['tickerHoogte', '--ticker-hoogte']]) {
-  const v = Number(zoek.get(param));
-  if (Number.isFinite(v) && v > 0) document.documentElement.style.setProperty(css, `${v}px`);
+  const rauw = String(zoek.get(param) || '').trim();
+  if (!rauw) continue;
+  const waarde = /^[\d.]+$/.test(rauw) ? `${rauw}px` : rauw;
+  document.documentElement.style.setProperty(css, waarde);
 }
 
 function zetTicker(regels) {
@@ -486,7 +486,6 @@ function updatePodium(data) {
 
   podiumActief = true;
   renderPodium(data);
-  document.getElementById('leeg').hidden = true;
   document.getElementById('stage').innerHTML = ''; huidigeKey = null; // tafelkaarten weg
   podium.hidden = false; lasers.hidden = false; canvas.hidden = false;
   tickerEl.hidden = true; // medaillescherm is een moment op zich — geen ticker eroverheen
@@ -551,6 +550,7 @@ function stopConfetti() {
 }
 
 // Eerste kaart meteen tonen zodra de eerste data binnen is (niet 6s wachten).
+zetTicker(null); // balk meteen tonen met de standaardtekst, niet pas na de eerste fetch
 ververs().then(volgende);
 setInterval(ververs, REFRESH_MS);
 setInterval(volgende, CARD_MS);
