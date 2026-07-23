@@ -45,6 +45,52 @@
   @keyframes cardIn  { from { transform: translateX(1300px); } to { transform: translateX(0); } }
   @keyframes cardOut { from { opacity: 1; } to { opacity: 0; transform: translateX(-40px); } }
 
+  /* Ticker (#65): vrije berichtenbalk in de middengang tussen de twee tafels, ónder de
+     kaart — mag de tafels op de achtergrondfoto niet overlappen. Geen label, alleen
+     scrollende tekst. Maten staan als variabelen zodat ze in OBS bij te stellen zijn
+     (ook live via ?tickerTop= / ?tickerBreedte= / ?tickerHoogte= / ?tickerSnelheid=). */
+  :root {
+    --ticker-top: 760px;
+    --ticker-breedte: 640px;
+    --ticker-hoogte: 56px;
+  }
+  .ticker {
+    position: absolute; z-index: 2;
+    left: 50%; top: var(--ticker-top);
+    width: var(--ticker-breedte); margin-left: calc(var(--ticker-breedte) / -2);
+    height: var(--ticker-hoogte);
+    overflow: hidden;
+    display: flex; align-items: center;
+    background: rgba(8,8,8,0.72);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px;
+    box-shadow: 0 14px 40px rgba(0,0,0,0.45);
+    /* Randen zacht laten uitvloeien, zodat tekst niet hard afgekapt in/uit beeld schuift. */
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 48px, #000 calc(100% - 48px), transparent 100%);
+            mask-image: linear-gradient(90deg, transparent 0, #000 48px, #000 calc(100% - 48px), transparent 100%);
+  }
+  .ticker[hidden] { display: none; }
+  .ticker .spoor {
+    display: inline-flex; flex: none; white-space: nowrap; will-change: transform;
+    animation: tickerLoop linear infinite;
+  }
+  /* Het spoor bevat de reeks twee keer; we schuiven precies één reeks op → naadloze lus. */
+  @keyframes tickerLoop {
+    from { transform: translateX(0); }
+    to   { transform: translateX(calc(var(--afstand, 0) * -1px)); }
+  }
+  .ticker .item {
+    font-family: Arial, sans-serif; font-weight: bold;
+    font-size: 24px; letter-spacing: 0.4px;
+    color: rgba(255,255,255,0.92);
+    padding: 0 34px;
+    display: inline-flex; align-items: center; gap: 34px;
+  }
+  .ticker .item::after {
+    content: ''; width: 7px; height: 7px; border-radius: 50%;
+    background: #cc0000; flex: none;
+  }
+
   .kop { display: flex; align-items: center; gap: 22px; }
   .tafel { font-size: 58px; line-height: 1; }
   .ronde { font-family: Arial, sans-serif; font-size: 26px; color: rgba(255,255,255,0.6); }
@@ -196,6 +242,9 @@
   <div class="stage" id="stage"></div>
   <div id="leeg" hidden>Op dit moment geen live wedstrijden</div>
 
+  <!-- Ticker (#65): scrollende berichtenbalk in de middengang, onder de kaart. -->
+  <div class="ticker" id="ticker" hidden><div class="spoor" id="tickerSpoor"></div></div>
+
   <!-- Podium-eindscherm (winnaar-moment #54): laserstralen achter, podium in het midden, confetti ervoor. -->
   <div class="lasers" id="lasers" hidden>
     <!-- Linksboven → waaiert naar rechtsonder (positieve hoeken). -->
@@ -315,9 +364,49 @@ async function ververs() {
     }
     // Podium (winnaar-moment): in demo-modus altijd de demo, anders wat de backend geeft.
     updatePodium(DEMO ? demoPodium : (d.podium || null));
+    zetTicker(d.ticker);
   } catch (e) {
     /* netwerkfout → vorige beeld laten staan */
   }
+}
+
+// ============ Ticker (#65) ============
+// Vrije berichtenbalk onderin: aankondigingen, sponsors, wat er die avond speelt. Bewust
+// géén scores — die staan al in de tafelkaart. De regels komen mee in /api/live (veld
+// `ticker`), dus geen extra verzoek; de backend zorgt dat er altijd minstens één regel is.
+const TICKER_STANDAARD = ['Waiting for next match...'];
+const tickerEl = document.getElementById('ticker');
+const tickerSpoor = document.getElementById('tickerSpoor');
+let tickerNu = ''; // laatst getoonde inhoud (om niet elke poll opnieuw te bouwen)
+
+// Maten in OBS bijstellen zonder deploy: ?tickerTop=780&tickerBreedte=700&tickerHoogte=60
+const zoek = new URLSearchParams(location.search);
+const TICKER_SNELHEID = Number(zoek.get('tickerSnelheid')) || 70; // px per seconde
+for (const [param, css] of [['tickerTop', '--ticker-top'], ['tickerBreedte', '--ticker-breedte'], ['tickerHoogte', '--ticker-hoogte']]) {
+  const v = Number(zoek.get(param));
+  if (Number.isFinite(v) && v > 0) document.documentElement.style.setProperty(css, `${v}px`);
+}
+
+function zetTicker(regels) {
+  const lijst = Array.isArray(regels) && regels.length ? regels : TICKER_STANDAARD;
+  const sleutel = lijst.join('');
+  if (sleutel === tickerNu) return; // ongewijzigd → de lopende animatie niet onderbreken
+  tickerNu = sleutel;
+
+  const reeks = lijst.map((r) => `<span class="item">${esc(r)}</span>`).join('');
+  tickerSpoor.innerHTML = reeks;
+  tickerEl.hidden = false;
+
+  // Korte reeksen herhalen tot ze breder zijn dan de balk, anders ontstaat er een gat
+  // in de lus. Daarna één extra kopie: precies die breedte schuiven we op.
+  let veiligheid = 20;
+  while (tickerSpoor.scrollWidth > 0 && tickerSpoor.scrollWidth < tickerEl.clientWidth && veiligheid-- > 0) {
+    tickerSpoor.insertAdjacentHTML('beforeend', reeks);
+  }
+  const afstand = tickerSpoor.scrollWidth;
+  tickerSpoor.insertAdjacentHTML('beforeend', tickerSpoor.innerHTML);
+  tickerSpoor.style.setProperty('--afstand', afstand);
+  tickerSpoor.style.animationDuration = `${Math.max(6, afstand / TICKER_SNELHEID)}s`;
 }
 
 // ============ Podium-eindscherm (winnaar-moment #54) ============
@@ -382,6 +471,7 @@ function updatePodium(data) {
     if (podiumActief) { // net afgelopen → alles opruimen
       podiumActief = false;
       podium.hidden = true; lasers.hidden = true; canvas.hidden = true;
+      tickerEl.hidden = false; // ticker weer terug na het medaillescherm (#65)
       stopConfetti();
       document.getElementById('stage').innerHTML = ''; huidigeKey = null;
       vorigePodiumSleutel = null;
@@ -399,6 +489,7 @@ function updatePodium(data) {
   document.getElementById('leeg').hidden = true;
   document.getElementById('stage').innerHTML = ''; huidigeKey = null; // tafelkaarten weg
   podium.hidden = false; lasers.hidden = false; canvas.hidden = false;
+  tickerEl.hidden = true; // medaillescherm is een moment op zich — geen ticker eroverheen
   startConfetti();
 }
 
@@ -485,11 +576,13 @@ async function toonPoster() {
   curtain.classList.add('dicht');        // gordijn dicht
   await wacht(GORDIJN_MS);
   poster.hidden = false;                  // poster erachter klaarzetten
+  tickerEl.hidden = true;                 // de poster is fullbleed → ticker eronderuit (#65)
   curtain.classList.remove('dicht');      // gordijn open → poster in beeld
   await wacht(GORDIJN_MS + POSTER_DUUR_MS);
   curtain.classList.add('dicht');         // weer dicht
   await wacht(GORDIJN_MS);
   poster.hidden = true;                   // terug naar de jumbotron
+  if (!podiumActief) tickerEl.hidden = false;
   curtain.classList.remove('dicht');      // gordijn open
   await wacht(GORDIJN_MS);
   posterBezig = false;

@@ -3,6 +3,7 @@ const { readJson } = require('../storage/blob');
 const { zaalDelen } = require('../schedule/schedule');
 const { buildLiveTables, buildSchedule } = require('../public/live');
 const { runoutsUitArchief } = require('../video/archief');
+const { tickerVoorUitzending } = require('../public/ticker');
 
 // Publieke, alleen-lezen endpoints voor de live-pagina/widget (geen auth).
 
@@ -55,11 +56,15 @@ app.http('publicLive', {
     const venueTables = Array.isArray(liveMatches.venueTables) ? liveMatches.venueTables : [];
     // podium = medaillescherm van een net-afgerond toernooi (winnaar-moment #54), of null.
     const podium = liveMatches.podium || null;
+    // ticker = de regels die onderin het pauzescherm voorbij scrollen (#65). Nooit leeg:
+    // zonder ingestelde regels komt de standaardtekst terug.
+    const ticker = tickerVoorUitzending(await readJson('ticker.json', []));
     return json(200, {
       generatedAt: now.toISOString(),
       venueLive,
       venueTables,
       podium,
+      ticker,
       agent,
       tables: buildLiveTables(cameras, store, status, liveMatches, liveVideos),
     }, request);

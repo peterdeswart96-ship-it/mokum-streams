@@ -517,3 +517,13 @@ Body:
   ("Fluke ranking 9ball Seizoen 3 #24" → `"Fluke Ranking"`), afgeleid met dezelfde
   `templateVoorToernooi`-classificatie als de thumbnails. De archiefpagina filtert daarop, zodat
   de keuzelijst 6 opties heeft in plaats van ruim honderd. Onbekende series → `"Overig"`.
+- 2026-07-23: v0.38 — **Ticker op het pauzescherm (#65)**. `GET /api/live` krijgt er een veld
+  **`ticker: string[]`** bij: de regels die onderin de jumbotron voorbij scrollen. Leeg in de
+  opslag → de backend geeft de standaardregel `"Waiting for next match..."` terug, zodat de
+  overlay nooit een lege balk toont. Beheer via **`GET /api/manage/ticker`** en
+  **`POST /api/manage/ticker`** (admin, body `{ regels: string[] }`) → opgeslagen als
+  `ticker.json`. Regels worden genormaliseerd: getrimd, lege regels weg, maximaal 20 regels
+  van elk 200 tekens. Bewust géén scores in de ticker — die staan al in de tafelkaarten.
+  De jumbotron-slide leest het veld uit de bestaande 15s-poll (geen extra verzoek) en is in
+  OBS bij te stellen met de URL-parameters `?tickerTop=`, `?tickerBreedte=`, `?tickerHoogte=`
+  en `?tickerSnelheid=` (px/s).
