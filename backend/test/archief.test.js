@@ -25,7 +25,9 @@ function wedstrijd(tafel, a, b, opts = {}) {
     table: String(tafel), roundName: opts.ronde || '',
     playerA: { name: a }, playerB: { name: b },
     scoreA: opts.scoreA, scoreB: opts.scoreB,
+    start: opts.start || null,
     runoutsA: opts.runoutsA || 0, runoutsB: opts.runoutsB || 0,
+    runoutRacks: opts.runoutRacks || [],
   };
 }
 
@@ -48,12 +50,41 @@ test('wedstrijdenVoorVideo koppelt elke wedstrijd aan de hoofdstuk-offset + deep
   assert.deepStrictEqual(uit[0].runouts, []);
 });
 
-test('run-outs komen per speler mee; beide spelers is mogelijk', () => {
-  const t = { name: 'T', matches: [wedstrijd(3, 'Panchi Chen', 'Andy Fung', { runoutsA: 2, runoutsB: 1 })] };
+test('run-out linkt naar het begin van dát rack, niet naar het begin van de partij', () => {
+  // Partij begint op de hoofdstuk-offset 1500s; het run-out-rack start 12 min later.
+  const t = { name: 'T', matches: [wedstrijd(3, 'Maartje Dingemans', 'Chris Jones', {
+    start: '2026-07-22T19:00:00Z',
+    runoutsB: 1,
+    runoutRacks: [{ kant: 'B', start: '2026-07-22T19:12:30Z', eind: '2026-07-22T19:16:00Z' }],
+  })] };
+  const uit = wedstrijdenVoorVideo(INDEX, t);
+  assert.strictEqual(uit[0].offsetSec, 1500);              // partij zelf onveranderd
+  assert.deepStrictEqual(uit[0].runouts, [{
+    speler: 'Chris Jones', offsetSec: 2250, url: 'https://youtu.be/abc123?t=2250', exact: true,
+  }]);
+});
+
+test('twee run-outs in één partij → twee racks, elk met een eigen moment', () => {
+  const t = { name: 'T', matches: [wedstrijd(3, 'Panchi Chen', 'Andy Fung', {
+    start: '2026-07-22T19:00:00Z',
+    runoutsA: 1, runoutsB: 1,
+    runoutRacks: [
+      { kant: 'A', start: '2026-07-22T19:05:00Z' },
+      { kant: 'B', start: '2026-07-22T19:20:00Z' },
+    ],
+  })] };
+  const uit = wedstrijdenVoorVideo(INDEX, t);
+  assert.deepStrictEqual(uit[0].runouts.map((r) => [r.speler, r.offsetSec]), [
+    ['Panchi Chen', 300], ['Andy Fung', 1200],
+  ]);
+});
+
+test('zonder rack-log (oudere data) valt de run-out terug op het begin van de partij', () => {
+  const t = { name: 'T', matches: [wedstrijd(3, 'Panchi Chen', 'Andy Fung', { runoutsA: 2 })] };
   const uit = wedstrijdenVoorVideo(INDEX, t);
   assert.deepStrictEqual(uit[0].runouts, [
-    { speler: 'Panchi Chen', aantal: 2 },
-    { speler: 'Andy Fung', aantal: 1 },
+    { speler: 'Panchi Chen', offsetSec: 0, url: 'https://youtu.be/abc123?t=0', exact: false },
+    { speler: 'Panchi Chen', offsetSec: 0, url: 'https://youtu.be/abc123?t=0', exact: false },
   ]);
 });
 
@@ -65,14 +96,40 @@ test('wedstrijden op een andere tafel of buiten de video vallen weg', () => {
   assert.deepStrictEqual(wedstrijdenVoorVideo(INDEX, t), []);
 });
 
-test('runoutsUitArchief maakt één regel per speler-met-run-out, met tegenstander', () => {
-  const t = { name: 'T', matches: [wedstrijd(3, 'Panchi Chen', 'Andy Fung', { runoutsA: 2, runoutsB: 1 })] };
+test('runoutsUitArchief maakt één regel per rack, met tegenstander en het rack-moment', () => {
+  const t = { name: 'T', matches: [wedstrijd(3, 'Panchi Chen', 'Andy Fung', {
+    start: '2026-07-22T19:00:00Z',
+    runoutsA: 1, runoutsB: 1,
+    runoutRacks: [
+      { kant: 'A', start: '2026-07-22T19:05:00Z' },
+      { kant: 'B', start: '2026-07-22T19:20:00Z' },
+    ],
+  })] };
   const ro = runoutsUitArchief(wedstrijdenVoorVideo(INDEX, t));
-  assert.deepStrictEqual(ro.map((r) => [r.speler, r.tegenstander, r.aantal]), [
-    ['Panchi Chen', 'Andy Fung', 2],
-    ['Andy Fung', 'Panchi Chen', 1],
+  assert.deepStrictEqual(ro.map((r) => [r.speler, r.tegenstander, r.offsetSec]), [
+    ['Panchi Chen', 'Andy Fung', 300],
+    ['Andy Fung', 'Panchi Chen', 1200],
   ]);
-  assert.strictEqual(ro[0].url, 'https://youtu.be/abc123?t=0');
+  assert.strictEqual(ro[0].url, 'https://youtu.be/abc123?t=300');
+  assert.strictEqual(ro[0].exact, true);
+});
+
+test('runoutRacksUitNotes leest de rack-log van Cuescore', () => {
+  const { runoutRacksUitNotes } = require('../src/cuescore/parse');
+  const notes = [
+    { note: 'frame start', time: '2026-07-22T17:25:08Z' },
+    { note: 'A breaking', time: '2026-07-22T17:25:08Z' },
+    { note: 'A frame win', time: '2026-07-22T17:31:52Z' },   // gewone winst, geen run-out
+    { note: 'frame end', time: '2026-07-22T17:31:52Z' },
+    { note: 'frame start', time: '2026-07-22T17:37:56Z' },
+    { note: 'B breaking', time: '2026-07-22T17:37:56Z' },
+    { note: 'B frame win runout', time: '2026-07-22T17:41:31Z' },
+    { note: 'frame end', time: '2026-07-22T17:41:31Z' },
+  ];
+  assert.deepStrictEqual(runoutRacksUitNotes(notes), [
+    { kant: 'B', start: '2026-07-22T17:37:56Z', eind: '2026-07-22T17:41:31Z' },
+  ]);
+  assert.deepStrictEqual(runoutRacksUitNotes([]), []);
 });
 
 test('mergeWedstrijden vervangt de regels van één video en sorteert nieuwste eerst', () => {

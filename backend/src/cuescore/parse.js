@@ -99,6 +99,23 @@ function upcomingTournamentIds(html, now, { days = 14, tz = 'Europe/Amsterdam' }
   return ids;
 }
 
+// Leest de rack-log (`notes`) van een wedstrijd uit en geeft de racks terug die met een
+// RUN-OUT gewonnen zijn, mét het moment waarop dat rack begon (#67). Cuescore logt per
+// rack o.a. "frame start" en "B frame win runout", allemaal met tijdstempel — daarmee
+// kunnen we in de video naar het begin van precies dát rack springen in plaats van naar
+// het begin van de hele partij. Niet elke wedstrijd heeft een log (oudere data): dan leeg.
+function runoutRacksUitNotes(notes) {
+  const uit = [];
+  let frameStart = null;
+  for (const n of notes || []) {
+    const tekst = String((n && n.note) || '');
+    if (/^frame start$/i.test(tekst)) { frameStart = n.time || null; continue; }
+    const m = /^([AB])\s+frame win\s+runout$/i.exec(tekst.trim());
+    if (m) uit.push({ kant: m[1].toUpperCase(), start: frameStart, eind: n.time || null });
+  }
+  return uit;
+}
+
 // Normaliseert één wedstrijd uit de Cuescore-API naar ons interne model.
 function normalizeMatch(m) {
   return {
@@ -123,6 +140,8 @@ function normalizeMatch(m) {
     // "Rack +1" óf "Runout +1", dus dit veld is betrouwbaar gevuld.
     runoutsA: Number(m.runoutsA) || 0,
     runoutsB: Number(m.runoutsB) || 0,
+    // Racks die met een run-out gewonnen zijn, met het begin-moment van dat rack.
+    runoutRacks: runoutRacksUitNotes(m.notes),
   };
 }
 
@@ -178,6 +197,7 @@ module.exports = {
   parseTournamentsByDate,
   upcomingTournamentIds,
   normalizeMatch,
+  runoutRacksUitNotes,
   normalizeTournament,
   findTableMatch,
   isFinalFinished,

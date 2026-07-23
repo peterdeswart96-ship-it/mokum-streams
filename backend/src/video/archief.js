@@ -46,10 +46,27 @@ function wedstrijdenVoorVideo(indexRecord, tournament) {
     const offset = offsetPerPaar.get(spelersSleutel([a, b]));
     if (offset == null) continue; // wedstrijd zit niet in deze video
 
-    // Run-outs per speler (#67): allebei in één wedstrijd is mogelijk.
+    // Run-outs (#67): één regel per gewonnen rack, met een EIGEN offset. Cuescore's
+    // rack-log geeft het moment waarop dat rack begon, dus we linken naar de run-out
+    // zelf in plaats van naar het begin van de partij (die 20–40 min kan duren).
+    // Het rack-moment = wedstrijd-offset + (rackstart − wedstrijdstart).
     const runouts = [];
-    if (a && Number(m.runoutsA) > 0) runouts.push({ speler: a, aantal: Number(m.runoutsA) });
-    if (b && Number(m.runoutsB) > 0) runouts.push({ speler: b, aantal: Number(m.runoutsB) });
+    const wedstrijdStart = Date.parse(m.start || '');
+    for (const rack of m.runoutRacks || []) {
+      const speler = rack.kant === 'A' ? a : b;
+      const rackStart = Date.parse(rack.start || '');
+      if (!speler || Number.isNaN(rackStart) || Number.isNaN(wedstrijdStart)) continue;
+      const rackOffset = Math.max(0, offset + Math.round((rackStart - wedstrijdStart) / 1000));
+      runouts.push({ speler, offsetSec: rackOffset, url: YT_URL(rec.videoId, rackOffset), exact: true });
+    }
+    // Geen rack-log (oudere wedstrijden): val terug op het begin van de partij.
+    if (!runouts.length) {
+      for (const [speler, aantal] of [[a, m.runoutsA], [b, m.runoutsB]]) {
+        for (let i = 0; speler && i < (Number(aantal) || 0); i++) {
+          runouts.push({ speler, offsetSec: offset, url: YT_URL(rec.videoId, offset), exact: false });
+        }
+      }
+    }
 
     uit.push({
       videoId: rec.videoId,
@@ -84,15 +101,19 @@ function sorteerWedstrijden(lijst) {
   });
 }
 
-// Run-out-overzicht (#67): één regel per speler-met-run-out, nieuwste eerst.
+// Run-out-overzicht (#67): één regel per gewonnen rack, met de link naar dat rack
+// (of naar het begin van de partij als de rack-log ontbreekt). Nieuwste eerst.
 function runoutsUitArchief(lijst) {
   const uit = [];
   for (const r of lijst || []) {
     for (const ro of (r && r.runouts) || []) {
       const tegen = (r.spelers || []).find((s) => s !== ro.speler) || null;
       uit.push({
-        videoId: r.videoId, url: r.url, offsetSec: r.offsetSec,
-        speler: ro.speler, aantal: ro.aantal, tegenstander: tegen,
+        videoId: r.videoId,
+        url: ro.url || r.url,
+        offsetSec: ro.offsetSec != null ? ro.offsetSec : r.offsetSec,
+        exact: ro.exact === true,
+        speler: ro.speler, tegenstander: tegen,
         ronde: r.ronde, tafel: r.tafel, toernooi: r.toernooi,
         tournamentId: r.tournamentId, datum: r.datum,
       });

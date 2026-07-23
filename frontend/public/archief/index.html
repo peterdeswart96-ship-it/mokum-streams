@@ -74,8 +74,19 @@
   .rij .score { font-family: "Arial Black", Arial, sans-serif; font-size: 14px; color: #ccc; }
   .rij .onder { margin-top: 6px; display: flex; align-items: center; gap: 8px; font-size: 11px; color: #777; flex-wrap: wrap; }
   .rij .ronde { text-transform: uppercase; letter-spacing: .4px; }
-  .rij .kijk { margin-left: auto; color: #cc0000; font-weight: bold; }
-  .badge { background: rgba(204,0,0,.15); border: 1px solid #cc0000; color: #ff6b6b; border-radius: 5px; padding: 2px 7px; font-size: 10px; letter-spacing: .3px; }
+  .rij .kijk { margin-left: auto; color: #cc0000; font-weight: bold; text-decoration: none; }
+  .rij .kijk:hover { text-decoration: underline; }
+
+  /* Run-out-knoppen: springen naar het begin van dát rack, niet naar de hele partij. */
+  .ro-rij { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .ro {
+    display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+    background: rgba(204,0,0,.15); border: 1px solid #cc0000; color: #ff8080;
+    border-radius: 6px; padding: 5px 9px; font-size: 12px;
+  }
+  .ro:hover { background: #cc0000; color: #fff; }
+  .ro .tijd { color: #999; font-size: 11px; }
+  .ro:hover .tijd { color: #ffd9d9; }
   mark { background: rgba(204,0,0,.35); color: #fff; border-radius: 3px; padding: 0 2px; }
 
   .melding { color: #999; text-align: center; padding: 40px 16px; font-size: 15px; }
@@ -181,12 +192,30 @@ const DATUM_KORT = (iso) => {
   return Number.isNaN(d.getTime()) ? (iso || '') : d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
+// mm:ss / h:mm:ss — laat zien wáár in de video je terechtkomt.
+function tijdstempel(sec) {
+  const s = Math.max(0, Math.round(sec || 0));
+  const u = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const r = s % 60;
+  return (u ? `${u}:${String(m).padStart(2, '0')}` : `${m}`) + `:${String(r).padStart(2, '0')}`;
+}
+
 function rijHtml(r, q) {
   const [a, b] = r.spelers || [];
   const [sa, sb] = r.score || [];
   const heeftScore = sa != null && sb != null;
-  const ro = (r.runouts || []).map((x) => `${esc(x.speler)}${x.aantal > 1 ? ` ${x.aantal}×` : ''}`).join(' · ');
-  return `<a class="rij" href="${esc(r.url)}" target="_blank" rel="noopener">
+
+  // Elke run-out krijgt een eigen knop naar het BEGIN VAN DAT RACK (Cuescore logt per
+  // rack een tijdstempel). Ontbreekt die log, dan valt 'ie terug op het begin van de
+  // partij — dat zeggen we er dan bij, zodat de link niet meer belooft dan 'ie waarmaakt.
+  const roKnoppen = (r.runouts || []).map((x) => `
+    <a class="ro" href="${esc(x.url)}" target="_blank" rel="noopener"
+       title="${x.exact ? 'Springt naar het begin van dit rack' : 'Geen rack-log: springt naar het begin van de partij'}">
+      🎱 Run-out ${markeer(x.speler, q)}${x.exact ? ` <span class="tijd">${esc(tijdstempel(x.offsetSec))}</span>` : ' <span class="tijd">bij benadering</span>'} ▶
+    </a>`).join('');
+
+  return `<div class="rij">
     <div class="top">
       <span class="tafel">Tafel ${esc(r.tafel)}</span>
       <span class="toernooi">${markeer(r.toernooi, q)}</span>
@@ -198,10 +227,10 @@ function rijHtml(r, q) {
     </div>
     <div class="onder">
       ${r.ronde ? `<span class="ronde">${markeer(r.ronde, q)}</span>` : ''}
-      ${ro ? `<span class="badge">🎱 run-out ${esc(ro)}</span>` : ''}
-      <span class="kijk">▶ Bekijk het moment</span>
+      <a class="kijk" href="${esc(r.url)}" target="_blank" rel="noopener">▶ Partij vanaf het begin</a>
     </div>
-  </a>`;
+    ${roKnoppen ? `<div class="ro-rij">${roKnoppen}</div>` : ''}
+  </div>`;
 }
 
 function teken() {
