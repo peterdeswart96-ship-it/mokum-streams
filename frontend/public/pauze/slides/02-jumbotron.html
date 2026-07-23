@@ -96,6 +96,46 @@
     background: #cc0000; flex: none;
   }
 
+  /* Pauzekaart (#71): dezelfde kaart als de scorekaart, maar groter, en alleen te zien
+     wanneer er géén wedstrijd loopt. Bedoeld als drager voor wisselende "sheets" —
+     nu de run-outs, later ook andere overzichten. */
+  .card.sheet {
+    top: 51%; width: 1240px; height: 770px; margin-left: -620px; margin-top: -385px;
+    gap: 20px; overflow: hidden; /* nooit buiten de kaart lopen (zou de ticker raken) */
+  }
+  .sheet .sheetKop { display: flex; align-items: flex-end; gap: 20px; }
+  .sheet .sheetTitel { font-size: 58px; line-height: 1; }
+  .sheet .sheetSub { font-family: Arial, sans-serif; font-size: 26px; color: rgba(255,255,255,0.6); }
+  .sheet .sheetTel {
+    margin-left: auto; background: #cc0000; color: #fff;
+    padding: 8px 20px; border-radius: 999px; font-size: 24px;
+  }
+  .sheet .rijen { display: flex; flex-direction: column; gap: 12px; flex: 1; overflow: hidden; }
+  .sheet .rij {
+    display: flex; align-items: center; gap: 22px;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px; padding: 12px 24px;
+  }
+  .sheet .bal {
+    width: 54px; height: 54px; flex: none; border-radius: 50%;
+    background: #cc0000; color: #fff; font-size: 24px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 14px rgba(204,0,0,0.4);
+  }
+  .sheet .wie { flex: 1; min-width: 0; }
+  .sheet .wieNaam { font-size: 36px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sheet .wieTegen { font-family: Arial, sans-serif; font-size: 21px; color: rgba(255,255,255,0.55); margin-top: 3px; }
+  .sheet .meta { text-align: right; flex: none; max-width: 420px; }
+  .sheet .metaToernooi {
+    font-family: Arial, sans-serif; font-size: 21px; color: rgba(255,255,255,0.75);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .sheet .metaDatum { font-family: Arial, sans-serif; font-size: 19px; color: rgba(255,255,255,0.45); margin-top: 3px; }
+  .sheet .voet {
+    font-family: Arial, sans-serif; font-size: 21px; color: rgba(255,255,255,0.45);
+    text-align: center; letter-spacing: 0.3px;
+  }
+
   .kop { display: flex; align-items: center; gap: 22px; }
   .tafel { font-size: 58px; line-height: 1; }
   .ronde { font-family: Arial, sans-serif; font-size: 26px; color: rgba(255,255,255,0.6); }
@@ -318,13 +358,12 @@ function toon(t) {
   huidigeKey = t.table;
 }
 
-// Volgende live tafel tonen (rouleren). Speelt er niets, dan blijft alleen de
-// achtergrond met de ticker staan — die meldt zelf al "Waiting for next match...".
+// Volgende live tafel tonen (rouleren). Speelt er niets, dan komt de pauzekaart in beeld.
 function volgende() {
   if (posterBezig || podiumActief) return; // niet rouleren achter de poster of het podium
   const stage = document.getElementById('stage');
   if (!liveTafels.length) {
-    stage.innerHTML = ''; huidigeKey = null; return;
+    toonSheet(); return;
   }
   if (idx >= liveTafels.length) idx = 0;
   const t = liveTafels[idx];
@@ -364,6 +403,77 @@ async function ververs() {
   // Bewust BUITEN de try: een fout in de ticker mag niet verdwijnen in de netwerk-catch,
   // en de balk moet ook staan als /api/live even onbereikbaar is (dan met standaardtekst).
   zetTicker(tickerRegels);
+}
+
+// ============ Pauzekaart met wisselende sheets (#71) ============
+// Zodra er geen wedstrijd loopt, komt hier een kaart in beeld in dezelfde stijl als de
+// scorekaart. Nu met de recente run-outs; later kunnen er sheets bij (komende toernooien,
+// klassement, highlight-clips). Elke sheet is een functie die HTML teruggeeft, of null als
+// 'ie nu niets te melden heeft — dan slaan we 'm over.
+const SHEET_VERVERS_MS = 10 * 60 * 1000; // het archief verandert zelden
+let runouts = null;
+let sheetIdx = 0;
+
+async function haalRunouts() {
+  try {
+    const r = await fetch(`${APP_API}/api/runouts?limit=5`, { cache: 'no-store' });
+    runouts = await r.json();
+  } catch (e) { /* netwerkfout → vorige lijst laten staan */ }
+}
+
+const datumKort = (iso) => {
+  const d = new Date(`${iso}T12:00:00Z`);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
+function sheetRunouts() {
+  const items = (runouts && runouts.items) || [];
+  if (!items.length) return null;
+  const rijen = items.map((r) => `
+    <div class="rij">
+      <span class="bal">9</span>
+      <span class="wie">
+        <div class="wieNaam">${esc(r.speler)}</div>
+        <div class="wieTegen">tegen ${esc(r.tegenstander || '?')}${r.ronde ? ` · ${esc(r.ronde)}` : ''}</div>
+      </span>
+      <span class="meta">
+        <div class="metaToernooi">${esc(r.toernooi || '')}</div>
+        <div class="metaDatum">${esc(datumKort(r.datum))} · tafel ${esc(r.tafel)}</div>
+      </span>
+    </div>`).join('');
+  return `
+    <div class="sheetKop">
+      <span class="sheetTitel">RUN-OUTS</span>
+      <span class="sheetSub">recent op onze tafels</span>
+      <span class="sheetTel">${esc(runouts.aantal)} in het archief</span>
+    </div>
+    <div class="rijen">${rijen}</div>
+    <div class="voet">Terugkijken kan — mokum-streams.pdscloud.nl/archief</div>`;
+}
+
+const SHEETS = [sheetRunouts];
+
+// Toont de volgende sheet die inhoud heeft. Staat dezelfde sheet al in beeld, dan laten we
+// 'm staan (niet elke tik opnieuw inschuiven).
+function toonSheet() {
+  const stage = document.getElementById('stage');
+  for (let poging = 0; poging < SHEETS.length; poging++) {
+    const maker = SHEETS[sheetIdx % SHEETS.length];
+    sheetIdx += 1;
+    const html = maker();
+    if (!html) continue;
+    const sleutel = `sheet:${maker.name}`;
+    if (huidigeKey === sleutel && stage.querySelector('.sheet')) return; // staat er al
+    const el = document.createElement('div');
+    el.className = 'card sheet in';
+    el.innerHTML = html;
+    stage.innerHTML = '';
+    stage.appendChild(el);
+    huidigeKey = sleutel;
+    return;
+  }
+  stage.innerHTML = ''; // geen enkele sheet heeft iets te melden
+  huidigeKey = null;
 }
 
 // ============ Ticker (#65) ============
@@ -553,6 +663,8 @@ function stopConfetti() {
 
 // Eerste kaart meteen tonen zodra de eerste data binnen is (niet 6s wachten).
 zetTicker(null); // balk meteen tonen met de standaardtekst, niet pas na de eerste fetch
+haalRunouts().then(volgende);
+setInterval(haalRunouts, SHEET_VERVERS_MS);
 ververs().then(volgende);
 setInterval(ververs, REFRESH_MS);
 setInterval(volgende, CARD_MS);
