@@ -59,21 +59,22 @@
 
   /* Balk bóven de kaart: links de QR naar het archief, rechts de neon-kop. */
   .qr {
-    position: absolute; z-index: 2; left: 6.5%; top: 2.4%;
-    display: flex; align-items: center; gap: 1.8vh;
+    position: absolute; z-index: 2; left: 2.5%; top: 2.5%;
+    display: flex; align-items: center; gap: 1.3vh;
   }
   .qr img {
-    width: 9vh; height: 9vh; display: block;
-    background: #fff; padding: 0.6vh; border-radius: 0.8vh;
+    width: 8vh; height: 8vh; display: block;
+    background: #fff; padding: 0.5vh; border-radius: 0.7vh;
   }
   .qr .label { font-size: 3vh; line-height: 1.15; }
   .qr .label .m { color: #cc0000; }
   .qr .label .sub { display: block; font-family: Arial, sans-serif; font-size: 1.7vh; color: rgba(255,255,255,0.5); margin-top: 0.3vh; }
 
   /* Neon-kop: witte kern met rode gloed, en af en toe een flikker zoals een echt bord. */
+  /* 20% kleiner en strak rechts, zodat 'ie het MOKUM-bord op de achtergrond niet raakt. */
   .neon {
-    position: absolute; z-index: 2; right: 6.5%; top: 3.2%;
-    font-size: 6vh; letter-spacing: 0.9vh; color: #fff;
+    position: absolute; z-index: 2; right: 2.5%; top: 3.2%;
+    font-size: 4.8vh; letter-spacing: 0.72vh; color: #fff;
     text-shadow:
       0 0 0.6vh #fff,
       0 0 1.4vh #ff4d4d,
