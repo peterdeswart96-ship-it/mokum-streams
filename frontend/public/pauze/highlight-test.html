@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>Run-out highlights (test)</title>
+<style>
+  /* TESTPAGINA (#71). Speelt run-outs af als ingesloten YouTube-fragment, om te zien of dat
+     in OBS vloeiend genoeg gaat vóór we een knip-pijplijn bouwen. Staat bewust LOS van de
+     jumbotron-slide: als het hapert, gooien we alleen dit bestand weg.
+
+     In OBS: browserbron, 1920x1080, URL naar deze pagina. Met ?debug=1 komt er linksonder
+     een statusregel (welke clip, buffer-toestand, resterende tijd). */
+  html, body {
+    margin: 0; padding: 0; width: 1920px; height: 1080px; overflow: hidden;
+    background: #000; color: #fff; font-family: 'Arial Black', Arial, sans-serif;
+  }
+  .bg {
+    position: absolute; inset: 0; z-index: 0;
+    background-image:
+      linear-gradient(180deg, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.45) 40%, rgba(0,0,0,0.72) 100%),
+      url('img/jumbotron-bg.jpg'),
+      linear-gradient(160deg, #12161d, #0a0d11);
+    background-size: 100% 100%, 100% 100%, cover;
+    background-position: center;
+  }
+
+  /* Zelfde kaart als de pauzekaart in de jumbotron: procenten + vh, zodat een preview in
+     een willekeurig venster klopt met wat er op 1920x1080 uitgaat. */
+  .kaart {
+    position: absolute; z-index: 1; left: 50%;
+    top: 15.4%; bottom: 13.3%; width: 64.6%; margin-left: -32.3%;
+    box-sizing: border-box; padding: 3.7vh 4.8vh 4.1vh;
+    background: rgba(8,8,8,0.78); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 20px; box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+    display: flex; flex-direction: column; gap: 1.85vh; overflow: hidden;
+  }
+  .kop { display: flex; align-items: flex-end; gap: 1.85vh; flex: none; }
+  .titel { font-size: 5.4vh; line-height: 1; }
+  .sub { font-family: Arial, sans-serif; font-size: 2.4vh; color: rgba(255,255,255,0.6); }
+  .tel {
+    margin-left: auto; background: #cc0000; color: #fff;
+    padding: 0.75vh 1.85vh; border-radius: 999px; font-size: 2.2vh;
+  }
+
+  /* Videovlak. De speler krijgt geen knoppen; een dun kader eromheen houdt 'm netjes. */
+  .doek {
+    position: relative; flex: 1; min-height: 0;
+    border-radius: 1.3vh; overflow: hidden; background: #000;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .doek iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  /* Vangt klikken/hover af én dekt de titelbalk die YouTube bovenin toont. */
+  .doek .afdekking { position: absolute; inset: 0; z-index: 2; }
+  .doek .afdekking::before {
+    content: ''; position: absolute; left: 0; right: 0; top: 0; height: 9vh;
+    background: linear-gradient(180deg, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0) 100%);
+  }
+
+  .voet { flex: none; display: flex; align-items: baseline; gap: 1.6vh; }
+  .voetNaam { font-size: 3.3vh; }
+  .voetTegen { font-family: Arial, sans-serif; font-size: 2vh; color: rgba(255,255,255,0.55); }
+  .voetMeta {
+    margin-left: auto; font-family: Arial, sans-serif; font-size: 2vh;
+    color: rgba(255,255,255,0.55); text-align: right;
+  }
+
+  .melding {
+    position: absolute; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center;
+    font-family: Arial, sans-serif; font-size: 3vh; color: rgba(255,255,255,0.7);
+  }
+  .melding[hidden] { display: none; }
+
+  #debug {
+    position: absolute; left: 16px; bottom: 12px; z-index: 5;
+    font-family: Consolas, monospace; font-size: 15px; color: #6f6;
+    background: rgba(0,0,0,0.6); padding: 6px 10px; border-radius: 6px; white-space: pre;
+  }
+  #debug[hidden] { display: none; }
+</style>
+</head>
+<body>
+  <div class="bg"></div>
+
+  <div class="kaart">
+    <div class="kop">
+      <span class="titel">RUN-OUT</span>
+      <span class="sub" id="sub">van de afgelopen weken</span>
+      <span class="tel" id="tel">—</span>
+    </div>
+    <div class="doek">
+      <div id="speler"></div>
+      <div class="afdekking"></div>
+    </div>
+    <div class="voet">
+      <span class="voetNaam" id="vNaam">—</span>
+      <span class="voetTegen" id="vTegen"></span>
+      <span class="voetMeta" id="vMeta"></span>
+    </div>
+  </div>
+
+  <div class="melding" id="melding">Highlights laden…</div>
+  <div id="debug" hidden></div>
+
+<script>
+// Speelt run-outs af als ingesloten YouTube-fragment (#71, testopzet). We gebruiken de
+// IFrame-API omdat we het EINDE van een fragment moeten opvangen: laat je de speler zelf
+// uitlopen, dan toont YouTube zijn eigen scherm met gerelateerde video's. Bij het
+// eind-event schakelen we meteen door naar de volgende clip.
+//
+// Waarom dit kán: `start`/`end` op de embed-speler werken wél (alleen startAt/endAt op
+// playlist-items zijn afgeschaft). Geverifieerd: alle 61 video's met run-outs staan op
+// insluiten-toegestaan en zijn openbaar. Autoplay vereist mute — onze streams hebben toch
+// geen geluid, dus dat kost niets.
+const APP_API = 'https://mokum-streams-func.azurewebsites.net';
+const DEBUG = /[?&]debug=1\b/.test(location.search);
+const zoek = new URLSearchParams(location.search);
+const MAX_CLIPS = Number(zoek.get('aantal')) || 12;   // hoeveel clips in de roulatie
+const NOOD_MS = 15000;                                // vangnet als het eind-event uitblijft
+
+let clips = [];
+let idx = -1;
+let speler = null;
+let noodTimer = null;
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => (
+  { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function debug(tekst) {
+  if (!DEBUG) return;
+  $('debug').hidden = false;
+  $('debug').textContent = tekst;
+}
+
+const datumKort = (iso) => {
+  const d = new Date(`${iso}T12:00:00Z`);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
+async function haalClips() {
+  const r = await fetch(`${APP_API}/api/runouts?limit=200`, { cache: 'no-store' });
+  const d = await r.json();
+  // Alleen run-outs met een echt clipvenster (rack-log aanwezig). Nieuwste eerst.
+  clips = (d.items || []).filter((x) => x.clipVan != null && x.clipTot != null).slice(0, MAX_CLIPS);
+  $('tel').textContent = `${d.aantal} in het archief`;
+  return clips.length;
+}
+
+function toonTekst(c) {
+  $('vNaam').textContent = c.speler;
+  $('vTegen').textContent = `tegen ${c.tegenstander || '?'}${c.ronde ? ` · ${c.ronde}` : ''}`;
+  $('vMeta').innerHTML = `${esc(c.toernooi || '')}<br>${esc(datumKort(c.datum))} · tafel ${esc(c.tafel)}`;
+}
+
+function volgendeClip() {
+  clearTimeout(noodTimer);
+  if (!clips.length) return;
+  idx = (idx + 1) % clips.length;
+  const c = clips[idx];
+  toonTekst(c);
+  const duur = c.clipTot - c.clipVan;
+  debug(`clip ${idx + 1}/${clips.length}  ${c.videoId}  ${c.clipVan}-${c.clipTot}s (${duur}s)\n${c.speler}`);
+
+  speler.loadVideoById({ videoId: c.videoId, startSeconds: c.clipVan, endSeconds: c.clipTot });
+  // Vangnet: als het eind-event uitblijft (bufferen, fout), tóch doorschakelen.
+  noodTimer = setTimeout(volgendeClip, (duur + NOOD_MS / 1000) * 1000);
+}
+
+function startSpeler() {
+  speler = new YT.Player('speler', {
+    width: '100%', height: '100%',
+    playerVars: {
+      autoplay: 1, mute: 1, controls: 0, disablekb: 1,
+      modestbranding: 1, rel: 0, fs: 0, iv_load_policy: 3, playsinline: 1,
+    },
+    events: {
+      onReady: () => { $('melding').hidden = true; volgendeClip(); },
+      onStateChange: (e) => {
+        if (e.data === YT.PlayerState.ENDED) volgendeClip();
+        if (DEBUG) {
+          const namen = { '-1': 'niet gestart', 0: 'einde', 1: 'speelt', 2: 'pauze', 3: 'BUFFERT', 5: 'klaar' };
+          const c = clips[idx] || {};
+          debug(`clip ${idx + 1}/${clips.length}  ${c.videoId}  ${c.clipVan}-${c.clipTot}s\n${c.speler}\nstatus: ${namen[e.data] || e.data}`);
+        }
+      },
+      onError: (e) => { debug(`FOUT van de speler: ${e.data} → volgende clip`); volgendeClip(); },
+    },
+  });
+}
+
+(async function start() {
+  try {
+    if (!(await haalClips())) {
+      $('melding').textContent = 'Geen run-outs met een clipvenster gevonden.';
+      return;
+    }
+  } catch (e) {
+    $('melding').textContent = 'Kon de highlights niet laden.';
+    return;
+  }
+  // IFrame-API laden; die roept onYouTubeIframeAPIReady aan zodra 'ie klaar is.
+  window.onYouTubeIframeAPIReady = startSpeler;
+  const s = document.createElement('script');
+  s.src = 'https://www.youtube.com/iframe_api';
+  document.head.appendChild(s);
+})();
+</script>
+</body>
+</html>

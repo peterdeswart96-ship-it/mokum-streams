@@ -529,3 +529,16 @@ Body:
   OBS bij te stellen met de URL-parameters `?tickerOnder=` (afstand tot de onderrand),
   `?tickerBreedte=`, `?tickerHoogte=` en `?tickerSnelheid=` (px/s). Kale getallen gelden als
   pixels, procenten schalen mee met het venster.
+- 2026-07-23: v0.39 — **Clipvensters voor run-out-highlights (#71)**. Elke run-out in
+  `GET /api/runouts` (en in `runouts[]` op een archiefregel) heeft er drie velden bij:
+  **`eindSec`** (moment waarop het rack gewonnen werd) en **`clipVan`/`clipTot`** — het
+  venster om af te spelen. De rackduur telt vanaf het einde van het vórige rack, dus de
+  eerste minuut is meestal ballen opzetten; we tellen daarom terug vanáf het einde:
+  `clipVan = max(rackstart, eind − 150s)`, `clipTot = eind + 4s`. Korte racks blijven heel,
+  lange worden getrimd tot de run zelf. Zonder rack-log (2 van de 131) blijven ze `null` —
+  die zijn niet af te spelen. Gemeten: 129 clips, mediaan 154s, kortste 38s.
+  Afspelen gebeurt met een **ingesloten YouTube-speler** (`start`/`end` werken daar wél; het
+  zijn `startAt`/`endAt` op playlist-items die zijn afgeschaft), dus zonder knippen of
+  her-uploaden. Alle 61 video's met run-outs zijn openbaar én insluitbaar (geverifieerd).
+  Testpagina voor OBS: `frontend/public/pauze/highlight-test.html` (`?debug=1` toont de
+  speler-status, `?aantal=` het aantal clips in de roulatie).

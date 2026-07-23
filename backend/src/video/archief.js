@@ -45,6 +45,20 @@ const MIN_RACK_SEC = 30;
 
 const echtRack = (rack) => rack && (rack.duurSec == null || rack.duurSec >= MIN_RACK_SEC);
 
+// Clipvenster voor het afspelen van een run-out (#71). De rackduur telt vanaf het einde van
+// het vórige rack, dus de eerste minuut is meestal ballen opzetten. We tellen daarom terug
+// vanáf het einde: korte racks houden hun aanloop, lange worden getrimd tot de run zelf.
+const CLIP_MAX_SEC = 150; // hoever we maximaal terugtellen vanaf de laatste bal
+const CLIP_NA_SEC = 4;    // naloop, zodat de clip niet op de bal zelf afkapt
+
+function clipVenster(startSec, eindSec) {
+  if (eindSec == null) return { clipVan: null, clipTot: null };
+  return {
+    clipVan: Math.max(0, Math.max(startSec, eindSec - CLIP_MAX_SEC)),
+    clipTot: eindSec + CLIP_NA_SEC,
+  };
+}
+
 // Bouwt de archiefregels van één video. `indexRecord` = video-index/<id>.json,
 // `tournament` = genormaliseerd Cuescore-toernooi. Retour: array (kan leeg zijn).
 function wedstrijdenVoorVideo(indexRecord, tournament) {
@@ -82,7 +96,18 @@ function wedstrijdenVoorVideo(indexRecord, tournament) {
       const rackStart = Date.parse(rack.start || '');
       if (!speler || Number.isNaN(rackStart) || Number.isNaN(wedstrijdStart)) continue;
       const rackOffset = Math.max(0, offset + Math.round((rackStart - wedstrijdStart) / 1000));
-      runouts.push({ speler, offsetSec: rackOffset, url: YT_URL(rec.videoId, rackOffset), exact: true });
+      const rackEind = Date.parse(rack.eind || '');
+      const eindSec = Number.isNaN(rackEind)
+        ? null
+        : Math.max(rackOffset, offset + Math.round((rackEind - wedstrijdStart) / 1000));
+      runouts.push({
+        speler,
+        offsetSec: rackOffset,
+        eindSec,
+        ...clipVenster(rackOffset, eindSec),
+        url: YT_URL(rec.videoId, rackOffset),
+        exact: true,
+      });
     }
     // Geen rack-log (oudere wedstrijden): val terug op het begin van de partij. Is er WÉL
     // een log maar bleef er niets van over, dan waren het geen echte run-outs — dan ook
@@ -90,7 +115,10 @@ function wedstrijdenVoorVideo(indexRecord, tournament) {
     if (!heeftLog) {
       for (const [speler, aantal] of [[a, m.runoutsA], [b, m.runoutsB]]) {
         for (let i = 0; speler && i < (Number(aantal) || 0); i++) {
-          runouts.push({ speler, offsetSec: offset, url: YT_URL(rec.videoId, offset), exact: false });
+          runouts.push({
+            speler, offsetSec: offset, eindSec: null, clipVan: null, clipTot: null,
+            url: YT_URL(rec.videoId, offset), exact: false,
+          });
         }
       }
     }
@@ -140,6 +168,9 @@ function runoutsUitArchief(lijst) {
         videoId: r.videoId,
         url: ro.url || r.url,
         offsetSec: ro.offsetSec != null ? ro.offsetSec : r.offsetSec,
+        eindSec: ro.eindSec != null ? ro.eindSec : null,
+        clipVan: ro.clipVan != null ? ro.clipVan : null,
+        clipTot: ro.clipTot != null ? ro.clipTot : null,
         exact: ro.exact === true,
         speler: ro.speler, tegenstander: tegen,
         ronde: r.ronde, tafel: r.tafel, toernooi: r.toernooi, soort: r.soort,

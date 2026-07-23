@@ -60,7 +60,8 @@ test('run-out linkt naar het begin van dát rack, niet naar het begin van de par
   const uit = wedstrijdenVoorVideo(INDEX, t);
   assert.strictEqual(uit[0].offsetSec, 1500);              // partij zelf onveranderd
   assert.deepStrictEqual(uit[0].runouts, [{
-    speler: 'Chris Jones', offsetSec: 2250, url: 'https://youtu.be/abc123?t=2250', exact: true,
+    speler: 'Chris Jones', offsetSec: 2250, eindSec: 2460, clipVan: 2310, clipTot: 2464,
+    url: 'https://youtu.be/abc123?t=2250', exact: true,
   }]);
 });
 
@@ -82,9 +83,10 @@ test('twee run-outs in één partij → twee racks, elk met een eigen moment', (
 test('zonder rack-log (oudere data) valt de run-out terug op het begin van de partij', () => {
   const t = { name: 'T', matches: [wedstrijd(3, 'Panchi Chen', 'Andy Fung', { runoutsA: 2 })] };
   const uit = wedstrijdenVoorVideo(INDEX, t);
+  const leeg = { eindSec: null, clipVan: null, clipTot: null };
   assert.deepStrictEqual(uit[0].runouts, [
-    { speler: 'Panchi Chen', offsetSec: 0, url: 'https://youtu.be/abc123?t=0', exact: false },
-    { speler: 'Panchi Chen', offsetSec: 0, url: 'https://youtu.be/abc123?t=0', exact: false },
+    { speler: 'Panchi Chen', offsetSec: 0, ...leeg, url: 'https://youtu.be/abc123?t=0', exact: false },
+    { speler: 'Panchi Chen', offsetSec: 0, ...leeg, url: 'https://youtu.be/abc123?t=0', exact: false },
   ]);
 });
 
@@ -165,7 +167,8 @@ test('een snelle maar echte run-out blijft staan', () => {
     runoutRacks: [{ kant: 'A', start: '2026-07-22T19:04:00Z', duurSec: 47 }],
   })] };
   assert.deepStrictEqual(wedstrijdenVoorVideo(INDEX, t)[0].runouts, [
-    { speler: 'Panchi Chen', offsetSec: 240, url: 'https://youtu.be/abc123?t=240', exact: true },
+    { speler: 'Panchi Chen', offsetSec: 240, eindSec: null, clipVan: null, clipTot: null,
+      url: 'https://youtu.be/abc123?t=240', exact: true },
   ]);
 });
 
@@ -192,4 +195,28 @@ test('elke archiefregel krijgt de soort mee', () => {
   const t = { name: 'X', matches: [wedstrijd(3, 'Panchi Chen', 'Andy Fung', {})] };
   const rec = { ...INDEX, tournamentName: 'Fluke ranking 9ball Seizoen 2 #13' };
   assert.strictEqual(wedstrijdenVoorVideo(rec, t)[0].soort, 'Fluke Ranking');
+});
+
+test('clipvenster telt terug vanaf het einde van het rack', () => {
+  // Rack van 10 min: alleen de laatste 150s + 4s naloop is interessant (de rest is opzetten).
+  const lang = { name: 'T', matches: [wedstrijd(3, 'Panchi Chen', 'Andy Fung', {
+    start: '2026-07-22T19:00:00Z', runoutsA: 1,
+    runoutRacks: [{ kant: 'A', start: '2026-07-22T19:00:00Z', eind: '2026-07-22T19:10:00Z', duurSec: 600 }],
+  })] };
+  const a = wedstrijdenVoorVideo(INDEX, lang)[0].runouts[0];
+  assert.deepStrictEqual([a.offsetSec, a.eindSec, a.clipVan, a.clipTot], [0, 600, 450, 604]);
+
+  // Kort rack (2 min): helemaal meenemen, niets te trimmen.
+  const kort = { name: 'T', matches: [wedstrijd(3, 'Panchi Chen', 'Andy Fung', {
+    start: '2026-07-22T19:00:00Z', runoutsA: 1,
+    runoutRacks: [{ kant: 'A', start: '2026-07-22T19:00:00Z', eind: '2026-07-22T19:02:00Z', duurSec: 120 }],
+  })] };
+  const b = wedstrijdenVoorVideo(INDEX, kort)[0].runouts[0];
+  assert.deepStrictEqual([b.clipVan, b.clipTot], [0, 124]);
+});
+
+test('zonder rack-einde is er geen clipvenster (niet af te spelen)', () => {
+  const t = { name: 'T', matches: [wedstrijd(3, 'Panchi Chen', 'Andy Fung', { runoutsA: 1 })] };
+  const r = wedstrijdenVoorVideo(INDEX, t)[0].runouts[0];
+  assert.deepStrictEqual([r.exact, r.clipVan, r.clipTot], [false, null, null]);
 });
