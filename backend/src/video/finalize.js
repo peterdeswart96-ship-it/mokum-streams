@@ -100,7 +100,11 @@ async function finaliseerToernooi({ videoId, tournamentId, tableNumber, alleenHo
   const sponsor = sponsorVanNaam(naamRaw);
   const spelers = uniekeSpelersOpTafel(tournament, tableNumber);
 
-  const { beschrijving, hoofdstukken } = bouwHoofdstukken(streamStart, tournament, tableNumber);
+  // eindISO begrenst de hoofdstukken op de werkelijke lengte van de video: een
+  // afgebroken stream mag niet de hele middag aan wedstrijden als hoofdstuk krijgen.
+  const { beschrijving, hoofdstukken } = bouwHoofdstukken(streamStart, tournament, tableNumber, {
+    eindISO: opts.streamEindISO || video.actualEndTime || null,
+  });
 
   await yt.updateSnippetDescription(video, beschrijving);
   let thumbnailBytes = 0;

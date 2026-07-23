@@ -44,6 +44,11 @@ function hoofdstukData(streamStartISO, tournament, tableNumber, opts = {}) {
   const tafel = String(tableNumber);
   const margeSec = opts.margeSec != null ? opts.margeSec : 120;
   const minGapSec = opts.minGapSec != null ? opts.minGapSec : 10; // YouTube: hoofdstuk >= ~10s
+  // Einde van de video: wedstrijden die ná de stream begonnen horen er niet in. Zonder
+  // deze grens kreeg een afgebroken stream (bijv. 2 minuten) tóch alle wedstrijden van
+  // die tafel als hoofdstuk, met tijdstempels van uren ver voorbij het einde.
+  const eind = opts.eindISO ? Date.parse(opts.eindISO) : NaN;
+  const maxOffsetSec = Number.isNaN(eind) ? Infinity : Math.max(0, Math.floor((eind - start) / 1000));
 
   const rijen = ((tournament && tournament.matches) || [])
     .filter((m) => m && m.table === tafel && m.start)
@@ -55,6 +60,7 @@ function hoofdstukData(streamStartISO, tournament, tableNumber, opts = {}) {
   for (const { m, t } of rijen) {
     const offset = Math.floor((t - start) / 1000);
     if (offset < -margeSec) continue; // ruim vóór de stream
+    if (offset > maxOffsetSec) continue; // ná het einde van de video
     const sec = Math.max(0, offset);
     const a = m.playerA && m.playerA.name;
     const b = m.playerB && m.playerB.name;

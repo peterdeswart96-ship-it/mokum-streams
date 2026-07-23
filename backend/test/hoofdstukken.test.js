@@ -82,3 +82,15 @@ test('bouwHoofdstukken: eerste wedstrijd op 0:00 → geen extra Aanvang-regel', 
   assert.ok(!beschrijving.includes('Aanvang'));
   assert.ok(beschrijving.includes('0:00 A vs B'));
 });
+
+test('hoofdstukData: wedstrijden ná het einde van de video vallen weg (afgebroken stream)', () => {
+  const start = '2026-07-12T08:19:23Z';
+  const t = { matches: [
+    match(15, '2026-07-12T08:20:00Z', 'A', 'B'),  // +37s, binnen de 2 minuten
+    match(15, '2026-07-12T14:55:00Z', 'C', 'D'),  // uren later → hoort in de ándere video
+  ] };
+  const zonderGrens = hoofdstukData(start, t, 15);
+  assert.strictEqual(zonderGrens.length, 2);
+  const metGrens = hoofdstukData(start, t, 15, { eindISO: '2026-07-12T08:21:04Z' });
+  assert.deepStrictEqual(metGrens.map((h) => h.label), ['A vs B']);
+});

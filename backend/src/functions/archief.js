@@ -2,7 +2,14 @@ const { app } = require('@azure/functions');
 const { isAdmin } = require('../admin/auth');
 const { readJson, writeJson, getContainerClient } = require('../storage/blob');
 const { getTournament } = require('../cuescore');
+const { getVideosDetails } = require('../youtube/videos');
 const { wedstrijdenVoorVideo, sorteerWedstrijden, runoutsUitArchief } = require('../video/archief');
+
+// ISO 8601-duur (PT#H#M#S) → seconden.
+function duurSec(iso) {
+  const m = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(iso || '');
+  return m ? (Number(m[1] || 0) * 3600 + Number(m[2] || 0) * 60 + Number(m[3] || 0)) : null;
+}
 
 // POST /api/manage/archief/rebuild — bouwt archief.json volledig opnieuw op uit alle
 // `video-index/`-records (#59/#67). Admin-beveiligd. Kost GEEN YouTube-quota: we lezen
@@ -47,10 +54,30 @@ app.http('adminArchiefRebuild', {
       alle.push(...wedstrijdenVoorVideo(rec, tournament));
     }
 
+    // Begrenzen op de werkelijke lengte van elke video. Een afgebroken stream (bijv. 2 min)
+    // kreeg bij het finaliseren tóch alle wedstrijden van die tafel als hoofdstuk, met
+    // tijdstempels ver voorbij het einde — dat gaf dubbele run-outs in het archief.
+    // videos.list kost 1 quota-eenheid per 50 id's, dus dit is verwaarloosbaar.
+    let buitenVideo = 0;
+    try {
+      const ids = [...new Set(alle.map((r) => r.videoId))];
+      const duur = new Map((await getVideosDetails(ids)).map((v) => [v.id, duurSec(v.duration)]));
+      const binnen = alle.filter((r) => {
+        const d = duur.get(r.videoId);
+        if (d == null) return true; // duur onbekend → laten staan
+        return r.offsetSec <= d;
+      });
+      buitenVideo = alle.length - binnen.length;
+      alle.length = 0;
+      alle.push(...binnen);
+    } catch (e) {
+      context.log(`[archief] duur-check overgeslagen: ${e.message}`);
+    }
+
     const lijst = sorteerWedstrijden(alle);
     await writeJson('archief.json', lijst);
     const runouts = runoutsUitArchief(lijst).length;
-    context.log(`[archief] herbouwd: ${lijst.length} wedstrijden (${runouts} run-outs) uit ${gelezen} video's.`);
+    context.log(`[archief] herbouwd: ${lijst.length} wedstrijden (${runouts} run-outs) uit ${gelezen} video's; ${buitenVideo} buiten de videolengte geweerd.`);
     return json(200, {
       ok: true,
       wedstrijden: lijst.length,
@@ -58,6 +85,7 @@ app.http('adminArchiefRebuild', {
       videos: gelezen,
       toernooien: toernooiCache.size,
       overgeslagen,
+      buitenVideo,
       spelers: [...new Set(lijst.flatMap((r) => r.spelers || []))].length,
     });
   },
