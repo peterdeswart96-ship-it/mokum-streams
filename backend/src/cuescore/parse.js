@@ -119,6 +119,10 @@ function normalizeMatch(m) {
       : null,
     scoreA: m.scoreA,
     scoreB: m.scoreB,
+    // Run-outs per speler (#67). Op het iPad-scorebord kiest de teller per rack
+    // "Rack +1" óf "Runout +1", dus dit veld is betrouwbaar gevuld.
+    runoutsA: Number(m.runoutsA) || 0,
+    runoutsB: Number(m.runoutsB) || 0,
   };
 }
 

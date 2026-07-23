@@ -477,3 +477,21 @@ Body:
   3. **Podium-grace van 60s → 180s**, instelbaar via app-setting **`PODIUM_GRACE_SEC`**. De keten
      liveMatches (1×/min) → pauzescherm (debounce 20s) → overlay-poll had aan één minuut te weinig
      om het medaillescherm daadwerkelijk op de uitzending te krijgen vóór de stop.
+- 2026-07-23: v0.36 — **Wedstrijd-archief + zoekmachine (#59/#67)**. Elke gefilmde wedstrijd wordt
+  vastgelegd met een deep-link naar het exacte moment in de video, zodat je terug kunt zoeken wat
+  je gespeeld hebt (en kunt filteren op bijv. run-outs).
+  - **`GET /api/archief?limit=`** (publiek) → `{ generatedAt, aantal, items: [...] }`. Eén item =
+    `{ videoId, url, offsetSec, datum, tafel, toernooi, tournamentId, ronde, spelers: [a,b],
+    score: [a,b], runouts: [{ speler, aantal }] }`. `url` = `https://youtu.be/<videoId>?t=<offsetSec>`.
+    Zonder `limit` komt het hele archief mee (paar honderd kB) — de zoekmachine haalt het één keer
+    op en filtert **in de browser**, dus geen call per toetsaanslag.
+  - **`GET /api/runouts?limit=`** (publiek, default 50, max 500) → hetzelfde archief gefilterd op
+    run-outs, één regel per speler-met-run-out: `{ …, speler, tegenstander, aantal }`.
+  - **`POST /api/manage/archief/rebuild`** (admin) → herbouwt de aggregatie-blob `archief.json` uit
+    alle `video-index/`-records + Cuescore. Kost **geen YouTube-quota**. Nodig als eenmalige
+    backfill en als vangnet; de finalize-keten werkt het archief daarna per video bij (idempotent).
+  - Koppeling wedstrijd ↔ moment gaat via het **spelerspaar** uit de bewaarde hoofdstukken
+    (`video-index/<videoId>.json`), dus dit werkt ook voor video's die al eerder gefinaliseerd zijn.
+  - `normalizeMatch` neemt voortaan **`runoutsA`/`runoutsB`** mee uit de Cuescore-API.
+  - CORS-allowlist gelijk aan `/api/live`. YouTube kent geen clip-/timestamp-playlists
+    (startAt/endAt afgeschaft), vandaar deep-links; echte clips zijn #67 fase 2 (1.600 quota/upload).

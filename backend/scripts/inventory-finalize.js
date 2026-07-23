@@ -19,7 +19,11 @@ const { templateVoorToernooi } = require('../src/video/detectie');
 
 if (!TOKEN) { console.error('ADMIN_TOKEN ontbreekt (env).'); process.exit(1); }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const num = (s) => { const m = /#\s*(\d+)/.exec(s || ''); return m ? m[1] : null; };
+// Editienummer uit een naam: "#12" óf "Qualifier 3" (GO Customs nummert zonder hekje).
+const num = (s) => {
+  const m = /#\s*(\d+)/.exec(s || '') || /qualifier\s*(\d+)/i.exec(s || '');
+  return m ? m[1] : null;
+};
 const dec = (e) => { let s = e.replace(/\+/g, ' '); try { s = decodeURIComponent(s); } catch {} try { s = decodeURIComponent(s); } catch {} return s.replace(/\s{2,}/g, ' ').trim(); };
 const MAAND = { january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12 };
 const iso = (t) => { const m = /([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})/.exec(t || ''); if (!m) return null; const mm = MAAND[m[1].toLowerCase()]; return mm ? `${m[3]}-${String(mm).padStart(2,'0')}-${String(m[2]).padStart(2,'0')}` : null; };
@@ -47,8 +51,10 @@ async function scrapeTournaments() {
   const toern = await scrapeTournaments();
   const byType = new Map();
   for (const t of toern) { const ty = templateVoorToernooi(t.name); if (!ty) continue; if (!byType.has(ty)) byType.set(ty, []); byType.get(ty).push(t); }
-  const matchToern = (naam, datum) => {
-    const type = templateVoorToernooi(naam); if (!type) return null; const nr = num(naam); const c = byType.get(type) || [];
+  const matchToern = (naam, datum, negeerNummer) => {
+    const type = templateVoorToernooi(naam); if (!type) return null;
+    const nr = negeerNummer ? null : num(naam);
+    const c = byType.get(type) || [];
     const bd = c.filter((t) => t.datum && t.datum === datum);
     if (bd.length === 1 && (!nr || !num(bd[0].name) || num(bd[0].name) === nr)) return bd[0];
     if (nr) { const bn = c.filter((t) => num(t.name) === nr); if (bn.length === 1) return bn[0]; }
@@ -56,6 +62,18 @@ async function scrapeTournaments() {
   };
 
   const toernooiRows = inv.rows.filter((r) => r.categorie === 'toernooi');
+
+  // Kopieer-plak-titels: dezelfde titel op meerdere DATA (bijv. 11x "MOKUM FLUKE RANKING
+  // 9BALL #11" op 11 verschillende dagen) betekent dat het #nummer in de titel niets zegt.
+  // Voor die video's negeren we het nummer en vertrouwen we op de datum.
+  const datumsPerTitel = new Map();
+  for (const v of toernooiRows) {
+    const k = (v.naam || '').trim().toLowerCase();
+    if (!datumsPerTitel.has(k)) datumsPerTitel.set(k, new Set());
+    datumsPerTitel.get(k).add(v.datum);
+  }
+  const nummerOnbetrouwbaar = (naam) => (datumsPerTitel.get((naam || '').trim().toLowerCase()) || new Set()).size > 1;
+
   let ops = 0, chOk = 0, thOk = 0, thRate = false, quota = false;
 
   // 1) Hoofdstukken (alleen-hoofdstukken → geen thumbnail-rate-limit).
@@ -64,7 +82,7 @@ async function scrapeTournaments() {
   for (const v of toernooiRows) {
     if (ops >= MAX_OPS || quota) break;
     if (v.hoofdstukken && !process.env.HERDOE_BESCHRIJVING) continue;
-    const hit = matchToern(v.naam, v.datum); if (!hit) continue;
+    const hit = matchToern(v.naam, v.datum, nummerOnbetrouwbaar(v.naam)); if (!hit) continue;
     const tafel = (v.naam.match(/tafel\s*(\d+)/i) || [])[1];
     const tableNumber = tafel ? Number(tafel) : 3; // oude streams zonder "Tafel N" = tafel 3
     const res = await post({ videoId: v.videoId, tournamentId: hit.id, tableNumber, alleenHoofdstukken: true });

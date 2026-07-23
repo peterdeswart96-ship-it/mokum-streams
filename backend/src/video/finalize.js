@@ -5,8 +5,9 @@
 // Werkt voor een toernooivideo (met Cuescore-data → hoofdstukken + spelersnamen) en voor
 // een losse challenge (spelerA/spelerB, geen hoofdstukken).
 
-const { readJson, writeJson } = require('../storage/blob');
+const { readJson, writeJson, updateJson } = require('../storage/blob');
 const yt = require('../youtube/videos');
+const { wedstrijdenVoorVideo, mergeWedstrijden } = require('./archief');
 const { getTournament } = require('../cuescore');
 const { bouwHoofdstukken, datumNL, MOKUM_LIVE } = require('./hoofdstukken');
 const { spelsoortVanDiscipline, sponsorVanNaam, schoneTitel, templateVoorToernooi, TEMPLATE_TEKST, datumThumb } = require('./detectie');
@@ -15,6 +16,7 @@ const { renderThumbnail, heeftTemplate } = require('./thumbnailHtml'); // per-to
 
 const BACKUP = (videoId) => `finalize-backup/${videoId}.json`;
 const INDEX = (videoId) => `video-index/${videoId}.json`; // per-wedstrijd-data voor #59
+const ARCHIEF = 'archief.json';                           // wedstrijd-archief + run-outs (#59/#67)
 
 // Unieke spelersnamen op een tafel (in speelvolgorde), voor de thumbnail.
 function uniekeSpelersOpTafel(tournament, tableNumber) {
@@ -111,13 +113,25 @@ async function finaliseerToernooi({ videoId, tournamentId, tableNumber, alleenHo
   }
 
   // Per-wedstrijd-data bewaren voor de spelers-index (#59).
-  await writeJson(INDEX(videoId), {
+  const indexRecord = {
     videoId, tournamentId, tableNumber, tournamentName: naamRaw,
     datum: (streamStart || '').slice(0, 10), finalizedAt: new Date().toISOString(),
     hoofdstukken: hoofdstukken.filter((h) => h.spelers.length).map((h) => ({ offsetSec: h.offsetSec, spelers: h.spelers })),
-  });
+  };
+  await writeJson(INDEX(videoId), indexRecord);
 
-  return { videoId, type: 'toernooi', aantalHoofdstukken: hoofdstukken.length, spelers: spelers.length, thumbnailBytes };
+  // Wedstrijd-archief van deze video bijwerken (#59/#67): elke wedstrijd met een deep-link
+  // naar het moment in de video. Idempotent — de regels van deze video worden vervangen.
+  // Faalt dit, dan blijft de finalize zelf geslaagd; het archief is altijd volledig te
+  // herbouwen via POST /api/manage/archief/rebuild.
+  let archief = 0;
+  try {
+    const nieuw = wedstrijdenVoorVideo(indexRecord, tournament);
+    await updateJson(ARCHIEF, (lijst) => mergeWedstrijden(lijst, videoId, nieuw), []);
+    archief = nieuw.length;
+  } catch { /* archief is herbouwbaar */ }
+
+  return { videoId, type: 'toernooi', aantalHoofdstukken: hoofdstukken.length, spelers: spelers.length, thumbnailBytes, archief };
 }
 
 // Finaliseert een losse challenge (geen Cuescore-data → geen hoofdstukken).

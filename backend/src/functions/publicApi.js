@@ -2,6 +2,7 @@ const { app } = require('@azure/functions');
 const { readJson } = require('../storage/blob');
 const { zaalDelen } = require('../schedule/schedule');
 const { buildLiveTables, buildSchedule } = require('../public/live');
+const { runoutsUitArchief } = require('../video/archief');
 
 // Publieke, alleen-lezen endpoints voor de live-pagina/widget (geen auth).
 
@@ -61,6 +62,41 @@ app.http('publicLive', {
       podium,
       agent,
       tables: buildLiveTables(cameras, store, status, liveMatches, liveVideos),
+    }, request);
+  },
+});
+
+// GET /api/archief — het volledige wedstrijd-archief: elke gefilmde wedstrijd met een
+// deep-link naar het moment in de video (#59/#67). De zoekmachine op de Mokum Live-pagina
+// haalt dit één keer op en filtert in de browser (paar honderd kB, geen call per toetsaanslag).
+// Bron: archief.json, bijgehouden door de finalize-keten, herbouwbaar via
+// POST /api/manage/archief/rebuild.
+app.http('publicArchief', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'archief',
+  handler: async (request) => {
+    const alle = (await readJson('archief.json', [])) || [];
+    const gevraagd = Number(request.query.get('limit'));
+    const items = Number.isFinite(gevraagd) && gevraagd > 0 ? alle.slice(0, gevraagd) : alle;
+    return json(200, { generatedAt: new Date().toISOString(), aantal: alle.length, items }, request);
+  },
+});
+
+// GET /api/runouts?limit=50 — alleen de run-outs (#67, fase 1): een filter op hetzelfde
+// archief, één regel per speler-met-run-out.
+app.http('publicRunouts', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'runouts',
+  handler: async (request) => {
+    const gevraagd = Number(request.query.get('limit'));
+    const limit = Math.min(Math.max(Number.isFinite(gevraagd) ? gevraagd : 50, 1), 500);
+    const alle = runoutsUitArchief((await readJson('archief.json', [])) || []);
+    return json(200, {
+      generatedAt: new Date().toISOString(),
+      aantal: alle.length,
+      items: alle.slice(0, limit),
     }, request);
   },
 });
