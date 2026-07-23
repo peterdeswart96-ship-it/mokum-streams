@@ -9,6 +9,21 @@ in overleg met Nick. Bijgewerkt **2026-07-11 (avond)**.
 - Backend + frontend **één keer gedeployed**; dashboard live op mokum-streams.pdscloud.nl.
 - App draait, timers **uit** (`AzureWebJobs.*.Disabled=true`) + `AUTOMATION_ARMED=false` → slapend.
 
+> ⚠️ **Let op — deze host-schakelaars weer aanzetten na de deploy.** Dit is 11-07 vergeten:
+> `checkStops`, `createBroadcasts` en `importPlanning` bleven tot **23-07** uitgeschakeld terwijl
+> `AUTOMATION_ARMED` al op `true` stond. Gevolg: geen auto-stop, geen podium-grace, geen
+> planning-import — twaalf dagen lang, zonder enige foutmelding (zie #69). De app-setting
+> `AzureWebJobs.<functie>.Disabled` overrulet `AUTOMATION_ARMED` volledig; controleer 'm als de
+> automatisering "stil" lijkt te doen:
+> ```powershell
+> az functionapp config appsettings list -g rg-mokum-streams -n mokum-streams-func -o json |
+>   ConvertFrom-Json | Where-Object { $_.name -match 'Disabled|AUTOMATION_ARMED' } |
+>   ForEach-Object { "{0} = {1}" -f $_.name, $_.value }
+> ```
+> **Stand 2026-07-23:** `checkStops` + `importPlanning` **aan**, `createBroadcasts` bewust **uit**
+> (de toernooiplanner wordt nog niet gebruikt; streams worden handmatig gestart en sinds #69
+> automatisch aan het Cuescore-toernooi gekoppeld).
+
 ## Nog te doen vanavond
 
 ### 1. Her-deploy (nieuwe code sinds vanmiddag: v0.11 break-overlays + rotatie)
