@@ -6,6 +6,7 @@ const {
   findTableMatch,
   isFinalFinished,
   findTournamentByName,
+  recentTournamentIds,
 } = require('./parse');
 
 // Netwerklaag voor de eigen Cuescore-lees (besluit: optie B, zie wiki/decisions.md).
@@ -98,6 +99,29 @@ async function findTableTournament(tableNumber, { now = new Date() } = {}) {
   return null;
 }
 
+// Recent afgeronde toernooien (genormaliseerd) voor de winnaars-sheet (#72). Haalt de
+// kandidaat-ID's van de toernooien-pagina op en daarvan de detail-data; de sheet-logica
+// (src/sheets) filtert vervolgens op 'finished' + een vaststelbare winnaar. Begrensd op
+// `kandidaten` detail-calls zodat de opbouw van de sheet-cache licht blijft.
+async function getRecentFinished({ orgStub = ORG_STUB, now = new Date(), kandidaten = 10 } = {}) {
+  const paginas = await haalToernooienPaginas(orgStub);
+  const ids = [];
+  for (const html of paginas) {
+    for (const id of recentTournamentIds(html, now, { max: kandidaten })) {
+      if (!ids.includes(id)) ids.push(id);
+    }
+  }
+  const out = [];
+  for (const id of ids.slice(0, kandidaten)) {
+    try {
+      out.push(await getTournament(id));
+    } catch (e) {
+      // Eén onbereikbaar toernooi mag de hele sheet niet blokkeren.
+    }
+  }
+  return out;
+}
+
 // True als het toernooi als geheel is afgerond (primaire auto-stop-trigger).
 async function isTournamentFinished(id) {
   const tournament = await getTournament(id);
@@ -109,6 +133,7 @@ module.exports = {
   getTournament,
   getTodaysTournaments,
   getUpcomingTournaments,
+  getRecentFinished,
   findTableTournament,
   isTournamentFinished,
   // pure helpers ook exporteren voor hergebruik/tests

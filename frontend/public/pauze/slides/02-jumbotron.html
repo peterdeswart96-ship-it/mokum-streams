@@ -286,6 +286,52 @@
     .card.in, .card.out, .curtain .panel { animation: none; transition: none; }
     .kroon, .plek.winner .pfoto, .lasers .beam { animation: none; }
   }
+
+  /* Info-sheets (#72): 'Toernooiwinnaars' + 'Komende toernooien'. Eigen overlay-laag, in de
+     rotatie na de scores-fase. Zelfde kaartstijl/plek als de highlight-kaart; maten in vh
+     zodat een preview in een willekeurig venster klopt met OBS (1vh = 10,8px op 1080). */
+  .blad { position: absolute; inset: 0; z-index: 1; }
+  .blad[hidden] { display: none; }
+  .blad .bkaart {
+    position: absolute; left: 50%; top: 44%;
+    width: 61.5%; height: 57.4vh; margin-left: -30.75%; margin-top: -28.7vh;
+    box-sizing: border-box; padding: 3.5vh 4.4vh 2.8vh;
+    background: rgba(8,8,8,0.80); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 1.8vh; box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+    display: flex; flex-direction: column;
+  }
+  .blad .blogo { position: absolute; top: 2.2vh; right: 2.6vh; height: 9.3vh; width: auto;
+    filter: drop-shadow(0 4px 12px rgba(0,0,0,0.55)); }
+  .blad .bkop { display: flex; align-items: baseline; gap: 1.5vh; margin-bottom: 1.8vh; }
+  .blad .bkop h1 { margin: 0; font-size: 4.3vh; letter-spacing: 1px; text-transform: uppercase; color: #dd2222; }
+  .blad .bkop .bsub { font-family: Arial, sans-serif; font-weight: bold; color: #9aa0a6; font-size: 1.85vh; }
+  .blad .blijst { display: flex; flex-direction: column; }
+  .blad .brij { display: flex; align-items: center; gap: 2vh; padding: 1.35vh 0.6vh;
+    border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .blad .brij:last-child { border-bottom: 0; }
+  .blad .bbadge { width: 5vh; height: 5vh; flex: none; border-radius: 50%; display: flex;
+    align-items: center; justify-content: center; font-size: 2.4vh; background: #1c1c1c;
+    border: 1px solid rgba(255,255,255,0.10); }
+  .blad .bbadge.goud { background: radial-gradient(circle at 35% 30%, #ffe08a, #d4a017); }
+  .blad .bdate { width: 6.9vh; height: 5.4vh; flex: none; border-radius: 1.1vh; background: #141821;
+    border: 1px solid rgba(255,255,255,0.10); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; line-height: 1; }
+  .blad .bdate .d { font-size: 2.4vh; }
+  .blad .bdate .m { font-family: Arial, sans-serif; font-weight: bold; font-size: 1.4vh;
+    color: #cc4444; text-transform: uppercase; margin-top: 0.3vh; }
+  .blad .bhoofd { flex: 1; min-width: 0; }
+  .blad .bhoofd .bnaam { font-size: 2.8vh; line-height: 1.1; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; }
+  .blad .bonder { font-family: Arial, sans-serif; font-weight: bold; color: #9aa0a6; font-size: 1.75vh;
+    margin-top: 0.5vh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .blad .bmeta { flex: none; text-align: right; font-family: Arial, sans-serif; }
+  .blad .bmeta .top { font-weight: bold; font-size: 1.9vh; color: #e8e8e8; }
+  .blad .bmeta .bot { font-weight: bold; font-size: 1.6vh; color: #8a9096; margin-top: 0.4vh; }
+  .blad .bdisc { display: inline-block; background: #20242c; color: #cfd3d8; font-family: Arial, sans-serif;
+    font-weight: bold; font-size: 1.4vh; padding: 0.3vh 0.9vh; border-radius: 0.6vh; margin-left: 1vh;
+    vertical-align: middle; }
+  .blad .bvoet { margin-top: auto; padding-top: 1.5vh; text-align: center; font-family: Arial, sans-serif;
+    font-weight: bold; color: #7a8086; font-size: 1.6vh; }
 </style>
 </head>
 <body>
@@ -309,6 +355,24 @@
         <span class="hvoetNaam" id="hNaam">—</span>
         <span class="hvoetDatum" id="hDatum"></span>
       </div>
+    </div>
+  </div>
+
+  <!-- Info-sheets (#72): winnaars + komende toernooien, in de rotatie na de scores-fase. -->
+  <div class="blad" id="bWinnaars" hidden>
+    <div class="bkaart">
+      <img class="blogo" src="../../mokum-logo.png" alt="">
+      <div class="bkop"><h1>Toernooiwinnaars</h1><span class="bsub">recente kampioenen bij Mokum</span></div>
+      <div class="blijst" id="bWinnaarsLijst"></div>
+      <div class="bvoet">Volgende kampioen? Schrijf je in via cuescore.com/mokumpooldarts</div>
+    </div>
+  </div>
+  <div class="blad" id="bKomende" hidden>
+    <div class="bkaart">
+      <img class="blogo" src="../../mokum-logo.png" alt="">
+      <div class="bkop"><h1>Komende toernooien</h1><span class="bsub">bij Mokum Pool &amp; Darts</span></div>
+      <div class="blijst" id="bKomendeLijst"></div>
+      <div class="bvoet">Doe je mee? Inschrijven kan via cuescore.com/mokumpooldarts</div>
     </div>
   </div>
 
@@ -500,6 +564,45 @@ function hlStartSpeler() {
   });
 }
 
+// ============ Info-sheets (#72): winnaars + komende toernooien ============
+// Twee tekstsheets in de rotatie (na de scores-fase). Data uit /api/sheets: recente
+// kampioenen (winnaar = wie de finale won) en de komende toernooien met aanvangstijd.
+const SHEETS_VERVERS_MS = 30 * 60 * 1000; // elke 30 min (de backend cachet zelf ook)
+let sheetWinnaars = [];
+let sheetKomende = [];
+const bladWEl = document.getElementById('bWinnaars');
+const bladKEl = document.getElementById('bKomende');
+function bladUit() { bladWEl.hidden = true; bladKEl.hidden = true; }
+
+function winnaarRijHtml(w) {
+  return `<div class="brij">
+      <div class="bbadge goud">🏆</div>
+      <div class="bhoofd"><div class="bnaam">${esc(w.winner)}</div><div class="bonder">${esc(w.toernooi)}</div></div>
+      <div class="bmeta"><div class="top">${esc(w.discipline)}</div><div class="bot">${esc(w.datum)}</div></div>
+    </div>`;
+}
+function komendeRijHtml(u) {
+  const disc = u.discipline ? `<span class="bdisc">${esc(u.discipline)}</span>` : '';
+  return `<div class="brij">
+      <div class="bdate"><span class="d">${esc(u.dag)}</span><span class="m">${esc(u.mnd)}</span></div>
+      <div class="bhoofd"><div class="bnaam">${esc(u.naam)}${disc}</div></div>
+      <div class="bmeta"><div class="top">${esc(u.tijd)}</div><div class="bot">aanvang</div></div>
+    </div>`;
+}
+function renderSheets() {
+  document.getElementById('bWinnaarsLijst').innerHTML = sheetWinnaars.slice(0, 5).map(winnaarRijHtml).join('');
+  document.getElementById('bKomendeLijst').innerHTML = sheetKomende.slice(0, 5).map(komendeRijHtml).join('');
+}
+async function haalSheets() {
+  try {
+    const r = await fetch(`${APP_API}/api/sheets`, { cache: 'no-store' });
+    const d = await r.json();
+    sheetWinnaars = Array.isArray(d.winners) ? d.winners : [];
+    sheetKomende = Array.isArray(d.upcoming) ? d.upcoming : [];
+    renderSheets();
+  } catch (e) { /* netwerkfout → vorige lijst laten staan */ }
+}
+
 // ============ Pauze-schema (#71) ============
 // Tijdens een pauze (deze tafel speelt niet) rouleert de jumbotron: eerst een tijd
 // highlights, dan de live scores van de andere tafels, dan kort de poster. Instelbaar in OBS
@@ -508,9 +611,11 @@ const zoekSchema = new URLSearchParams(location.search);
 const FASE_MS = {
   highlights: (Number(zoekSchema.get('highlightsMin')) || 3) * 60000,
   scores:     (Number(zoekSchema.get('scoresMin')) || 1) * 60000,
+  winnaars:   (Number(zoekSchema.get('winnaarsSec')) || 20) * 1000,
+  komende:    (Number(zoekSchema.get('komendeSec')) || 20) * 1000,
   poster:     (Number(zoekSchema.get('posterSec')) || 5) * 1000,
 };
-const FASE_VOLGORDE = { highlights: 'scores', scores: 'poster', poster: 'highlights' };
+const FASE_VOLGORDE = { highlights: 'scores', scores: 'winnaars', winnaars: 'komende', komende: 'poster', poster: 'highlights' };
 let fase = 'highlights';
 let faseSinds = 0; // ms-teller; loopt op via de scheduler-tik (geen Date.now → OBS-safe)
 
@@ -518,6 +623,8 @@ let faseSinds = 0; // ms-teller; loopt op via de scheduler-tik (geen Date.now �
 function faseHeeftInhoud(f) {
   if (f === 'highlights') return hlClips.length > 0;
   if (f === 'scores') return liveTafels.length > 0;
+  if (f === 'winnaars') return sheetWinnaars.length > 0;
+  if (f === 'komende') return sheetKomende.length > 0;
   if (f === 'poster') return posterBeschikbaar;
   return false;
 }
@@ -537,21 +644,32 @@ const SCHEMA_TIK_MS = 1000;
 
 // Eén tik van het pauze-schema. Podium heeft altijd voorrang (winnaar-moment).
 function schemaTik() {
-  if (podiumActief) { hlUit(); faseSinds = 0; fase = 'highlights'; return; }
+  if (podiumActief) { hlUit(); bladUit(); faseSinds = 0; fase = 'highlights'; return; }
   if (posterBezig) return; // poster-animatie loopt; even niet ingrijpen
 
   faseSinds += SCHEMA_TIK_MS;
 
   if (fase === 'highlights') {
+    bladUit();
     if (!hlAan()) { naVolgendeFase(); return; }              // geen clips → door
     if (faseSinds >= FASE_MS.highlights) naVolgendeFase();   // tijd om; clip loopt vanzelf door
   } else if (fase === 'scores') {
-    hlUit();
+    hlUit(); bladUit();
     if (!liveTafels.length) { naVolgendeFase(); return; }    // geen live tafel → door
     scoresRotatie();
     if (faseSinds >= FASE_MS.scores) naVolgendeFase();
-  } else if (fase === 'poster') {
+  } else if (fase === 'winnaars') {
     hlUit();
+    if (!sheetWinnaars.length) { naVolgendeFase(); return; } // geen winnaars → door
+    bladWEl.hidden = false; bladKEl.hidden = true;
+    if (faseSinds >= FASE_MS.winnaars) naVolgendeFase();
+  } else if (fase === 'komende') {
+    hlUit();
+    if (!sheetKomende.length) { naVolgendeFase(); return; }  // geen komende → door
+    bladKEl.hidden = false; bladWEl.hidden = true;
+    if (faseSinds >= FASE_MS.komende) naVolgendeFase();
+  } else if (fase === 'poster') {
+    hlUit(); bladUit();
     if (!posterBeschikbaar) { naVolgendeFase(); return; }
     toonPoster();                 // eigen curtain-animatie; zet posterBezig
     naVolgendeFase();             // meteen door: de poster loopt zijn eigen 5s uit
@@ -768,6 +886,8 @@ ververs();
 setInterval(ververs, REFRESH_MS);
 haalHighlights();
 setInterval(haalHighlights, HIGHLIGHTS_VERVERS_MS);
+haalSheets();
+setInterval(haalSheets, SHEETS_VERVERS_MS);
 
 window.onYouTubeIframeAPIReady = hlStartSpeler;
 const ytApi = document.createElement('script');

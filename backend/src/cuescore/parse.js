@@ -99,6 +99,26 @@ function upcomingTournamentIds(html, now, { days = 14, tz = 'Europe/Amsterdam' }
   return ids;
 }
 
+// Toernooi-ID's van recent (vandaag en eerder), nieuwste datum eerst. Kandidaten voor de
+// winnaars-sheet (#72): de netwerklaag haalt deze op en houdt alleen de afgeronde met een
+// vaststelbare winnaar over.
+function recentTournamentIds(html, now, { max = 12, tz = 'Europe/Amsterdam' } = {}) {
+  const vandaagISO = cuescoreDateToISO(formatCuescoreDate(now, tz));
+  const groepen = parseTournamentsByDate(html)
+    .filter((g) => g.datum && g.datum <= vandaagISO)
+    .sort((a, b) => b.datum.localeCompare(a.datum)); // nieuwste eerst
+  const ids = [];
+  for (const g of groepen) {
+    for (const id of g.ids) {
+      if (!ids.includes(id)) {
+        ids.push(id);
+        if (ids.length >= max) return ids;
+      }
+    }
+  }
+  return ids;
+}
+
 // Leest de rack-log (`notes`) van een wedstrijd uit en geeft de racks terug die met een
 // RUN-OUT gewonnen zijn, mét het moment waarop dat rack begon (#67). Cuescore logt per
 // rack o.a. "frame start" en "B frame win runout", allemaal met tijdstempel — daarmee
@@ -206,6 +226,7 @@ module.exports = {
   parseTodaysTournamentIds,
   parseTournamentsByDate,
   upcomingTournamentIds,
+  recentTournamentIds,
   normalizeMatch,
   runoutRacksUitNotes,
   normalizeTournament,

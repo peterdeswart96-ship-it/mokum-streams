@@ -568,3 +568,15 @@ Body:
   −5/+5s, `0` = standaard). De keuring-sleutel hangt voortaan aan het rack-moment
   (`<videoId>:<offsetSec>`), niet aan `clipVan`, zodat het bijstellen van een venster de al
   gegeven oordelen niet wist.
+- 2026-07-25: v0.42 — **jumbotron-info-sheets: winnaars + komende toernooien (#72)**. Nieuw
+  publiek endpoint **`GET /api/sheets`** → `{ generatedAt, winners: [...], upcoming: [...] }`.
+  - `winners` (max 5, nieuwste eerst): `{ winner, toernooi, discipline, datum }` — de winnaar
+    is wie de **finale** won (Cuescore `roundName: "Final"`, hoogste score). Bron: recent
+    afgeronde toernooien van de org-pagina.
+  - `upcoming` (max 5, vroegste eerst): `{ dag, mnd, tijd, naam, discipline }` — uit
+    `getUpcomingTournaments`. NB: Cuescore geeft géén live inschrijf-aantal terug voor een
+    nog-niet-geloot toernooi (alleen `maxParticipants`), daarom tonen we de **aanvangstijd**
+    i.p.v. een aantal.
+  - Server-cache in blob `sheets.json`, ~30 min vers; bij een verlopen cache herbouwt het
+    endpoint zelf (scrape + detail-calls). Gevoed in de jumbotron-rotatie als twee extra
+    sheets (na de scores-fase, vóór de poster; duur per sheet `?winnaarsSec=`/`?komendeSec=`).
