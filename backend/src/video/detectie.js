@@ -56,6 +56,7 @@ function templateVoorToernooi(naam) {
   // toevallig 14.1 als discipline heeft (die krijgt geen serie-template).
   if (/14[.\-\s]?1(?!\d)/.test(n) && /(summer|league)/.test(n)) return '14-1-summer-league';
   if (n.includes('fluke')) return 'fluke-ranking';
+  if (n.includes('last minute') || n.includes('last-minute')) return 'last-minute-9ball';
   if (n.includes('speedy') || n.includes('multiball') || n.includes('multi ball') || n.includes('multi-ball')) return 'speedy-multi-ball';
   if (n.includes('handicap')) return 'handicap-madness';
   if (n.includes('blind')) return 'blind-double';
@@ -69,6 +70,7 @@ function templateVoorToernooi(naam) {
 // YouTube houdt de volledige naam. Pas hier een naam aan om de thumbnail-tekst te wijzigen.
 const TEMPLATE_TEKST = {
   'fluke-ranking':             { titel: 'Fluke Ranking' },
+  'last-minute-9ball':         { titel: 'Last Minute 9-Ball' },
   'mega-summer-ranking':       { titel: 'MEGA Summer Ranking' },
   'mega-ranking-buffalo':      { titel: 'MEGA Ranking' },              // Buffalo staat al als logo in de template
   '8-10-ball-ranking':         { titel: '8 & 10ball Ranking' },
