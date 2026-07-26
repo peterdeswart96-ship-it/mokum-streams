@@ -146,10 +146,13 @@ async function finaliseerChallenge({ videoId, spelerA, spelerB, tableNumber, spe
   const datum = datumISO || opts.streamStartISO || video.actualStartTime || video.scheduledStartTime;
 
   const png = await maakChallengeThumbnail({ spelerA, spelerB, spelsoort, tableNumber, datum });
+  // Tafel is bij oude challenges vaak niet bekend (staat niet in de titel) → weglaten i.p.v.
+  // "Tafel undefined" tonen.
+  const tafelDeel = tableNumber ? ` — Tafel ${tableNumber}` : '';
   const beschrijving = [
     MOKUM_LIVE,
     '',
-    `Challenge match — ${spelerA || '?'} vs ${spelerB || '?'} — Tafel ${tableNumber} — ${datumNL(datum)}`,
+    `Challenge match — ${spelerA || '?'} vs ${spelerB || '?'}${tafelDeel} — ${datumNL(datum)}`,
     '', 'Mokum Pool & Darts',
   ].join('\n');
 
