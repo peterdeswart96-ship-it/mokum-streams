@@ -505,9 +505,7 @@ let hlKlaar = false;   // speler geïnitialiseerd?
 let hlActief = false;  // speelt de highlight-laag nu?
 let hlNoodTimer = null;
 
-// Willekeurige volgorde (Fisher-Yates): zo begint niet elke pauze met dezelfde clips en
-// zie je over de avond meer variatie. Bij elke verversing opnieuw geschud → ook tussen
-// pauzes door wisselt de volgorde.
+// Willekeurige volgorde (Fisher-Yates).
 function schudClips(arr) {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
@@ -517,11 +515,42 @@ function schudClips(arr) {
   return a;
 }
 
+// Speler-gebalanceerde volgorde: niet steeds dezelfde clips én variatie in spelers.
+// Een speler met veel run-outs zou anders het beeld domineren; daarom groeperen we per
+// speler en verweven we met een 'smooth weighted round-robin'. Het gewicht is GEDEMPT
+// (√aantal): wie 16 run-outs heeft komt ~4× zo vaak als een eenmalige speler, niet 16× —
+// betere spelers iets vaker, maar niet te veel. Elke speler doorloopt intern z'n eigen
+// clips (geschud), dus je ziet ook verschillende run-outs van dezelfde speler.
+function interleaveOpSpeler(clips) {
+  if (!Array.isArray(clips) || clips.length <= 2) return schudClips(clips || []);
+  const perSpeler = new Map();
+  for (const c of clips) {
+    const k = c.speler || '?';
+    if (!perSpeler.has(k)) perSpeler.set(k, []);
+    perSpeler.get(k).push(c);
+  }
+  const groepen = [...perSpeler.values()].map((lijst) => {
+    const g = schudClips(lijst);
+    return { clips: g, wijzer: 0, gewicht: Math.sqrt(g.length), credit: 0 };
+  });
+  const totaalGewicht = groepen.reduce((s, g) => s + g.gewicht, 0);
+  const uit = [];
+  for (let i = 0; i < clips.length; i++) {
+    for (const g of groepen) g.credit += g.gewicht;
+    let beste = groepen[0];
+    for (const g of groepen) if (g.credit > beste.credit) beste = g;
+    beste.credit -= totaalGewicht;
+    uit.push(beste.clips[beste.wijzer % beste.clips.length]);
+    beste.wijzer += 1;
+  }
+  return uit;
+}
+
 async function haalHighlights() {
   try {
     const r = await fetch(`${APP_API}/api/highlights`, { cache: 'no-store' });
     const d = await r.json();
-    hlClips = schudClips(d.items || []);
+    hlClips = interleaveOpSpeler(d.items || []);
   } catch (e) { /* netwerkfout → vorige lijst laten staan */ }
 }
 
