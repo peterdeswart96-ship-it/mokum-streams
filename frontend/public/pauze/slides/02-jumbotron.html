@@ -505,11 +505,23 @@ let hlKlaar = false;   // speler geïnitialiseerd?
 let hlActief = false;  // speelt de highlight-laag nu?
 let hlNoodTimer = null;
 
+// Willekeurige volgorde (Fisher-Yates): zo begint niet elke pauze met dezelfde clips en
+// zie je over de avond meer variatie. Bij elke verversing opnieuw geschud → ook tussen
+// pauzes door wisselt de volgorde.
+function schudClips(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 async function haalHighlights() {
   try {
     const r = await fetch(`${APP_API}/api/highlights`, { cache: 'no-store' });
     const d = await r.json();
-    hlClips = d.items || [];
+    hlClips = schudClips(d.items || []);
   } catch (e) { /* netwerkfout → vorige lijst laten staan */ }
 }
 
