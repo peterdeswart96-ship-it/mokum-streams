@@ -10,7 +10,7 @@ test('defaultRecord past de standaard-instellingen toe (alles aan)', () => {
     stop: '2026-07-14T21:00:00Z',
   });
   assert.strictEqual(r.enabled, true);
-  assert.deepStrictEqual(r.tafels, [1, 3, 15, 16]);
+  assert.deepStrictEqual(r.tafels, [1, 3]); // standaard alleen de twee vaste cameratafels
   assert.deepStrictEqual(r.overlays, { sponsors: true, scoreboard: true });
   assert.strictEqual(r.preRollMinuten, 10);
   assert.strictEqual(r.date, '2026-07-14');
@@ -51,7 +51,7 @@ test('mergePlanning behoudt handmatige keuzes en ververst Cuescore-velden', () =
 
   const r2 = merged.find((r) => String(r.tournamentId) === '2');
   assert.strictEqual(r2.enabled, true); // nieuw → standaard aan
-  assert.deepStrictEqual(r2.tafels, [1, 3, 15, 16]);
+  assert.deepStrictEqual(r2.tafels, [1, 3]); // standaard alleen de twee vaste cameratafels
 
   const adhoc = merged.find((r) => r.tournamentId === 'adhoc-x');
   assert.ok(adhoc, 'ad-hoc record blijft behouden');

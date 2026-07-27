@@ -7,7 +7,10 @@
 // config/defaults.json en is via het dashboard aan te passen.
 const STANDAARD_DEFAULTS = {
   enabled: true,
-  tafels: [1, 3, 15, 16],
+  // Standaard alleen de twee vaste cameratafels: in ~95% draaien alleen 1 en 3. 15/16
+  // voeg je per keer handmatig toe voor een groot toernooi (besluit Peter 27-07). Zo gaan
+  // 15/16 niet onnodig leeg live als de loting laat komt.
+  tafels: [1, 3],
   preRollMinuten: 10,
   overlays: { sponsors: true, scoreboard: true },
   visibility: 'public', // YouTube-zichtbaarheid van de geplande broadcast
