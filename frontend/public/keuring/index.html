@@ -60,11 +60,38 @@
     flex: 1; background: #1a1a1a; border: 1px solid #2a2a2a; color: #fff;
     border-radius: 8px; padding: 10px 12px; font: inherit;
   }
+
+  .viewknop { padding: 8px 14px; font-size: 14px; }
+  .filterbalk { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  .filterbalk select, .filterbalk input {
+    background: #1a1a1a; border: 1px solid #2a2a2a; color: #fff; border-radius: 8px;
+    padding: 8px 10px; font: inherit; font-size: 14px;
+  }
+  .filterbalk input[type=search] { flex: 1; min-width: 160px; }
+  .tabelinfo { color: #888; font-size: 13px; margin-left: auto; }
+  .tabelwrap { overflow-x: auto; border: 1px solid #2a2a2a; border-radius: 10px; }
+  table.clips { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 780px; }
+  table.clips th {
+    text-align: left; color: #888; font-weight: normal; padding: 10px 12px;
+    border-bottom: 1px solid #2a2a2a; position: sticky; top: 0; background: #141414;
+  }
+  table.clips td { padding: 9px 12px; border-bottom: 1px solid #1e1e1e; }
+  table.clips td.tijd { font-variant-numeric: tabular-nums; color: #bbb; }
+  table.clips tbody tr { cursor: pointer; }
+  table.clips tbody tr:hover { background: #181818; }
+  table.clips tbody tr.aangepast td.tijd { color: #ffcf6b; }
+  table.clips a.kijk { color: #ff6b6b; text-decoration: none; font-size: 16px; }
+  table.clips a.kijk:hover { text-decoration: underline; }
+  .stat { border-radius: 999px; padding: 3px 10px; font-size: 12px; white-space: nowrap; }
+  .stat.goed { background: #14532d; color: #b7f7c8; }
+  .stat.af   { background: #4a1212; color: #ffb3b3; }
+  .stat.open { background: #2a2a2a; color: #bbb; }
 </style>
 </head>
 <body>
   <header>
     <span class="titel"><span class="m">Mokum</span> — highlights keuren</span>
+    <button id="bView" class="viewknop" hidden>📋 Overzicht</button>
     <span class="telling">
       <span class="pil goed" id="pGoed">0 goed</span>
       <span class="pil af" id="pAf">0 afgekeurd</span>
@@ -119,6 +146,28 @@
       </label>
     </div>
 
+    <div id="tabel" hidden>
+      <div class="filterbalk">
+        <select id="fStatus">
+          <option value="">Alle statussen</option>
+          <option value="te keuren">Te keuren</option>
+          <option value="goed">Goedgekeurd</option>
+          <option value="afgekeurd">Afgekeurd</option>
+        </select>
+        <input id="fZoek" type="search" placeholder="Zoek speler of toernooi…">
+        <span id="tabelTelling" class="tabelinfo"></span>
+      </div>
+      <div class="tabelwrap">
+        <table class="clips">
+          <thead><tr>
+            <th></th><th>Start</th><th>Eind</th><th>Duur</th><th>Spelers</th>
+            <th>Toernooi</th><th>Datum</th><th>Status</th>
+          </tr></thead>
+          <tbody id="tabelBody"></tbody>
+        </table>
+      </div>
+    </div>
+
     <div class="melding" id="melding">Laden…</div>
   </main>
 
@@ -150,6 +199,15 @@ const datumKort = (iso) => {
   const d = new Date(`${iso}T12:00:00Z`);
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' });
 };
+// Seconden → m:ss (of h:mm:ss). Voor de tijd-kolommen in de tabel.
+const mmss = (sec) => {
+  if (sec == null || Number.isNaN(Number(sec))) return '—';
+  const s = Math.max(0, Math.round(sec));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
+  return `${h > 0 ? `${h}:${String(m).padStart(2, '0')}` : m}:${String(r).padStart(2, '0')}`;
+};
+// Accent-ongevoelig zoeken.
+const norm = (s) => String(s || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 
 async function api(pad, opts = {}) {
   const res = await fetch(`${API}${pad}`, {
@@ -275,6 +333,61 @@ async function schuifEind(delta) {
   }
 }
 
+// ── Tabel-overzicht (alle clips, filterbaar) ──────────────────────────────────
+const clipStatus = (c) => c.keuring || 'te keuren';
+
+function renderTabel() {
+  const statusF = $('fStatus').value;
+  const zoek = norm($('fZoek').value.trim());
+  const rows = alle.filter((c) => {
+    if (statusF && clipStatus(c) !== statusF) return false;
+    if (zoek && !norm(`${c.speler} ${c.tegenstander || ''} ${c.toernooi || ''}`).includes(zoek)) return false;
+    return true;
+  });
+  const badge = (c) => {
+    const st = clipStatus(c);
+    const cls = st === 'goed' ? 'goed' : st === 'afgekeurd' ? 'af' : 'open';
+    const label = st === 'goed' ? 'Goed' : st === 'afgekeurd' ? 'Afgekeurd' : 'Te keuren';
+    return `<span class="stat ${cls}">${label}</span>`;
+  };
+  $('tabelBody').innerHTML = rows.map((c) => {
+    const link = `https://youtu.be/${esc(c.videoId)}?t=${Math.floor(c.clipVan || 0)}`;
+    const aangepast = (c.startAangepast || c.eindAangepast) ? ' class="aangepast"' : '';
+    return `<tr data-sleutel="${esc(c.sleutel)}"${aangepast}>
+        <td><a class="kijk" href="${link}" target="_blank" rel="noopener" title="Bekijk op YouTube" onclick="event.stopPropagation()">▶</a></td>
+        <td class="tijd">${mmss(c.clipVan)}</td>
+        <td class="tijd">${mmss(c.clipTot)}</td>
+        <td class="tijd">${mmss((c.clipTot || 0) - (c.clipVan || 0))}</td>
+        <td>${esc(c.speler)} <span style="color:#777">vs</span> ${esc(c.tegenstander || '?')}</td>
+        <td>${esc(c.toernooi || '')}</td>
+        <td>${esc(datumKort(c.datum))}</td>
+        <td>${badge(c)}</td>
+      </tr>`;
+  }).join('');
+  $('tabelTelling').textContent = `${rows.length} van ${alle.length} clips`;
+  for (const tr of $('tabelBody').querySelectorAll('tr')) {
+    tr.onclick = () => { const c = alle.find((x) => x.sleutel === tr.dataset.sleutel); if (c) openClip(c); };
+  }
+}
+
+// Open één clip in de keur-weergave (om 'm te bekijken/bijstellen).
+function openClip(c) {
+  $('fAlles').checked = true;
+  bouwLijst();
+  const i = lijst.findIndex((x) => x.sleutel === c.sleutel);
+  if (i >= 0) idx = i;
+  zetView('keuren');
+  toon();
+}
+
+function zetView(view) {
+  const tabel = view === 'tabel';
+  $('tabel').hidden = !tabel;
+  $('bView').textContent = tabel ? '◀ Terug naar keuren' : '📋 Overzicht';
+  if (tabel) { $('werk').hidden = true; $('melding').hidden = true; renderTabel(); }
+  else { toon(); }
+}
+
 function koppel() {
   $('bGoed').onclick = () => keur('goed');
   $('bAf').onclick = () => keur('afgekeurd');
@@ -289,6 +402,9 @@ function koppel() {
   $('bS1').onclick = () => setSnelheid(1);
   $('bS15').onclick = () => setSnelheid(1.5);
   $('bS2').onclick = () => setSnelheid(2);
+  $('bView').onclick = () => zetView($('tabel').hidden ? 'tabel' : 'keuren');
+  $('fStatus').onchange = renderTabel;
+  $('fZoek').oninput = renderTabel;
   $('fAlles').onchange = () => { idx = 0; bouwLijst(); toon(); };
   document.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT') return;
@@ -326,6 +442,8 @@ async function laden() {
     alle = d.items || [];
     tellingTonen(d);
     bouwLijst();
+    $('bView').hidden = false;
+    renderTabel();
     $('inlog').hidden = true;
     window.onYouTubeIframeAPIReady = startSpeler;
     const s = document.createElement('script');
