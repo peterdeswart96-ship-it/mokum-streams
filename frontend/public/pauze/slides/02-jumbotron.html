@@ -504,6 +504,9 @@ let hlSpeler = null;
 let hlKlaar = false;   // speler geïnitialiseerd?
 let hlActief = false;  // speelt de highlight-laag nu?
 let hlNoodTimer = null;
+let hlClipStart = 0;   // performance.now() bij het laden van de huidige clip
+let hlOverslaan = 0;   // opeenvolgende clips die verdacht snel 'eindigden' (spurious ENDED)
+const CLIP_MIN_MS = 2000; // een echte run-out duurt langer; korter = spurious/kapot → overslaan
 
 // Willekeurige volgorde (Fisher-Yates).
 function schudClips(arr) {
@@ -559,6 +562,8 @@ function hlTekst(c) {
   document.getElementById('hDatum').textContent = datumKort(c.datum);
 }
 
+// Speelt de VOLGENDE clip in de highlights-fase. Eén clip per fase: bij het einde schakelt
+// hlClipKlaar() door naar de scores (clip-gedreven rotatie #71).
 function hlVolgendeClip() {
   clearTimeout(hlNoodTimer);
   if (!hlKlaar || !hlClips.length) return;
@@ -567,18 +572,35 @@ function hlVolgendeClip() {
   hlTekst(c);
   document.getElementById('hmelding').hidden = true;
   hlSpeler.loadVideoById({ videoId: c.videoId, startSeconds: c.clipVan, endSeconds: c.clipTot });
-  hlNoodTimer = setTimeout(hlVolgendeClip, (c.clipTot - c.clipVan) * 1000 + CLIP_NOOD_MS);
+  hlClipStart = performance.now();
+  // Vangnet: blijft het eind-event uit, dan tóch doorschakelen.
+  hlNoodTimer = setTimeout(hlClipKlaar, (c.clipTot - c.clipVan) * 1000 + CLIP_NOOD_MS);
 }
 
-// Highlight-laag aanzetten. Retourneert false als er niets te tonen is (geen goedgekeurde
-// clips) → dan slaat het schema deze fase over.
+// Huidige clip klaar. Een clip die verdacht snel 'eindigt' (spurious ENDED vlak na het laden,
+// of een kapotte clip) mag de highlight-fase niet meteen afkappen naar de scores: probeer dan
+// eerst de volgende clip. Pas een clip die écht heeft gespeeld schakelt door naar de scores.
+function hlClipKlaar() {
+  clearTimeout(hlNoodTimer);
+  if (fase !== 'highlights') return;
+  if (performance.now() - hlClipStart < CLIP_MIN_MS) {
+    hlOverslaan += 1;
+    if (hlOverslaan <= hlClips.length) { hlVolgendeClip(); return; } // andere clip proberen
+    hlOverslaan = 0; // alle clips bleken te kort → tóch door, anders blijven we hangen
+  } else {
+    hlOverslaan = 0;
+  }
+  naVolgendeFase();
+}
+
+// Highlight-laag aanzetten (het afspelen regelt betreedFase via hlVolgendeClip). Retour
+// false als er niets te tonen is (geen goedgekeurde clips) → dan slaat het schema deze fase over.
 function hlAan() {
   if (!hlClips.length) return false;
   if (hlActief) return true;
   hlActief = true;
   document.getElementById('highlight').hidden = false;
   document.getElementById('stage').innerHTML = ''; huidigeKey = null; // tafelkaarten weg
-  if (hlKlaar) { if (hlIdx < 0) hlVolgendeClip(); else if (hlSpeler.playVideo) hlSpeler.playVideo(); }
   return true;
 }
 
@@ -599,8 +621,8 @@ function hlStartSpeler() {
     },
     events: {
       onReady: () => { hlKlaar = true; if (hlActief) hlVolgendeClip(); },
-      onStateChange: (e) => { if (e.data === YT.PlayerState.ENDED && hlActief) hlVolgendeClip(); },
-      onError: () => { if (hlActief) hlVolgendeClip(); },
+      onStateChange: (e) => { if (e.data === YT.PlayerState.ENDED && hlActief) hlClipKlaar(); },
+      onError: () => { if (hlActief) hlVolgendeClip(); }, // kapotte clip → probeer de volgende
     },
   });
 }
@@ -644,76 +666,92 @@ async function haalSheets() {
   } catch (e) { /* netwerkfout → vorige lijst laten staan */ }
 }
 
-// ============ Pauze-schema (#71) ============
-// Tijdens een pauze (deze tafel speelt niet) rouleert de jumbotron: eerst een tijd
-// highlights, dan de live scores van de andere tafels, dan kort de poster. Instelbaar in OBS
-// met ?highlightsMin= / ?scoresMin= / ?posterSec= .
+// ============ Pauze-schema (#71) — CLIP-GEDREVEN ============
+// Tijdens een pauze rouleert de jumbotron clip-gedreven: één highlight (heel rack) → de live
+// scores van de actieve tafels (~15s) → één info-sheet (roulerend: winnaars → komende →
+// poster, 5s) → volgende highlight → ... De highlights-fase heeft géén vaste tijd: 'ie duurt
+// tot de clip klaar is. Instelbaar in OBS met ?scoresSec= / ?sheetSec= / ?posterSec= .
 const zoekSchema = new URLSearchParams(location.search);
 const FASE_MS = {
-  highlights: (Number(zoekSchema.get('highlightsMin')) || 3) * 60000,
-  scores:     (Number(zoekSchema.get('scoresMin')) || 1) * 60000,
-  winnaars:   (Number(zoekSchema.get('winnaarsSec')) || 20) * 1000,
-  komende:    (Number(zoekSchema.get('komendeSec')) || 20) * 1000,
-  poster:     (Number(zoekSchema.get('posterSec')) || 5) * 1000,
+  scores: (Number(zoekSchema.get('scoresSec')) || 15) * 1000,
+  sheet:  (Number(zoekSchema.get('sheetSec')) || 5) * 1000,
+  poster: (Number(zoekSchema.get('posterSec')) || 5) * 1000,
 };
-const FASE_VOLGORDE = { highlights: 'scores', scores: 'winnaars', winnaars: 'komende', komende: 'poster', poster: 'highlights' };
+const FASE_VOLGORDE = { highlights: 'scores', scores: 'sheet', sheet: 'highlights' };
 let fase = 'highlights';
-let faseSinds = 0; // ms-teller; loopt op via de scheduler-tik (geen Date.now → OBS-safe)
+let faseSinds = 0;          // ms-teller (via de scheduler-tik; geen Date.now → OBS-safe)
+let sheetBeurt = 0;         // rouleert de info-sheets: winnaars → komende → poster
+let podiumOnderbrak = false; // podium was actief → rotatie herstarten zodra het klaar is
 
-// Bepaalt of een fase iets te tonen heeft; zo niet, dan slaan we 'm over (geen leeg scherm).
+// Beschikbare info-sheets in rouleer-volgorde (lege overslaan).
+function sheetLijst() {
+  const l = [];
+  if (sheetWinnaars.length) l.push('winnaars');
+  if (sheetKomende.length) l.push('komende');
+  if (posterBeschikbaar) l.push('poster');
+  return l;
+}
 function faseHeeftInhoud(f) {
   if (f === 'highlights') return hlClips.length > 0;
   if (f === 'scores') return liveTafels.length > 0;
-  if (f === 'winnaars') return sheetWinnaars.length > 0;
-  if (f === 'komende') return sheetKomende.length > 0;
-  if (f === 'poster') return posterBeschikbaar;
+  if (f === 'sheet') return sheetLijst().length > 0;
   return false;
 }
-
+// Toon één tekst-sheet (winnaars of komende); de poster wordt apart afgespeeld.
+function toonSheet(kies) {
+  bladWEl.hidden = kies !== 'winnaars';
+  bladKEl.hidden = kies !== 'komende';
+}
+// Naar de volgende fase mét inhoud, en de bijbehorende actie uitvoeren.
 function naVolgendeFase() {
-  // Zoek de volgende fase die iets te tonen heeft; hoogstens één rondje.
   for (let i = 0; i < 3; i++) {
     fase = FASE_VOLGORDE[fase];
     faseSinds = 0;
-    if (faseHeeftInhoud(fase)) return;
+    if (faseHeeftInhoud(fase)) { betreedFase(); return; }
   }
-  // Niets te tonen in geen enkele fase → op highlights blijven (toont dan de lege melding).
-  fase = 'highlights'; faseSinds = 0;
+  fase = 'highlights'; faseSinds = 0; // niets te tonen → highlights (toont de lege melding)
+}
+// Actie bij het betreden van een fase.
+function betreedFase() {
+  if (fase === 'highlights') {
+    bladUit(); hlAan(); hlVolgendeClip();   // speel de volgende clip; einde → scores
+  } else if (fase === 'scores') {
+    hlUit(); bladUit(); scoresRotatie();
+  } else if (fase === 'sheet') {
+    hlUit();
+    const sheets = sheetLijst();
+    const kies = sheets[sheetBeurt % sheets.length];
+    sheetBeurt += 1;
+    if (kies === 'poster') { bladUit(); toonPoster().then(() => { if (fase === 'sheet' && !podiumActief) naVolgendeFase(); }); }
+    else toonSheet(kies);
+  }
 }
 
 const SCHEMA_TIK_MS = 1000;
 
 // Eén tik van het pauze-schema. Podium heeft altijd voorrang (winnaar-moment).
 function schemaTik() {
-  if (podiumActief) { hlUit(); bladUit(); faseSinds = 0; fase = 'highlights'; return; }
-  if (posterBezig) return; // poster-animatie loopt; even niet ingrijpen
+  if (podiumActief) { hlUit(); bladUit(); fase = 'highlights'; faseSinds = 0; podiumOnderbrak = true; return; }
+  if (posterBezig) return;              // poster-animatie loopt; even niet ingrijpen
+  if (podiumOnderbrak) { podiumOnderbrak = false; betreedFase(); return; } // herstart na podium
 
   faseSinds += SCHEMA_TIK_MS;
 
   if (fase === 'highlights') {
     bladUit();
-    if (!hlAan()) { naVolgendeFase(); return; }              // geen clips → door
-    if (faseSinds >= FASE_MS.highlights) naVolgendeFase();   // tijd om; clip loopt vanzelf door
+    if (!hlClips.length) { naVolgendeFase(); return; } // geen clips → door
+    if (!hlActief) betreedFase();                      // (her)start + speel de volgende clip
+    // verder geen timer: hlClipKlaar() schakelt door bij het einde van de clip
   } else if (fase === 'scores') {
     hlUit(); bladUit();
-    if (!liveTafels.length) { naVolgendeFase(); return; }    // geen live tafel → door
+    if (!liveTafels.length) { naVolgendeFase(); return; }
     scoresRotatie();
     if (faseSinds >= FASE_MS.scores) naVolgendeFase();
-  } else if (fase === 'winnaars') {
+  } else if (fase === 'sheet') {
     hlUit();
-    if (!sheetWinnaars.length) { naVolgendeFase(); return; } // geen winnaars → door
-    bladWEl.hidden = false; bladKEl.hidden = true;
-    if (faseSinds >= FASE_MS.winnaars) naVolgendeFase();
-  } else if (fase === 'komende') {
-    hlUit();
-    if (!sheetKomende.length) { naVolgendeFase(); return; }  // geen komende → door
-    bladKEl.hidden = false; bladWEl.hidden = true;
-    if (faseSinds >= FASE_MS.komende) naVolgendeFase();
-  } else if (fase === 'poster') {
-    hlUit(); bladUit();
-    if (!posterBeschikbaar) { naVolgendeFase(); return; }
-    toonPoster();                 // eigen curtain-animatie; zet posterBezig
-    naVolgendeFase();             // meteen door: de poster loopt zijn eigen 5s uit
+    if (!sheetLijst().length) { naVolgendeFase(); return; }
+    // winnaars/komende lopen op de timer; de poster regelt zichzelf via toonPoster().then.
+    if ((!bladWEl.hidden || !bladKEl.hidden) && faseSinds >= FASE_MS.sheet) { bladUit(); naVolgendeFase(); }
   }
 }
 
