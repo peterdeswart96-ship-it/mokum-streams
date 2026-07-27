@@ -580,3 +580,10 @@ Body:
   - Server-cache in blob `sheets.json`, ~30 min vers; bij een verlopen cache herbouwt het
     endpoint zelf (scrape + detail-calls). Gevoed in de jumbotron-rotatie als twee extra
     sheets (na de scores-fase, vóór de poster; duur per sheet `?winnaarsSec=`/`?komendeSec=`).
+- 2026-07-27: v0.43 — **planner: start- en eindtijd instelbaar (#42)**. De Toernooi planner
+  toont nu tijd-invoervelden voor **Start** en **Eind**; die schrijven naar de al bestaande
+  velden `startOverride` / `stopOverride` op `POST /api/manage/planning/{id}` (geen nieuwe
+  API — alleen de UI gebruikt ze nu). `effectiveStart` = `startOverride || plannedStart`;
+  de eindtijd stuurt de auto-stop-vangnet (`shouldStop` via `stopOverride`). **Standaard eind
+  = 01:00** (nachtelijke veiligheids-stop); is de eindtijd ≤ de starttijd, dan geldt 'ie de
+  volgende dag (bijv. eind 01:00 bij start 19:00). Bij "Plan" worden start/eind meegepersisteerd.

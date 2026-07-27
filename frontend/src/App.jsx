@@ -610,6 +610,22 @@ function tijdVan(iso) {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? '—' : d.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
 }
+// ISO → lokale "HH:MM" voor een tijd-invoerveld ('' als onbekend).
+function hhmm(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+// Lokale datum (YYYY-MM-DD) + "HH:MM" → ISO (UTC). Voor de eindtijd: valt 'ie ≤ de starttijd,
+// dan is 'ie ná middernacht → volgende dag (bijv. eind 01:00 bij start 19:00).
+function tijdNaarIso(datum, hm, { eind = false, startHm = null } = {}) {
+  if (!datum || !hm) return null;
+  const d = new Date(`${datum}T${hm}:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  if (eind && startHm && hm <= startHm) d.setDate(d.getDate() + 1);
+  return d.toISOString();
+}
 
 function ToernooiPlanner({ onGepland }) {
   const [records, setRecords] = useState(null); // null = laden
@@ -646,10 +662,14 @@ function ToernooiPlanner({ onGepland }) {
       visibility: e.visibility ?? (r.visibility || 'public'),
       overlayPreset: e.overlayPreset ?? overlaysNaarPreset(r.overlays),
       preRoll: e.preRoll ?? (r.preRollMinuten ?? 10),
+      // Start = override of Cuescore-start (val terug op 19:00). Eind = override of
+      // Cuescore-eind, met 01:00 als standaard (nachtelijke veiligheids-stop).
+      startTijd: e.startTijd ?? (hhmm(r.startOverride) || hhmm(r.plannedStart) || '19:00'),
+      eindTijd: e.eindTijd ?? (hhmm(r.stopOverride) || hhmm(r.plannedStop) || '01:00'),
     };
   }
-  // Vertaalt een lokale patch (overlayPreset/preRoll) naar de server-velden.
-  function naarServerPatch(patch) {
+  // Vertaalt een lokale patch (overlayPreset/preRoll/start/eindTijd) naar de server-velden.
+  function naarServerPatch(patch, r) {
     const out = {};
     if ('tafels' in patch) out.tafels = patch.tafels;
     if ('visibility' in patch) out.visibility = patch.visibility;
@@ -658,13 +678,15 @@ function ToernooiPlanner({ onGepland }) {
       const preset = OVERLAY_PRESETS.find((p) => p.key === patch.overlayPreset) || OVERLAY_PRESETS[0];
       out.overlays = preset.overlays;
     }
+    if ('startTijd' in patch) out.startOverride = tijdNaarIso(r.date, patch.startTijd);
+    if ('eindTijd' in patch) out.stopOverride = tijdNaarIso(r.date, patch.eindTijd, { eind: true, startHm: huidig(r).startTijd });
     return out;
   }
   function wijzig(r, patch) {
     // Al ingepland → wijziging meteen opslaan (blijft gepland). Concept → lokaal stagen
     // tot op 'Plan' geklikt wordt.
     if (statusVan(r) === 'gepland') {
-      doe(() => updatePlanning(r.tournamentId, naarServerPatch(patch)), 'Wijzigen mislukt');
+      doe(() => updatePlanning(r.tournamentId, naarServerPatch(patch, r)), 'Wijzigen mislukt');
     } else {
       setEdits((prev) => ({ ...prev, [r.tournamentId]: { ...huidig(r), ...patch } }));
     }
@@ -686,6 +708,8 @@ function ToernooiPlanner({ onGepland }) {
       await updatePlanning(r.tournamentId, {
         tafels: cur.tafels, visibility: cur.visibility, overlays: preset.overlays,
         preRollMinuten: cur.preRoll, planned: true,
+        startOverride: tijdNaarIso(r.date, cur.startTijd),
+        stopOverride: tijdNaarIso(r.date, cur.eindTijd, { eind: true, startHm: cur.startTijd }),
       });
       setConfirm(null);
     }, 'Plannen mislukt');
@@ -745,9 +769,15 @@ function ToernooiPlanner({ onGepland }) {
                             ))}
                           </div>
                         </td>
-                        <td className={cell}><span className="whitespace-nowrap">{tijdVan(r.plannedStart)}</span></td>
+                        <td className={cell}>
+                          <input type="time" className={`${sel} w-[86px] tabular-nums`} value={cur.startTijd} disabled={opSlot || bezig}
+                                 onChange={(e) => wijzig(r, { startTijd: e.target.value })} />
+                        </td>
                         <td className={`${cell} max-w-[16rem]`}><span className="block truncate" title={r.name}>{r.name}</span></td>
-                        <td className={cell}><span className="whitespace-nowrap">{tijdVan(r.plannedStop)}</span></td>
+                        <td className={cell}>
+                          <input type="time" className={`${sel} w-[86px] tabular-nums`} value={cur.eindTijd} disabled={opSlot || bezig}
+                                 onChange={(e) => wijzig(r, { eindTijd: e.target.value })} />
+                        </td>
                         <td className={cell}>
                           <select className={sel} value={cur.visibility} disabled={opSlot || bezig} onChange={(e) => wijzig(r, { visibility: e.target.value })}>
                             {Object.entries(VIS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
@@ -796,8 +826,8 @@ function ToernooiPlanner({ onGepland }) {
               <dl className="text-sm space-y-1.5 mb-4">
                 <div className="flex justify-between gap-3"><dt className="text-ink-muted">Datum</dt><dd>{datumLabel(confirm.date)}</dd></div>
                 <div className="flex justify-between gap-3"><dt className="text-ink-muted">Tafels</dt><dd>{cur.tafels.join(', ') || '—'}</dd></div>
-                <div className="flex justify-between gap-3"><dt className="text-ink-muted">Start</dt><dd>{tijdVan(confirm.plannedStart)} · stream {cur.preRoll} min eerder</dd></div>
-                <div className="flex justify-between gap-3"><dt className="text-ink-muted">Eind</dt><dd>{tijdVan(confirm.plannedStop)} of Cuescore “Finished”</dd></div>
+                <div className="flex justify-between gap-3"><dt className="text-ink-muted">Start</dt><dd>{cur.startTijd} · stream {cur.preRoll} min eerder</dd></div>
+                <div className="flex justify-between gap-3"><dt className="text-ink-muted">Eind</dt><dd>{cur.eindTijd} of Cuescore “Finished” · nachtstop-vangnet</dd></div>
                 <div className="flex justify-between gap-3"><dt className="text-ink-muted">Zichtbaarheid</dt><dd>{VIS_LABELS[cur.visibility]}</dd></div>
                 <div className="flex justify-between gap-3"><dt className="text-ink-muted">Overlays</dt><dd>{preset ? preset.label : '—'}</dd></div>
               </dl>
