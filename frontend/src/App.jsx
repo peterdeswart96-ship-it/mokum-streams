@@ -662,10 +662,12 @@ function ToernooiPlanner({ onGepland }) {
       visibility: e.visibility ?? (r.visibility || 'public'),
       overlayPreset: e.overlayPreset ?? overlaysNaarPreset(r.overlays),
       preRoll: e.preRoll ?? (r.preRollMinuten ?? 10),
-      // Start = override of Cuescore-start (val terug op 19:00). Eind = override of
-      // Cuescore-eind, met 01:00 als standaard (nachtelijke veiligheids-stop).
+      // Start = override of Cuescore-start (val terug op 19:00). Eind = eigen override of
+      // standaard 01:00 (nachtelijke veiligheids-stop). We volgen bewust NIET de Cuescore-
+      // eindtijd: die staat meestal op 23:59 (plaatsvuller), terwijl toernooien vaak later
+      // doorlopen — 01:00 is de gewenste standaard, en blijft per rij aanpasbaar.
       startTijd: e.startTijd ?? (hhmm(r.startOverride) || hhmm(r.plannedStart) || '19:00'),
-      eindTijd: e.eindTijd ?? (hhmm(r.stopOverride) || hhmm(r.plannedStop) || '01:00'),
+      eindTijd: e.eindTijd ?? (hhmm(r.stopOverride) || '01:00'),
     };
   }
   // Vertaalt een lokale patch (overlayPreset/preRoll/start/eindTijd) naar de server-velden.
