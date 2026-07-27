@@ -1,5 +1,5 @@
 const { cameraTablesWithMatchToday } = require('./league');
-const { isFinalFinished } = require('../cuescore/parse');
+const { isFinalFinished, finalMatch } = require('../cuescore/parse');
 
 // Pure beslislogica voor de auto-stop. Bepaalt of een lopende broadcast (één
 // entry uit broadcasts/<datum>.json) gestopt moet worden. Géén netwerk → testbaar.
@@ -51,6 +51,19 @@ function shouldStop(entry, record, tournament, now, opts = {}) {
 
   if (type === 'competition') {
     return cameraTablesWithMatchToday(tournament, [entry.tableNumber], now).length === 0;
+  }
+
+  // #72: overige camera-tafels sluiten zodra de finale BEGINT. De finale speelt op één
+  // tafel; een andere camera-tafel van hetzelfde toernooi heeft dan niets meer te tonen
+  // (geen niet-afgeronde wedstrijd) → direct sluiten, géén podium-grace (het medaille-
+  // moment komt op de finale-tafel). De finale-tafel zelf loopt door tot 'ie klaar is
+  // (die stopt via toernooiKlaar hieronder, mét grace zodat het podium in beeld blijft).
+  const finale = finalMatch(tournament);
+  if (finale && (finale.status === 'playing' || finale.status === 'finished')) {
+    const opFinaleTafel = finale.table != null && String(entry.tableNumber) === String(finale.table);
+    if (!opFinaleTafel && cameraTablesWithMatchToday(tournament, [entry.tableNumber], now).length === 0) {
+      return true;
+    }
   }
 
   // Enkeldaags toernooi klaar? → eerst het podium z'n minuut geven, dán stoppen.

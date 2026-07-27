@@ -94,6 +94,35 @@ test('shouldStop met grace: competitie stopt direct (geen podium-grace)', () => 
   assert.strictEqual(shouldStop(entry, rec, alleKlaar, NOW3, { graceMs: GRACE }), true);
 });
 
+// --- #72: overige camera-tafels sluiten zodra de finale BEGINT ---
+const NOWF = new Date('2026-07-14T19:00:00Z'); // 21:00 Amsterdam, zaal-dag 2026-07-14
+
+test('#72: finale speelt op tafel 1 → een andere camera-tafel zonder wedstrijd sluit direct', () => {
+  const finalePlaying = { finished: false, matches: [
+    { table: '1', status: 'playing', roundName: 'Final' },
+  ] };
+  // Tafel 15 heeft niets meer → sluiten, óók meteen (geen podium-grace nodig).
+  assert.strictEqual(shouldStop({ tableNumber: 15 }, { type: 'tournament' }, finalePlaying, NOWF), true);
+  assert.strictEqual(shouldStop({ tableNumber: 15 }, { type: 'tournament' }, finalePlaying, NOWF, { graceMs: GRACE }), true);
+  // De finale-tafel zelf blijft draaien (finale nog niet afgerond).
+  assert.strictEqual(shouldStop({ tableNumber: 1 }, { type: 'tournament' }, finalePlaying, NOWF), false);
+});
+
+test('#72: een tafel met nog een lopende wedstrijd (brons) blijft open tijdens de finale', () => {
+  const finaleMetBrons = { finished: false, matches: [
+    { table: '1', status: 'playing', roundName: 'Final' },
+    { table: '15', start: '2026-07-14T19:30:00Z', status: 'scheduled', roundName: '3rd place' },
+  ] };
+  assert.strictEqual(shouldStop({ tableNumber: 15 }, { type: 'tournament' }, finaleMetBrons, NOWF), false);
+});
+
+test('#72: zolang de finale nog niet is begonnen (gepland), sluit er niets vervroegd', () => {
+  const finaleGepland = { finished: false, matches: [
+    { table: '1', status: 'scheduled', roundName: 'Final' },
+  ] };
+  assert.strictEqual(shouldStop({ tableNumber: 15 }, { type: 'tournament' }, finaleGepland, NOWF), false);
+});
+
 test('toernooiKlaar: Finished óf finale-gespeeld-zonder-restwedstrijd', () => {
   const entry = { tableNumber: 1 };
   assert.strictEqual(toernooiKlaar(entry, { finished: true }, NOW3), true);

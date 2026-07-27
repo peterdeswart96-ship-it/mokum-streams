@@ -208,6 +208,25 @@ function isFinalFinished(tournament) {
   );
 }
 
+// De finale-wedstrijd van het toernooi (of null). Bij voorkeur een lopende/afgeronde,
+// anders de eerst gevonden finale (bijv. nog gepland). Voor #72: zodra de finale bezig is,
+// hebben we alleen de finale-tafel nog nodig en kunnen de overige camera-tafels sluiten.
+function finalMatch(tournament) {
+  const finales = ((tournament && tournament.matches) || []).filter(
+    (m) => FINALE_RE.test((m.roundName || '').trim())
+  );
+  if (!finales.length) return null;
+  return finales.find((m) => m.status === 'playing')
+    || finales.find((m) => m.status === 'finished')
+    || finales[0];
+}
+
+// Is de finale bezig of gespeeld (dus niet meer "nog te beginnen")? Trigger voor #72.
+function isFinalUnderway(tournament) {
+  const f = finalMatch(tournament);
+  return !!(f && (f.status === 'playing' || f.status === 'finished'));
+}
+
 // Zoekt in een lijst genormaliseerde toernooien het toernooi waarvan de naam de
 // zoekterm bevat (case-insensitief). Gebruikt om een schema-regel ("Fluke
 // ranking") te koppelen aan de volledige actuele Cuescore-naam.
@@ -232,5 +251,7 @@ module.exports = {
   normalizeTournament,
   findTableMatch,
   isFinalFinished,
+  finalMatch,
+  isFinalUnderway,
   findTournamentByName,
 };
