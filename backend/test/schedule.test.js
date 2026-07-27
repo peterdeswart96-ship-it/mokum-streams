@@ -6,6 +6,7 @@ const {
   isRuleDueNow,
   dueRules,
   tafelsNogTeMaken,
+  tafelVrijVoor,
   scheduledStartISO,
 } = require('../src/schedule/schedule');
 
@@ -52,6 +53,21 @@ test('tafelsNogTeMaken laat al gemaakte tafels weg', () => {
   assert.deepStrictEqual(tafelsNogTeMaken(REGEL, {}), [1, 3]);
   assert.deepStrictEqual(tafelsNogTeMaken(REGEL, { '1': { videoId: 'x' } }), [3]);
   assert.deepStrictEqual(tafelsNogTeMaken(REGEL, { '1': {}, '3': {} }), []);
+});
+
+test('tafelVrijVoor: lege store en draaiende/gestopte entries (#74)', () => {
+  // Niets op de tafel → vrij.
+  assert.strictEqual(tafelVrijVoor({}, 3, 42), true);
+  // Draaiende entry (niet gestopt) → bezet, ook al is het een ander toernooi.
+  assert.strictEqual(tafelVrijVoor({ '3': { tournamentId: 99 } }, 3, 42), false);
+  // Gestopte ad-hoc challenge (geen toernooi) → geplande start mag de tafel claimen.
+  assert.strictEqual(tafelVrijVoor({ '3': { tournamentId: null, adhoc: true, stopped: true } }, 3, 42), true);
+  // Gestopte entry van een ánder toernooi → vrij voor de nieuwe geplande start.
+  assert.strictEqual(tafelVrijVoor({ '3': { tournamentId: 99, stopped: true } }, 3, 42), true);
+  // Gestopte entry van HETZELFDE toernooi → bewust beëindigd, niet vanzelf herstarten.
+  assert.strictEqual(tafelVrijVoor({ '3': { tournamentId: 42, stopped: true } }, 3, 42), false);
+  // Sleutel als getal i.p.v. string werkt ook.
+  assert.strictEqual(tafelVrijVoor({ 3: { tournamentId: 42 } }, 3, 42), false);
 });
 
 test('scheduledStartISO geeft de juiste UTC voor een Amsterdamse wandtijd', () => {

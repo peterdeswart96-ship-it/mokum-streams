@@ -1,6 +1,6 @@
 const { app } = require('@azure/functions');
 const { readJson, writeJson } = require('../storage/blob');
-const { zaalDelen, tafelsNogTeMaken } = require('../schedule/schedule');
+const { zaalDelen, tafelVrijVoor } = require('../schedule/schedule');
 const { dueRecords, effectiveStart } = require('../planning/planning');
 const { leagueDueTables, herresolveerTafels } = require('../planning/league');
 const { getTournament } = require('../cuescore');
@@ -35,7 +35,10 @@ async function verwerk(now, context) {
 
   // Maakt (idempotent) een broadcast voor een tafel en zet de start-commando's klaar.
   async function maakBroadcast(rec, tafelNr, startIso) {
-    if (store[String(tafelNr)]) return; // vandaag al gemaakt
+    // Bezet (draaiend) of vandaag al gemaakt voor dít toernooi → niets doen. Een gestopte
+    // ad-hoc/ander-toernooi-entry telt níet als bezet, zodat een geplande start de tafel
+    // alsnog claimt (#74).
+    if (!tafelVrijVoor(store, tafelNr, rec.tournamentId)) return;
     const table = tableById.get(Number(tafelNr));
     if (!table || !table.streamId) {
       context.log(`[FOUT] Tafel ${tafelNr} heeft geen streamId in config/tables.json — overslaan.`);
@@ -81,7 +84,7 @@ async function verwerk(now, context) {
         context.log(`[createBroadcasts] herresolutie mislukt (${e.message}) → geplande tafels [${tafels.join(',')}]`);
       }
     }
-    for (const tafelNr of tafelsNogTeMaken({ tafels }, store)) {
+    for (const tafelNr of tafels.filter((t) => tafelVrijVoor(store, t, rec.tournamentId))) {
       await maakBroadcast(rec, tafelNr, start);
     }
   }

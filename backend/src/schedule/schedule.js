@@ -62,6 +62,22 @@ function tafelsNogTeMaken(rule, store) {
   return (rule.tafels || []).filter((t) => !s[String(t)] && !s[t]);
 }
 
+// Mag createBroadcasts vandaag een (nieuwe) broadcast voor deze tafel maken? (#74)
+// - Geen entry → ja.
+// - Draaiende entry → nee (bezet).
+// - Gestopte entry → ja, TENZIJ het exact dít toernooi was; dan is 'ie bewust beëindigd
+//   en herstarten we niet vanzelf. Zo claimt een geplande start wél een tafel die nog een
+//   gestopte ad-hoc- of ander-toernooi-entry had (het incident van #74), zonder een tafel
+//   te herstarten die je zelf voor dít toernooi hebt gestopt (geen herstart-lus in het
+//   40-min due-venster). Handmatig herstarten kan altijd via het dashboard (isTableBusy).
+function tafelVrijVoor(store, tafelNr, tournamentId) {
+  const s = store || {};
+  const entry = s[String(tafelNr)] || s[tafelNr];
+  if (!entry) return true;
+  if (!entry.stopped) return false;
+  return entry.tournamentId == null || String(entry.tournamentId) !== String(tournamentId);
+}
+
 // Zet de wandkloktijd van vandaag (Amsterdam) + 'HH:MM' om naar een UTC-ISO-string
 // voor scheduledStartTime. Bepaalt de tijdzone-offset op dat moment (DST-veilig)
 // via de bekende toLocaleString-truc.
@@ -85,5 +101,6 @@ module.exports = {
   isRuleDueNow,
   dueRules,
   tafelsNogTeMaken,
+  tafelVrijVoor,
   scheduledStartISO,
 };
