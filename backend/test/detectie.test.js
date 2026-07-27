@@ -50,6 +50,11 @@ test('templateVoorToernooi: kiest de juiste template per (Cuescore-)naam', () =>
   assert.strictEqual(templateVoorToernooi('Blind Double Members'), 'blind-double');
   assert.strictEqual(templateVoorToernooi('Best of One — alles of niets'), 'best-of-one');
   assert.strictEqual(templateVoorToernooi('Go Customs Amsterdam Open 2026'), 'go-customs-amsterdam-open');
+  // Amsterdam Open ook zonder "Go Customs" in de naam (#73):
+  assert.strictEqual(templateVoorToernooi('Amsterdam Open 2026'), 'go-customs-amsterdam-open');
+  // NK 10-ball kwalificatie (#73) → eigen template; een NK met 14.1 blijft null (zie hierboven).
+  assert.strictEqual(templateVoorToernooi('NK 10-ball kwalificatie #1'), 'nk-10ball');
+  assert.strictEqual(templateVoorToernooi('NK 10 ball Kwalificatieronde - Mokum'), 'nk-10ball');
   // "Summer Ranking" zonder "MEGA" in de naam (typefout) → toch de MEGA Summer-template:
   assert.strictEqual(templateVoorToernooi('Mokum Summer Ranking 22'), 'mega-summer-ranking');
   assert.strictEqual(templateVoorToernooi('Mokum Summer ranking #22'), 'mega-summer-ranking');

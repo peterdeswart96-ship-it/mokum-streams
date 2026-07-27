@@ -51,6 +51,9 @@ function templateVoorToernooi(naam) {
   if (n.includes('mega') && n.includes('buffalo')) return 'mega-ranking-buffalo';
   if (n.includes('mega') && n.includes('summer')) return 'mega-summer-ranking';
   if (n.includes('summer') && n.includes('ranking')) return 'mega-summer-ranking'; // ook zonder "MEGA" in de naam (typefout)
+  // NK 10-ball kwalificatie (#73). "nk" als LOS woord (\bnk\b), anders matcht 'ie ook
+  // "raNKing"/"baNK". Vóór de 8&10-regel voor de duidelijkheid (botst niet: geen 8).
+  if (/\bnk\b/.test(n) && /10[.\-\s]?ball/.test(n)) return 'nk-10ball';
   if (/(?:8\s*(?:&|en|\/|\+|,|-)?\s*10|10\s*(?:&|en|\/|\+|,|-)?\s*8)/.test(n)) return '8-10-ball-ranking';
   // 14.1 alleen als het de Mokum Summer League is — niet een NK-kwalificatie o.i.d. die
   // toevallig 14.1 als discipline heeft (die krijgt geen serie-template).
@@ -61,7 +64,7 @@ function templateVoorToernooi(naam) {
   if (n.includes('handicap')) return 'handicap-madness';
   if (n.includes('blind')) return 'blind-double';
   if (n.includes('best of one') || n.includes('best-of-one')) return 'best-of-one';
-  if (n.includes('go customs') || n.includes('customs')) return 'go-customs-amsterdam-open';
+  if (n.includes('amsterdam open') || n.includes('go customs') || n.includes('customs')) return 'go-customs-amsterdam-open';
   return null;
 }
 
@@ -80,6 +83,7 @@ const TEMPLATE_TEKST = {
   'blind-double':              { titel: 'Blind Double' },
   'best-of-one':               { titel: 'Best of One' },
   'go-customs-amsterdam-open': { titel: 'Amsterdam Open', sponsor: 'GO CUSTOMS' },
+  'nk-10ball':                 { titel: 'NK 10-Ball Kwalificatie' },
 };
 
 // Korte, hoofdletter-datum voor de datumpil op de thumbnail, bv. "DI 22 JULI".

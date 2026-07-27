@@ -55,9 +55,10 @@ async function maakToernooiThumbnail({ naamRaw, sponsor, spelers, tableNumber, s
 // Challenge-thumbnail: het VS-ontwerp (challenge-match.html), met canvas-fallback.
 async function maakChallengeThumbnail({ spelerA, spelerB, spelsoort, tableNumber, datum }) {
   if (heeftTemplate('challenge-match')) {
+    // Nieuwe stijl: de spelersnamen ZIJN de titel ("A VS B"); de template vult {{SPELERS}}.
     return renderThumbnail({
       templateKey: 'challenge-match', toernooinaam: 'Challenge',
-      spelers: `${spelerA || '?'}, ${spelerB || '?'}`, datum: datumThumb(datum),
+      spelers: `${spelerA || '?'} VS ${spelerB || '?'}`, datum: datumThumb(datum),
     });
   }
   return genereerThumbnail({ type: 'challenge', spelerA, spelerB, spelsoort: spelsoort || null, tafel: tableNumber, datumLabel: datumNL(datum) });

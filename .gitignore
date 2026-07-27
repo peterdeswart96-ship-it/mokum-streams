@@ -33,6 +33,11 @@ Thumbs.db
 # Vite cache
 .vite/
 
+# Thumbnail-bron-achtergronden (AI-plaatjes + gekeyde overlays, ~22MB). De canonieke
+# templates in assets/thumbnail-templates zijn zelfvoorzienend (bg als base64 ingebed),
+# dus de runtime heeft deze bronnen niet nodig. Blijven lokaal om te kunnen herbouwen.
+backend/assets/thumbnail-bg/
+
 wiki/
 
 # Lokale log van post-commit wiki-update hook
