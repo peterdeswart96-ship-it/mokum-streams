@@ -580,6 +580,13 @@ Body:
   - Server-cache in blob `sheets.json`, ~30 min vers; bij een verlopen cache herbouwt het
     endpoint zelf (scrape + detail-calls). Gevoed in de jumbotron-rotatie als twee extra
     sheets (na de scores-fase, vóór de poster; duur per sheet `?winnaarsSec=`/`?komendeSec=`).
+- 2026-07-27: v0.44 — **keuring: eigen eindseconde per clip + afspeelsnelheid (#71)**.
+  `POST /api/manage/highlights` accepteert nu ook **`eind`** (eigen eindseconde in de video;
+  `null` = terug naar het standaard-venster), naast `status`/`start`. `metKeuring` past 'm toe
+  op `clipTot`; de start wordt geklemd tegen de (evt. aangepaste) eindseconde, en het einde
+  ligt altijd ná de start. Nodig omdat sommige clips vóór het rack klaar was afkapten. De
+  keuringspagina heeft er knoppen voor (`,`/`.` = eind −5/+5s, `/` = standaard) plus
+  afspeelsnelheid **1×/1.5×/2×** (toetsen 1/2/3; YouTube-speler max = 2×).
 - 2026-07-27: v0.43 — **planner: start- en eindtijd instelbaar (#42)**. De Toernooi planner
   toont nu tijd-invoervelden voor **Start** en **Eind**; die schrijven naar de al bestaande
   velden `startOverride` / `stopOverride` op `POST /api/manage/planning/{id}` (geen nieuwe

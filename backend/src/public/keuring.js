@@ -22,9 +22,15 @@ function normaliseerStatus(status) {
   return s === GOED || s === AFGEKEURD ? s : null;
 }
 
-// Zet het oordeel en/of de eigen startseconde van één clip. `wijziging` mag een status zijn
-// ('goed' | 'afgekeurd' | null) of een object { status?, start? }; wat je niet meestuurt
-// blijft staan. Retour: een NIEUW object, het origineel blijft heel.
+// Een niet-negatief geheel getal, of null (voor de eigen start-/eindseconde).
+function getalOfNull(v) {
+  const n = Number(v);
+  return v != null && Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
+}
+
+// Zet het oordeel en/of de eigen start-/eindseconde van één clip. `wijziging` mag een status
+// zijn ('goed' | 'afgekeurd' | null) of een object { status?, start?, eind? }; wat je niet
+// meestuurt blijft staan. Retour: een NIEUW object, het origineel blijft heel.
 function zetKeuring(bestaand, sleutel, wijziging, nu) {
   const uit = { ...(bestaand || {}) };
   if (!sleutel) return uit;
@@ -32,31 +38,43 @@ function zetKeuring(bestaand, sleutel, wijziging, nu) {
   const huidig = uit[sleutel] || {};
 
   const status = 'status' in patch ? normaliseerStatus(patch.status) : normaliseerStatus(huidig.status);
-  const ruweStart = 'start' in patch ? patch.start : huidig.start;
-  const n = Number(ruweStart);
-  const start = ruweStart != null && Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
+  const start = getalOfNull('start' in patch ? patch.start : huidig.start);
+  const eind = getalOfNull('eind' in patch ? patch.eind : huidig.eind);
 
   // Niets meer te onthouden → de regel weg (weer "nog niet gekeurd", standaard-venster).
-  if (!status && start == null) { delete uit[sleutel]; return uit; }
-  uit[sleutel] = { ...(status ? { status } : {}), ...(start != null ? { start } : {}), at: nu || null };
+  if (!status && start == null && eind == null) { delete uit[sleutel]; return uit; }
+  uit[sleutel] = {
+    ...(status ? { status } : {}),
+    ...(start != null ? { start } : {}),
+    ...(eind != null ? { eind } : {}),
+    at: nu || null,
+  };
   return uit;
 }
 
 // Hangt het oordeel aan elke clip (`keuring`: 'goed' | 'afgekeurd' | null) plus de sleutel,
-// zodat de keuringspagina er direct op kan bedienen.
+// zodat de keuringspagina er direct op kan bedienen. Past ook een eigen start-/eindseconde toe.
 function metKeuring(clips, keuring) {
   const k = keuring || {};
   return (clips || []).map((c) => {
     const sleutel = clipSleutel(c);
     const rec = sleutel ? k[sleutel] : null;
-    // Eigen startseconde gaat vóór het standaard-venster, maar nooit voorbij het einde.
-    const eigen = rec && rec.start != null ? Math.min(rec.start, (c.clipTot || 0) - 5) : null;
+    // Eigen eindseconde gaat vóór het standaard-venster.
+    const eigenEind = rec && rec.eind != null ? rec.eind : null;
+    let clipTot = eigenEind != null ? eigenEind : c.clipTot;
+    // Eigen startseconde, nooit voorbij het (evt. aangepaste) einde.
+    const eigenStart = rec && rec.start != null ? Math.min(rec.start, (clipTot || 0) - 5) : null;
+    const clipVan = eigenStart != null && eigenStart >= 0 ? eigenStart : c.clipVan;
+    // Vangnet: het einde ligt altijd ná de start.
+    if (clipTot != null && clipVan != null && clipTot <= clipVan) clipTot = clipVan + 3;
     return {
       ...c,
       sleutel,
       keuring: (rec && normaliseerStatus(rec.status)) || null,
-      clipVan: eigen != null && eigen >= 0 ? eigen : c.clipVan,
-      startAangepast: eigen != null && eigen >= 0,
+      clipVan,
+      clipTot,
+      startAangepast: eigenStart != null && eigenStart >= 0,
+      eindAangepast: eigenEind != null,
     };
   });
 }

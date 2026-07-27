@@ -40,6 +40,9 @@
   button.af { background: #4a1212; border-color: #6b1c1c; color: #ffd6d6; }
   button.af:hover { background: #6b1c1c; }
   button.groei { flex: 1; }
+  .snelheid { align-self: center; color: #888; font-size: 13px; margin-right: 2px; }
+  button.snelknop { padding: 12px 14px; }
+  button.snelknop.actief { background: #cc0000; border-color: #cc0000; color: #fff; }
   kbd {
     background: #000; border: 1px solid #333; border-radius: 4px; padding: 1px 6px;
     font-family: Consolas, monospace; font-size: 12px; color: #999; margin-left: 6px;
@@ -89,12 +92,23 @@
 
       <div class="knoppen">
         <button class="af groei" id="bAf">✗ Afkeuren <kbd>←</kbd></button>
-        <button id="bLater">Start +5s <kbd>]</kbd></button>
+        <button class="goed groei" id="bGoed">✓ Goedkeuren <kbd>→</kbd></button>
+      </div>
+      <div class="knoppen">
         <button id="bVroeger">Start −5s <kbd>[</kbd></button>
+        <button id="bLater">Start +5s <kbd>]</kbd></button>
         <button id="bResetStart">Start standaard <kbd>0</kbd></button>
+        <button id="bEindVroeger">Eind −5s <kbd>,</kbd></button>
+        <button id="bEindLater">Eind +5s <kbd>.</kbd></button>
+        <button id="bResetEind">Eind standaard <kbd>/</kbd></button>
+      </div>
+      <div class="knoppen">
+        <span class="snelheid">Snelheid:</span>
+        <button class="snelknop actief" id="bS1">1× <kbd>1</kbd></button>
+        <button class="snelknop" id="bS15">1.5× <kbd>2</kbd></button>
+        <button class="snelknop" id="bS2">2× <kbd>3</kbd></button>
         <button id="bOpnieuw">↻ Opnieuw <kbd>R</kbd></button>
         <button id="bVorige">‹ Vorige <kbd>P</kbd></button>
-        <button class="goed groei" id="bGoed">✓ Goedkeuren <kbd>→</kbd></button>
       </div>
 
       <div class="balk"><span id="balk"></span></div>
@@ -129,6 +143,8 @@ let alle = [];      // alle clips met hun oordeel
 let lijst = [];     // wat we nu doorlopen (afhankelijk van het filter)
 let idx = 0;
 let speler = null;
+let snelheid = 1;   // afspeelsnelheid tijdens het keuren (1× / 1.5× / 2×)
+const CLIP_NA = 4;  // naloop-seconden na het rack (== CLIP_NA_SEC in de backend) — voor 'Eind standaard'
 
 const datumKort = (iso) => {
   const d = new Date(`${iso}T12:00:00Z`);
@@ -172,10 +188,34 @@ function toon() {
   const c = lijst[idx];
   $('naam').textContent = c.speler;
   $('tegen').textContent = `tegen ${c.tegenstander || '?'}${c.ronde ? ` · ${c.ronde}` : ''}`;
-  const startLabel = c.startAangepast ? ` · start +${c.clipVan - c.offsetSec}s` : '';
-  $('meta').innerHTML = `${esc(c.toernooi || '')}<br>${esc(datumKort(c.datum))} · tafel ${esc(c.tafel)} · ${c.clipTot - c.clipVan}s${startLabel}${c.keuring ? ` · <b>${esc(c.keuring)}</b>` : ''}`;
+  metaTonen(c);
   $('voortgang').textContent = `${idx + 1} van ${lijst.length}`;
-  if (speler) speler.loadVideoById({ videoId: c.videoId, startSeconds: c.clipVan, endSeconds: c.clipTot });
+  laadClip(c);
+}
+
+// Bouwt de meta-regel (toernooi, datum, clip-lengte + start/eind-aanpassingen + oordeel).
+function metaTonen(c) {
+  const startLabel = c.startAangepast ? ` · start +${c.clipVan - c.offsetSec}s` : '';
+  const eindStd = c.eindSec != null ? c.eindSec + CLIP_NA : c.clipTot;
+  const dEind = c.clipTot - eindStd;
+  const eindLabel = c.eindAangepast ? ` · eind ${dEind >= 0 ? '+' : ''}${dEind}s` : '';
+  $('meta').innerHTML = `${esc(c.toernooi || '')}<br>${esc(datumKort(c.datum))} · tafel ${esc(c.tafel)} · ${c.clipTot - c.clipVan}s${startLabel}${eindLabel}${c.keuring ? ` · <b>${esc(c.keuring)}</b>` : ''}`;
+}
+
+// Laadt de huidige clip in de speler (met het clipvenster) en herstelt de afspeelsnelheid.
+function laadClip(c) {
+  if (!speler || !speler.loadVideoById) return;
+  speler.loadVideoById({ videoId: c.videoId, startSeconds: c.clipVan, endSeconds: c.clipTot });
+  if (speler.setPlaybackRate) speler.setPlaybackRate(snelheid);
+}
+
+// Afspeelsnelheid zetten (YouTube ondersteunt tot 2×) + de actieve knop markeren.
+function setSnelheid(rate) {
+  snelheid = rate;
+  if (speler && speler.setPlaybackRate) speler.setPlaybackRate(rate);
+  for (const [id, r] of [['bS1', 1], ['bS15', 1.5], ['bS2', 2]]) {
+    const b = $(id); if (b) b.classList.toggle('actief', r === rate);
+  }
 }
 
 async function keur(status) {
@@ -209,12 +249,29 @@ async function schuifStart(delta) {
     await api('/api/manage/highlights', { method: 'POST', body: JSON.stringify({ sleutel: c.sleutel, start }) });
     c.clipVan = start == null ? c.offsetSec : start;
     c.startAangepast = start != null;
-    if (speler) speler.loadVideoById({ videoId: c.videoId, startSeconds: c.clipVan, endSeconds: c.clipTot });
-    // meta bijwerken zonder de clip opnieuw te laden
-    const startLabel = c.startAangepast ? ` · start +${c.clipVan - c.offsetSec}s` : '';
-    $('meta').innerHTML = `${esc(c.toernooi || '')}<br>${esc(datumKort(c.datum))} · tafel ${esc(c.tafel)} · ${c.clipTot - c.clipVan}s${startLabel}${c.keuring ? ` · <b>${esc(c.keuring)}</b>` : ''}`;
+    laadClip(c);
+    metaTonen(c);
   } catch (e) {
     $('meta').innerHTML = `<span class="fout">start opslaan mislukt (${esc(e.message)})</span>`;
+  }
+}
+
+// Eindseconde van het clipvenster bijstellen. delta = seconden t.o.v. het HUIDIGE einde;
+// null = terug naar het standaard-einde (rack-einde + naloop). Nooit vóór de start.
+async function schuifEind(delta) {
+  const c = lijst[idx];
+  if (!c) return;
+  const standaard = c.eindSec != null ? c.eindSec + CLIP_NA : c.clipTot;
+  const eind = delta == null ? null
+    : Math.max((c.clipVan || 0) + 3, (c.clipTot || 0) + delta);
+  try {
+    await api('/api/manage/highlights', { method: 'POST', body: JSON.stringify({ sleutel: c.sleutel, eind }) });
+    c.clipTot = eind == null ? standaard : eind;
+    c.eindAangepast = eind != null;
+    laadClip(c);
+    metaTonen(c);
+  } catch (e) {
+    $('meta').innerHTML = `<span class="fout">eind opslaan mislukt (${esc(e.message)})</span>`;
   }
 }
 
@@ -226,6 +283,12 @@ function koppel() {
   $('bLater').onclick = () => schuifStart(5);
   $('bVroeger').onclick = () => schuifStart(-5);
   $('bResetStart').onclick = () => schuifStart(null);
+  $('bEindLater').onclick = () => schuifEind(5);
+  $('bEindVroeger').onclick = () => schuifEind(-5);
+  $('bResetEind').onclick = () => schuifEind(null);
+  $('bS1').onclick = () => setSnelheid(1);
+  $('bS15').onclick = () => setSnelheid(1.5);
+  $('bS2').onclick = () => setSnelheid(2);
   $('fAlles').onchange = () => { idx = 0; bouwLijst(); toon(); };
   document.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT') return;
@@ -236,6 +299,12 @@ function koppel() {
     if (e.key === ']') { e.preventDefault(); schuifStart(5); }
     if (e.key === '[') { e.preventDefault(); schuifStart(-5); }
     if (e.key === '0') { e.preventDefault(); schuifStart(null); }
+    if (e.key === '.') { e.preventDefault(); schuifEind(5); }
+    if (e.key === ',') { e.preventDefault(); schuifEind(-5); }
+    if (e.key === '/') { e.preventDefault(); schuifEind(null); }
+    if (e.key === '1') setSnelheid(1);
+    if (e.key === '2') setSnelheid(1.5);
+    if (e.key === '3') setSnelheid(2);
   });
 }
 
@@ -243,7 +312,11 @@ function startSpeler() {
   speler = new YT.Player('speler', {
     width: '100%', height: '100%',
     playerVars: { autoplay: 1, mute: 1, controls: 1, modestbranding: 1, rel: 0, playsinline: 1 },
-    events: { onReady: toon },
+    events: {
+      onReady: toon,
+      // Snelheid opnieuw zetten zodra de nieuwe clip speelt (loadVideoById reset 'm soms).
+      onStateChange: (e) => { if (e.data === YT.PlayerState.PLAYING && speler.setPlaybackRate) speler.setPlaybackRate(snelheid); },
+    },
   });
 }
 

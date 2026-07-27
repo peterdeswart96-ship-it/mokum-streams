@@ -8,9 +8,10 @@ const { zetKeuring, metKeuring, goedgekeurd, tel, clipSleutel } = require('../pu
 //
 //  GET  /api/highlights                 (publiek) → alleen GOEDGEKEURDE clips, voor de uitzending
 //  GET  /api/manage/highlights          (admin)   → ALLE clips met hun oordeel, voor de keuringspagina
-//  POST /api/manage/highlights          (admin)   → body { sleutel, status?, start? }
+//  POST /api/manage/highlights          (admin)   → body { sleutel, status?, start?, eind? }
 //                                                   status: 'goed' | 'afgekeurd' | null
 //                                                   start:  eigen beginseconde in de video
+//                                                   eind:   eigen eindseconde in de video
 //                                                           (null = terug naar het standaard-venster)
 //
 // Niet elke run-out levert bruikbaar beeld op (pauzescherm in beeld, camera verkeerd), dus
@@ -81,6 +82,7 @@ app.http('adminHighlightsKeur', {
     const patch = {};
     if ('status' in body) patch.status = body.status;
     if ('start' in body) patch.start = body.start;
+    if ('eind' in body) patch.eind = body.eind;
 
     const nu = new Date().toISOString();
     const nieuw = await updateJson(PAD, (huidig) => zetKeuring(huidig, sleutel, patch, nu), {});
@@ -88,7 +90,9 @@ app.http('adminHighlightsKeur', {
     const alle = await clips();
     const rec = nieuw[sleutel] || {};
     return json(200, {
-      ok: true, sleutel, status: rec.status || null, start: rec.start != null ? rec.start : null,
+      ok: true, sleutel, status: rec.status || null,
+      start: rec.start != null ? rec.start : null,
+      eind: rec.eind != null ? rec.eind : null,
       ...tel(alle, nieuw),
     }, request);
   },

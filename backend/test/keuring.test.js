@@ -29,6 +29,28 @@ test('een startseconde voorbij het einde wordt teruggeduwd', () => {
   assert.strictEqual(c.clipVan, 245); // clipTot - 5
 });
 
+test('een eigen eindseconde verschuift het clipvenster-einde', () => {
+  const c = metKeuring(CLIPS, { 'aaa:100': { eind: 300 } })[0];
+  assert.strictEqual(c.clipTot, 300);
+  assert.strictEqual(c.eindAangepast, true);
+  assert.strictEqual(c.clipVan, 100, 'start blijft ongemoeid');
+});
+
+test('de start wordt geklemd tegen de AANGEPASTE eindseconde', () => {
+  const c = metKeuring(CLIPS, { 'aaa:100': { start: 298, eind: 300 } })[0];
+  assert.strictEqual(c.clipTot, 300);
+  assert.strictEqual(c.clipVan, 295, 'niet voorbij eind - 5');
+});
+
+test('status, start en eind staan los van elkaar', () => {
+  let k = zetKeuring({}, 'aaa:100', { eind: 260 }, 'nu');
+  assert.deepStrictEqual(k['aaa:100'], { eind: 260, at: 'nu' });
+  k = zetKeuring(k, 'aaa:100', { status: 'goed', start: 130 }, 'nu2');
+  assert.deepStrictEqual(k['aaa:100'], { status: 'goed', start: 130, eind: 260, at: 'nu2' });
+  k = zetKeuring(k, 'aaa:100', { eind: null }, 'nu3');
+  assert.deepStrictEqual(k['aaa:100'], { status: 'goed', start: 130, at: 'nu3' }, 'eind terug naar standaard');
+});
+
 test('status en startseconde staan los van elkaar', () => {
   let k = zetKeuring({}, 'aaa:100', { start: 140 }, 'nu');
   assert.deepStrictEqual(k['aaa:100'], { start: 140, at: 'nu' });
