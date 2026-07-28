@@ -3,7 +3,7 @@ const { readJson, writeJson } = require('../storage/blob');
 const { zaalDelen } = require('../schedule/schedule');
 const { getTournament, getTodaysTournaments } = require('../cuescore');
 const { enqueue } = require('../agent/commandQueue');
-const { shouldStop, toernooiKlaar } = require('../planning/stop');
+const { stopReden, toernooiKlaar } = require('../planning/stop');
 const { kiesToernooiVoorTafel, anderToernooiNogOpTafel } = require('../planning/koppel');
 const { isArmed } = require('../config/automation');
 
@@ -116,7 +116,8 @@ async function verwerk(now, context) {
         context.log(`[checkStops] tafel ${entry.tableNumber}: toernooi klaar → podium-grace gestart.`);
       }
 
-      if (shouldStop(entry, rec, tournament, now, { graceMs: STOP_GRACE_MS })) {
+      const reden = stopReden(entry, rec, tournament, now, { graceMs: STOP_GRACE_MS });
+      if (reden) {
         // Automatisch gekoppeld? Sluit de tafel pas als er vandaag écht niets meer op
         // staat — ook niet in een ánder toernooi (bijv. twee qualifiers op één avond).
         if (entry.autoGekoppeld) {
@@ -126,6 +127,9 @@ async function verwerk(now, context) {
             continue;
           }
         }
+        // Reden altijd loggen (#76): bij het incident van 27-07 stond er alleen dát er
+        // gestopt werd, niet waarom — dat kostte de hele diagnose een dag.
+        context.log(`[checkStops] tafel ${entry.tableNumber}: stoppen — ${reden}`);
         teStoppen.push(entry.tableNumber);
         store[key] = { ...entry, stopped: true };
         storeGewijzigd = true;

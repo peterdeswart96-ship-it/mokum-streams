@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { shouldStop, toernooiKlaar } = require('../src/planning/stop');
+const { shouldStop, stopReden, toernooiKlaar, wedstrijdSpeelt } = require('../src/planning/stop');
 
 const NOW = new Date('2026-07-14T21:00:00Z');
 
@@ -10,12 +10,19 @@ test('shouldStop: enkeldaags toernooi stopt als het Finished is', () => {
   assert.strictEqual(shouldStop(entry, { type: 'tournament' }, { finished: false }, NOW), false);
 });
 
-test('shouldStop: enkeldaags toernooi stopt op de eind-tijd (vangnet), ook zonder Cuescore-data', () => {
+test('shouldStop: de eigen eindtijd (stopOverride) is het vangnet, ook zonder Cuescore-data', () => {
   const entry = { tableNumber: 1, tournamentId: 1 };
-  // plannedStop in het verleden → stoppen, óók als Cuescore onbereikbaar is (tournament = null)
-  assert.strictEqual(shouldStop(entry, { type: 'tournament', plannedStop: '2026-07-14T20:59:00Z' }, null, NOW), true);
-  // plannedStop in de toekomst + nog niet finished → nog niet stoppen
-  assert.strictEqual(shouldStop(entry, { type: 'tournament', plannedStop: '2026-07-14T23:00:00Z' }, { finished: false }, NOW), false);
+  // stopOverride in het verleden → stoppen, óók als Cuescore onbereikbaar is (tournament = null)
+  assert.strictEqual(shouldStop(entry, { type: 'tournament', stopOverride: '2026-07-14T20:59:00Z' }, null, NOW), true);
+  // stopOverride in de toekomst + nog niet finished → nog niet stoppen
+  assert.strictEqual(shouldStop(entry, { type: 'tournament', stopOverride: '2026-07-14T23:00:00Z' }, { finished: false }, NOW), false);
+});
+
+test('#76: plannedStop (Cuescore-eindtijd) is GÉÉN stopreden meer', () => {
+  const entry = { tableNumber: 1, tournamentId: 1 };
+  // Cuescore vult dit veld met een plaatsvuller (23:59). Ook ruim voorbij → niet stoppen.
+  assert.strictEqual(shouldStop(entry, { type: 'tournament', plannedStop: '2026-07-14T18:00:00Z' }, { finished: false }, NOW), false);
+  assert.strictEqual(shouldStop(entry, { type: 'tournament', plannedStop: '2026-07-14T18:00:00Z' }, null, NOW), false);
 });
 
 test('shouldStop: ad-hoc en al gestopte streams stoppen nooit automatisch', () => {
@@ -81,9 +88,9 @@ test('shouldStop met grace: gestempeld >= 1 min geleden → stoppen', () => {
   assert.strictEqual(shouldStop(entry, { type: 'tournament' }, finaleKlaar, NOW3, { graceMs: GRACE }), true);
 });
 
-test('shouldStop met grace: plannedStop-noodrem blijft direct (zonder grace)', () => {
+test('shouldStop met grace: de eigen eindtijd stopt direct (zonder grace)', () => {
   const entry = { tableNumber: 1, tournamentId: 1 }; // niet gestempeld
-  const rec = { type: 'tournament', plannedStop: '2026-07-14T21:59:00Z' }; // voorbij
+  const rec = { type: 'tournament', stopOverride: '2026-07-14T21:59:00Z' }; // voorbij
   assert.strictEqual(shouldStop(entry, rec, { finished: false }, NOW3, { graceMs: GRACE }), true);
 });
 
@@ -121,6 +128,68 @@ test('#72: zolang de finale nog niet is begonnen (gepland), sluit er niets vervr
     { table: '1', status: 'scheduled', roundName: 'Final' },
   ] };
   assert.strictEqual(shouldStop({ tableNumber: 15 }, { type: 'tournament' }, finaleGepland, NOWF), false);
+});
+
+// --- #76: nooit een lopende wedstrijd afkappen (incident 27-07-2026) ---
+//
+// Wat er die avond gebeurde, in Amsterdamse tijd:
+//   23:55:58  halve finale tafel 1 klaar
+//   23:57:47  FINALE begint op tafel 1
+//   23:59:00  Cuescore-eindtijd (plaatsvuller) bereikt → stream werd gestopt  ← de bug
+//   00:10:00  finale afgelopen — 11 min finale + prijsuitreiking gemist
+// De tijden staan hier als expliciete UTC-instants (23:59 NL = 21:59Z), zodat de test
+// niet afhangt van de tijdzone van de machine waarop 'ie draait.
+
+const FINALE_LOOPT = {
+  finished: false,
+  matches: [
+    { table: '1', status: 'playing', roundName: 'Final', start: '2026-07-27T21:57:47Z' },
+    { table: '3', status: 'finished', roundName: 'Semi final', start: '2026-07-27T21:37:10Z' },
+  ],
+};
+const OM_2359 = new Date('2026-07-27T21:59:00Z'); // 23:59 Amsterdam
+
+test('#76: de finale-tafel wordt niet gestopt door de Cuescore-eindtijd', () => {
+  const entry = { tableNumber: 1, tournamentId: 84675238 };
+  const rec = { type: 'tournament', plannedStop: '2026-07-27T21:59:00Z' }; // exact het incident
+  assert.strictEqual(shouldStop(entry, rec, FINALE_LOOPT, OM_2359, { graceMs: 180000 }), false);
+});
+
+test('#76: ook een eigen eindtijd kapt een lopende wedstrijd niet af', () => {
+  const entry = { tableNumber: 1, tournamentId: 84675238 };
+  const rec = { type: 'tournament', stopOverride: '2026-07-27T21:58:00Z' }; // al voorbij
+  assert.strictEqual(shouldStop(entry, rec, FINALE_LOOPT, OM_2359), false);
+  // Zodra de finale klaar is telt die eindtijd wél weer (nachtstop blijft het laatste vangnet).
+  const finaleKlaar = { finished: true, matches: [{ table: '1', status: 'finished', roundName: 'Final' }] };
+  assert.strictEqual(shouldStop(entry, rec, finaleKlaar, OM_2359), true);
+});
+
+test('#76: tafel 3 sloot die avond wél terecht (finale bezig, niets meer op die tafel)', () => {
+  const entry = { tableNumber: 3, tournamentId: 84675238 };
+  assert.strictEqual(shouldStop(entry, { type: 'tournament' }, FINALE_LOOPT, OM_2359), true);
+});
+
+test('#76: een competitie-tafel met een lopende wedstrijd blijft open', () => {
+  const entry = { tableNumber: 1, tournamentId: 9 };
+  const rec = { type: 'competition', tafels: [1] };
+  // Geen enkele wedstrijd staat vandaag gepland (datum-filter), maar er speelt er wél één.
+  const speelt = { matches: [{ table: '1', status: 'playing', start: '2026-07-26T20:00:00Z' }] };
+  assert.strictEqual(shouldStop(entry, rec, speelt, OM_2359), false);
+});
+
+test('wedstrijdSpeelt: alleen een lopende wedstrijd op déze tafel telt', () => {
+  assert.strictEqual(wedstrijdSpeelt({ tableNumber: 1 }, FINALE_LOOPT), true);
+  assert.strictEqual(wedstrijdSpeelt({ tableNumber: 3 }, FINALE_LOOPT), false);
+  assert.strictEqual(wedstrijdSpeelt({ tableNumber: 1 }, null), false);
+  assert.strictEqual(wedstrijdSpeelt({ tableNumber: 1 }, { finished: true }), false); // geen matches-array
+});
+
+test('stopReden: geeft een leesbare reden voor de log (#76)', () => {
+  assert.strictEqual(stopReden({ tableNumber: 1 }, {}, FINALE_LOOPT, OM_2359), null);
+  const reden = stopReden({ tableNumber: 3 }, { type: 'tournament' }, FINALE_LOOPT, OM_2359);
+  assert.match(reden, /finale bezig op tafel 1/);
+  const rec = { type: 'tournament', stopOverride: '2026-07-27T21:00:00Z' };
+  assert.match(stopReden({ tableNumber: 3 }, rec, null, OM_2359), /eindtijd bereikt/);
 });
 
 test('toernooiKlaar: Finished óf finale-gespeeld-zonder-restwedstrijd', () => {

@@ -81,7 +81,8 @@ Planning-record (GET /api/manage/planning → `{ "items": [ ... ] }`):
   "date": "2026-07-14",
   "source": "cuescore" | "adhoc",
   "plannedStart": "2026-07-14T17:30:00Z",   // uit Cuescore (.starttime), alleen-lezen
-  "plannedStop":  "2026-07-14T21:00:00Z",   // uit Cuescore (.stoptime), kan null zijn
+  "plannedStop":  "2026-07-14T21:00:00Z",   // uit Cuescore (.stoptime), kan null zijn — plaatsvuller,
+                                            // stuurt sinds v0.45 NIET de auto-stop (zie #76)
   "enabled": true,                          // streamen we dit toernooi?
   "startOverride": null,                    // handmatige start (anders plannedStart)
   "stopOverride":  null,                    // handmatige stop (anders auto op Cuescore-finale)
@@ -98,7 +99,10 @@ Regels:
 - **Effectieve stop** = `stopOverride` ?? auto op Cuescore-finale (toernooi
   `status = "Finished"`). **Voor `competition` (doorlopend)** vuurt dat pas aan
   seizoenseinde → per avond stoppen op matches-van-vandaag-klaar of stoptijd (nog
-  uit te werken).
+  uit te werken). **`plannedStop` telt hierin niet mee** (v0.45, #76): dat veld is
+  een Cuescore-plaatsvuller. Bovendien stopt géén enkele automatische regel een tafel
+  zolang Cuescore daar een wedstrijd met status `playing` op meldt; het laatste
+  vangnet is de nachtstop van 02:00.
 - **`type`:** `competition` als de Cuescore-span (`plannedStop − plannedStart`)
   meerdaags is (league); anders `tournament`. Leagues komen via dezelfde import
   binnen (staan ook op de org-toernooien-pagina); de streameenheid is dan de
@@ -594,3 +598,18 @@ Body:
   de eindtijd stuurt de auto-stop-vangnet (`shouldStop` via `stopOverride`). **Standaard eind
   = 01:00** (nachtelijke veiligheids-stop); is de eindtijd ≤ de starttijd, dan geldt 'ie de
   volgende dag (bijv. eind 01:00 bij start 19:00). Bij "Plan" worden start/eind meegepersisteerd.
+- 2026-07-28: v0.45 — **auto-stop kapt nooit meer een lopende wedstrijd af (#76)**. Aanleiding:
+  incident 27-07 bij "Mokum MEGA Summer Ranking #25" — de finale begon om 23:57:47 op tafel 1 en
+  liep tot 00:10, maar de stream werd om 23:59:00 gestopt. Oorzaak: `shouldStop` gebruikte
+  **`plannedStop`** (de Cuescore-eindtijd) als noodrem zonder grace, en Cuescore had daar de
+  plaatsvuller 23:59 staan. Sinds gisteren toonde de planner 01:00 als eind, waardoor weergave en
+  werkelijkheid 61 minuten uiteenliepen. Drie wijzigingen, alle in de backend (geen API-vorm
+  gewijzigd — dezelfde velden, ander gedrag):
+  1. **`plannedStop` is geen stopreden meer.** De tijdgestuurde stop komt uitsluitend uit
+     `stopOverride` (de eindtijd in de planner, standaard 01:00); `plannedStop` blijft in het
+     record staan voor weergave en voor de `type`-detectie (span plannedStop − plannedStart).
+  2. **Harde regel:** meldt Cuescore een wedstrijd met status `playing` op die tafel, dan stopt
+     géén enkele automatische regel de stream — ook `stopOverride` en #72 niet. Blijft een partij
+     ten onrechte op `playing` hangen, dan ruimt de nachtstop van 02:00 het op.
+  3. **`stopReden()`** (nieuw, naast `shouldStop`) geeft een leesbare reden; `checkStops` logt die
+     per tafel: `[checkStops] tafel 1: stoppen — <reden>`.
