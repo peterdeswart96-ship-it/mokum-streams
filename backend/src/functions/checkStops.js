@@ -1,6 +1,6 @@
 const { app } = require('@azure/functions');
 const { readJson, writeJson } = require('../storage/blob');
-const { zaalDelen } = require('../schedule/schedule');
+const { zaalDag } = require('../schedule/schedule');
 const { getTournament, getTodaysTournaments } = require('../cuescore');
 const { enqueue } = require('../agent/commandQueue');
 const { stopReden, toernooiKlaar } = require('../planning/stop');
@@ -38,7 +38,7 @@ async function verwerk(now, context) {
   // en blijft de podium-grace uit (incident 21-07).
   const gisteren = new Date(now.getTime() - 24 * 3600 * 1000);
   const dagen = [now, gisteren]
-    .map((ref) => ({ pad: `broadcasts/${zaalDelen(ref).datum}.json`, ref }))
+    .map((ref) => ({ pad: `broadcasts/${zaalDag(ref)}.json`, ref }))
     .filter((d, i, arr) => arr.findIndex((x) => x.pad === d.pad) === i);
   const planning = (await readJson('planning.json', [])) || [];
   const recById = new Map(planning.map((r) => [String(r.tournamentId), r]));
@@ -51,7 +51,7 @@ async function verwerk(now, context) {
   // de dag van GISTEREN — daarom per broadcast-dag, niet altijd "vandaag".
   const dagCache = new Map();
   async function toernooienVanDag(ref) {
-    const sleutel = zaalDelen(ref).datum;
+    const sleutel = zaalDag(ref);
     if (!dagCache.has(sleutel)) {
       try {
         dagCache.set(sleutel, await getTodaysTournaments({ now: ref }));

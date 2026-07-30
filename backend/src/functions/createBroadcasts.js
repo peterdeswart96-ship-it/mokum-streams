@@ -1,6 +1,6 @@
 const { app } = require('@azure/functions');
 const { readJson, writeJson } = require('../storage/blob');
-const { zaalDelen, tafelVrijVoor } = require('../schedule/schedule');
+const { zaalDag, tafelVrijVoor } = require('../schedule/schedule');
 const { dueRecords, effectiveStart } = require('../planning/planning');
 const { leagueDueTables, herresolveerTafels } = require('../planning/league');
 const { getTournament } = require('../cuescore');
@@ -27,7 +27,7 @@ async function verwerk(now, context) {
   const planning = (await readJson('planning.json', [])) || [];
   const tableById = new Map(tables.map((t) => [Number(t.tableNumber), t]));
 
-  const { datum } = zaalDelen(now);
+  const datum = zaalDag(now);
   const broadcastsPad = `broadcasts/${datum}.json`;
   const store = (await readJson(broadcastsPad, {})) || {};
 

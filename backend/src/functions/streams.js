@@ -1,6 +1,6 @@
 const { app } = require('@azure/functions');
 const { readJson, writeJson } = require('../storage/blob');
-const { zaalDelen } = require('../schedule/schedule');
+const { zaalDag } = require('../schedule/schedule');
 const { enqueue, isTableBusy, startCommandsFor, OVERLAY_BRON } = require('../agent/commandQueue');
 const { buildBroadcastTitle, buildBroadcastDescription, createBroadcast, bindBroadcast } = require('../youtube/broadcasts');
 const { isAdmin } = require('../admin/auth');
@@ -37,7 +37,7 @@ app.http('adminStreamStart', {
     const table = tables.find((t) => Number(t.tableNumber) === tafelNr);
     if (!table || !table.streamId) return json(400, { error: `tafel ${tafelNr} heeft geen streamId in config/tables.json` });
 
-    const { datum } = zaalDelen(new Date());
+    const datum = zaalDag(new Date());
     const broadcastsPad = `broadcasts/${datum}.json`;
     const store = (await readJson(broadcastsPad, {})) || {};
     if (isTableBusy(store, tafelNr)) return json(409, { error: `tafel ${tafelNr} is vandaag al in gebruik` });
@@ -83,6 +83,12 @@ app.http('adminStreamStart', {
     }));
     await writeJson('commands.json', enqueue(commands, nieuwe));
 
+    // Handmatige acties horen in de log (#80). Zonder deze regel is achteraf niet te zien
+    // dat iemand een tafel bijzette: op 29-07 verscheen tafel 16 om 20:39 in de uitzending
+    // en was alleen uit de bijeffecten af te leiden dat een mens dat had gedaan.
+    const koppeling = tournamentId ? `gekoppeld aan toernooi ${tournamentId}` : 'ad-hoc (geen toernooi)';
+    context.log(`[streams/start] tafel ${tafelNr} HANDMATIG gestart via het dashboard — ${koppeling}, ${privacyStatus}, video ${broadcast.id}`);
+
     return json(200, { table: store[String(tafelNr)], commands: nieuwe });
   },
 });
@@ -123,7 +129,7 @@ app.http('adminStreamStop', {
   methods: ['POST'],
   authLevel: 'anonymous',
   route: 'manage/streams/stop',
-  handler: async (request) => {
+  handler: async (request, context) => {
     if (!isAdmin(request)) return json(401, { error: 'niet geautoriseerd' });
     const body = await leesBody(request);
     if (!body) return json(400, { error: 'ongeldige of lege JSON' });
@@ -136,13 +142,18 @@ app.http('adminStreamStop', {
     await writeJson('commands.json', enqueue(commands, cmd));
 
     // Markeer de dag-entry als gestopt zodat de camera weer vrij is voor een nieuwe start.
-    const { datum } = zaalDelen(new Date());
+    const datum = zaalDag(new Date());
     const broadcastsPad = `broadcasts/${datum}.json`;
     const store = (await readJson(broadcastsPad, {})) || {};
-    if (store[String(tafelNr)]) {
-      store[String(tafelNr)].stopped = true;
+    const entry = store[String(tafelNr)];
+    if (entry) {
+      entry.stopped = true;
       await writeJson(broadcastsPad, store);
     }
+
+    // Zie de start-kant: handmatige acties horen zichtbaar te zijn in het avondrapport.
+    const wat = entry ? `video ${entry.videoId}` : 'geen dag-entry gevonden (stond die stream wel in dit systeem?)';
+    context.log(`[streams/stop] tafel ${tafelNr} HANDMATIG gestopt via het dashboard — ${wat}`);
 
     return json(200, { command: cmd });
   },

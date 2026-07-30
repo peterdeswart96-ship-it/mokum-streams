@@ -1,6 +1,6 @@
 const { app } = require('@azure/functions');
 const { readJson } = require('../storage/blob');
-const { zaalDelen } = require('../schedule/schedule');
+const { zaalDag } = require('../schedule/schedule');
 const { buildLiveTables, buildSchedule } = require('../public/live');
 const { runoutsUitArchief } = require('../video/archief');
 const { tickerVoorUitzending } = require('../public/ticker');
@@ -35,7 +35,7 @@ app.http('publicLive', {
     const now = new Date();
     const tables = (await readJson('config/tables.json', [])) || [];
     const cameras = tables.length ? tables.map((t) => Number(t.tableNumber)) : CAMERAS_DEFAULT;
-    const { datum } = zaalDelen(now);
+    const datum = zaalDag(now);
     const store = (await readJson(`broadcasts/${datum}.json`, {})) || {};
     const status = (await readJson('status.json', {})) || {};
     const liveMatches = (await readJson('live-matches.json', {})) || {};

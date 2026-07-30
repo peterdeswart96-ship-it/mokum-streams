@@ -1,9 +1,10 @@
 const { app } = require('@azure/functions');
 const { isAdmin } = require('../admin/auth');
 const { readJson, writeJson } = require('../storage/blob');
-const { zaalDelen } = require('../schedule/schedule');
+const { zaalDag } = require('../schedule/schedule');
 const { isArmed } = require('../config/automation');
 const { finaliseerToernooi, finaliseerChallenge, finaliseerAlleenThumbnail, herstelVideo } = require('../video/finalize');
+const { finalizeVervolg } = require('../video/finalizeBeleid');
 const { getVideoDetails } = require('../youtube/videos');
 
 // Handmatige finalize-endpoints (#56, bouwsteen 3b). Admin-beveiligd (Bearer ADMIN_TOKEN).
@@ -92,21 +93,33 @@ app.timer('finalizeVideos', {
     // Beide dagen: een avondstream die ná middernacht stopt zit nog in de store van gisteren
     // → anders wordt 'ie nooit gefinaliseerd (incident 21-07, tafel 3 zonder thumbnail).
     const now = new Date();
-    const datum = zaalDelen(now).datum;
-    const datumGisteren = zaalDelen(new Date(now.getTime() - 24 * 3600 * 1000)).datum;
+    const datum = zaalDag(now);
+    const datumGisteren = zaalDag(new Date(now.getTime() - 24 * 3600 * 1000));
     const paden = [...new Set([`broadcasts/${datum}.json`, `broadcasts/${datumGisteren}.json`])];
     for (const pad of paden) {
       const store = (await readJson(pad, {})) || {};
       let gewijzigd = false;
       for (const key of Object.keys(store)) {
         const e = store[key];
-        if (!e || !e.stopped || e.finalized || !e.videoId || e.tournamentId == null) continue;
+        if (!e || !e.stopped || e.finalized || e.finalizeOpgegeven || !e.videoId || e.tournamentId == null) continue;
         try {
           const res = await finaliseerToernooi({ videoId: e.videoId, tournamentId: e.tournamentId, tableNumber: e.tableNumber });
           e.finalized = true; gewijzigd = true;
           context.log(`[finalizeVideos] tafel ${e.tableNumber} gefinaliseerd (${e.videoId}) — ${res.aantalHoofdstukken} hoofdstukken`);
         } catch (err) {
-          context.log(`[finalizeVideos] tafel ${e.tableNumber} nog niet gelukt (${err.message}) — volgende ronde opnieuw`);
+          // Teller ophogen en WEGSCHRIJVEN (#80). Stond dit niet in de opslag, dan telde
+          // niets door en bleef 'ie eeuwig opnieuw proberen — 423 keer op 29-07.
+          const v = finalizeVervolg(e, err.message);
+          e.finalizePogingen = v.pogingen;
+          e.finalizeFout = err.message;
+          gewijzigd = true;
+          if (v.opgegeven) {
+            e.finalizeOpgegeven = true;
+            const waarom = v.onherstelbaar ? 'video bestaat niet meer' : `${v.pogingen} pogingen mislukt`;
+            context.log(`[WAARSCHUWING] [finalizeVideos] tafel ${e.tableNumber} (${e.videoId}) OPGEGEVEN — ${waarom}: ${err.message}. Handmatig afronden kan met POST /api/manage/finalize.`);
+          } else {
+            context.log(`[finalizeVideos] tafel ${e.tableNumber} poging ${v.pogingen}/${v.max} mislukt (${err.message}) — volgende ronde opnieuw`);
+          }
         }
       }
       if (gewijzigd) await writeJson(pad, store);

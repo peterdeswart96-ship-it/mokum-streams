@@ -1,6 +1,6 @@
 const { app } = require('@azure/functions');
 const { readJson, writeJson } = require('../storage/blob');
-const { zaalDelen } = require('../schedule/schedule');
+const { zaalDelen, zaalDag } = require('../schedule/schedule');
 const { enqueue } = require('../agent/commandQueue');
 const { isNachtVenster, teStoppenNachts } = require('../planning/nachtstop');
 
@@ -16,11 +16,14 @@ const SLUITING = Number(process.env.NACHT_STOP_SLUITING_MIN) || 120; // 02:00
 const OCHTEND = Number(process.env.NACHT_STOP_OCHTEND_MIN) || 480; // 08:00
 
 async function verwerk(now, context) {
-  const { minutenVanDeDag, datum } = zaalDelen(now);
+  // De KLOK komt uit zaalDelen (het nachtvenster is een echt tijdstip), de DAG uit
+  // zaalDag (#77) — anders zoeken we om 02:00 in het bestand van de verkeerde dag.
+  const { minutenVanDeDag } = zaalDelen(now);
   if (!isNachtVenster(minutenVanDeDag, { sluiting: SLUITING, ochtend: OCHTEND })) return;
 
   // Een avondstream zit na middernacht nog in de store van gisteren → check beide dagen.
-  const datumGisteren = zaalDelen(new Date(now.getTime() - 24 * 3600 * 1000)).datum;
+  const datum = zaalDag(now);
+  const datumGisteren = zaalDag(new Date(now.getTime() - 24 * 3600 * 1000));
   const paden = [...new Set([`broadcasts/${datum}.json`, `broadcasts/${datumGisteren}.json`])];
 
   const nieuweCommandos = [];
