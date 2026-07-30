@@ -24,14 +24,24 @@ function tafelSpeeltNu(tournaments, tableNumber) {
 //     aaneengesloten 'geen wedstrijd' is (voorkomt flapperen bij rackwissels/laden).
 // Retour: { toestand, sinds, wachtSinds, veranderd } — `veranderd` = of de toestand
 // nu omslaat (dan moet de caller de overlays (om)schakelen).
-function volgendeToestand(vorige, speeltNu, nowMs, debounceMs) {
+// spelenDebounceMs: hoelang het pauzescherm nog blijft staan nadat Cuescore een
+// wedstrijd op de tafel meldt. Cuescore krijgt een tafel toegewezen zodra de loting
+// het zegt, maar dan moeten de spelers er nog naartoe lopen, racken en inspelen —
+// zonder wachttijd kijk je een paar minuten naar een lege tafel. Standaard 0 (direct),
+// zodat bestaande aanroepen niets merken; pauzeScherm zet 'm op een minuut.
+function volgendeToestand(vorige, speeltNu, nowMs, debounceMs, spelenDebounceMs = 0) {
   const prev = vorige || { toestand: 'spelen', sinds: nowMs, wachtSinds: null };
 
   if (speeltNu) {
-    if (prev.toestand !== 'spelen') {
+    if (prev.toestand === 'spelen') {
+      return { toestand: 'spelen', sinds: prev.sinds, wachtSinds: null, veranderd: false };
+    }
+    // Er speelt weer iets, maar het pauzescherm gaat pas ná de wachttijd weg.
+    const wachtSinds = prev.wachtSinds != null ? prev.wachtSinds : nowMs;
+    if (nowMs - wachtSinds >= spelenDebounceMs) {
       return { toestand: 'spelen', sinds: nowMs, wachtSinds: null, veranderd: true };
     }
-    return { toestand: 'spelen', sinds: prev.sinds, wachtSinds: null, veranderd: false };
+    return { toestand: 'pauze', sinds: prev.sinds, wachtSinds, veranderd: false };
   }
 
   // Geen wedstrijd:

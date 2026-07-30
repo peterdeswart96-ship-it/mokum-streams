@@ -14,11 +14,43 @@ test('tafelSpeeltNu: true bij een lopende wedstrijd op de tafel, anders false', 
   assert.strictEqual(tafelSpeeltNu([], 3), false);
 });
 
-test('volgendeToestand: wedstrijd speelt → direct spelen (geen debounce)', () => {
-  // vanuit pauze weer spelen zodra er een match is
+test('volgendeToestand: wedstrijd speelt → direct spelen als er geen wachttijd is ingesteld', () => {
+  // vanuit pauze weer spelen zodra er een match is (standaard: geen vertraging)
   const r = volgendeToestand({ toestand: 'pauze', sinds: 0, wachtSinds: null }, true, 40000, 20000);
   assert.strictEqual(r.toestand, 'spelen');
   assert.strictEqual(r.veranderd, true);
+});
+
+// De tafel is toegewezen, maar de spelers moeten er nog heen lopen en racken. Het
+// pauzescherm blijft daarom nog een minuut staan — anders kijk je naar een lege tafel.
+test('pauzescherm blijft staan tot de wachttijd voorbij is', () => {
+  const pauze = { toestand: 'pauze', sinds: 0, wachtSinds: null };
+  // t=100000: Cuescore meldt een wedstrijd → nog nét niet omschakelen, wachttimer start
+  const a = volgendeToestand(pauze, true, 100000, 20000, 60000);
+  assert.strictEqual(a.toestand, 'pauze');
+  assert.strictEqual(a.veranderd, false);
+  assert.strictEqual(a.wachtSinds, 100000);
+
+  // t=130000 (30s later): nog steeds wachten
+  const b = volgendeToestand(a, true, 130000, 20000, 60000);
+  assert.strictEqual(b.toestand, 'pauze');
+  assert.strictEqual(b.veranderd, false);
+
+  // t=160000 (60s later): nu pas het pauzescherm weg
+  const c = volgendeToestand(b, true, 160000, 20000, 60000);
+  assert.strictEqual(c.toestand, 'spelen');
+  assert.strictEqual(c.veranderd, true);
+});
+
+test('valse start tijdens de wachttijd zet het pauzescherm niet aan en uit', () => {
+  // Wedstrijd verschijnt, verdwijnt weer (bijv. verkeerde tafeltoewijzing), komt terug.
+  const pauze = { toestand: 'pauze', sinds: 0, wachtSinds: null };
+  const a = volgendeToestand(pauze, true, 100000, 20000, 60000);   // wachttimer start
+  const b = volgendeToestand(a, false, 110000, 20000, 60000);      // weer weg
+  assert.strictEqual(b.toestand, 'pauze');
+  assert.strictEqual(b.veranderd, false);
+  // Er is geen enkele omschakeling geweest: het scherm heeft niet geflikkerd.
+  assert.strictEqual(a.veranderd, false);
 });
 
 test('volgendeToestand: match eindigt → pas naar pauze na debounce', () => {

@@ -12,6 +12,11 @@ const { isPauzeAutoOn, pauzeSchermKeys, pauzeSchermUitKeys, pauzeSchermRefreshKe
 
 const CRON_ELKE_30_SEC = '*/30 * * * * *';
 const DEBOUNCE_MS = 20000; // 20s 'geen wedstrijd' vóór we naar pauze gaan (anti-flapper)
+// En andersom: nadat Cuescore weer een wedstrijd meldt, blijft het pauzescherm nog even
+// staan. Een tafeltoewijzing komt uit de loting, maar daarna moeten de spelers er nog
+// heen lopen, racken en inspelen. Zonder deze wachttijd kijk je een paar minuten naar
+// een lege tafel. Instelbaar via app-setting PAUZE_UIT_VERTRAGING_SEC.
+const SPELEN_DEBOUNCE_MS = (Number(process.env.PAUZE_UIT_VERTRAGING_SEC) || 60) * 1000;
 const STATE_PAD = 'pauze-state.json';
 
 async function verwerk(now, context) {
@@ -48,7 +53,7 @@ async function verwerk(now, context) {
   for (const tn of streamend) {
     const speeltNu = tafelSpeeltNu(tournaments, tn);
     const vorige = store[String(tn)] || null;
-    const res = volgendeToestand(vorige, speeltNu, nowMs, DEBOUNCE_MS);
+    const res = volgendeToestand(vorige, speeltNu, nowMs, DEBOUNCE_MS, SPELEN_DEBOUNCE_MS);
     store[String(tn)] = { toestand: res.toestand, sinds: res.sinds, wachtSinds: res.wachtSinds };
 
     if (res.veranderd) {
