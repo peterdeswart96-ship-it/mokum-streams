@@ -30,6 +30,52 @@ function cuescoreDateToISO(dateStr) {
   return `${m[3]}-${mm}-${dd}`;
 }
 
+// Cuescore levert tijden in TWEE vormen, afhankelijk van de client (#77):
+//   "2026-07-28T17:30:00Z"   — ISO met tijdzone (wat onze Node-client krijgt)
+//   "07/28/2026 17:30:00"    — zonder tijdzone (wat curl krijgt)
+// Beide beschrijven hetzelfde moment in UTC; dat is naast elkaar geverifieerd op
+// hetzelfde toernooi.
+//
+// De kale vorm is gevaarlijk: `new Date("07/28/2026 17:30:00")` leest die als de LOKALE
+// tijd van de machine. Op Azure (UTC) valt dat goed uit, maar op een laptop in
+// Nederland scheelt het twee uur — en dan wijken scripts, tests en handmatige checks
+// af van wat productie doet. Zet je ooit WEBSITE_TIME_ZONE op de Function App, dan
+// verschuift de hele automatisering mee.
+//
+// Daarom normaliseren we hier, bij binnenkomst, alles naar ISO met tijdzone. Alles
+// stroomafwaarts (zaalDag, hoofdstukken, clipvensters) rekent daarna met echte momenten.
+const US_DATUM = /^(\d{1,2})\/(\d{1,2})\/(\d{4})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?$/;
+const ISO_ZONDER_ZONE = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?$/;
+
+const HEEFT_ZONE = /(?:Z|[+-]\d{2}:?\d{2})$/;
+
+function tijdNaarISO(waarde) {
+  if (waarde == null || waarde === '') return null;
+  const s = String(waarde).trim();
+
+  // Al voorzien van een tijdzone? Dan is het moment ondubbelzinnig — laat de tekst
+  // precies zoals 'ie is. Herschrijven zou alleen maar bestaande opgeslagen waarden
+  // laten verschuiven (milliseconden erbij) zonder iets op te lossen.
+  if (HEEFT_ZONE.test(s) && !Number.isNaN(Date.parse(s))) return s;
+
+  const us = US_DATUM.exec(s);
+  if (us) {
+    const [, mm, dd, jjjj, uur, min, sec] = us;
+    return new Date(Date.UTC(+jjjj, +mm - 1, +dd, +uur, +min, +(sec || 0))).toISOString();
+  }
+
+  // ISO zonder zone: óók als UTC lezen, nooit als lokale tijd van de host.
+  const iso = ISO_ZONDER_ZONE.exec(s);
+  if (iso) {
+    const [, jjjj, mm, dd, uur, min, sec] = iso;
+    return new Date(Date.UTC(+jjjj, +mm - 1, +dd, +uur, +min, +(sec || 0))).toISOString();
+  }
+
+  // Al voorzien van een tijdzone (of iets anders herkenbaars) → laten staan als moment.
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
 // Formatteert een datum naar het formaat dat op de Cuescore-pagina staat
 // ("July 8, 2026"), in de zaal-tijdzone. en-US geeft de maandnaam voluit en de
 // dag zonder voorloopnul, wat overeenkomt met DATUM_RE (\d{1,2}).
@@ -129,15 +175,15 @@ function runoutRacksUitNotes(notes) {
   let frameStart = null;
   for (const n of notes || []) {
     const tekst = String((n && n.note) || '');
-    if (/^frame start$/i.test(tekst)) { frameStart = n.time || null; continue; }
+    if (/^frame start$/i.test(tekst)) { frameStart = tijdNaarISO(n.time); continue; }
     const m = /^([AB])\s+frame win\s+runout$/i.exec(tekst.trim());
     if (!m) continue;
     const van = Date.parse(frameStart || '');
-    const tot = Date.parse(n.time || '');
+    const tot = Date.parse(tijdNaarISO(n.time) || '');
     uit.push({
       kant: m[1].toUpperCase(),
       start: frameStart,
-      eind: n.time || null,
+      eind: tijdNaarISO(n.time),
       // Hoelang het rack duurde. Onmisbaar om ingetikte-achteraf-standen te herkennen:
       // die leveren racks van een paar tienden van een seconde op (zie archief.js).
       duurSec: Number.isNaN(van) || Number.isNaN(tot) ? null : Math.round((tot - van) / 1000),
@@ -154,8 +200,8 @@ function normalizeMatch(m) {
     // table.name is het fysieke tafelnummer (als string) zodra toegewezen.
     table: m.table && m.table.name != null ? String(m.table.name) : null,
     roundName: m.roundName || '',
-    start: m.starttime || null, // geplande wedstrijdtijd (voor league-per-avond)
-    stop: m.stoptime || null,
+    start: tijdNaarISO(m.starttime), // geplande wedstrijdtijd (voor league-per-avond)
+    stop: tijdNaarISO(m.stoptime),
     // image = spelersfoto-URL, flag = landvlag-URL (beide uit de Cuescore-API; kunnen
     // ontbreken). Gebruikt door het eigen tafelraster (#54).
     playerA: m.playerA
@@ -184,8 +230,8 @@ function normalizeTournament(data) {
     status: data.status || '',
     finished: data.status === 'Finished',
     discipline: data.discipline || '', // spelsoort ("9-Ball", "10-Ball", ...) voor de thumbnail (#56)
-    start: data.starttime || null, // geplande starttijd (uit Cuescore)
-    stop: data.stoptime || null,   // geplande eindtijd (kan null zijn)
+    start: tijdNaarISO(data.starttime), // geplande starttijd (uit Cuescore)
+    stop: tijdNaarISO(data.stoptime),   // geplande eindtijd (kan null zijn)
     matches,
   };
 }
@@ -254,4 +300,5 @@ module.exports = {
   finalMatch,
   isFinalUnderway,
   findTournamentByName,
+  tijdNaarISO,
 };
