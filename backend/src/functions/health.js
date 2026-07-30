@@ -1,9 +1,15 @@
 const { app } = require('@azure/functions');
 const { version } = require('../../package.json');
 
-// De stempel van de laatste deploy. Komt uit src/deploy-info.json (geschreven door
-// `npm run stamp`, ook door de CI-workflow) of anders uit de app-setting DEPLOY_COMMIT.
-// Ontbreken ze allebei, dan is er gedeployed zonder stempel en weten we het dus niet.
+// De stempel van de laatste deploy. Komt uit src/deploy-info.json — dat bestand wordt
+// per deploy geschreven (`npm run stamp`, ook door de CI-workflow) en hoort dus bij
+// precies de code die hier draait. De app-settings DEPLOY_COMMIT/DEPLOY_TIJD zijn nog
+// slechts een terugval voor een deploy zonder stempel.
+//
+// De volgorde is met opzet zo. Andersom ging het mis: een app-setting van een eerdere
+// handmatige deploy bleef staan en overschreeuwde elke volgende deploy, waardoor health
+// 133d321 bleef melden terwijl 2a215f3 draaide. Een instelling die je één keer zet
+// veroudert; een bestand in het pakket kan dat per definitie niet.
 function deployStempel() {
   let uitBestand = {};
   try {
@@ -12,8 +18,8 @@ function deployStempel() {
     uitBestand = {}; // niet gestempeld → val terug op de app-settings
   }
   return {
-    commit: process.env.DEPLOY_COMMIT || uitBestand.commit || 'onbekend',
-    tijd: process.env.DEPLOY_TIJD || uitBestand.tijd || null,
+    commit: uitBestand.commit || process.env.DEPLOY_COMMIT || 'onbekend',
+    tijd: uitBestand.tijd || process.env.DEPLOY_TIJD || null,
   };
 }
 
