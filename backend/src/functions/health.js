@@ -1,6 +1,22 @@
 const { app } = require('@azure/functions');
 const { version } = require('../../package.json');
 
+// De stempel van de laatste deploy. Komt uit src/deploy-info.json (geschreven door
+// `npm run stamp`, ook door de CI-workflow) of anders uit de app-setting DEPLOY_COMMIT.
+// Ontbreken ze allebei, dan is er gedeployed zonder stempel en weten we het dus niet.
+function deployStempel() {
+  let uitBestand = {};
+  try {
+    uitBestand = require('../deploy-info.json');
+  } catch {
+    uitBestand = {}; // niet gestempeld → val terug op de app-settings
+  }
+  return {
+    commit: process.env.DEPLOY_COMMIT || uitBestand.commit || 'onbekend',
+    tijd: process.env.DEPLOY_TIJD || uitBestand.tijd || null,
+  };
+}
+
 // Eenvoudige HTTP-endpoint die als "levensteken" van de backend dient.
 // Doel: bevestigen dat de Azure Functions v4-runtime draait en dat de
 // CI-build (npm ci) daadwerkelijk iets bouwt. Dit is het skelet-startpunt
@@ -24,14 +40,16 @@ app.http('health', {
   handler: async (request, context) => {
     context.log('Health-check aangeroepen');
 
+    const stempel = deployStempel();
+
     return {
       status: 200,
       jsonBody: {
         service: 'mokum-streams-backend',
         status: 'ok',
         versie: version,
-        commit: process.env.DEPLOY_COMMIT || 'onbekend',
-        gedeployedOp: process.env.DEPLOY_TIJD || null,
+        commit: stempel.commit,
+        gedeployedOp: stempel.tijd,
         time: new Date().toISOString()
       }
     };

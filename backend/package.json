@@ -9,7 +9,9 @@
   "main": "src/functions/*.js",
   "scripts": {
     "start": "func start",
-    "test": "node --test"
+    "test": "node --test",
+    "stamp": "node scripts/stamp.js",
+    "deploy": "npm run stamp && func azure functionapp publish mokum-streams-func --javascript --build remote"
   },
   "dependencies": {
     "@azure/functions": "^4.5.1",

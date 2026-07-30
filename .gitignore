@@ -18,6 +18,10 @@ npm-debug.log*
 # Azure Functions lokale instellingen — bevat connection strings en API-keys!
 local.settings.json
 
+# Deploy-stempel (#79) — hoort bij een deploy, niet bij de broncode.
+# Wordt geschreven door `npm run stamp` en door de CI-workflow.
+backend/src/deploy-info.json
+
 # Agent lokale config — bevat OBS-wachtwoorden en agent-token, NOOIT committen
 agent/agent-config.json
 
@@ -39,10 +43,3 @@ Thumbs.db
 backend/assets/thumbnail-bg/
 
 wiki/
-
-# Lokale log van post-commit wiki-update hook
-.claude/wiki-update.log
-
-# Deploy-stempel (#79) - hoort bij een deploy, niet bij de broncode.
-# Wordt geschreven door 'npm run stamp' en door de CI-workflow.
-backend/src/deploy-info.json

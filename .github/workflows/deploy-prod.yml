@@ -53,20 +53,82 @@ jobs:
       - id: deployment
         uses: actions/deploy-pages@v4
 
+  # Deployt de backend naar de Function App (Flex Consumption, Linux) en CONTROLEERT
+  # daarna dat de gedeployde code er ook echt draait.
+  #
+  # Hier stond tot 29-07-2026 een placeholder-stap die alleen een tekst echode. De
+  # workflow werd daardoor groen zonder dat er iets gedeployed werd — dat kostte de
+  # finales van 27 en 28 juli, want de fix voor #76 kwam nooit op Azure terecht.
+  # Regel sindsdien: deze job is groen als en alleen als de nieuwe code aantoonbaar
+  # draait. Ontbreken de inloggegevens, dan FAALT hij — nooit meer stil overslaan.
   deploy-backend:
     needs: detect-changes
     if: needs.detect-changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write        # nodig voor azure/login met OIDC
+    env:
+      APP_NAAM: mokum-streams-func
+      HEALTH_URL: https://mokum-streams-func.azurewebsites.net/api/health
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-      - name: Install, test en build
+          node-version: '22'   # gelijk aan de runtime van de Function App
+      - name: Install en test
         working-directory: backend
         run: |
           npm ci
           npm test
-          npm run build --if-present
-      - name: Placeholder deploy-stap
-        run: echo "Backend-deploy naar Azure Functions komt in fase 2 wanneer de Function App bestaat."
+
+      - name: Controleer dat de deploy-gegevens bestaan
+        env:
+          CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        run: |
+          if [ -z "$CLIENT_ID" ]; then
+            echo "::error::Secret AZURE_CLIENT_ID ontbreekt — de backend zou NIET gedeployed worden."
+            echo "::error::Deploy zolang handmatig: cd backend && npm run deploy   (zie docs/azure-setup.md, issue #79)"
+            exit 1
+          fi
+
+      # Stempelt de commit in het pakket, zodat /api/health kan vertellen wat er draait.
+      - name: Stempel de deploy
+        working-directory: backend
+        env:
+          DEPLOY_COMMIT: ${{ github.sha }}
+        run: |
+          export DEPLOY_COMMIT="${DEPLOY_COMMIT:0:7}"
+          npm run stamp
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - uses: Azure/functions-action@v1
+        with:
+          app-name: mokum-streams-func
+          package: backend
+          remote-build: true   # Linux: dependencies worden op Azure geïnstalleerd.
+                               # Zonder dit wordt de app LEEG gedeployed en verdwijnen
+                               # alle functies (gebeurd op 29-07, app een kwartier plat).
+
+      # De sluitsteen: groen mag alleen als /api/health de zojuist gedeployde commit
+      # teruggeeft. Blijft dat uit, dan draait er iets anders dan we denken.
+      - name: Verifieer dat de nieuwe code draait
+        run: |
+          verwacht="${GITHUB_SHA:0:7}"
+          echo "Verwachte commit: $verwacht"
+          for poging in $(seq 1 20); do
+            gevonden=$(curl -s --max-time 20 "$HEALTH_URL" | sed -n 's/.*"commit":"\([^"]*\)".*/\1/p')
+            echo "  poging $poging: /api/health meldt '${gevonden:-geen antwoord}'"
+            if [ "$gevonden" = "$verwacht" ]; then
+              echo "✅ De gedeployde code draait."
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::/api/health meldt na 5 minuten niet commit $verwacht. De deploy is NIET aantoonbaar live — controleer de Function App voordat je hierop vertrouwt."
+          exit 1
