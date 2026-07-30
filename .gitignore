@@ -42,3 +42,7 @@ wiki/
 
 # Lokale log van post-commit wiki-update hook
 .claude/wiki-update.log
+
+# Deploy-stempel (#79) - hoort bij een deploy, niet bij de broncode.
+# Wordt geschreven door 'npm run stamp' en door de CI-workflow.
+backend/src/deploy-info.json
