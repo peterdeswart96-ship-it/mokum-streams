@@ -43,3 +43,6 @@ Thumbs.db
 backend/assets/thumbnail-bg/
 
 wiki/
+
+# Lokale log van post-commit wiki-update hook
+.claude/wiki-update.log
