@@ -1,4 +1,4 @@
-const { zaalDelen } = require('../schedule/schedule');
+const { zaalDag } = require('../schedule/schedule');
 
 // Per-avond-logica voor doorlopende competities (leagues). Een league is één
 // doorlopend Cuescore-tournament; de streameenheid is de wedstrijden van vandaag.
@@ -8,16 +8,19 @@ const { zaalDelen } = require('../schedule/schedule');
 // LET OP: de exacte vorm van match.starttime/table bij een actieve league met
 // gelote wedstrijden is nog niet live geverifieerd (gaps #14). Getest op fixtures.
 
+// De ZAAL-DAG van een moment: een wedstrijd die om 00:21 eindigt hoort nog bij de avond
+// ervoor (#77). Met de kalenderdag viel om middernacht de hele avond uit alle "speelt er
+// nog iets?"-checks weg.
 function datumInZaal(iso) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return null;
-  return zaalDelen(d).datum; // 'YYYY-MM-DD' in Europe/Amsterdam
+  return zaalDag(d); // 'YYYY-MM-DD', zaal-dag in Europe/Amsterdam
 }
 
 // Welke van de toegestane camera-tafels hebben vandaag een (niet-afgeronde)
 // wedstrijd? Retour: [{ tableNumber, earliestStart }] met de vroegste starttijd.
 function cameraTablesWithMatchToday(tournament, cameraTables, now) {
-  const vandaag = zaalDelen(now).datum;
+  const vandaag = zaalDag(now);
   const toegestaan = new Set((cameraTables || []).map(String));
   const perTafel = new Map();
 
@@ -43,7 +46,7 @@ function cameraTablesWithMatchToday(tournament, cameraTables, now) {
 // stream toch begint (de pauze-jumbotron dekt een lege tafel netjes af). Pure functie.
 function herresolveerTafels(tournament, geplandeTafels, now) {
   const gepland = new Set((geplandeTafels || []).map(String));
-  const vandaag = zaalDelen(now).datum;
+  const vandaag = zaalDag(now);
   const metWedstrijd = new Set();
   for (const m of (tournament && tournament.matches) || []) {
     if (!m.table || !gepland.has(String(m.table))) continue;

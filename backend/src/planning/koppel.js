@@ -11,7 +11,7 @@
 // (twee toernooien met wedstrijden op dezelfde tafel op dezelfde dag) koppelen we
 // niet en blijft de stream handmatig — liever geen koppeling dan een verkeerde.
 
-const { zaalDelen } = require('../schedule/schedule');
+const { zaalDag } = require('../schedule/schedule');
 const { datumInZaal } = require('./league');
 
 const isPlaying = (m) => String((m && m.status) || '').toLowerCase() === 'playing';
@@ -20,7 +20,7 @@ const isFinished = (m) => String((m && m.status) || '').toLowerCase() === 'finis
 // Wedstrijden van één toernooi die vandaag (zaal-dag) op deze tafel staan.
 function wedstrijdenOpTafel(tournament, tableNumber, now) {
   const tafel = String(tableNumber);
-  const vandaag = zaalDelen(now).datum;
+  const vandaag = zaalDag(now);
   return ((tournament && tournament.matches) || []).filter(
     (m) => m && String(m.table) === tafel && m.start && datumInZaal(m.start) === vandaag
   );

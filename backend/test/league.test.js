@@ -72,3 +72,42 @@ test('herresolveerTafels: geen tafeltoewijzing (loting niet gemaakt) → gepland
   assert.deepStrictEqual(herresolveerTafels({ matches: [] }, [1, 3], now), [1, 3]);
   assert.deepStrictEqual(herresolveerTafels(null, [1, 3, 15, 16], now), [1, 3, 15, 16]);
 });
+
+// --- #77: de zaal-dag loopt door tot 06:00 (incident 29-07-2026) ---
+//
+// Die avond begon de finale om 23:40 en liep tot 00:21. Om middernacht sloeg de
+// kalenderdatum om, waarna het systeem concludeerde dat er niets meer speelde:
+// jumbotron aan tijdens de halve finales, scorebord uit, geen medaillescherm.
+// Tijden hier als expliciete UTC-instants (00:30 NL = 22:30Z), zodat de test niet
+// afhangt van de tijdzone van de machine.
+
+test('#77: zaalDag slaat pas om 06:00 om, niet om middernacht', () => {
+  const { zaalDag } = require('../src/schedule/schedule');
+  const nl = (s) => new Date(s);
+  assert.strictEqual(zaalDag(nl('2026-07-29T21:00:00Z')), '2026-07-29'); // 23:00 NL
+  assert.strictEqual(zaalDag(nl('2026-07-29T22:30:00Z')), '2026-07-29'); // 00:30 NL, nog dezelfde avond
+  assert.strictEqual(zaalDag(nl('2026-07-30T01:59:00Z')), '2026-07-29'); // 03:59 NL, nog steeds
+  assert.strictEqual(zaalDag(nl('2026-07-30T04:30:00Z')), '2026-07-30'); // 06:30 NL, nieuwe dag
+  assert.strictEqual(zaalDag(nl('2026-07-30T10:00:00Z')), '2026-07-30'); // 12:00 NL
+});
+
+test('#77: een wedstrijd na middernacht telt nog mee voor de avond ervoor', () => {
+  const { cameraTablesWithMatchToday } = require('../src/planning/league');
+  // Halve finale gepland op 29-07 23:50 NL, wordt om 00:30 NL bekeken.
+  const tournament = { matches: [
+    { matchId: 1, table: '1', start: '2026-07-29T21:50:00Z', status: 'playing' },
+    { matchId: 2, table: '3', start: '2026-07-29T21:50:00Z', status: 'scheduled' },
+  ] };
+  const naMiddernacht = new Date('2026-07-29T22:30:00Z'); // 00:30 NL
+  const tafels = cameraTablesWithMatchToday(tournament, [1, 3], naMiddernacht).map((t) => t.tableNumber);
+  assert.deepStrictEqual(tafels.sort(), [1, 3]);
+});
+
+test('#77: de ochtend erna telt de avond van gisteren NIET meer mee', () => {
+  const { cameraTablesWithMatchToday } = require('../src/planning/league');
+  const tournament = { matches: [
+    { matchId: 1, table: '1', start: '2026-07-29T21:50:00Z', status: 'playing' },
+  ] };
+  const volgendeMiddag = new Date('2026-07-30T10:00:00Z'); // 12:00 NL
+  assert.deepStrictEqual(cameraTablesWithMatchToday(tournament, [1, 3], volgendeMiddag), []);
+});

@@ -36,6 +36,32 @@ function zaalDelen(date, tz = 'Europe/Amsterdam') {
   };
 }
 
+// De ZAAL-DAG loopt door tot 's ochtends (#77). Een toernooiavond eindigt vaak ná
+// middernacht: op 29-07 begon de finale om 23:40 en liep tot 00:21. Met de kalenderdatum
+// slaat "vandaag" dan midden in de avond om, en concludeert het systeem dat er niets meer
+// speelt — met als gevolg dat het pauzescherm aanging tijdens de halve finales, het
+// scorebord uitging en er geen medaillescherm kwam (incident 29-07-2026).
+//
+// Truc: de zaal-dag van een moment is simpelweg de kalenderdag van dat moment MIN de
+// grens. Om 01:00 op de 30e levert dat 19:00 op de 29e → zaal-dag 29-07. Om 07:00 op de
+// 30e levert het 01:00 op de 30e → zaal-dag 30-07. Instelbaar via ZAAL_DAG_GRENS_UUR.
+//
+// LET OP: gebruik hiervoor NIET zaalDelen(). Die blijft de echte klok en weekdag geven —
+// isRuleDueNow heeft dat nodig, anders zou een dinsdagregel om 01:00 's nachts nog steeds
+// "dinsdag" zien en een stream starten die allang voorbij is.
+const ZAAL_DAG_GRENS_UUR = Number(process.env.ZAAL_DAG_GRENS_UUR) || 6;
+
+// Het moment verschoven naar de zaal-dag waar het bij hoort. Handig als een functie
+// een Date nodig heeft (bijv. de Cuescore-datumkop) i.p.v. een datumstring.
+function zaalDagMoment(date, { grensUur = ZAAL_DAG_GRENS_UUR } = {}) {
+  return new Date(date.getTime() - grensUur * 3600 * 1000);
+}
+
+// De zaal-dag ('YYYY-MM-DD') waar dit moment bij hoort.
+function zaalDag(date, { grensUur = ZAAL_DAG_GRENS_UUR, tz = 'Europe/Amsterdam' } = {}) {
+  return zaalDelen(zaalDagMoment(date, { grensUur }), tz).datum;
+}
+
 // Is een regel "nu" aan de beurt om een broadcast aan te maken?
 // De aanmaak begint op startTijd − leadMinuten en blijft geldig tot startTijd +
 // graceMinuten (zodat een iets te late timer-run alsnog aanmaakt). Idempotentie
@@ -103,4 +129,7 @@ module.exports = {
   tafelsNogTeMaken,
   tafelVrijVoor,
   scheduledStartISO,
+  zaalDag,
+  zaalDagMoment,
+  ZAAL_DAG_GRENS_UUR,
 };

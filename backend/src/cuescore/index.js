@@ -8,6 +8,7 @@ const {
   findTournamentByName,
   recentTournamentIds,
 } = require('./parse');
+const { zaalDagMoment } = require('../schedule/schedule');
 
 // Netwerklaag voor de eigen Cuescore-lees (besluit: optie B, zie wiki/decisions.md).
 // Gebruikt de publieke Cuescore-API (geen key). Quota verwaarloosbaar: een
@@ -48,7 +49,11 @@ async function haalToernooienPaginas(orgStub) {
 // Haalt de HTML van de toernooien-pagina op en geeft de toernooi-ID's van vandaag.
 async function getTodaysTournamentIds({ orgStub = ORG_STUB, now = new Date() } = {}) {
   const paginas = await haalToernooienPaginas(orgStub);
-  const vandaag = formatCuescoreDate(now);
+  // Zaal-dag, niet kalenderdag (#77): een toernooiavond loopt door tot ná middernacht.
+  // Met de kalenderdag verdween het lopende toernooi om 00:00 uit deze lijst, waarna
+  // pauzeScherm dacht dat er niets meer speelde (jumbotron aan tijdens de halve finales)
+  // en liveMatches geen podium meer kon bepalen. Incident 29-07-2026.
+  const vandaag = formatCuescoreDate(zaalDagMoment(now));
   const ids = [];
   for (const html of paginas) {
     for (const id of parseTodaysTournamentIds(html, vandaag)) if (!ids.includes(id)) ids.push(id);
