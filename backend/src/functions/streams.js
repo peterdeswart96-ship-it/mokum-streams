@@ -2,7 +2,7 @@ const { app } = require('@azure/functions');
 const { readJson, writeJson } = require('../storage/blob');
 const { zaalDag } = require('../schedule/schedule');
 const { enqueue, isTableBusy, startCommandsFor, OVERLAY_BRON } = require('../agent/commandQueue');
-const { buildBroadcastTitle, buildBroadcastDescription, createBroadcast, bindBroadcast } = require('../youtube/broadcasts');
+const { buildBroadcastTitle, buildBroadcastDescription, createBroadcast, bindBroadcast, ruimStreamKeyOp } = require('../youtube/broadcasts');
 const { isAdmin } = require('../admin/auth');
 
 // Handmatige (ad-hoc) bediening vanuit het dashboard: een stream op een vrije
@@ -48,6 +48,19 @@ app.http('adminStreamStart', {
     // Voor een veilige test kun je privacy: "unlisted" (of "private") meesturen;
     // standaard is de stream "public".
     const privacyStatus = ['unlisted', 'private', 'public'].includes(body.privacy) ? body.privacy : 'public';
+
+    // Eerst de stream key vrijmaken (#78). Hangt er nog een oude broadcast aan, dan kaapt
+    // die het beeld en blijft onze nieuwe op 'Upcoming' staan — dat gebeurde op 28-07.
+    // Mislukt het opruimen, dan gaan we gewoon door: geen uitzending is erger.
+    try {
+      const opgeruimd = await ruimStreamKeyOp(table.streamId);
+      for (const o of opgeruimd) {
+        const hoe = o.gelukt ? 'gelukt' : `MISLUKT (${o.fout})`;
+        context.log(`[streams/start] tafel ${tafelNr}: oude broadcast ${o.videoId} (${o.status}) ${o.actie} — ${hoe} — "${o.titel}"`);
+      }
+    } catch (e) {
+      context.log(`[WAARSCHUWING] [streams/start] tafel ${tafelNr}: opruimen van de stream key mislukt (${e.message}) — we starten toch.`);
+    }
 
     let broadcast;
     try {

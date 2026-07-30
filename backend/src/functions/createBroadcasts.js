@@ -5,7 +5,7 @@ const { dueRecords, effectiveStart } = require('../planning/planning');
 const { leagueDueTables, herresolveerTafels } = require('../planning/league');
 const { getTournament } = require('../cuescore');
 const { enqueue, startCommandsFor } = require('../agent/commandQueue');
-const { buildBroadcastTitle, buildBroadcastDescription, createBroadcast, bindBroadcast } = require('../youtube/broadcasts');
+const { buildBroadcastTitle, buildBroadcastDescription, createBroadcast, bindBroadcast, ruimStreamKeyOp } = require('../youtube/broadcasts');
 const { isArmed } = require('../config/automation');
 
 // Timer-Function (#9 + optie 2 + start-automatisering): maakt vooruit de
@@ -46,6 +46,16 @@ async function verwerk(now, context) {
     }
     const title = buildBroadcastTitle({ tafel: tafelNr, toernooinaam: rec.name || '' });
     const description = buildBroadcastDescription({ toernooinaam: rec.name || '' });
+    // Stream key eerst vrijmaken (#78) — zie de toelichting in youtube/opruimen.js.
+    // Mislukt dit, dan starten we alsnog: geen uitzending is erger dan een gekaapte.
+    try {
+      for (const o of await ruimStreamKeyOp(table.streamId)) {
+        const hoe = o.gelukt ? 'gelukt' : `MISLUKT (${o.fout})`;
+        context.log(`[createBroadcasts] tafel ${tafelNr}: oude broadcast ${o.videoId} (${o.status}) ${o.actie} — ${hoe} — "${o.titel}"`);
+      }
+    } catch (e) {
+      context.log(`[WAARSCHUWING] [createBroadcasts] tafel ${tafelNr}: opruimen van de stream key mislukt (${e.message}) — we starten toch.`);
+    }
     try {
       const broadcast = await createBroadcast({ title, description, scheduledStartTime: startIso, privacyStatus: rec.visibility || 'public' });
       await bindBroadcast({ broadcastId: broadcast.id, streamId: table.streamId });

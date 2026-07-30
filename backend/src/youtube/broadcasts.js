@@ -1,4 +1,5 @@
 const { getYouTubeClient } = require('./client');
+const { opruimActies } = require('./opruimen');
 
 // Wrapper rond de YouTube Live Streaming API (liveStreams + liveBroadcasts).
 // Dit is de kern van de automatisering: per tafel één herbruikbare stream key,
@@ -138,12 +139,73 @@ async function listActiveBroadcasts() {
   }));
 }
 
+// Alle broadcasts die nog niet afgerond zijn, mét de stream key waaraan ze hangen (#78).
+// 'active' = nu live, 'upcoming' = aangemaakt/klaar maar nog niet begonnen. Een derde
+// filter is niet nodig: 'completed' blokkeert niets meer.
+async function listOpenBroadcasts() {
+  const yt = await getYouTubeClient();
+  const uit = [];
+  for (const broadcastStatus of ['active', 'upcoming']) {
+    const res = await yt.liveBroadcasts.list({
+      part: ['id', 'snippet', 'status', 'contentDetails'],
+      broadcastStatus,
+      maxResults: 50,
+    });
+    for (const b of res.data.items || []) {
+      uit.push({
+        videoId: b.id,
+        title: (b.snippet && b.snippet.title) || '',
+        status: (b.status && b.status.lifeCycleStatus) || '',
+        boundStreamId: (b.contentDetails && b.contentDetails.boundStreamId) || null,
+      });
+    }
+  }
+  return uit;
+}
+
+// Sluit een lopende uitzending af (de opname blijft bestaan).
+async function completeBroadcast(broadcastId) {
+  const yt = await getYouTubeClient();
+  await yt.liveBroadcasts.transition({ id: broadcastId, broadcastStatus: 'complete', part: ['id', 'status'] });
+}
+
+// Gooit een broadcast weg. Alleen doen bij eentje die nooit live is geweest — dan is er
+// geen opname om kwijt te raken.
+async function deleteBroadcast(broadcastId) {
+  const yt = await getYouTubeClient();
+  await yt.liveBroadcasts.delete({ id: broadcastId });
+}
+
+// Maakt de stream key van een tafel vrij: sluit af wat er live op hangt en gooit weg wat
+// er ongebruikt aan vastzit. Faalt dit, dan gooien we NIET — een mislukte opruiming mag
+// nooit een uitzending tegenhouden; hooguit gebeurt dan weer wat op 28-07 gebeurde.
+// Retour: [{ videoId, actie, titel, status, gelukt, fout }]
+async function ruimStreamKeyOp(streamId, { behoudId = null } = {}) {
+  const open = await listOpenBroadcasts();
+  const acties = opruimActies(open, streamId, behoudId);
+  const uit = [];
+  for (const a of acties) {
+    try {
+      if (a.actie === 'afsluiten') await completeBroadcast(a.videoId);
+      else await deleteBroadcast(a.videoId);
+      uit.push({ ...a, gelukt: true, fout: null });
+    } catch (e) {
+      uit.push({ ...a, gelukt: false, fout: e.message });
+    }
+  }
+  return uit;
+}
+
 module.exports = {
   buildBroadcastTitle,
   buildBroadcastDescription,
   listLiveStreams,
   createReusableLiveStream,
   createBroadcast,
+  listOpenBroadcasts,
+  completeBroadcast,
+  deleteBroadcast,
+  ruimStreamKeyOp,
   bindBroadcast,
   getBroadcastStatus,
   listActiveBroadcasts,
