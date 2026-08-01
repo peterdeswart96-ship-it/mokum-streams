@@ -31,10 +31,24 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# Werkruimte opzoeken via de App Insights-resource, zodat een verhuizing niets breekt.
-$wsId = az monitor app-insights component show -g $ResourceGroup -a $AppInsights --query workspaceResourceId -o tsv --only-show-errors
-if (-not $wsId) { throw "Geen werkruimte gevonden voor $AppInsights in $ResourceGroup." }
-$cid = az monitor log-analytics workspace show --ids $wsId --query customerId -o tsv --only-show-errors
+# We praten rechtstreeks met de ARM- en Log Analytics-API's, en gebruiken van de Azure CLI
+# alleen `az rest` en `az account get-access-token` — beide kernopdrachten.
+#
+# Waarom: dit script hing eerst aan de extensies `application-insights` en `log-analytics`.
+# Op 01-08 raakte die laatste beschadigd (onleesbare bestanden in .azure\cliextensions), en
+# omdat de CLI bij élke opdracht alle extensies inleest, werkte daarna geen enkele
+# az-opdracht meer — precies op de ochtend dat het rapport nodig was. Zonder extensies kan
+# dat niet gebeuren.
+
+$abonnement = (az account show --query id -o tsv --only-show-errors)
+if (-not $abonnement) { throw "Niet ingelogd bij Azure. Draai eerst: az login" }
+
+# App Insights -> gekoppelde werkruimte -> de id waarmee je de werkruimte bevraagt.
+$ai = az rest --method get --url "https://management.azure.com/subscriptions/$abonnement/resourceGroups/$ResourceGroup/providers/microsoft.insights/components/$AppInsights`?api-version=2020-02-02" --only-show-errors | ConvertFrom-Json
+$wsId = $ai.properties.WorkspaceResourceId
+if (-not $wsId) { throw "Geen werkruimte gekoppeld aan $AppInsights in $ResourceGroup." }
+$ws = az rest --method get --url "https://management.azure.com$wsId`?api-version=2022-10-01" --only-show-errors | ConvertFrom-Json
+$cid = $ws.properties.customerId
 
 # Amsterdamse avond -> UTC. De zaal draait op +02:00 in de zomer; ConvertTimeToUtc
 # regelt de winter- en zomertijd zelf.
@@ -42,11 +56,20 @@ $tz = [TimeZoneInfo]::FindSystemTimeZoneById('W. Europe Standard Time')
 $van = [TimeZoneInfo]::ConvertTimeToUtc([datetime]::ParseExact("$Datum 12:00", 'yyyy-MM-dd HH:mm', $null), $tz)
 $tot = [TimeZoneInfo]::ConvertTimeToUtc([datetime]::ParseExact("$Datum 12:00", 'yyyy-MM-dd HH:mm', $null).AddHours(20), $tz)
 
-# De query MOET op één regel: een KQL-string met regeleindes komt via de Azure CLI
-# verminkt aan, waarna het filter stilzwijgend wegvalt en je de volledige hostruis krijgt.
 $q = "AppTraces | where TimeGenerated between (datetime($($van.ToString('o'))) .. datetime($($tot.ToString('o')))) | where Message startswith '[' | where Message !contains 'niets te doen' | project TimeGenerated, Message | order by TimeGenerated asc"
 
-$rijen = (az monitor log-analytics query -w $cid --analytics-query $q -o json --only-show-errors) | ConvertFrom-Json
+$token = az account get-access-token --resource "https://api.loganalytics.io" --query accessToken -o tsv --only-show-errors
+$antwoord = Invoke-RestMethod -Method Post -Uri "https://api.loganalytics.io/v1/workspaces/$cid/query" `
+  -Headers @{ Authorization = "Bearer $token" } -ContentType 'application/json' `
+  -Body (@{ query = $q } | ConvertTo-Json) -TimeoutSec 120
+
+# De API geeft kolommen en rijen apart terug; hier weer aan elkaar knopen tot objecten.
+$tabel = $antwoord.tables[0]
+$kolom = @{}
+for ($i = 0; $i -lt $tabel.columns.Count; $i++) { $kolom[$tabel.columns[$i].name] = $i }
+$rijen = foreach ($r in $tabel.rows) {
+  [pscustomobject]@{ TimeGenerated = $r[$kolom['TimeGenerated']]; Message = $r[$kolom['Message']] }
+}
 
 Write-Host ""
 Write-Host "AVOND $Datum — $($rijen.Count) logregels" -ForegroundColor Cyan
