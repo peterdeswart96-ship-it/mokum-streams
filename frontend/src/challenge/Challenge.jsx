@@ -343,9 +343,22 @@ export default function Challenge() {
                 </button>
               ))}
             </div>
-            <p className="text-[11px] text-ink-muted mt-2 flex items-center gap-1.5">
-              <YouTubeMerk /> = deze tafel kan gestreamd worden
-            </p>
+            {/* Uitleg over de cameratafels. Bewust hier en niet ergens onder een 'meer
+                info'-knop: als je een tafel met camera kiest, moet je nú weten dat starten
+                én stoppen via de bar gaat. */}
+            <div className="mt-3 rounded-lg border border-line px-3 py-2.5 text-[11px] text-ink-muted space-y-2">
+              <p className="flex items-center gap-1.5">
+                <YouTubeMerk /> = Deze tafel kan gestreamd worden.
+              </p>
+              <p>
+                Vraag aan de bar of er een stream gestart kan worden. Het stoppen van de stream
+                gaat niet vanzelf — vraag ook aan de bar of de stream weer gestopt kan worden.
+              </p>
+              <p>
+                Als de stream gestopt wordt, krijgt hij automatisch een challenge-thumbnail met
+                jullie namen erbij. Je kunt hem dan makkelijk terugvinden op ons YouTube-kanaal.
+              </p>
+            </div>
 
             {fout && <div className="mt-4"><Melding>{fout}</Melding></div>}
 
