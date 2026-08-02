@@ -162,9 +162,14 @@ function ZoekTegenstander({ gekozen, onKies }) {
 
   if (gekozen) {
     return (
-      <div className="flex items-center justify-between rounded-lg border border-brand bg-brand/15 px-4 py-2.5">
-        <span>{gekozen.naam}</span>
-        <button onClick={() => onKies(null)} className="text-sm text-ink-muted underline">wijzig</button>
+      <div className="flex items-center justify-between gap-2 rounded-lg border border-brand bg-brand/15 px-4 py-2.5">
+        <span className="min-w-0">
+          <span className="block truncate">{gekozen.naam}</span>
+          {/* Het id erbij, zodat je kunt nakijken dat je de juiste van dertien naamgenoten
+              te pakken hebt voordat je de challenge aanmaakt. */}
+          <span className="block text-[11px] text-ink-muted">#{gekozen.playerId}</span>
+        </span>
+        <button onClick={() => onKies(null)} className="text-sm text-ink-muted underline shrink-0">wijzig</button>
       </div>
     );
   }
@@ -173,10 +178,22 @@ function ZoekTegenstander({ gekozen, onKies }) {
     <div className="space-y-2">
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Zoek op naam…" className={veld} />
       {bezig && <p className="text-xs text-ink-muted">zoeken…</p>}
+      {/* Namen alleen zijn niet genoeg: "chris jones" geeft dertien treffers die er in een
+          lijst identiek uitzien. Foto, land, club en het speler-id maken ze uit elkaar te
+          houden — het id is het enige dat gegarandeerd uniek is. */}
       {spelers.map((s) => (
         <button key={s.playerId} onClick={() => onKies({ playerId: s.playerId, naam: s.naam })}
-                className="w-full text-left rounded-lg border border-line px-4 py-2.5 hover:border-ink-muted">
-          {s.naam}
+                className="w-full flex items-center gap-3 text-left rounded-lg border border-line px-3 py-2 hover:border-ink-muted">
+          {s.foto
+            ? <img src={s.foto} alt="" className="w-8 h-8 rounded-full object-cover shrink-0 bg-surface" />
+            : <span className="w-8 h-8 rounded-full bg-surface shrink-0" />}
+          <span className="min-w-0">
+            <span className="block truncate">{s.naam}</span>
+            <span className="block text-[11px] text-ink-muted truncate">
+              {[s.land, s.club, s.plaats].filter(Boolean).join(' · ')}
+              {[s.land, s.club, s.plaats].some(Boolean) ? ' · ' : ''}#{s.playerId}
+            </span>
+          </span>
         </button>
       ))}
       {!bezig && q.trim().length >= 2 && !spelers.length && (

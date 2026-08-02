@@ -100,12 +100,21 @@ async function zoekSpelers(cookies, zoekterm) {
   let data = null;
   try { data = JSON.parse(await res.text()); } catch { return []; }
   if (!Array.isArray(data)) return [];
-  // Alleen wat de frontend nodig heeft — `country` is bij hen een object, niet een tekst.
+
+  // Namen zijn NIET onderscheidend: een zoekopdracht op "chris jones" levert dertien
+  // spelers op die er in een lijst allemaal identiek uitzien. Daarom geven we alles mee
+  // waarmee je ze uit elkaar houdt: foto, land, club/plaats en het speler-id.
+  const tekst = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
   return data.slice(0, 25).map((s) => ({
     playerId: s.playerId,
     naam: s.name || '',
     foto: s.image || null,
-    land: (s.country && (s.country.name || s.country.code)) || null,
+    // `country` is bij hen een object, niet een tekst.
+    land: (s.country && (tekst(s.country.name) || tekst(s.country.code))) || null,
+    vlag: (s.country && tekst(s.country.image)) || null,
+    // Club/plaats zit er niet altijd in; meenemen als het er is, anders null.
+    club: tekst(s.club && s.club.name) || tekst(s.organization && s.organization.name) || null,
+    plaats: tekst(s.city) || tekst(s.placename) || null,
   }));
 }
 

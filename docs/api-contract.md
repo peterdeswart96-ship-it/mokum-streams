@@ -706,3 +706,9 @@ Regels:
   Reden: de pagina stelt de naam automatisch samen uit alle instellingen — "Lennert Duyn,
   race to 5, 9-Ball, tafel 1" — en dan moet het aantikken van die favoriet die tafel ook echt
   kiezen, anders belooft de naam iets wat niet gebeurt. `MAX_NAAM` daarom van 40 naar 60.
+- 2026-08-02: v0.51 — **speler zoeken geeft meer dan alleen een naam (#90)**.
+  `GET /api/challenge/spelers` geeft per speler nu ook **`foto`**, **`land`**, **`vlag`**,
+  **`club`** en **`plaats`** (allemaal `null` als Cuescore ze niet levert). Reden: zoeken op
+  "chris jones" levert dertien spelers op die in een lijst met alleen namen niet uit elkaar te
+  houden zijn. Het `playerId` wordt in de interface getoond — dat is het enige veld dat
+  gegarandeerd uniek is.
