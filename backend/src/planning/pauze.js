@@ -3,6 +3,39 @@
 // De timer-Function (functions/pauzeScherm.js) doet de fetch + opslag + enqueue.
 
 const { findTableMatch } = require('../cuescore/parse');
+const { zaalDag } = require('../schedule/schedule');
+const { datumInZaal } = require('./league');
+
+// Telt deze wedstrijd mee als "wat er nu op die tafel is"? (#86)
+//
+// Sinds de doorlopende league meekomt in de toernooien-van-vandaag, zitten er
+// wedstrijden van weken terug in de data: de 14.1-league loopt van 16 juni tot
+// 31 augustus en heeft 88 gespeelde partijen over zestien tafels. Zonder deze filter
+// toonde het dashboard "Bob Walter vs Marieke de Boer" van 21 juni als de huidige stand
+// op tafel 16, en vulde het zaalraster van het pauzescherm zich met oude partijen.
+//
+// Een LOPENDE wedstrijd telt altijd; een afgeronde alleen als 'ie van vandaag is.
+function teltVoorVandaag(m, vandaag) {
+  if (!m) return false;
+  if (String(m.status || '').toLowerCase() === 'playing') return true;
+  return !!m.start && datumInZaal(m.start) === vandaag;
+}
+
+// De meest relevante wedstrijd van vandaag op één tafel binnen één toernooi.
+//
+// Bewust niet via findTableMatch: die pakt "de laatste in de lijst" en filteren kan pas
+// daarna, dus bij een league met tientallen partijen per tafel gooien we dan ook de
+// partij van vandaag weg als die niet toevallig achteraan staat. Hier kiezen we eerst
+// binnen wat vandaag telt: lopend wint, anders de laatst gestarte van vandaag.
+function relevanteMatch(tournament, tableNumber, vandaag) {
+  const t = String(tableNumber);
+  const kandidaten = ((tournament && tournament.matches) || []).filter((m) => m.table === t);
+  const speelt = kandidaten.find((m) => String(m.status || '').toLowerCase() === 'playing');
+  if (speelt) return speelt;
+  const vandaagse = kandidaten.filter((m) => teltVoorVandaag(m, vandaag));
+  if (!vandaagse.length) return null;
+  return vandaagse.reduce((a, b) => (Date.parse(b.start) >= Date.parse(a.start) ? b : a));
+}
 
 // Speelt er NU een wedstrijd op deze tafel? Zoekt over alle (genormaliseerde)
 // toernooien van vandaag naar een lopende match op het tafelnummer.
@@ -60,14 +93,18 @@ function volgendeToestand(vorige, speeltNu, nowMs, debounceMs, spelenDebounceMs 
 // (read-only). Kiest bij voorkeur een lopende (playing) wedstrijd; anders de laatst
 // gevonden wedstrijd op die tafel. Retour: { [tafelnr]: {playerA, playerB, scoreA,
 // scoreB, status, round} | null }.
-function bouwLiveMatches(tournaments, cameraTables) {
+function bouwLiveMatches(tournaments, cameraTables, now = new Date()) {
+  const vandaag = zaalDag(now);
   const uit = {};
   for (const tn of cameraTables || []) {
     let gevonden = null;
     for (const t of tournaments || []) {
-      const m = findTableMatch(t, tn, { onlyPlaying: false });
-      if (m && m.status === 'playing') { gevonden = m; break; } // lopende wint altijd
-      if (m && !gevonden) gevonden = m; // anders de eerst-gevondene onthouden
+      // Alleen wat vandaag telt (#86) — anders staat er een partij van weken geleden
+      // als "huidige stand" op het dashboard.
+      const m = relevanteMatch(t, tn, vandaag);
+      if (!m) continue;
+      if (String(m.status || '').toLowerCase() === 'playing') { gevonden = m; break; } // lopende wint altijd
+      if (!gevonden) gevonden = m;
     }
     uit[String(tn)] = gevonden
       ? {
@@ -89,21 +126,28 @@ function bouwLiveMatches(tournaments, cameraTables) {
 // cameralijst) neemt dit élke tafel mee die vandaag een wedstrijd heeft. Een lopende
 // (playing) wedstrijd wint van een afgeronde; tafels zonder toegewezen wedstrijd
 // (m.table == null) vallen weg. Gesorteerd op tafelnummer. Pure functie → testbaar.
-function bouwZaalRaster(tournaments) {
+function bouwZaalRaster(tournaments, now = new Date()) {
+  const vandaag = zaalDag(now);
   // Compacte spelerweergave: naam + foto-URL + vlag-URL (of null bij ontbreken).
   const speler = (p) => (p ? { name: p.name || null, image: p.image || null, flag: p.flag || null } : null);
   const perTafel = new Map();
   for (const t of tournaments || []) {
     for (const m of t.matches || []) {
       if (m.table == null) continue;
+      // Zelfde regel als hierboven (#86): het zaalraster toont wat er vandaag gebeurt,
+      // niet elke partij die de league deze zomer op deze tafel heeft gespeeld.
+      if (!teltVoorVandaag(m, vandaag)) continue;
       const nr = Number(m.table);
       if (!Number.isFinite(nr)) continue;
       const speelt = String(m.status || '').toLowerCase() === 'playing';
       const bestaand = perTafel.get(nr);
-      // Niets → zetten; anders alleen vervangen als de nieuwe lopend is en de oude niet.
-      if (!bestaand || (speelt && String(bestaand.status || '').toLowerCase() !== 'playing')) {
-        perTafel.set(nr, { m, toernooi: t.name || '' });
-      }
+      const oudSpeelt = bestaand && String(bestaand.m.status || '').toLowerCase() === 'playing';
+      // Niets → zetten. Anders: lopend verdringt afgerond, en tussen twee afgeronde
+      // partijen van vandaag wint de laatst gestarte (de league speelt er meerdere per dag).
+      const beter = !bestaand
+        || (speelt && !oudSpeelt)
+        || (speelt === !!oudSpeelt && Date.parse(m.start) > Date.parse(bestaand.m.start));
+      if (beter) perTafel.set(nr, { m, toernooi: t.name || '' });
     }
   }
   return [...perTafel.entries()]

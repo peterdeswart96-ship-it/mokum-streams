@@ -78,12 +78,18 @@ test('volgendeToestand: eerste run zonder vorige → start neutraal in spelen', 
   assert.strictEqual(r.veranderd, false);
 });
 
+// Vaste "nu" voor de weergavefuncties: 02-08-2026 14:00 Amsterdam. Sinds #86 hangt de
+// keuze van een afgeronde wedstrijd af van de zaal-dag, dus de fixtures moeten een
+// starttijd hebben — anders zou de test op de ene dag slagen en op de andere niet.
+const NU = new Date('2026-08-02T12:00:00Z');
+const VANDAAG = '2026-08-02T10:00:00Z';
+
 test('bouwLiveMatches: per tafel de lopende wedstrijd (of laatste), anders null', () => {
   const ts = [toernooiMet([
-    { matchId: 1, status: 'playing', table: '3', roundName: 'R1', playerA: { name: 'A' }, playerB: { name: 'B' }, scoreA: 4, scoreB: 1 },
-    { matchId: 2, status: 'finished', table: '1', roundName: 'Finale', playerA: { name: 'C' }, playerB: { name: 'D' }, scoreA: 7, scoreB: 5 },
+    { matchId: 1, status: 'playing', table: '3', roundName: 'R1', start: VANDAAG, playerA: { name: 'A' }, playerB: { name: 'B' }, scoreA: 4, scoreB: 1 },
+    { matchId: 2, status: 'finished', table: '1', roundName: 'Finale', start: VANDAAG, playerA: { name: 'C' }, playerB: { name: 'D' }, scoreA: 7, scoreB: 5 },
   ])];
-  const r = bouwLiveMatches(ts, [1, 3, 15]);
+  const r = bouwLiveMatches(ts, [1, 3, 15], NU);
   assert.deepStrictEqual(r['3'], { playerA: 'A', playerB: 'B', scoreA: 4, scoreB: 1, status: 'playing', round: 'R1' });
   assert.deepStrictEqual(r['1'], { playerA: 'C', playerB: 'D', scoreA: 7, scoreB: 5, status: 'finished', round: 'Finale' });
   assert.strictEqual(r['15'], null); // geen wedstrijd op tafel 15
@@ -114,16 +120,16 @@ test('bouwZaalRaster: alle tafels met een wedstrijd, lopende wint, gesorteerd op
   const { bouwZaalRaster } = require('../src/planning/pauze');
   const ts = [
     { name: 'Ranking A', matches: [
-      { matchId: 1, status: 'finished', table: '3', roundName: 'R1', playerA: { name: 'Oud' }, playerB: { name: 'X' }, scoreA: 7, scoreB: 2 },
-      { matchId: 2, status: 'playing',  table: '3', roundName: 'R2', playerA: { name: 'Nu' },  playerB: { name: 'Y' }, scoreA: 1, scoreB: 0 },
-      { matchId: 3, status: 'playing',  table: '15', roundName: 'R1', playerA: { name: 'P', image: 'https://img/p.png', flag: 'https://flag/nl.png' },  playerB: { name: 'Q' }, scoreA: 3, scoreB: 3 },
-      { matchId: 4, status: 'pending',  table: null, roundName: '', playerA: { name: 'Z' }, playerB: { name: 'W' }, scoreA: 0, scoreB: 0 },
+      { matchId: 1, status: 'finished', table: '3', roundName: 'R1', start: VANDAAG, playerA: { name: 'Oud' }, playerB: { name: 'X' }, scoreA: 7, scoreB: 2 },
+      { matchId: 2, status: 'playing',  table: '3', roundName: 'R2', start: VANDAAG, playerA: { name: 'Nu' },  playerB: { name: 'Y' }, scoreA: 1, scoreB: 0 },
+      { matchId: 3, status: 'playing',  table: '15', roundName: 'R1', start: VANDAAG, playerA: { name: 'P', image: 'https://img/p.png', flag: 'https://flag/nl.png' },  playerB: { name: 'Q' }, scoreA: 3, scoreB: 3 },
+      { matchId: 4, status: 'pending',  table: null, roundName: '', start: VANDAAG, playerA: { name: 'Z' }, playerB: { name: 'W' }, scoreA: 0, scoreB: 0 },
     ] },
     { name: 'Ranking B', matches: [
-      { matchId: 5, status: 'finished', table: '1', roundName: 'Finale', playerA: { name: 'A' }, playerB: { name: 'B' }, scoreA: 5, scoreB: 7 },
+      { matchId: 5, status: 'finished', table: '1', roundName: 'Finale', start: VANDAAG, playerA: { name: 'A' }, playerB: { name: 'B' }, scoreA: 5, scoreB: 7 },
     ] },
   ];
-  const r = bouwZaalRaster(ts);
+  const r = bouwZaalRaster(ts, NU);
   assert.deepStrictEqual(r.map((x) => x.table), [1, 3, 15]); // gesorteerd, tafel=null valt weg
   const t3 = r.find((x) => x.table === 3);
   assert.strictEqual(t3.status, 'playing');   // lopende wint van afgeronde
@@ -152,4 +158,72 @@ test('refreshCommandos: bouwt refreshSource per bekende sleutel, slaat onbekende
     { type: 'refreshSource', tableNumber: 3, sourceName: 'Scoreboard' },
   ]);
   assert.deepStrictEqual(refreshCommandos(3, bron, []), []);
+});
+
+// --- #86: geen wedstrijden van weken geleden op het dashboard ---
+//
+// Sinds de doorlopende 14.1-league meekomt in "toernooien van vandaag" zitten er
+// partijen van maanden terug in de data (16 juni t/m 31 augustus, 88 gespeeld over
+// zestien tafels). Op 02-08 toonde het dashboard daardoor "Bob Walter vs Marieke de
+// Boer" van 21 JUNI als de huidige stand op tafel 16, en vulde het zaalraster van het
+// pauzescherm zich met oude partijen.
+
+test('#86: een afgelopen wedstrijd van weken terug telt niet meer mee', () => {
+  const { bouwLiveMatches } = require('../src/planning/pauze');
+  const league = toernooiMet([
+    { matchId: 1, status: 'finished', table: '16', roundName: 'Round 6', start: '2026-06-21T10:41:00Z',
+      playerA: { name: 'Bob Walter' }, playerB: { name: 'Marieke de Boer' }, scoreA: 25, scoreB: 75 },
+  ]);
+  assert.strictEqual(bouwLiveMatches([league], [16], NU)['16'], null);
+});
+
+test('#86: een afgelopen wedstrijd van vandaag telt wél mee', () => {
+  const { bouwLiveMatches } = require('../src/planning/pauze');
+  const league = toernooiMet([
+    { matchId: 1, status: 'finished', table: '3', roundName: 'Round 7', start: '2026-08-02T09:15:00Z',
+      playerA: { name: 'A' }, playerB: { name: 'B' }, scoreA: 100, scoreB: 60 },
+  ]);
+  assert.strictEqual(bouwLiveMatches([league], [3], NU)['3'].playerA, 'A');
+});
+
+test('#86: een LOPENDE wedstrijd telt altijd, ook zonder starttijd', () => {
+  const { bouwLiveMatches } = require('../src/planning/pauze');
+  const t = toernooiMet([
+    { matchId: 1, status: 'playing', table: '1', roundName: 'R1', playerA: { name: 'X' }, playerB: { name: 'Y' } },
+  ]);
+  assert.strictEqual(bouwLiveMatches([t], [1], NU)['1'].playerA, 'X');
+});
+
+// De league zet de partijen niet op chronologische volgorde in de lijst. Filteren mag dus
+// pas ná het kiezen niet gebeuren: dan pakt "de laatste op deze tafel" een partij van juni,
+// valt die af, en blijft de tafel leeg terwijl er vandaag wél gespeeld is.
+test('#86: de partij van vandaag wordt gevonden, ook als er een oudere achter staat', () => {
+  const { bouwLiveMatches } = require('../src/planning/pauze');
+  const league = toernooiMet([
+    { matchId: 1, status: 'finished', table: '1', roundName: 'R7', start: '2026-08-02T09:00:00Z',
+      playerA: { name: 'vandaag' }, playerB: { name: 'ook vandaag' }, scoreA: 100, scoreB: 44 },
+    { matchId: 2, status: 'finished', table: '1', roundName: 'R3', start: '2026-07-02T15:11:00Z',
+      playerA: { name: 'Danny Bast' }, playerB: { name: 'Sander Vriens' }, scoreA: 60, scoreB: 100 },
+  ]);
+  assert.strictEqual(bouwLiveMatches([league], [1], NU)['1'].playerA, 'vandaag');
+});
+
+test('#86: bij twee partijen van vandaag op één tafel wint de laatst gestarte', () => {
+  const { bouwLiveMatches } = require('../src/planning/pauze');
+  const league = toernooiMet([
+    { matchId: 1, status: 'finished', table: '1', start: '2026-08-02T09:00:00Z', playerA: { name: 'ochtend' }, playerB: { name: 'x' } },
+    { matchId: 2, status: 'finished', table: '1', start: '2026-08-02T11:30:00Z', playerA: { name: 'net klaar' }, playerB: { name: 'y' } },
+  ]);
+  assert.strictEqual(bouwLiveMatches([league], [1], NU)['1'].playerA, 'net klaar');
+});
+
+test('#86: het zaalraster toont alleen wat er vandaag speelt of gespeeld is', () => {
+  const { bouwZaalRaster } = require('../src/planning/pauze');
+  const league = toernooiMet([
+    { matchId: 1, status: 'finished', table: '16', start: '2026-06-21T10:41:00Z', playerA: { name: 'oud' }, playerB: { name: 'oud2' } },
+    { matchId: 2, status: 'finished', table: '3', start: '2026-08-02T09:15:00Z', playerA: { name: 'vandaag' }, playerB: { name: 'vandaag2' } },
+    { matchId: 3, status: 'playing', table: '7', playerA: { name: 'speelt' }, playerB: { name: 'speelt2' } },
+  ]);
+  const r = bouwZaalRaster([league], NU);
+  assert.deepStrictEqual(r.map((x) => x.table), [3, 7]);
 });

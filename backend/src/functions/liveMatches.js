@@ -25,11 +25,11 @@ async function verwerk(now, context) {
     return;
   }
 
-  const matches = bouwLiveMatches(tournaments, cameras);
+  const matches = bouwLiveMatches(tournaments, cameras, now);
   const venueLive = telZaalLive(tournaments);
   // venueTables = zaalbreed raster (alle tafels met een wedstrijd) voor het eigen
   // Mokum-tafelraster in het pauzescherm (#54).
-  const venueTables = bouwZaalRaster(tournaments);
+  const venueTables = bouwZaalRaster(tournaments, now);
   // podium = medaillescherm van een net-afgerond toernooi (winnaar-moment #54); kijkt
   // alleen naar de cameratafels. null zolang een cameratafel nog speelt of geen finale
   // gespeeld is.
