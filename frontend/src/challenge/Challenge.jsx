@@ -7,8 +7,14 @@ import * as api from './api';
 // een favoriet aantikken (alles staat meteen goed), of zelf samenstellen. Wie mag beginnen
 // wordt bewust NIET geregeld — dat bepaalt de lag aan de tafel.
 
-const CAMERA = '📹';
 const STANDAARD = { discipline: 3, raceTo: 5, breakrule: 'winner' };
+
+// Merkje op de tafels die gefilmd worden. Hetzelfde logo als op het dashboard
+// (public/youtube.png), zodat het in de zaal herkenbaar hetzelfde ding is.
+const YouTubeMerk = ({ className = '' }) => (
+  <img src="/youtube.png" alt="" aria-hidden="true"
+       className={`h-3 w-auto mx-auto ${className}`} />
+);
 
 // ── Kleine bouwstenen ────────────────────────────────────────────────────────
 
@@ -331,11 +337,13 @@ export default function Challenge() {
                     tafel === n ? 'border-brand bg-brand/15' : 'border-line text-ink-muted'
                   }`}>
                   {n}
-                  {keuzes.cameraTafels.includes(n) && <span className="block text-[9px] leading-none">{CAMERA}</span>}
+                  {keuzes.cameraTafels.includes(n) && <YouTubeMerk className="mt-0.5" />}
                 </button>
               ))}
             </div>
-            <p className="text-[11px] text-ink-muted mt-2">{CAMERA} = tafel met camera</p>
+            <p className="text-[11px] text-ink-muted mt-2 flex items-center gap-1.5">
+              <YouTubeMerk className="mx-0" /> = deze tafel kan gestreamd worden
+            </p>
 
             {fout && <div className="mt-4"><Melding>{fout}</Melding></div>}
 
