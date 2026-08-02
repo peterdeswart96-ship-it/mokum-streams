@@ -1,7 +1,8 @@
 const { app } = require('@azure/functions');
 const leden = require('../challenge/leden');
 const cuescore = require('../challenge/cuescore');
-const { maakToken, leesToken, tokenUitRequest, ledId } = require('../challenge/token');
+const { maakToken, leesToken, tokenUitRequest } = require('../challenge/token');
+const { haalSleutel } = require('../challenge/kluis');
 
 // Endpoints waarmee Mokum-LEDEN een challenge in Cuescore aanmaken (#90).
 // Zie docs/api-contract.md v0.48 en docs/cuescore-challenge.md.
@@ -14,9 +15,17 @@ const { maakToken, leesToken, tokenUitRequest, ledId } = require('../challenge/t
 
 const json = (status, body) => ({ status, jsonBody: body });
 
+// Het geheim waarmee we lidtokens ondertekenen.
+//
+// Bewust dezelfde sleutel als de kluis: die staat in productie ALLEEN in Key Vault, niet in
+// een omgevingsvariabele. token.js valt terug op process.env, en dat is er in Azure niet —
+// daardoor gaf elke tokencontrole een 500 in plaats van een 401 (gezien bij de eerste
+// live-controle, 02-08). Daarom halen we 'm hier expliciet op en geven we 'm mee.
+const tokenGeheim = () => haalSleutel();
+
 // Haalt het lid bij het meegestuurde token. Retour: { id, record } of null.
 async function ledUitRequest(request) {
-  const claim = leesToken(tokenUitRequest(request));
+  const claim = leesToken(tokenUitRequest(request), { s: await tokenGeheim() });
   if (!claim) return null;
   const record = await leden.lees(claim.ledId);
   return record ? { id: claim.ledId, record } : null;
@@ -60,7 +69,7 @@ app.http('challengeLogin', {
     }
     context.log(`[challenge/login] gekoppeld: ${email}`);
     return json(200, {
-      token: maakToken(r.ledId),
+      token: maakToken(r.ledId, { s: await tokenGeheim() }),
       lid: leden.publiek(r.record),
       tafels: cuescore.CAMERA_TAFELS,
     });
@@ -155,5 +164,3 @@ app.http('challengeLoskoppelen', {
     return json(200, { ok: true });
   }),
 });
-
-module.exports = { ledId };
