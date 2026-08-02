@@ -214,6 +214,7 @@ export default function Challenge() {
   function kiesFavoriet(f) {
     setSpel({ discipline: f.discipline, raceTo: f.raceTo, breakrule: f.breakrule });
     if (f.tegenstanderId) setTegenstander({ playerId: f.tegenstanderId, naam: f.tegenstanderNaam || 'tegenstander' });
+    if (f.tafel) setTafel(f.tafel);
     setFout('');
     setOpenNieuw(true); // stond het formulier dichtgeklapt, dan nu open
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -225,12 +226,26 @@ export default function Challenge() {
     return r.sjablonen;
   }
 
+  // Naam die de pagina voorstelt: alles wat de challenge bepaalt, in leesbare volgorde.
+  // "Lennert Duyn, race to 5, 9-Ball, tafel 1". Zo zie je in de lijst meteen wat een
+  // favoriet doet, zonder de regel eronder te hoeven lezen. Je mag 'm altijd overtypen.
+  function voorgesteldeNaam() {
+    const delen = [];
+    if (tegenstander) delen.push(tegenstander.naam);
+    delen.push(`race to ${spel.raceTo}`);
+    delen.push(spelNaam(spel.discipline));
+    if (spel.breakrule === 'alternate') delen.push('alternate break'); // winner break is standaard
+    if (tafel) delen.push(`tafel ${tafel}`);
+    return delen.join(', ');
+  }
+
   async function bewaarAlsFavoriet() {
-    const naam = (bewaarNaam || '').trim() || (tegenstander ? tegenstander.naam : `${spelNaam(spel.discipline)} race ${spel.raceTo}`);
     try {
       await bewaarFavorieten([...favorieten, {
-        naam, ...spel,
+        naam: (bewaarNaam || '').trim() || voorgesteldeNaam(),
+        ...spel,
         ...(tegenstander ? { tegenstanderId: tegenstander.playerId, tegenstanderNaam: tegenstander.naam } : {}),
+        ...(tafel ? { tafel } : {}),
       }]);
       setBewaarNaam(null);
     } catch (e) { setFout(e.message); }
@@ -368,14 +383,14 @@ export default function Challenge() {
                 waar je speelt. */}
             <div className="mt-3">
               {bewaarNaam === null ? (
-                <button onClick={() => setBewaarNaam('')}
+                <button onClick={() => setBewaarNaam(voorgesteldeNaam())}
                         className="text-xs text-ink-muted underline flex items-center gap-1.5">
                   <Ster className="w-3 h-3 text-brand" /> Deze instellingen bewaren als favoriet
                 </button>
               ) : (
                 <div className="flex gap-2">
                   <input value={bewaarNaam} onChange={(e) => setBewaarNaam(e.target.value)}
-                         placeholder={tegenstander ? tegenstander.naam : 'naam van de favoriet'}
+                         placeholder={voorgesteldeNaam()} maxLength={60}
                          className={`${veld} text-sm`} />
                   <button onClick={bewaarAlsFavoriet}
                           className="rounded-lg border border-line px-3 text-sm shrink-0">bewaar</button>
@@ -411,6 +426,7 @@ export default function Challenge() {
                           {f.tegenstanderNaam ? `tegen ${f.tegenstanderNaam} · ` : ''}
                           {spelNaam(f.discipline)} · race {f.raceTo} ·{' '}
                           {f.breakrule === 'winner' ? 'winner break' : 'alternate break'}
+                          {f.tafel ? ` · tafel ${f.tafel}` : ''}
                         </span>
                       </button>
                       {bewerken && (

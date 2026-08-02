@@ -701,3 +701,8 @@ Regels:
   niet uit de frontend, zodat een nieuwe spelsoort maar op één plek bijgewerkt hoeft te worden.
   De sjablonen heten in de interface **favorieten**; de opslagvorm en `/api/challenge/sjablonen`
   blijven ongewijzigd.
+- 2026-08-02: v0.50 — **favoriet onthoudt ook de tafel (#90)**. Een sjabloon mag nu een
+  optionele **`tafel`** bevatten (echt zaalnummer 1..19; onbekende waarden worden weggelaten).
+  Reden: de pagina stelt de naam automatisch samen uit alle instellingen — "Lennert Duyn,
+  race to 5, 9-Ball, tafel 1" — en dan moet het aantikken van die favoriet die tafel ook echt
+  kiezen, anders belooft de naam iets wat niet gebeurt. `MAX_NAAM` daarom van 40 naar 60.

@@ -11,7 +11,7 @@ process.env.CHALLENGE_MASTER_KEY = Buffer.alloc(32, 7).toString('base64');
 
 const { versleutel, ontsleutel, nieuweHoofdsleutel } = require('../src/challenge/kluis');
 const { maakToken, leesToken, ledId } = require('../src/challenge/token');
-const { normaliseerSjabloon, normaliseerSjablonen, MAX_SJABLONEN } = require('../src/challenge/sjablonen');
+const { normaliseerSjabloon, normaliseerSjablonen, MAX_SJABLONEN, MAX_NAAM } = require('../src/challenge/sjablonen');
 
 // ── Kluis ────────────────────────────────────────────────────────────────────
 
@@ -140,8 +140,24 @@ test('sjabloon: een sjabloon zonder tegenstander mag — die kies je dan bij het
 
 test('sjabloon: een te lange naam wordt afgekapt en witruimte opgeruimd', () => {
   const s = normaliseerSjabloon({ naam: '  veel    spaties ' + 'x'.repeat(80), discipline: 3, raceTo: 5 });
-  assert.ok(s.naam.length <= 40);
+  assert.ok(s.naam.length <= MAX_NAAM);
   assert.ok(!s.naam.includes('    '));
+});
+
+test('sjabloon: de automatisch gevormde naam past binnen de limiet', () => {
+  // "Lennert Duyn, race to 5, 9-Ball, tafel 1" — de vorm die de pagina voorstelt.
+  const naam = 'Michelle Konynenberg-Harrison, race to 100, 14.1 (straight pool), tafel 16';
+  const s = normaliseerSjabloon({ naam, discipline: 5, raceTo: 100, tafel: 16 });
+  assert.strictEqual(s.naam.length, MAX_NAAM); // afgekapt, maar niet geweigerd
+  assert.strictEqual(s.tafel, 16);
+});
+
+test('sjabloon: een tafel wordt bewaard, een onbekende tafel niet', () => {
+  assert.strictEqual(normaliseerSjabloon({ discipline: 3, raceTo: 5, tafel: 1 }).tafel, 1);
+  assert.strictEqual(normaliseerSjabloon({ discipline: 3, raceTo: 5, tafel: 15 }).tafel, 15);
+  for (const t of [0, 99, -1, 'tafel 1', null, undefined]) {
+    assert.ok(!('tafel' in normaliseerSjabloon({ discipline: 3, raceTo: 5, tafel: t })), String(t));
+  }
 });
 
 test('sjablonen: rommel eruit, dubbele weg, begrensd op het maximum', () => {

@@ -4,8 +4,12 @@
 // break") zodat een lid niet elke keer het hele formulier hoeft in te vullen. Dit bestand
 // bewaakt wat er de opslag in mag: alles komt van een webpagina, dus niets vertrouwen.
 
+const { TAFELS } = require('./cuescore');
+
 const MAX_SJABLONEN = 12;
-const MAX_NAAM = 40;
+// Ruim genomen: de naam wordt automatisch samengesteld uit tegenstander, race, speltype en
+// tafel ("Lennert Duyn, race to 5, 9-Ball, tafel 1" is al 39 tekens).
+const MAX_NAAM = 60;
 const MAX_RACE = 200;   // 14.1 gaat tot 100+; ruim genomen
 // De twee breakregels die Cuescore kent (zie het aanmaakformulier op hun scorebord).
 // winner break = wie de partij wint mag opnieuw breken; alternate = om en om.
@@ -58,11 +62,15 @@ function normaliseerSjabloon(rauw) {
   if (!Number.isFinite(discipline) || discipline < 1) return null;
 
   const tegenstanderId = Number(rauw.tegenstanderId);
+  const tafel = Number(rauw.tafel);
   return {
     naam: schoonNaam(rauw.naam, `${DISCIPLINES[discipline] || 'challenge'} race ${raceTo}`),
     discipline,
     raceTo,
     breakrule: BREAKRULES.includes(rauw.breakrule) ? rauw.breakrule : 'winner',
+    // Tafel is optioneel. Staat 'ie erin, dan wordt hij bij het aantikken meteen gekozen —
+    // anders zou de naam ("… tafel 1") iets beloven wat niet gebeurt.
+    ...(TAFELS[tafel] ? { tafel } : {}),
     // Een vaste tegenstander is optioneel: "Lennert — 9-ball race 5" is één tik, een
     // sjabloon zonder tegenstander vraagt er nog om.
     ...(Number.isFinite(tegenstanderId) && tegenstanderId > 0
