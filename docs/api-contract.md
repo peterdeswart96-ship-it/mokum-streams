@@ -52,7 +52,7 @@ POST /api/manage/planning/{id}       -> instellingen van één toernooi wijzigen
 POST /api/manage/planning-refresh    -> draait de Cuescore-import nu meteen (i.p.v. wachten op de uurlijkse timer) en werkt planning.json bij; antwoord: { imported, total, items } waarbij items = dezelfde vorm als GET /api/schedule. NB: route bewust NIET `manage/planning/refresh` — dat botst met `manage/planning/{id}`
 GET  /api/manage/defaults            -> standaard-instellingen (één set, zie hieronder)
 POST /api/manage/defaults            -> standaard-instellingen wijzigen
-POST /api/manage/streams/start       -> body: { "tableNumber": 15, "title"?: "...", "privacy"?: "public|unlisted|private", "overlays"?: { "sponsors": true, "scoreboard": true, "jumbotron": false, "pauzemelding": false } } (ad-hoc, vrije camera; enqueuet startStream + setOverlay per overlay)
+POST /api/manage/streams/start       -> body: { "tableNumber": 15, "title"?: "...", "privacy"?: "public|unlisted|private", "overlays"?: { "sponsors": true, "scoreboard": true, "jumbotron": false, "pauzemelding": false }, "tournamentId"?: 83049058, "streamType"?: "challenge", "spelerA"?: "...", "spelerB"?: "..." } (vrije camera; enqueuet startStream + setOverlay per overlay. Mét tournamentId = beheerd, zonder = ad-hoc)
 POST /api/manage/streams/stop        -> body: { "tableNumber": 15 }
 POST /api/manage/streams/overlay     -> body: { "tableNumber": 15, "sponsors"?: bool, "scoreboard"?: bool, "jumbotron"?: bool, "pauzemelding"?: bool } (overlay(s) live aan/uit op een lopende stream; enqueuet setOverlay per opgegeven sleutel)
    NB: content-overlays (sponsors/scoreboard) staan standaard AAN;
@@ -628,3 +628,68 @@ Body:
      een binnenkomende league zou dus meteen elke avond met een wedstrijd op een cameratafel
      gaan streamen. Nu geldt overal hetzelfde: plannen in de Toernooi planner = draaien.
      Geen wijziging in de API-vorm, wel in het gedrag.
+- 2026-08-02: v0.47 — **nieuwe stream als wizard in vier stappen (#87)**. Het startformulier vroeg
+  alles tegelijk en beloofde bij élke stream dezelfde automatisering, terwijl het gedrag per soort
+  fors verschilt: een competitie heeft geen finale (dus geen medaillescherm), en een stream zonder
+  Cuescore-koppeling wordt nooit automatisch gestopt of afgerond. De wizard vraagt nu éérst het
+  soort stream (toernooi / 14.1 league / challenge / custom) en laat in stap 4 per soort zien wat
+  er wél en niet automatisch gebeurt.
+  1. `POST /api/manage/streams/start` accepteert drie nieuwe optionele velden: **`streamType`**
+     (`"challenge"`; andere soorten zijn al af te leiden uit `tournamentId`), **`spelerA`** en
+     **`spelerB`** (namen, max 60 tekens). Ze worden opgeslagen op de broadcast-entry en verder
+     nog niet gebruikt — ze zijn de basis voor de challenge-koppeling (#88), die er de
+     Cuescore-challenge mee moet opzoeken. Zonder deze velden verandert er niets.
+  2. Geen wijziging aan de respons of aan bestaande velden. `tournamentId` stond al sinds v0.34
+     in de body maar ontbrak in de regel hierboven; nu compleet.
+
+## Challenges aanmaken (leden, eigen Cuescore-sessie)
+Aparte groep endpoints voor Mokum-**leden** (niet voor beheerders). Doel: een challenge in
+Cuescore aanmaken vanaf een sjabloon, in plaats van elke keer het formulier invullen.
+
+Auth werkt hier ANDERS dan bij `/api/manage/*`: er is geen gedeeld beheerderstoken. Een lid
+logt in met zijn **eigen Cuescore-gegevens**; wij controleren die bij Cuescore zelf en geven
+daarna een eigen ondertekend token terug (`Authorization: Bearer <token>`, 90 dagen geldig,
+HMAC-SHA256). Cuescore kent geen OAuth en geen app-toegang, dus dit is de enige manier om
+namens een lid te handelen.
+
+POST /api/challenge/login      -> body: { "email": "...", "wachtwoord": "..." }
+                                  Logt in bij Cuescore, bewaart het wachtwoord VERSLEUTELD
+                                  (AES-256-GCM, sleutel uit Key Vault) en geeft terug:
+                                  { "token", "speler": { "playerId", "naam" }, "sjablonen": [...] }
+GET  /api/challenge/me         -> { "speler", "sjablonen", "tafels": [...] }
+GET  /api/challenge/spelers?q= -> { "spelers": [ { "playerId", "naam" } ] } (zoeken via Cuescore)
+POST /api/challenge/aanmaken   -> body: { "tegenstanderId": 3404805, "tafel": 1,
+                                  "discipline"?: 3, "raceTo"?: 5, "breakrule"?: "winner|alternate" }
+                                  -> { "challengeId", "matchId", "url" }
+POST /api/challenge/sjablonen  -> body: { "sjablonen": [ { "naam", "tegenstanderId"?, "discipline",
+                                  "raceTo", "breakrule" } ] } (max 12) -> { "sjablonen" }
+POST /api/challenge/loskoppelen-> wist het opgeslagen wachtwoord en de sessie -> { "ok": true }
+
+Ledenrecord (opslag `challenge/leden/<playerId>.json`, nooit naar de frontend):
+{
+  "playerId": 1234567,
+  "naam": "Peter de Swart",
+  "email": "...",
+  "geheim": { "iv", "tag", "data" },   // AES-256-GCM; sleutel staat in Key Vault
+  "cookies": { "..." },                 // laatste Cuescore-sessie, om niet elke keer in te loggen
+  "sjablonen": [ ... ],
+  "aangemaakt": "2026-08-02T13:00:00Z",
+  "laatstGebruikt": "2026-08-02T13:00:00Z"
+}
+
+Regels:
+- Het wachtwoord gaat **nooit** terug naar de frontend en staat **nooit** in logging.
+- De opgeslagen Cuescore-sessie wordt hergebruikt; pas als die verlopen is loggen we opnieuw
+  in met het opgeslagen wachtwoord. Lukt dat ook niet, dan krijgt het lid een 401 en moet het
+  opnieuw inloggen (bijv. na een wachtwoordwijziging bij Cuescore).
+- `tafel` is het ECHTE zaalnummer (1..19); de vertaling naar Cuescore's `tableId` gebeurt
+  serverside — die id's zijn niet af te leiden uit het nummer.
+- Wie mag beginnen (de lag) wordt bewust NIET geautomatiseerd; dat is een fysieke uitkomst.
+
+- 2026-08-02: v0.48 — **challenges aanmaken door leden (#90)**. Nieuwe groep `/api/challenge/*`
+  hierboven. Reden: leden spelen vaak dezelfde challenge (9-ball, race naar 5, winner break) en
+  moeten die elke keer met de hand in Cuescore aanmaken. Cuescore heeft geen officiële API en
+  geen OAuth; het koppelvlak is uitgezocht en live geverifieerd — zie
+  `docs/cuescore-challenge.md`. Bewuste keuze van Peter (02-08) om wachtwoorden versleuteld te
+  bewaren zodat leden ze één keer invullen; de risico's daarvan staan in dat document.
+  Raakt de bestaande endpoints niet.

@@ -84,6 +84,12 @@ app.http('adminStreamStart', {
       title,
       scheduledStart: start,
       adhoc: !tournamentId,
+      // Alleen bewaren, nog niet gebruiken (#87 → #88). De wizard kent bij een challenge
+      // de twee spelersnamen al; daarmee kan de koppeling straks de juiste Cuescore-
+      // challenge opzoeken. Begrensd op 60 tekens zodat een plakfout de store niet opblaast.
+      ...(body.streamType ? { streamType: String(body.streamType).slice(0, 20) } : {}),
+      ...(body.spelerA ? { spelerA: String(body.spelerA).slice(0, 60) } : {}),
+      ...(body.spelerB ? { spelerB: String(body.spelerB).slice(0, 60) } : {}),
     };
     await writeJson(broadcastsPad, store);
 
