@@ -640,10 +640,15 @@ function ToernooiPlanner({ onGepland }) {
     return getPlanning().then((d) => {
       const drempel = Date.now() - 12 * 3600 * 1000; // vandaag telt nog mee
       const lijst = (d.items || [])
-        .filter((r) => (r.type || 'tournament') !== 'competition')
         .filter((r) => {
-          const t = Date.parse(r.plannedStart || `${r.date}T00:00:00Z`);
-          return !Number.isNaN(t) && t >= drempel;
+          // Een doorlopende competitie is relevant zolang hij LOOPT; een toernooi tot
+          // de dag voorbij is. Op de startdatum filteren zou een league van 16 juni
+          // meteen wegstrepen (#86) — en dan kun je 'm ook nooit inplannen.
+          const competitie = (r.type || 'tournament') === 'competition';
+          const ijk = competitie
+            ? Date.parse(r.plannedStop || '')
+            : Date.parse(r.plannedStart || `${r.date}T00:00:00Z`);
+          return !Number.isNaN(ijk) && ijk >= drempel;
         })
         .sort((a, b) => String(a.plannedStart || a.date).localeCompare(String(b.plannedStart || b.date)))
         .slice(0, 10);
@@ -761,9 +766,23 @@ function ToernooiPlanner({ onGepland }) {
                     // Bewerkbaar in concept én gepland (wijziging wordt dan direct opgeslagen);
                     // op slot zodra 'ie live/klaar/geannuleerd is.
                     const opSlot = status === 'live' || status === 'klaar' || status === 'geannuleerd';
+                    // Een doorlopende competitie (league) gedraagt zich anders: hij loopt
+                    // maanden en start/stopt PER AVOND op basis van de Cuescore-wedstrijden.
+                    // Vaste start- en eindtijden gelden daar niet voor (#86).
+                    const competitie = (r.type || 'tournament') === 'competition';
+                    const eindDatum = (r.plannedStop || '').slice(0, 10);
                     return (
                       <tr key={r.tournamentId} className="border-b border-line/50">
-                        <td className={cell}><span className="whitespace-nowrap">{datumLabel(r.date)}</span></td>
+                        <td className={cell}>
+                          {competitie ? (
+                            <span className="whitespace-nowrap">
+                              <span className="block text-[10px] uppercase tracking-wide text-brand leading-none mb-0.5">competitie</span>
+                              {datumLabel(r.date)}{eindDatum ? ` – ${datumLabel(eindDatum)}` : ''}
+                            </span>
+                          ) : (
+                            <span className="whitespace-nowrap">{datumLabel(r.date)}</span>
+                          )}
+                        </td>
                         <td className={cell}>
                           <div className="flex gap-1">
                             {CAMERAS.map((n) => (
@@ -773,13 +792,21 @@ function ToernooiPlanner({ onGepland }) {
                           </div>
                         </td>
                         <td className={cell}>
-                          <input type="time" className={`${sel} w-[86px] tabular-nums`} value={cur.startTijd} disabled={opSlot || bezig}
-                                 onChange={(e) => wijzig(r, { startTijd: e.target.value })} />
+                          {competitie ? (
+                            <span className="text-ink-muted text-xs" title="Een competitie begint per avond, zodra Cuescore een wedstrijd op een cameratafel zet">per avond</span>
+                          ) : (
+                            <input type="time" className={`${sel} w-[86px] tabular-nums`} value={cur.startTijd} disabled={opSlot || bezig}
+                                   onChange={(e) => wijzig(r, { startTijd: e.target.value })} />
+                          )}
                         </td>
                         <td className={`${cell} max-w-[16rem]`}><span className="block truncate" title={r.name}>{r.name}</span></td>
                         <td className={cell}>
-                          <input type="time" className={`${sel} w-[86px] tabular-nums`} value={cur.eindTijd} disabled={opSlot || bezig}
-                                 onChange={(e) => wijzig(r, { eindTijd: e.target.value })} />
+                          {competitie ? (
+                            <span className="text-ink-muted text-xs" title="En stopt per avond, zodra er op die tafel geen wedstrijd meer staat">per avond</span>
+                          ) : (
+                            <input type="time" className={`${sel} w-[86px] tabular-nums`} value={cur.eindTijd} disabled={opSlot || bezig}
+                                   onChange={(e) => wijzig(r, { eindTijd: e.target.value })} />
+                          )}
                         </td>
                         <td className={cell}>
                           <select className={sel} value={cur.visibility} disabled={opSlot || bezig} onChange={(e) => wijzig(r, { visibility: e.target.value })}>
