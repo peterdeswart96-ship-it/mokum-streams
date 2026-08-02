@@ -351,7 +351,6 @@ function TableCard({ table, onStop, onOverlay, onPreview, busy }) {
 }
 
 // ── Start-wizard ───────────────────────────────────────────────────────────
-// Genummerd stap-bolletje met hover-uitleg in de nieuwe-stream-wizard.
 // ── Wat gebeurt er ná het starten, per soort stream? (#87) ───────────────────
 // Dit is de kern van de wizard. Het bevestigingsscherm toonde in het oorspronkelijke
 // ontwerp voor elk type dezelfde zeven punten, maar het gedrag verschilt fors: een

@@ -52,7 +52,7 @@ POST /api/manage/planning/{id}       -> instellingen van één toernooi wijzigen
 POST /api/manage/planning-refresh    -> draait de Cuescore-import nu meteen (i.p.v. wachten op de uurlijkse timer) en werkt planning.json bij; antwoord: { imported, total, items } waarbij items = dezelfde vorm als GET /api/schedule. NB: route bewust NIET `manage/planning/refresh` — dat botst met `manage/planning/{id}`
 GET  /api/manage/defaults            -> standaard-instellingen (één set, zie hieronder)
 POST /api/manage/defaults            -> standaard-instellingen wijzigen
-POST /api/manage/streams/start       -> body: { "tableNumber": 15, "title"?: "...", "privacy"?: "public|unlisted|private", "overlays"?: { "sponsors": true, "scoreboard": true, "jumbotron": false, "pauzemelding": false } } (ad-hoc, vrije camera; enqueuet startStream + setOverlay per overlay)
+POST /api/manage/streams/start       -> body: { "tableNumber": 15, "title"?: "...", "privacy"?: "public|unlisted|private", "overlays"?: { "sponsors": true, "scoreboard": true, "jumbotron": false, "pauzemelding": false }, "tournamentId"?: 83049058, "streamType"?: "challenge", "spelerA"?: "...", "spelerB"?: "..." } (vrije camera; enqueuet startStream + setOverlay per overlay. Mét tournamentId = beheerd, zonder = ad-hoc)
 POST /api/manage/streams/stop        -> body: { "tableNumber": 15 }
 POST /api/manage/streams/overlay     -> body: { "tableNumber": 15, "sponsors"?: bool, "scoreboard"?: bool, "jumbotron"?: bool, "pauzemelding"?: bool } (overlay(s) live aan/uit op een lopende stream; enqueuet setOverlay per opgegeven sleutel)
    NB: content-overlays (sponsors/scoreboard) staan standaard AAN;
@@ -628,3 +628,16 @@ Body:
      een binnenkomende league zou dus meteen elke avond met een wedstrijd op een cameratafel
      gaan streamen. Nu geldt overal hetzelfde: plannen in de Toernooi planner = draaien.
      Geen wijziging in de API-vorm, wel in het gedrag.
+- 2026-08-02: v0.47 — **nieuwe stream als wizard in vier stappen (#87)**. Het startformulier vroeg
+  alles tegelijk en beloofde bij élke stream dezelfde automatisering, terwijl het gedrag per soort
+  fors verschilt: een competitie heeft geen finale (dus geen medaillescherm), en een stream zonder
+  Cuescore-koppeling wordt nooit automatisch gestopt of afgerond. De wizard vraagt nu éérst het
+  soort stream (toernooi / 14.1 league / challenge / custom) en laat in stap 4 per soort zien wat
+  er wél en niet automatisch gebeurt.
+  1. `POST /api/manage/streams/start` accepteert drie nieuwe optionele velden: **`streamType`**
+     (`"challenge"`; andere soorten zijn al af te leiden uit `tournamentId`), **`spelerA`** en
+     **`spelerB`** (namen, max 60 tekens). Ze worden opgeslagen op de broadcast-entry en verder
+     nog niet gebruikt — ze zijn de basis voor de challenge-koppeling (#88), die er de
+     Cuescore-challenge mee moet opzoeken. Zonder deze velden verandert er niets.
+  2. Geen wijziging aan de respons of aan bestaande velden. `tournamentId` stond al sinds v0.34
+     in de body maar ontbrak in de regel hierboven; nu compleet.
