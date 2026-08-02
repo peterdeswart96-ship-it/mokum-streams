@@ -31,6 +31,27 @@ const Kop = ({ children }) => (
   <h2 className="text-sm font-medium text-ink-muted mb-2 mt-6">{children}</h2>
 );
 
+// Inklapbaar onderdeel BINNEN een paneel — lichter dan Paneel zelf, zonder eigen kader,
+// zodat het niet oogt als een doos in een doos. `stand` staat in de kop, zodat je ook
+// dichtgeklapt ziet waar je aan toe bent (de tafelkeuze is verplicht).
+function Uitklap({ titel, stand, standDringend, open, onToggle, children }) {
+  return (
+    <div className="mt-6">
+      <button onClick={onToggle} aria-expanded={open}
+              className="w-full flex items-center justify-between gap-2 text-left">
+        <span className="text-sm font-medium text-ink-muted">
+          {titel}
+          {stand && (
+            <span className={standDringend ? 'text-brand-light' : 'text-ink'}> — {stand}</span>
+          )}
+        </span>
+        <span className={`text-ink-muted text-xs transition-transform ${open ? '' : '-rotate-90'}`}>▼</span>
+      </button>
+      {open && <div className="mt-2">{children}</div>}
+    </div>
+  );
+}
+
 const Ster = ({ className = '' }) => (
   <svg viewBox="0 0 24 24" aria-hidden="true" className={`w-4 h-4 fill-current ${className}`}>
     <path d="M12 2.5l2.9 5.9 6.5.95-4.7 4.6 1.1 6.5L12 17.4l-5.8 3.05 1.1-6.5-4.7-4.6 6.5-.95L12 2.5z" />
@@ -185,6 +206,8 @@ export default function Challenge() {
   const [beheer, setBeheer] = useState(false);
   const [openNieuw, setOpenNieuw] = useState(true);
   const [openFav, setOpenFav] = useState(true);
+  const [openTafel, setOpenTafel] = useState(false);
+  const [openUitleg, setOpenUitleg] = useState(false);
 
   const laad = useCallback(async () => {
     try {
@@ -343,7 +366,8 @@ export default function Challenge() {
             <Kop>Tegen wie?</Kop>
             <ZoekTegenstander gekozen={tegenstander} onKies={setTegenstander} />
 
-            <Kop>Welke tafel?</Kop>
+            <Uitklap titel="Welke tafel?" open={openTafel} onToggle={() => setOpenTafel(!openTafel)}
+                     stand={tafel ? `tafel ${tafel}` : 'nog niet gekozen'} standDringend={!tafel}>
             <div className="grid grid-cols-5 gap-2">
               {keuzes.tafels.map((n) => (
                 <button key={n} onClick={() => setTafel(n)}
@@ -355,22 +379,27 @@ export default function Challenge() {
                 </button>
               ))}
             </div>
-            {/* Uitleg over de cameratafels. Bewust hier en niet ergens onder een 'meer
-                info'-knop: als je een tafel met camera kiest, moet je nú weten dat starten
-                én stoppen via de bar gaat. */}
-            <div className="mt-3 rounded-lg border border-line px-3 py-2.5 text-[11px] text-ink-muted space-y-2">
-              <p className="flex items-center gap-1.5">
-                <YouTubeMerk /> = Deze tafel kan gestreamd worden.
-              </p>
-              <p>
-                Vraag aan de bar of er een stream gestart kan worden. Het stoppen van de stream
-                gaat niet vanzelf — vraag ook aan de bar of de stream weer gestopt kan worden.
-              </p>
-              <p>
-                Als de stream gestopt wordt, krijgt hij automatisch een challenge-thumbnail met
-                jullie namen erbij. Je kunt hem dan makkelijk terugvinden op ons YouTube-kanaal.
-              </p>
-            </div>
+            </Uitklap>
+
+            {/* Uitleg over de cameratafels — ingeklapt, want je hebt 'm één keer nodig en
+                daarna niet meer. De titel toont het logo, zodat je 'm herkent van de
+                tafelknoppen hierboven. */}
+            <Uitklap titel="Wat betekent het logo bij een tafel?"
+                     open={openUitleg} onToggle={() => setOpenUitleg(!openUitleg)}>
+              <div className="rounded-lg border border-line px-3 py-2.5 text-[11px] text-ink-muted space-y-2">
+                <p className="flex items-center gap-1.5">
+                  <YouTubeMerk /> = Deze tafel kan gestreamd worden.
+                </p>
+                <p>
+                  Vraag aan de bar of er een stream gestart kan worden. Het stoppen van de stream
+                  gaat niet vanzelf — vraag ook aan de bar of de stream weer gestopt kan worden.
+                </p>
+                <p>
+                  Als de stream gestopt wordt, krijgt hij automatisch een challenge-thumbnail met
+                  jullie namen erbij. Je kunt hem dan makkelijk terugvinden op ons YouTube-kanaal.
+                </p>
+              </div>
+            </Uitklap>
 
             {fout && <div className="mt-4"><Melding>{fout}</Melding></div>}
 
