@@ -352,18 +352,73 @@ function TableCard({ table, onStop, onOverlay, onPreview, busy }) {
 
 // ── Start-wizard ───────────────────────────────────────────────────────────
 // Genummerd stap-bolletje met hover-uitleg in de nieuwe-stream-wizard.
-function Stap({ n, uitleg }) {
-  return (
-    <span title={uitleg}
-      className="inline-flex items-center justify-center w-5 h-5 shrink-0 rounded-full bg-brand text-white text-[11px] font-bold cursor-help">
-      {n}
-    </span>
-  );
-}
+// ── Wat gebeurt er ná het starten, per soort stream? (#87) ───────────────────
+// Dit is de kern van de wizard. Het bevestigingsscherm toonde in het oorspronkelijke
+// ontwerp voor elk type dezelfde zeven punten, maar het gedrag verschilt fors: een
+// competitie heeft geen finale (dus geen medaillescherm), en een stream zonder
+// Cuescore-koppeling wordt nooit automatisch gestopt of afgerond. Een bevestiging die
+// dingen belooft die niet gebeuren is erger dan geen bevestiging.
+//
+// `automatisch: false` betekent: hier moet een mens zelf iets doen.
+const STREAM_TYPES = {
+  toernooi: {
+    label: 'Cuescore-toernooi',
+    uitleg: 'Een toernooi dat in Cuescore staat — ranking, qualifier, kampioenschap.',
+    overlays: ['sponsors', 'scoreboard', 'jumbotron'],
+    gevolgen: [
+      { ok: true, tekst: 'Jumbotron gaat vanzelf aan tussen de partijen door en weer uit als er gespeeld wordt.' },
+      { ok: true, tekst: 'Zodra de finale begint, sluiten de overige cameratafels automatisch.' },
+      { ok: true, tekst: 'Na de finale blijft het medaillescherm 3 minuten in beeld.' },
+      { ok: true, tekst: 'De video krijgt een thumbnail die past bij dit toernooi.' },
+      { ok: true, tekst: 'De video wordt opgedeeld in hoofdstukken per partij.' },
+      { ok: true, tekst: 'De stream sluit zichzelf en de YouTube-video wordt afgerond.' },
+    ],
+  },
+  league: {
+    label: '14.1 league',
+    uitleg: 'De doorlopende competitie. Spelers plannen hun partijen zelf.',
+    overlays: ['sponsors', 'scoreboard', 'jumbotron'],
+    gevolgen: [
+      { ok: true, tekst: 'Jumbotron gaat vanzelf aan tussen de partijen door.' },
+      { ok: true, tekst: 'De video krijgt de 14.1-thumbnail en hoofdstukken.' },
+      { ok: true, tekst: 'De stream sluit zichzelf zodra de partij in Cuescore is afgerond.' },
+      { ok: false, tekst: 'Géén medaillescherm en geen sluiten van andere tafels — een league heeft geen finale.' },
+      { ok: false, tekst: 'Eén stream = één partij. Spelen ze daarna nog een partij? Start dan opnieuw.' },
+    ],
+  },
+  challenge: {
+    label: 'Challenge',
+    uitleg: 'Een losse wedstrijd die je in Cuescore hebt aangemaakt via het scorebord.',
+    overlays: ['sponsors', 'scoreboard', 'jumbotron'],
+    gevolgen: [
+      { ok: true, tekst: 'Het scorebord toont de stand van deze challenge — die hangt aan de tafel.' },
+      { ok: false, tekst: 'De stream sluit NIET vanzelf. Stop hem zelf als de partij klaar is.' },
+      { ok: false, tekst: 'Thumbnail en afronding gebeuren voorlopig achteraf, niet automatisch.' },
+      { ok: false, tekst: 'Vergeet je te stoppen, dan sluit de nachtstop hem om 02:00.' },
+    ],
+  },
+  custom: {
+    label: 'Custom stream',
+    uitleg: 'Alles wat niet in Cuescore staat. Bijvoorbeeld een demo of een test.',
+    overlays: ['sponsors'], // scorebord en jumbotron bewust weg: zonder Cuescore-wedstrijd
+    gevolgen: [            // tonen die de laatst bekende wedstrijd, of blijven permanent staan
+      { ok: false, tekst: 'Er gebeurt niets automatisch: geen thumbnail, geen hoofdstukken.' },
+      { ok: false, tekst: 'De stream sluit NIET vanzelf. Stop hem zelf.' },
+      { ok: false, tekst: 'Scorebord en jumbotron staan uit — zonder Cuescore-wedstrijd tonen die oude gegevens.' },
+      { ok: false, tekst: 'Vergeet je te stoppen, dan sluit de nachtstop hem om 02:00.' },
+    ],
+  },
+};
+
+const CUSTOM_TITEL_MAX = 30;
 
 function Wizard({ onClose, onStarted }) {
+  const [stap, setStap] = useState(1);
+  const [type, setType] = useState('');             // toernooi | league | challenge | custom
   const [tafel, setTafel] = useState(CAMERAS[0]);
   const [titel, setTitel] = useState('');
+  const [spelerA, setSpelerA] = useState('');
+  const [spelerB, setSpelerB] = useState('');
   const [privacy, setPrivacy] = useState('public'); // standaard Openbaar (streams zijn bedoeld voor publiek); Verborgen alleen bewust kiezen voor een test
   const [ov, setOv] = useState(standaardOverlays);
   const [bezig, setBezig] = useState(false);
@@ -393,25 +448,69 @@ function Wizard({ onClose, onStarted }) {
     }).catch(() => setToernooien([]));
   }, []);
 
-  // Een doorlopende competitie gedraagt zich anders dan een toernooi: er is geen finale,
-  // dus de stream sluit zodra de lopende partij is afgerond (#86). Bij de 14.1-league
-  // plannen spelers hun partijen zelf, dus dat is meestal ná één wedstrijd. Dat moet je
-  // wéten voordat je start — anders sta je je af te vragen waarom de stream ineens stopte.
+  const spec = STREAM_TYPES[type] || null;
+  const toernooienVanType = toernooien.filter((r) => {
+    const competitie = (r.type || 'tournament') === 'competition';
+    return type === 'league' ? competitie : !competitie;
+  });
   const gekozenRecord = toernooien.find((x) => String(x.tournamentId) === gekozen) || null;
-  const isCompetitie = !!gekozenRecord && (gekozenRecord.type || 'tournament') === 'competition';
 
-  const kopieerToernooi = () => {
-    const t = toernooien.find((x) => String(x.tournamentId) === gekozen);
-    if (t) setTitel(t.name);
-  };
+  // Kies je 'league' en er is er precies één, dan hoeft niemand te kiezen.
+  useEffect(() => {
+    if (type !== 'league' || gekozen) return;
+    if (toernooienVanType.length === 1) {
+      setGekozen(String(toernooienVanType[0].tournamentId));
+      setTitel(toernooienVanType[0].name);
+    }
+  }, [type, toernooienVanType.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Overlays die dit type niet ondersteunt, hard uit: bij een custom stream zouden
+  // scorebord en jumbotron een oude wedstrijd tonen of permanent in beeld blijven.
+  useEffect(() => {
+    if (!spec) return;
+    setOv((s) => Object.fromEntries(
+      OVERLAYS.map((o) => [o.key, spec.overlays.includes(o.key) ? s[o.key] : false]),
+    ));
+  }, [type]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // De challenge-titel volgt de twee namen, zodat de YouTube-titel altijd hetzelfde
+  // patroon heeft — daar herkent de inventarisatie 'm later aan.
+  useEffect(() => {
+    if (type !== 'challenge') return;
+    setTitel(`Challenge match ${spelerA || '?'} vs ${spelerB || '?'}`);
+  }, [type, spelerA, spelerB]);
+
+  // Mag je door naar de volgende stap? Per stap één duidelijke voorwaarde.
+  const magVerder = (() => {
+    if (stap === 1) return !!type;
+    if (stap === 2) {
+      if (type === 'toernooi' || type === 'league') return !!gekozen;
+      if (type === 'challenge') return spelerA.trim() && spelerB.trim();
+      return titel.trim().length > 0 && titel.trim().length <= CUSTOM_TITEL_MAX;
+    }
+    return true;
+  })();
+
+  function kiesType(t) {
+    setType(t);
+    setGekozen('');
+    setSpelerA(''); setSpelerB('');
+    setTitel('');
+    setFout('');
+  }
 
   async function start() {
     setBezig(true); setFout('');
     try {
-      // Als een toernooi in stap 2 gekozen is: meesturen zodat de stream BEHEERD wordt
-      // (auto-close na de finale + automatische thumbnail/hoofdstukken). Anders ad-hoc.
-      const tournamentId = gekozen ? Number(gekozen) : undefined;
-      await startStream({ tableNumber: tafel, title: titel, privacy, overlays: ov, tournamentId });
+      // Alleen een Cuescore-toernooi of league wordt BEHEERD (auto-stop + automatische
+      // thumbnail/hoofdstukken). Challenge en custom gaan ad-hoc de lucht in — zie de
+      // gevolgen in stap 4. De spelersnamen gaan alvast mee; de backend gebruikt ze
+      // zodra de challenge-koppeling er is (#88).
+      const tournamentId = (type === 'toernooi' || type === 'league') && gekozen ? Number(gekozen) : undefined;
+      await startStream({
+        tableNumber: tafel, title: titel, privacy, overlays: ov, tournamentId,
+        ...(type === 'challenge' ? { streamType: 'challenge', spelerA: spelerA.trim(), spelerB: spelerB.trim() } : {}),
+      });
       onStarted();
     } catch (e) {
       setFout(e.message);
@@ -421,78 +520,169 @@ function Wizard({ onClose, onStarted }) {
 
   const lbl = 'flex items-center gap-2 text-sm font-medium mb-1';
 
+  const STAPPEN = ['Soort stream', 'Naam en tafel', 'Overlays', 'Bevestigen'];
+  const veld = 'w-full bg-canvas border border-line rounded px-3 py-2 text-ink';
+
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-10">
       <div className="bg-surface text-ink border border-line rounded-lg shadow-2xl w-full max-w-md p-6 max-h-[92vh] overflow-y-auto">
-        <h2 className="text-lg font-display mb-4">Nieuwe stream starten</h2>
-
-        <label className={lbl}><Stap n={1} uitleg="Kies de cameratafel waarop je wil streamen (1, 3, 15 of 16)." />Tafel</label>
-        <select value={tafel} onChange={(e) => setTafel(Number(e.target.value))}
-                className="w-full bg-canvas border border-line rounded px-3 py-2 mb-3 text-ink">
-          {CAMERAS.map((n) => <option key={n} value={n}>Tafel {n}</option>)}
-        </select>
-
-        <label className={lbl}><Stap n={2} uitleg="Snel de juiste titel: kies een aankomend Cuescore-toernooi en kopieer de naam, of gebruik het challenge-sjabloon voor een losse wedstrijd." />Titel snel invullen</label>
-        <div className="flex gap-2 mb-1.5">
-          <select value={gekozen} onChange={(e) => setGekozen(e.target.value)}
-                  className="flex-1 min-w-0 bg-canvas border border-line rounded px-2 py-2 text-ink text-sm">
-            <option value="">{toernooien.length ? '— kies een toernooi —' : '— geen komende toernooien —'}</option>
-            {toernooien.map((t) => (
-              <option key={t.tournamentId} value={String(t.tournamentId)}>{datumLabel(t.date)} · {t.name}</option>
-            ))}
-          </select>
-          <button type="button" onClick={kopieerToernooi} disabled={!gekozen}
-                  className="shrink-0 border border-line text-ink-muted hover:text-ink rounded px-3 py-2 text-sm disabled:opacity-40">Kopieer naam</button>
+        <h2 className="text-lg font-display mb-1">Nieuwe stream starten</h2>
+        <div className="flex gap-1.5 mb-5">
+          {STAPPEN.map((s, i) => (
+            <div key={s} className="flex-1">
+              <div className={`h-1 rounded ${i + 1 <= stap ? 'bg-brand' : 'bg-line'}`} />
+              <span className={`text-[10px] ${i + 1 === stap ? 'text-ink' : 'text-ink-muted'}`}>{s}</span>
+            </div>
+          ))}
         </div>
-        <button type="button" onClick={() => setTitel('Challenge match [NAAM] vs [NAAM]')}
-                className="text-xs text-brand-light underline mb-1">of: Challenge match-sjabloon</button>
-        {isCompetitie && (
-          <div className="text-xs mb-3 rounded border px-3 py-2" style={{ borderColor: '#a16207', background: '#a1620722', color: '#fcd34d' }}>
-            <strong>Doorlopende competitie.</strong> Deze stream <strong>sluit automatisch</strong> zodra
-            de lopende partij in Cuescore is afgerond — er is geen finale om op te wachten. Daarna krijgt
-            de video vanzelf een YouTube-thumbnail en hoofdstukken.
-            <br />
-            Spelen ze daarna nog een partij? Start dan opnieuw; elke partij wordt een eigen video.
+
+        {/* ── 1. Soort stream ─────────────────────────────────────────────── */}
+        {stap === 1 && (
+          <div className="space-y-2">
+            <p className="text-sm text-ink-muted mb-3">Wat ga je uitzenden? Hier hangt aan vast wat er daarna automatisch gebeurt.</p>
+            {Object.entries(STREAM_TYPES).map(([k, s]) => (
+              <button key={k} onClick={() => kiesType(k)}
+                className={`w-full text-left rounded border px-3 py-2.5 ${type === k ? 'border-brand bg-brand/10' : 'border-line hover:border-ink-muted'}`}>
+                <span className="block font-medium">{s.label}</span>
+                <span className="block text-xs text-ink-muted">{s.uitleg}</span>
+              </button>
+            ))}
           </div>
         )}
-        {!isCompetitie && (gekozen
-          ? <p className="text-xs mb-3" style={{ color: '#4ade80' }}>✓ Gekoppeld aan dit toernooi — sluit na de finale automatisch af (indien scherpgezet).</p>
-          : <p className="text-xs text-neutral-500 mb-3">Kies een toernooi om de stream te koppelen (auto-close + auto-thumbnail).</p>)}
 
-        <label className={lbl}><Stap n={3} uitleg="De YouTube-titel. 'Tafel {nr}' komt er automatisch voor — vul hier de rest in (of gebruik stap 2)." />YouTube-titel</label>
-        <input value={titel} onChange={(e) => setTitel(e.target.value)} placeholder="bijv. Fluke ranking 9ball #22"
-               className="w-full bg-canvas border border-line rounded px-3 py-2 mb-1 text-ink placeholder:text-neutral-500" />
-        <p className="text-xs text-neutral-500 mb-3">Wordt: <span className="font-mono">Tafel {tafel} {titel.replace(/^\s*tafel\s*\d+\s*/i, '')}</span></p>
+        {/* ── 2. Naam en tafel ────────────────────────────────────────────── */}
+        {stap === 2 && (
+          <div>
+            <label className={lbl}>Tafel</label>
+            <select value={tafel} onChange={(e) => setTafel(Number(e.target.value))} className={`${veld} mb-4`}>
+              {CAMERAS.map((n) => <option key={n} value={n}>Tafel {n}</option>)}
+            </select>
 
-        <label className={lbl}><Stap n={4} uitleg="Wie de stream kan zien: Openbaar (iedereen, ook op Mokum Live), Verborgen (alleen met de link), Privé (alleen jij)." />Zichtbaarheid</label>
-        <div className="flex gap-2 mb-3">
-          {['unlisted', 'public', 'private'].map((p) => (
-            <button key={p} onClick={() => setPrivacy(p)}
-              className={`flex-1 rounded px-2 py-1.5 text-sm border ${
-                privacy === p ? 'bg-brand text-white border-brand' : 'bg-canvas border-line text-ink-muted'
-              }`}>
-              {{ unlisted: 'Verborgen', public: 'Openbaar', private: 'Privé' }[p]}
-            </button>
-          ))}
-        </div>
+            {(type === 'toernooi' || type === 'league') && (
+              <>
+                <label className={lbl}>{type === 'league' ? 'Competitie' : 'Toernooi'}</label>
+                <select value={gekozen} className={veld}
+                        onChange={(e) => {
+                          setGekozen(e.target.value);
+                          const t = toernooien.find((x) => String(x.tournamentId) === e.target.value);
+                          setTitel(t ? t.name : '');
+                        }}>
+                  <option value="">{toernooienVanType.length ? '— kies —' : '— niets gevonden —'}</option>
+                  {toernooienVanType.map((t) => (
+                    <option key={t.tournamentId} value={String(t.tournamentId)}>
+                      {type === 'league' ? t.name : `${datumLabel(t.date)} · ${t.name}`}
+                    </option>
+                  ))}
+                </select>
+                {type === 'league' && (
+                  <p className="text-xs mt-2 rounded border px-3 py-2" style={{ borderColor: '#a16207', background: '#a1620722', color: '#fcd34d' }}>
+                    <strong>Eén stream = één partij.</strong> Deze uitzending sluit zodra de partij in
+                    Cuescore is afgerond. Spelen ze daarna nog een partij, start dan opnieuw.
+                  </p>
+                )}
+              </>
+            )}
 
-        <label className={lbl}><Stap n={5} uitleg="Welke overlays in beeld staan: de roterende sponsors en/of het Cuescore-scorebord." />Overlays</label>
-        <div className="flex flex-wrap gap-2 mb-4">
-          {CONTENT_OVERLAYS.map((o) => (
-            <Toggle key={o.key} on={!!ov[o.key]} label={o.label} title={`${o.desc} — ${o.pos}`}
-                    onChange={(v) => setOv((s) => ({ ...s, [o.key]: v }))} />
-          ))}
-        </div>
+            {type === 'challenge' && (
+              <>
+                <label className={lbl}>Spelers</label>
+                <div className="flex items-center gap-2">
+                  <input value={spelerA} onChange={(e) => setSpelerA(e.target.value)} placeholder="speler 1" className={veld} />
+                  <span className="text-ink-muted text-sm shrink-0">vs</span>
+                  <input value={spelerB} onChange={(e) => setSpelerB(e.target.value)} placeholder="speler 2" className={veld} />
+                </div>
+                <p className="text-xs text-ink-muted mt-2">
+                  Maak de challenge eerst aan in Cuescore (scorebord → Aanmaken), dan werkt het scorebord op de stream.
+                </p>
+              </>
+            )}
 
-        {fout && <p className="text-sm text-brand-light bg-brand/10 border border-brand/40 rounded p-2 mb-3">{fout}</p>}
+            {type === 'custom' && (
+              <>
+                <label className={lbl}>Naam van de stream</label>
+                <input value={titel} onChange={(e) => setTitel(e.target.value.slice(0, CUSTOM_TITEL_MAX))}
+                       placeholder="bijv. Demo-avond" className={veld} />
+                <p className={`text-xs mt-1 ${titel.length >= CUSTOM_TITEL_MAX ? 'text-brand-light' : 'text-ink-muted'}`}>
+                  {titel.length}/{CUSTOM_TITEL_MAX} tekens
+                </p>
+              </>
+            )}
 
-        <div className="flex items-center gap-2">
-          <Stap n={6} uitleg="Start de stream op de gekozen tafel met deze instellingen — of annuleer." />
-          <button onClick={onClose} className="flex-1 border border-line text-ink rounded px-4 py-2">Annuleren</button>
-          <button disabled={bezig} onClick={start}
-                  className="flex-1 bg-brand hover:bg-brand-dark text-white rounded px-4 py-2 font-medium disabled:opacity-40">
-            {bezig ? 'Starten…' : 'Start stream'}
+            {titel && (
+              <p className="text-xs text-neutral-500 mt-3">
+                YouTube-titel wordt: <span className="font-mono">Tafel {tafel} {titel.replace(/^\s*tafel\s*\d+\s*/i, '')}</span>
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* ── 3. Overlays en zichtbaarheid ────────────────────────────────── */}
+        {stap === 3 && spec && (
+          <div>
+            <label className={lbl}>Overlays</label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {OVERLAYS.filter((o) => spec.overlays.includes(o.key)).map((o) => (
+                <Toggle key={o.key} on={!!ov[o.key]} label={o.label} title={`${o.desc} — ${o.pos}`}
+                        onChange={(v) => setOv((s) => ({ ...s, [o.key]: v }))} />
+              ))}
+            </div>
+            {spec.overlays.length < OVERLAYS.length && (
+              <p className="text-xs text-ink-muted mb-4">
+                {OVERLAYS.filter((o) => !spec.overlays.includes(o.key)).map((o) => o.label).join(' en ')} staan uit:
+                zonder Cuescore-wedstrijd op deze tafel tonen ze oude gegevens of blijven ze permanent in beeld.
+              </p>
+            )}
+
+            <label className={lbl}>Zichtbaarheid</label>
+            <div className="flex gap-2">
+              {['unlisted', 'public', 'private'].map((p) => (
+                <button key={p} onClick={() => setPrivacy(p)}
+                  className={`flex-1 rounded px-2 py-1.5 text-sm border ${
+                    privacy === p ? 'bg-brand text-white border-brand' : 'bg-canvas border-line text-ink-muted'
+                  }`}>
+                  {{ unlisted: 'Verborgen', public: 'Openbaar', private: 'Privé' }[p]}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── 4. Bevestigen ───────────────────────────────────────────────── */}
+        {stap === 4 && spec && (
+          <div>
+            <p className="text-sm mb-1"><span className="text-ink-muted">Tafel {tafel} ·</span> <span className="font-medium">{spec.label}</span></p>
+            <p className="text-sm font-mono mb-4">Tafel {tafel} {titel.replace(/^\s*tafel\s*\d+\s*/i, '')}</p>
+
+            <p className="text-sm font-medium mb-2">Wat er hierna gebeurt</p>
+            <ul className="space-y-1.5 mb-4">
+              {spec.gevolgen.map((g, i) => (
+                <li key={i} className="flex gap-2 text-sm">
+                  <span className="shrink-0" style={{ color: g.ok ? '#4ade80' : '#fcd34d' }}>{g.ok ? '✓' : '!'}</span>
+                  <span className={g.ok ? '' : 'text-ink-muted'}>{g.tekst}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {fout && <p className="text-sm text-brand-light bg-brand/10 border border-brand/40 rounded p-2 mt-4">{fout}</p>}
+
+        <div className="flex items-center gap-2 mt-5">
+          <button onClick={() => (stap === 1 ? onClose() : setStap(stap - 1))}
+                  className="flex-1 border border-line text-ink rounded px-4 py-2">
+            {stap === 1 ? 'Annuleren' : 'Terug'}
           </button>
+          {stap < 4 ? (
+            <button disabled={!magVerder} onClick={() => setStap(stap + 1)}
+                    className="flex-1 bg-brand hover:bg-brand-dark text-white rounded px-4 py-2 font-medium disabled:opacity-40">
+              Volgende
+            </button>
+          ) : (
+            <button disabled={bezig} onClick={start}
+                    className="flex-1 bg-brand hover:bg-brand-dark text-white rounded px-4 py-2 font-medium disabled:opacity-40">
+              {bezig ? 'Starten…' : 'Start stream'}
+            </button>
+          )}
         </div>
       </div>
     </div>
