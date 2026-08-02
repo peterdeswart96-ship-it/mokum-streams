@@ -501,10 +501,9 @@ function Wizard({ onClose, onStarted, tables = [] }) {
     setSpelerA(''); setSpelerB('');
     setTitel('');
     setFout('');
-    // Een custom stream is per definitie een demo of test. Die hoort niet ongevraagd
-    // openbaar op het kanaal te belanden — dat is precies hoe er 32 testopnames tussen
-    // de echte video's kwamen te staan. In stap 3 kun je het alsnog omzetten.
-    setPrivacy(t === 'custom' ? 'unlisted' : 'public');
+    // Zichtbaarheid bewust NIET meeresetten: elke soort stream begint op Openbaar
+    // (besluit Peter, 02-08). Heb je in stap 3 Verborgen gekozen en ga je daarna nog
+    // terug om iets te wijzigen, dan blijft die keuze staan.
   }
 
   async function start() {
