@@ -44,6 +44,14 @@ async function writeJson(blobPath, obj) {
   });
 }
 
+// Verwijdert een blob. Bestaat 'ie niet, dan is dat geen fout — het doel (weg) is bereikt.
+// Nodig voor "koppeling verbreken" (#90): daar moet het opgeslagen geheim écht weg zijn en
+// niet achterblijven met een vlaggetje erop.
+async function deleteBlob(blobPath) {
+  const container = await getContainerClient();
+  await container.getBlockBlobClient(blobPath).deleteIfExists();
+}
+
 // Lees-wijzig-schrijf met optimistische concurrency (ETag). `updater(huidig)` geeft
 // het nieuwe object terug; we schrijven alleen als de blob sinds het lezen niet is
 // gewijzigd (ifMatch), anders lezen we opnieuw en proberen we het nog eens. Nodig voor
@@ -80,4 +88,4 @@ async function updateJson(blobPath, updater, fallback = null, retries = 6) {
   }
 }
 
-module.exports = { readJson, writeJson, updateJson, getContainerClient, CONTAINER };
+module.exports = { readJson, writeJson, updateJson, deleteBlob, getContainerClient, CONTAINER };

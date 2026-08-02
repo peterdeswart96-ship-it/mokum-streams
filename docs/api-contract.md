@@ -641,3 +641,55 @@ Body:
      Cuescore-challenge mee moet opzoeken. Zonder deze velden verandert er niets.
   2. Geen wijziging aan de respons of aan bestaande velden. `tournamentId` stond al sinds v0.34
      in de body maar ontbrak in de regel hierboven; nu compleet.
+
+## Challenges aanmaken (leden, eigen Cuescore-sessie)
+Aparte groep endpoints voor Mokum-**leden** (niet voor beheerders). Doel: een challenge in
+Cuescore aanmaken vanaf een sjabloon, in plaats van elke keer het formulier invullen.
+
+Auth werkt hier ANDERS dan bij `/api/manage/*`: er is geen gedeeld beheerderstoken. Een lid
+logt in met zijn **eigen Cuescore-gegevens**; wij controleren die bij Cuescore zelf en geven
+daarna een eigen ondertekend token terug (`Authorization: Bearer <token>`, 90 dagen geldig,
+HMAC-SHA256). Cuescore kent geen OAuth en geen app-toegang, dus dit is de enige manier om
+namens een lid te handelen.
+
+POST /api/challenge/login      -> body: { "email": "...", "wachtwoord": "..." }
+                                  Logt in bij Cuescore, bewaart het wachtwoord VERSLEUTELD
+                                  (AES-256-GCM, sleutel uit Key Vault) en geeft terug:
+                                  { "token", "speler": { "playerId", "naam" }, "sjablonen": [...] }
+GET  /api/challenge/me         -> { "speler", "sjablonen", "tafels": [...] }
+GET  /api/challenge/spelers?q= -> { "spelers": [ { "playerId", "naam" } ] } (zoeken via Cuescore)
+POST /api/challenge/aanmaken   -> body: { "tegenstanderId": 3404805, "tafel": 1,
+                                  "discipline"?: 3, "raceTo"?: 5, "breakrule"?: "winner|alternate" }
+                                  -> { "challengeId", "matchId", "url" }
+POST /api/challenge/sjablonen  -> body: { "sjablonen": [ { "naam", "tegenstanderId"?, "discipline",
+                                  "raceTo", "breakrule" } ] } (max 12) -> { "sjablonen" }
+POST /api/challenge/loskoppelen-> wist het opgeslagen wachtwoord en de sessie -> { "ok": true }
+
+Ledenrecord (opslag `challenge/leden/<playerId>.json`, nooit naar de frontend):
+{
+  "playerId": 1234567,
+  "naam": "Peter de Swart",
+  "email": "...",
+  "geheim": { "iv", "tag", "data" },   // AES-256-GCM; sleutel staat in Key Vault
+  "cookies": { "..." },                 // laatste Cuescore-sessie, om niet elke keer in te loggen
+  "sjablonen": [ ... ],
+  "aangemaakt": "2026-08-02T13:00:00Z",
+  "laatstGebruikt": "2026-08-02T13:00:00Z"
+}
+
+Regels:
+- Het wachtwoord gaat **nooit** terug naar de frontend en staat **nooit** in logging.
+- De opgeslagen Cuescore-sessie wordt hergebruikt; pas als die verlopen is loggen we opnieuw
+  in met het opgeslagen wachtwoord. Lukt dat ook niet, dan krijgt het lid een 401 en moet het
+  opnieuw inloggen (bijv. na een wachtwoordwijziging bij Cuescore).
+- `tafel` is het ECHTE zaalnummer (1..19); de vertaling naar Cuescore's `tableId` gebeurt
+  serverside — die id's zijn niet af te leiden uit het nummer.
+- Wie mag beginnen (de lag) wordt bewust NIET geautomatiseerd; dat is een fysieke uitkomst.
+
+- 2026-08-02: v0.48 — **challenges aanmaken door leden (#90)**. Nieuwe groep `/api/challenge/*`
+  hierboven. Reden: leden spelen vaak dezelfde challenge (9-ball, race naar 5, winner break) en
+  moeten die elke keer met de hand in Cuescore aanmaken. Cuescore heeft geen officiële API en
+  geen OAuth; het koppelvlak is uitgezocht en live geverifieerd — zie
+  `docs/cuescore-challenge.md`. Bewuste keuze van Peter (02-08) om wachtwoorden versleuteld te
+  bewaren zodat leden ze één keer invullen; de risico's daarvan staan in dat document.
+  Raakt de bestaande endpoints niet.
