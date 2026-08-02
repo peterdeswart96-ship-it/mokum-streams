@@ -31,6 +31,12 @@ const Kop = ({ children }) => (
   <h2 className="text-sm font-medium text-ink-muted mb-2 mt-6">{children}</h2>
 );
 
+const Ster = ({ className = '' }) => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" className={`w-4 h-4 fill-current ${className}`}>
+    <path d="M12 2.5l2.9 5.9 6.5.95-4.7 4.6 1.1 6.5L12 17.4l-5.8 3.05 1.1-6.5-4.7-4.6 6.5-.95L12 2.5z" />
+  </svg>
+);
+
 const veld = 'w-full bg-canvas border border-line rounded-lg px-3 py-2.5 text-ink text-base';
 
 // ── Inloggen ─────────────────────────────────────────────────────────────────
@@ -185,11 +191,13 @@ export default function Challenge() {
   const favorieten = (lid && lid.sjablonen) || [];
   const spelNaam = (d) => (keuzes.disciplines.find((x) => x.id === Number(d)) || {}).naam || `spel ${d}`;
 
-  // Een favoriet aantikken vult alles in één klap in.
+  // Een favoriet aantikken vult alles in één klap in. De lijst staat onderaan, dus daarna
+  // terug naar boven — anders tik je iets aan en lijkt er niets te gebeuren.
   function kiesFavoriet(f) {
     setSpel({ discipline: f.discipline, raceTo: f.raceTo, breakrule: f.breakrule });
     if (f.tegenstanderId) setTegenstander({ playerId: f.tegenstanderId, naam: f.tegenstanderNaam || 'tegenstander' });
     setFout('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   async function bewaarFavorieten(nieuw) {
@@ -265,37 +273,6 @@ export default function Challenge() {
 
         {status === 'ok' && !klaar && (
           <>
-            {/* ── Favorieten ───────────────────────────────────────────────── */}
-            {favorieten.length > 0 && (
-              <>
-                <div className="flex items-baseline justify-between mt-6 mb-2">
-                  <h2 className="text-sm font-medium text-ink-muted">Favorieten</h2>
-                  <button onClick={() => setBewerken(!bewerken)} className="text-xs text-ink-muted underline">
-                    {bewerken ? 'klaar' : 'bewerken'}
-                  </button>
-                </div>
-                <div className="space-y-2">
-                  {favorieten.map((f, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <button onClick={() => kiesFavoriet(f)}
-                              className="flex-1 text-left rounded-lg border border-line px-4 py-3 hover:border-ink-muted">
-                        <span className="block font-medium">{f.naam}</span>
-                        <span className="block text-xs text-ink-muted">
-                          {f.tegenstanderNaam ? `tegen ${f.tegenstanderNaam} · ` : ''}
-                          {spelNaam(f.discipline)} · race {f.raceTo} ·{' '}
-                          {f.breakrule === 'winner' ? 'winner break' : 'alternate break'}
-                        </span>
-                      </button>
-                      {bewerken && (
-                        <button onClick={() => bewaarFavorieten(favorieten.filter((_, j) => j !== i))}
-                                className="text-xs text-brand-light underline shrink-0">verwijder</button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
             {/* ── Instellingen van de partij ───────────────────────────────── */}
             <Kop>Wat spelen jullie?</Kop>
             <div className="space-y-2">
@@ -371,8 +348,9 @@ export default function Challenge() {
                 waar je speelt. */}
             <div className="mt-3">
               {bewaarNaam === null ? (
-                <button onClick={() => setBewaarNaam('')} className="text-xs text-ink-muted underline">
-                  Deze instellingen bewaren als favoriet
+                <button onClick={() => setBewaarNaam('')}
+                        className="text-xs text-ink-muted underline flex items-center gap-1.5">
+                  <Ster className="w-3 h-3 text-brand" /> Deze instellingen bewaren als favoriet
                 </button>
               ) : (
                 <div className="flex gap-2">
@@ -386,6 +364,45 @@ export default function Challenge() {
                 </div>
               )}
             </div>
+
+            {/* ── Favorieten ───────────────────────────────────────────────────
+                Onderaan en met een eigen rode omlijning: dit is geen stap in het
+                invullen maar een snelkoppeling die het formulier hierboven in één
+                klap invult. */}
+            {favorieten.length > 0 && (
+              <section className="mt-8 rounded-lg border-2 border-brand p-3">
+                <div className="flex items-baseline justify-between mb-2">
+                  <h2 className="text-sm font-medium flex items-center gap-1.5">
+                    <Ster className="text-brand" /> Favorieten
+                  </h2>
+                  <button onClick={() => setBewerken(!bewerken)} className="text-xs text-ink-muted underline">
+                    {bewerken ? 'klaar' : 'bewerken'}
+                  </button>
+                </div>
+                <p className="text-[11px] text-ink-muted mb-3">
+                  Tik een favoriet aan; de instellingen hierboven worden dan ingevuld.
+                </p>
+                <div className="space-y-2">
+                  {favorieten.map((f, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <button onClick={() => kiesFavoriet(f)}
+                              className="flex-1 text-left rounded-lg border border-line px-4 py-3 hover:border-ink-muted">
+                        <span className="block font-medium">{f.naam}</span>
+                        <span className="block text-xs text-ink-muted">
+                          {f.tegenstanderNaam ? `tegen ${f.tegenstanderNaam} · ` : ''}
+                          {spelNaam(f.discipline)} · race {f.raceTo} ·{' '}
+                          {f.breakrule === 'winner' ? 'winner break' : 'alternate break'}
+                        </span>
+                      </button>
+                      {bewerken && (
+                        <button onClick={() => bewaarFavorieten(favorieten.filter((_, j) => j !== i))}
+                                className="text-xs text-brand-light underline shrink-0">verwijder</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
 
             <div className="mt-10 border-t border-line pt-4 text-xs text-ink-muted">
               <button onClick={() => setBeheer(!beheer)} className="underline">
