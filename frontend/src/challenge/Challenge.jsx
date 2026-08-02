@@ -179,6 +179,14 @@ export default function Challenge() {
 
   useEffect(() => { if (status === 'laden') laad(); }, [status, laad]);
 
+  // Heb je maar één sjabloon, dan valt er niets te kiezen — meteen aanzetten, zodat je
+  // direct de tafels ziet in plaats van een scherm met één knop en een uitgegrijsde
+  // aanmaakknop eronder.
+  useEffect(() => {
+    const s = lid && lid.sjablonen;
+    if (!sjabloon && s && s.length === 1) setSjabloon(s[0]);
+  }, [lid, sjabloon]);
+
   function opnieuw() {
     setSjabloon(null); setTegenstander(null); setTafel(null); setKlaar(null); setFout('');
   }
@@ -215,11 +223,16 @@ export default function Challenge() {
 
   return (
     <div className="min-h-screen bg-canvas text-ink">
-      <header className="border-b border-line px-4 py-4">
-        <h1 className="text-xl font-display">
-          <span className="text-brand">Mokum</span> Challenge
-        </h1>
-        <p className="text-xs text-ink-muted">Snel een challenge aanmaken in Cuescore</p>
+      {/* De kop hoort in dezelfde kolom als de rest. Stond die buiten de container, dan
+          plakt hij op een breed scherm linksboven in de hoek terwijl de inhoud in het
+          midden zweeft — dat ziet eruit alsof de opmaak stuk is. */}
+      <header className="border-b border-line">
+        <div className="max-w-md mx-auto px-4 py-4">
+          <h1 className="text-xl font-display">
+            <span className="text-brand">Mokum</span> Challenge
+          </h1>
+          <p className="text-xs text-ink-muted">Snel een challenge aanmaken in Cuescore</p>
+        </div>
       </header>
 
       <main className="max-w-md mx-auto px-4 pb-16">
