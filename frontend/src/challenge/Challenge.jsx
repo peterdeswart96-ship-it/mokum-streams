@@ -39,6 +39,22 @@ const Ster = ({ className = '' }) => (
 
 const veld = 'w-full bg-canvas border border-line rounded-lg px-3 py-2.5 text-ink text-base';
 
+// Uitklapbaar onderdeel. De kop is zelf de knop — op een telefoon wil je een groot
+// trefvlak, geen klein pijltje. Standaard staan beide panelen open: inklappen is er om
+// ruimte te maken als je het niet nodig hebt, niet om dingen te verstoppen.
+function Paneel({ titel, icoon, open, onToggle, rand = 'border-line', children }) {
+  return (
+    <section className={`mt-6 rounded-lg border-2 ${rand}`}>
+      <button onClick={onToggle} aria-expanded={open}
+              className="w-full flex items-center justify-between gap-2 px-3 py-3 text-left">
+        <span className="text-sm font-medium flex items-center gap-1.5">{icoon}{titel}</span>
+        <span className={`text-ink-muted text-xs transition-transform ${open ? '' : '-rotate-90'}`}>▼</span>
+      </button>
+      {open && <div className="px-3 pb-3">{children}</div>}
+    </section>
+  );
+}
+
 // ── Inloggen ─────────────────────────────────────────────────────────────────
 
 function Inloggen({ onKlaar }) {
@@ -167,6 +183,8 @@ export default function Challenge() {
   const [bewaarNaam, setBewaarNaam] = useState(null); // null = het invulveld staat dicht
   const [bewerken, setBewerken] = useState(false);
   const [beheer, setBeheer] = useState(false);
+  const [openNieuw, setOpenNieuw] = useState(true);
+  const [openFav, setOpenFav] = useState(true);
 
   const laad = useCallback(async () => {
     try {
@@ -197,6 +215,7 @@ export default function Challenge() {
     setSpel({ discipline: f.discipline, raceTo: f.raceTo, breakrule: f.breakrule });
     if (f.tegenstanderId) setTegenstander({ playerId: f.tegenstanderId, naam: f.tegenstanderNaam || 'tegenstander' });
     setFout('');
+    setOpenNieuw(true); // stond het formulier dichtgeklapt, dan nu open
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -273,7 +292,8 @@ export default function Challenge() {
 
         {status === 'ok' && !klaar && (
           <>
-            {/* ── Instellingen van de partij ───────────────────────────────── */}
+            {/* ── Nieuwe challenge aanmaken ────────────────────────────────── */}
+            <Paneel titel="Nieuwe challenge aanmaken" open={openNieuw} onToggle={() => setOpenNieuw(!openNieuw)}>
             <Kop>Wat spelen jullie?</Kop>
             <div className="space-y-2">
               <label className="block">
@@ -364,25 +384,24 @@ export default function Challenge() {
                 </div>
               )}
             </div>
+            </Paneel>
 
             {/* ── Favorieten ───────────────────────────────────────────────────
-                Onderaan en met een eigen rode omlijning: dit is geen stap in het
-                invullen maar een snelkoppeling die het formulier hierboven in één
-                klap invult. */}
+                Eigen rode omlijning: dit is geen stap in het invullen maar een
+                snelkoppeling die het formulier hierboven in één klap invult. */}
             {favorieten.length > 0 && (
-              <section className="mt-8 rounded-lg border-2 border-brand p-3">
-                <div className="flex items-baseline justify-between mb-2">
-                  <h2 className="text-sm font-medium flex items-center gap-1.5">
-                    <Ster className="text-brand" /> Favorieten
-                  </h2>
-                  <button onClick={() => setBewerken(!bewerken)} className="text-xs text-ink-muted underline">
+              <Paneel titel="Favorieten" icoon={<Ster className="text-brand" />} rand="border-brand"
+                      open={openFav} onToggle={() => setOpenFav(!openFav)}>
+                <div className="flex items-baseline justify-between mb-1">
+                  <p className="text-[11px] text-ink-muted">
+                    Tik een favoriet aan; de instellingen hierboven worden ingevuld.
+                  </p>
+                  <button onClick={() => setBewerken(!bewerken)}
+                          className="text-xs text-ink-muted underline shrink-0 ml-2">
                     {bewerken ? 'klaar' : 'bewerken'}
                   </button>
                 </div>
-                <p className="text-[11px] text-ink-muted mb-3">
-                  Tik een favoriet aan; de instellingen hierboven worden dan ingevuld.
-                </p>
-                <div className="space-y-2">
+                <div className="space-y-2 mt-2">
                   {favorieten.map((f, i) => (
                     <div key={i} className="flex items-center gap-2">
                       <button onClick={() => kiesFavoriet(f)}
@@ -401,7 +420,7 @@ export default function Challenge() {
                     </div>
                   ))}
                 </div>
-              </section>
+              </Paneel>
             )}
 
             <div className="mt-10 border-t border-line pt-4 text-xs text-ink-muted">
