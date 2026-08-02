@@ -411,10 +411,14 @@ const STREAM_TYPES = {
 
 const CUSTOM_TITEL_MAX = 30;
 
-function Wizard({ onClose, onStarted }) {
+function Wizard({ onClose, onStarted, tables = [] }) {
+  // Welke tafels zijn al bezet? Zonder dit kies je een tafel die al live is, klik je
+  // drie stappen door en krijg je pas bij "Start stream" een 409 van de backend.
+  const bezet = new Map(tables.filter((t) => t.status === 'live' || t.status === 'scheduled')
+                              .map((t) => [t.tableNumber, t.status]));
   const [stap, setStap] = useState(1);
   const [type, setType] = useState('');             // toernooi | league | challenge | custom
-  const [tafel, setTafel] = useState(CAMERAS[0]);
+  const [tafel, setTafel] = useState(() => CAMERAS.find((n) => !bezet.has(n)) ?? CAMERAS[0]);
   const [titel, setTitel] = useState('');
   const [spelerA, setSpelerA] = useState('');
   const [spelerB, setSpelerB] = useState('');
@@ -483,8 +487,9 @@ function Wizard({ onClose, onStarted }) {
   const magVerder = (() => {
     if (stap === 1) return !!type;
     if (stap === 2) {
+      if (bezet.has(tafel)) return false; // bezette tafel → nooit doorlopen
       if (type === 'toernooi' || type === 'league') return !!gekozen;
-      if (type === 'challenge') return spelerA.trim() && spelerB.trim();
+      if (type === 'challenge') return !!(spelerA.trim() && spelerB.trim());
       return titel.trim().length > 0 && titel.trim().length <= CUSTOM_TITEL_MAX;
     }
     return true;
@@ -496,6 +501,10 @@ function Wizard({ onClose, onStarted }) {
     setSpelerA(''); setSpelerB('');
     setTitel('');
     setFout('');
+    // Een custom stream is per definitie een demo of test. Die hoort niet ongevraagd
+    // openbaar op het kanaal te belanden — dat is precies hoe er 32 testopnames tussen
+    // de echte video's kwamen te staan. In stap 3 kun je het alsnog omzetten.
+    setPrivacy(t === 'custom' ? 'unlisted' : 'public');
   }
 
   async function start() {
@@ -553,9 +562,18 @@ function Wizard({ onClose, onStarted }) {
         {stap === 2 && (
           <div>
             <label className={lbl}>Tafel</label>
-            <select value={tafel} onChange={(e) => setTafel(Number(e.target.value))} className={`${veld} mb-4`}>
-              {CAMERAS.map((n) => <option key={n} value={n}>Tafel {n}</option>)}
+            <select value={tafel} onChange={(e) => setTafel(Number(e.target.value))} className={`${veld} ${bezet.has(tafel) ? 'mb-1' : 'mb-4'}`}>
+              {CAMERAS.map((n) => (
+                <option key={n} value={n} disabled={bezet.has(n)}>
+                  Tafel {n}{bezet.has(n) ? (bezet.get(n) === 'live' ? ' — bezet (live)' : ' — bezet (gepland)') : ''}
+                </option>
+              ))}
             </select>
+            {bezet.has(tafel) && (
+              <p className="text-xs mb-4 text-brand-light">
+                Op deze tafel loopt al een uitzending. Stop die eerst, of kies een andere tafel.
+              </p>
+            )}
 
             {(type === 'toernooi' || type === 'league') && (
               <>
@@ -1241,7 +1259,7 @@ export default function App() {
       </main>
 
       {wizard && (
-        <Wizard onClose={() => setWizard(false)}
+        <Wizard tables={tables} onClose={() => setWizard(false)}
                 onStarted={() => { setWizard(false); pushToast('Stream gestart — OBS volgt via de agent.', 'ok'); laad(); }} />
       )}
       {infoOpen && <OverlayInfo onClose={() => setInfoOpen(false)} />}
