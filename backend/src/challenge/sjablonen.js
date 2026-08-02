@@ -7,12 +7,34 @@
 const MAX_SJABLONEN = 12;
 const MAX_NAAM = 40;
 const MAX_RACE = 200;   // 14.1 gaat tot 100+; ruim genomen
+// De twee breakregels die Cuescore kent (zie het aanmaakformulier op hun scorebord).
+// winner break = wie de partij wint mag opnieuw breken; alternate = om en om.
 const BREAKRULES = ['winner', 'alternate'];
+const BREAKRULE_LABELS = { winner: 'Winner break', alternate: 'Alternate break' };
 
-// Bekende disciplines. Alleen 9-Ball is live geverifieerd (id 3); de rest volgt zodra we
-// een challenge in die spelsoort zien. Onbekende nummers weigeren we niet — Cuescore kent
-// er meer dan wij — maar het moet wel een getal zijn.
-const DISCIPLINES = { 3: '9-Ball' };
+// Spelsoorten met hun Cuescore-nummer, uitgelezen uit CueScore.Discipline in hun eigen
+// bibliotheek. Alleen 9-Ball (3) is live geverifieerd; de rest komt uit hun code en is dus
+// betrouwbaar, maar nog niet in de praktijk aangemaakt.
+//
+// Dit is een selectie die past bij wat er in Mokum staat: zestien pooltafels, twee English
+// pool-tafels (17/18) en een carambolebiljart (19). Cuescore kent er veel meer (snooker,
+// Russisch piramide, Braziliaanse varianten); die laten we weg om de lijst bruikbaar te
+// houden. Onbekende nummers weigeren we niet — het moet alleen een getal zijn.
+const DISCIPLINES = {
+  1: '7-Ball',
+  2: '8-Ball',
+  3: '9-Ball',
+  4: '10-Ball',
+  5: '14.1 (straight pool)',
+  6: 'One pocket',
+  7: 'Bank pool',
+  10: 'Multiball',
+  201: 'Eén band (carambole)',
+  202: 'Driebanden (carambole)',
+  203: 'Libre (carambole)',
+  301: 'Blackball (English pool)',
+  302: 'World rules (English pool)',
+};
 
 const STANDAARD = {
   naam: '9-ball race 5',
@@ -65,4 +87,7 @@ function normaliseerSjablonen(rauw) {
   return uit;
 }
 
-module.exports = { normaliseerSjabloon, normaliseerSjablonen, STANDAARD, DISCIPLINES, MAX_SJABLONEN, MAX_NAAM };
+module.exports = {
+  normaliseerSjabloon, normaliseerSjablonen, STANDAARD,
+  DISCIPLINES, BREAKRULES, BREAKRULE_LABELS, MAX_SJABLONEN, MAX_NAAM, MAX_RACE,
+};

@@ -1,6 +1,7 @@
 const { app } = require('@azure/functions');
 const leden = require('../challenge/leden');
 const cuescore = require('../challenge/cuescore');
+const sjablonen = require('../challenge/sjablonen');
 const { maakToken, leesToken, tokenUitRequest } = require('../challenge/token');
 const { haalSleutel } = require('../challenge/kluis');
 
@@ -76,7 +77,10 @@ app.http('challengeLogin', {
   },
 });
 
-// GET /api/challenge/me — wie ben ik en wat zijn mijn sjablonen
+// GET /api/challenge/me — wie ben ik, mijn sjablonen, en de keuzelijsten
+//
+// De spelsoorten en breakregels komen hiervandaan en staan niet in de frontend: één bron,
+// zodat een nieuwe spelsoort niet op twee plekken bijgewerkt hoeft te worden.
 app.http('challengeMe', {
   methods: ['GET'],
   authLevel: 'anonymous',
@@ -85,6 +89,9 @@ app.http('challengeMe', {
     lid: leden.publiek(lid.record),
     tafels: cuescore.CAMERA_TAFELS,
     alleTafels: Object.keys(cuescore.TAFELS).map(Number).sort((a, b) => a - b),
+    disciplines: Object.entries(sjablonen.DISCIPLINES).map(([id, naam]) => ({ id: Number(id), naam })),
+    breakregels: sjablonen.BREAKRULES.map((k) => ({ id: k, naam: sjablonen.BREAKRULE_LABELS[k] })),
+    maxRace: sjablonen.MAX_RACE,
   })),
 });
 

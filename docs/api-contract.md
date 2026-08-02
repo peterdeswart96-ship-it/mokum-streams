@@ -693,3 +693,11 @@ Regels:
   `docs/cuescore-challenge.md`. Bewuste keuze van Peter (02-08) om wachtwoorden versleuteld te
   bewaren zodat leden ze één keer invullen; de risico's daarvan staan in dat document.
   Raakt de bestaande endpoints niet.
+- 2026-08-02: v0.49 — **keuzelijsten en favorieten (#90)**. `GET /api/challenge/me` geeft er drie
+  velden bij: **`disciplines`** (`[{id, naam}]`, uit CueScore.Discipline — 9-Ball=3, 8-Ball=2,
+  14.1=5, carambole 201-203, English pool 301-302), **`breakregels`** (`[{id, naam}]` — `winner`
+  of `alternate`) en **`maxRace`**. Reden: het speltype, de racelengte en de breakregel stonden
+  vast op 9-ball/race 5/winner break en waren niet te kiezen. De lijsten komen van de backend en
+  niet uit de frontend, zodat een nieuwe spelsoort maar op één plek bijgewerkt hoeft te worden.
+  De sjablonen heten in de interface **favorieten**; de opslagvorm en `/api/challenge/sjablonen`
+  blijven ongewijzigd.
