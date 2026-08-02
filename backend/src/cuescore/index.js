@@ -7,6 +7,7 @@ const {
   isFinalFinished,
   findTournamentByName,
   recentTournamentIds,
+  lopendeTournamentIds,
 } = require('./parse');
 const { zaalDagMoment } = require('../schedule/schedule');
 
@@ -46,6 +47,30 @@ async function haalToernooienPaginas(orgStub) {
   return paginas;
 }
 
+// Nu lopende doorlopende toernooien (#86). Die staan NIET op /tournaments — alleen op de
+// organisatiepagina, waar Cuescore ze zelf markeert met class="date live".
+//
+// Gecachet, want getTodaysTournamentIds wordt elke 30 seconden aangeroepen (pauzeScherm)
+// en we willen Cuescore niet onnodig belasten. Tien minuten is ruim genoeg: een toernooi
+// begint of eindigt niet tussen twee tikken door.
+const LOPEND_CACHE_MS = 10 * 60 * 1000;
+let lopendCache = { ids: [], tot: 0 };
+
+async function getLopendeTournamentIds({ orgStub = ORG_STUB, now = new Date() } = {}) {
+  if (now.getTime() < lopendCache.tot) return lopendCache.ids;
+  try {
+    const res = await fetch(`https://cuescore.com/${orgStub}`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+    if (!res.ok) throw new Error(`gaf ${res.status}`);
+    const ids = lopendeTournamentIds(await res.text());
+    lopendCache = { ids, tot: now.getTime() + LOPEND_CACHE_MS };
+    return ids;
+  } catch {
+    // Onbereikbaar? Werk door met wat we hadden. Een gemiste league is vervelend,
+    // een uitgevallen pauzescherm is erger.
+    return lopendCache.ids;
+  }
+}
+
 // Haalt de HTML van de toernooien-pagina op en geeft de toernooi-ID's van vandaag.
 async function getTodaysTournamentIds({ orgStub = ORG_STUB, now = new Date() } = {}) {
   const paginas = await haalToernooienPaginas(orgStub);
@@ -58,6 +83,10 @@ async function getTodaysTournamentIds({ orgStub = ORG_STUB, now = new Date() } =
   for (const html of paginas) {
     for (const id of parseTodaysTournamentIds(html, vandaag)) if (!ids.includes(id)) ids.push(id);
   }
+  // Een doorlopend toernooi speelt vandaag ook, maar staat niet onder de datumkop van
+  // vandaag (#86). Zonder deze regel wordt een stream op een league-avond nooit gekoppeld
+  // en volgt er geen auto-stop, thumbnail of hoofdstukken.
+  for (const id of await getLopendeTournamentIds({ orgStub, now })) if (!ids.includes(id)) ids.push(id);
   return ids;
 }
 
@@ -87,6 +116,9 @@ async function getUpcomingTournaments({ orgStub = ORG_STUB, now = new Date(), da
   for (const html of paginas) {
     for (const id of upcomingTournamentIds(html, now, { days })) if (!ids.includes(id)) ids.push(id);
   }
+  // Lopende doorlopende toernooien vallen buiten het venster van veertien dagen — ze
+  // staan onder hun startdatum, vaak maanden terug — en misten dus in de planning (#86).
+  for (const id of await getLopendeTournamentIds({ orgStub, now })) if (!ids.includes(id)) ids.push(id);
   const out = [];
   for (const id of ids) out.push(await getTournament(id));
   return out;

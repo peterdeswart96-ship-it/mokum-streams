@@ -127,6 +127,33 @@ function parseTournamentsByDate(html) {
   return uit;
 }
 
+// Toernooi-ID's van NU LOPENDE toernooien op de organisatiepagina (#86).
+//
+// Een doorlopend toernooi (zoals "Mokum 14.1 Summer league", 16 juni t/m 31 augustus)
+// staat niet op /tournaments en valt bovendien buiten het venster van veertien dagen,
+// want het staat onder zijn startdatum. Daardoor kwam het nooit in de planning, werd een
+// stream op zo'n avond nooit gekoppeld, en bleef die zonder thumbnail, hoofdstukken en
+// auto-stop liggen (30 en 31 juli; tafel 3 liep dertien uur door tot de nachtstop).
+//
+// Cuescore markeert een lopend toernooi zelf met `class="date live"` op de
+// organisatiepagina. Dat is betrouwbaarder dan zelf datums vergelijken: het is hun eigen
+// oordeel over wat er nu speelt.
+const LIVE_MARKER = 'class="date live"';
+
+function lopendeTournamentIds(html) {
+  const ids = [];
+  const delen = String(html || '').split(LIVE_MARKER);
+  // Deel 0 staat vóór de eerste markering; elk volgend deel begint bij een lopend
+  // toernooi, dus de EERSTE toernooi-link daarin hoort bij die rij.
+  for (let i = 1; i < delen.length; i++) {
+    const m = /\/tournament\/[^/"]+\/(\d+)/.exec(delen[i]);
+    if (!m) continue;
+    const id = parseInt(m[1], 10);
+    if (!ids.includes(id)) ids.push(id);
+  }
+  return ids;
+}
+
 // Toernooi-ID's vanaf vandaag tot `days` dagen vooruit (voor de planning-import).
 function upcomingTournamentIds(html, now, { days = 14, tz = 'Europe/Amsterdam' } = {}) {
   const vandaagISO = cuescoreDateToISO(formatCuescoreDate(now, tz));
@@ -292,6 +319,7 @@ module.exports = {
   parseTournamentsByDate,
   upcomingTournamentIds,
   recentTournamentIds,
+  lopendeTournamentIds,
   normalizeMatch,
   runoutRacksUitNotes,
   normalizeTournament,

@@ -100,7 +100,12 @@ async function verwerk(now, context) {
   }
 
   // 2) Doorlopende competities (per avond)
-  for (const rec of planning.filter((r) => r.type === 'competition' && r.enabled !== false)) {
+  // `planned` is óók voor competities de arm-vlag (#86). Stond hier eerder alleen
+  // `enabled`, en dat is de standaardwaarde bij import — een doorlopende league die
+  // binnenkomt zou dan meteen elke avond met een wedstrijd op een cameratafel gaan
+  // streamen, ook op avonden waarop niemand dat wil. Nu geldt overal hetzelfde:
+  // plannen in de Toernooi planner = draaien.
+  for (const rec of planning.filter((r) => r.type === 'competition' && r.enabled !== false && r.planned === true)) {
     let tournament;
     try {
       tournament = await getTournament(rec.tournamentId);

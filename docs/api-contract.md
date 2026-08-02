@@ -613,3 +613,18 @@ Body:
      ten onrechte op `playing` hangen, dan ruimt de nachtstop van 02:00 het op.
   3. **`stopReden()`** (nieuw, naast `shouldStop`) geeft een leesbare reden; `checkStops` logt die
      per tafel: `[checkStops] tafel 1: stoppen — <reden>`.
+- 2026-08-02: v0.46 — **lopende doorlopende toernooien komen binnen (#86)**. Een meerdaags
+  toernooi (zoals "Mokum 14.1 Summer league", 16 juni t/m 31 augustus) stond niet op
+  `/tournaments` en viel bovendien buiten het venster van veertien dagen, want het staat
+  onder zijn startdatum. Het kwam daardoor nooit in `planning.json`, waardoor een stream op
+  zo'n avond niet gekoppeld werd: geen auto-stop, geen thumbnail, geen hoofdstukken (30 en
+  31 juli; tafel 3 liep dertien uur door tot de nachtstop).
+  1. De import leest nu óók de organisatiepagina en pikt daar de toernooien op die Cuescore
+     zelf als lopend markeert (`class="date live"`). Diezelfde lijst gaat naar
+     `getTodaysTournaments()`, zodat de ad-hoc koppeling op een league-avond werkt.
+     Gecachet voor tien minuten — `pauzeScherm` vraagt dit elke 30 seconden op.
+  2. **`planned` is nu ook voor `competition` de arm-vlag.** Eerder keek `createBroadcasts`
+     bij competities alleen naar `enabled`, en dat staat bij import standaard op `true` —
+     een binnenkomende league zou dus meteen elke avond met een wedstrijd op een cameratafel
+     gaan streamen. Nu geldt overal hetzelfde: plannen in de Toernooi planner = draaien.
+     Geen wijziging in de API-vorm, wel in het gedrag.

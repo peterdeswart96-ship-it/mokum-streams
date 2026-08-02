@@ -133,3 +133,45 @@ test('#77: beide formaten leveren via normalizeMatch hetzelfde moment op', () =>
   // En dat moment is 17:30 UTC — niet 17:30 in de tijdzone van deze machine.
   assert.strictEqual(Date.parse(a.start), Date.UTC(2026, 6, 28, 17, 30, 0));
 });
+
+// --- #86: doorlopende toernooien staan alleen op de organisatiepagina ---
+//
+// "Mokum 14.1 Summer league" (16 juni t/m 31 augustus) staat niet op /tournaments en
+// valt buiten het venster van veertien dagen. Cuescore markeert 'm op de
+// organisatiepagina zelf met class="date live". Fragment uit de echte pagina:
+
+const ORG_FRAGMENT = `
+  <td style="padding: 8px 4px;">
+    <div class="date upcoming"> August 3, 2026</div>
+    <div class="name"><a class="bold" href="//cuescore.com/tournament/Mokum+MEGA+Summer+Ranking/75881200">MEGA</a></div>
+  </td>
+  <td style="padding: 8px 4px;">
+    <div class="date live"> June 16 - August 31, 2026</div>
+    <div class="name"><a class="bold" href="//cuescore.com/tournament/Mokum+14.1+Summer+league/83049058">Mokum 14.1 Summer league</a></div>
+  </td>
+  <td style="padding: 8px 4px;">
+    <div class="date"> July 4, 2026</div>
+    <div class="name"><a class="bold" href="//cuescore.com/tournament/Oud/70000001">Oud</a></div>
+  </td>`;
+
+test('#86: alleen toernooien met class="date live" tellen als lopend', () => {
+  const { lopendeTournamentIds } = require('../src/cuescore/parse');
+  assert.deepStrictEqual(lopendeTournamentIds(ORG_FRAGMENT), [83049058]);
+});
+
+test('#86: geen markering op de pagina → lege lijst, geen fout', () => {
+  const { lopendeTournamentIds } = require('../src/cuescore/parse');
+  assert.deepStrictEqual(lopendeTournamentIds('<html>niets bijzonders</html>'), []);
+  assert.deepStrictEqual(lopendeTournamentIds(''), []);
+  assert.deepStrictEqual(lopendeTournamentIds(null), []);
+});
+
+test('#86: twee lopende toernooien leveren beide ids op, zonder dubbelen', () => {
+  const { lopendeTournamentIds } = require('../src/cuescore/parse');
+  const html = ORG_FRAGMENT + `
+    <div class="date live"> July 1 - September 1, 2026</div>
+    <div class="name"><a href="//cuescore.com/tournament/Tweede+League/99999">Tweede</a></div>
+    <div class="date live"> June 16 - August 31, 2026</div>
+    <div class="name"><a href="//cuescore.com/tournament/Mokum+14.1+Summer+league/83049058">Zelfde</a></div>`;
+  assert.deepStrictEqual(lopendeTournamentIds(html), [83049058, 99999]);
+});
