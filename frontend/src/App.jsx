@@ -376,10 +376,16 @@ function Wizard({ onClose, onStarted }) {
     getPlanning().then((d) => {
       const drempel = Date.now() - 12 * 3600 * 1000; // vandaag telt nog mee
       const lijst = (d.items || [])
-        .filter((r) => (r.type || 'tournament') !== 'competition' && r.name)
+        .filter((r) => r.name)
         .filter((r) => {
-          const t = Date.parse(r.plannedStart || `${r.date}T00:00:00Z`);
-          return !Number.isNaN(t) && t >= drempel;
+          // Zelfde regel als in de planner (#86): een doorlopende competitie is te kiezen
+          // zolang hij LOOPT. Anders kun je een 14.1-avond niet aan de league koppelen en
+          // blijft de stream ad-hoc — geen auto-stop, geen thumbnail, geen hoofdstukken.
+          const competitie = (r.type || 'tournament') === 'competition';
+          const ijk = competitie
+            ? Date.parse(r.plannedStop || '')
+            : Date.parse(r.plannedStart || `${r.date}T00:00:00Z`);
+          return !Number.isNaN(ijk) && ijk >= drempel;
         })
         .sort((a, b) => String(a.plannedStart || a.date).localeCompare(String(b.plannedStart || b.date)))
         .slice(0, 15);
