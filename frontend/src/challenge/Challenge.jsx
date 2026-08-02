@@ -11,9 +11,11 @@ const STANDAARD = { discipline: 3, raceTo: 5, breakrule: 'winner' };
 
 // Merkje op de tafels die gefilmd worden. Hetzelfde logo als op het dashboard
 // (public/youtube.png), zodat het in de zaal herkenbaar hetzelfde ding is.
+// Geen mx-auto in de basis: het centreren hoort alleen op de tafelknop thuis, en in de
+// legenda zou het de tekst wegduwen (Tailwind laat mx-auto van mx-0 winnen).
 const YouTubeMerk = ({ className = '' }) => (
   <img src="/youtube.png" alt="" aria-hidden="true"
-       className={`h-3 w-auto mx-auto ${className}`} />
+       className={`h-3 w-auto ${className}`} />
 );
 
 // ── Kleine bouwstenen ────────────────────────────────────────────────────────
@@ -337,12 +339,12 @@ export default function Challenge() {
                     tafel === n ? 'border-brand bg-brand/15' : 'border-line text-ink-muted'
                   }`}>
                   {n}
-                  {keuzes.cameraTafels.includes(n) && <YouTubeMerk className="mt-0.5" />}
+                  {keuzes.cameraTafels.includes(n) && <YouTubeMerk className="mx-auto mt-0.5" />}
                 </button>
               ))}
             </div>
             <p className="text-[11px] text-ink-muted mt-2 flex items-center gap-1.5">
-              <YouTubeMerk className="mx-0" /> = deze tafel kan gestreamd worden
+              <YouTubeMerk /> = deze tafel kan gestreamd worden
             </p>
 
             {fout && <div className="mt-4"><Melding>{fout}</Melding></div>}
