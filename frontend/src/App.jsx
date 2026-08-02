@@ -393,6 +393,13 @@ function Wizard({ onClose, onStarted }) {
     }).catch(() => setToernooien([]));
   }, []);
 
+  // Een doorlopende competitie gedraagt zich anders dan een toernooi: er is geen finale,
+  // dus de stream sluit zodra de lopende partij is afgerond (#86). Bij de 14.1-league
+  // plannen spelers hun partijen zelf, dus dat is meestal ná één wedstrijd. Dat moet je
+  // wéten voordat je start — anders sta je je af te vragen waarom de stream ineens stopte.
+  const gekozenRecord = toernooien.find((x) => String(x.tournamentId) === gekozen) || null;
+  const isCompetitie = !!gekozenRecord && (gekozenRecord.type || 'tournament') === 'competition';
+
   const kopieerToernooi = () => {
     const t = toernooien.find((x) => String(x.tournamentId) === gekozen);
     if (t) setTitel(t.name);
@@ -439,9 +446,18 @@ function Wizard({ onClose, onStarted }) {
         </div>
         <button type="button" onClick={() => setTitel('Challenge match [NAAM] vs [NAAM]')}
                 className="text-xs text-brand-light underline mb-1">of: Challenge match-sjabloon</button>
-        {gekozen
+        {isCompetitie && (
+          <div className="text-xs mb-3 rounded border px-3 py-2" style={{ borderColor: '#a16207', background: '#a1620722', color: '#fcd34d' }}>
+            <strong>Doorlopende competitie.</strong> Deze stream <strong>sluit automatisch</strong> zodra
+            de lopende partij in Cuescore is afgerond — er is geen finale om op te wachten. Daarna krijgt
+            de video vanzelf een YouTube-thumbnail en hoofdstukken.
+            <br />
+            Spelen ze daarna nog een partij? Start dan opnieuw; elke partij wordt een eigen video.
+          </div>
+        )}
+        {!isCompetitie && (gekozen
           ? <p className="text-xs mb-3" style={{ color: '#4ade80' }}>✓ Gekoppeld aan dit toernooi — sluit na de finale automatisch af (indien scherpgezet).</p>
-          : <p className="text-xs text-neutral-500 mb-3">Kies een toernooi om de stream te koppelen (auto-close + auto-thumbnail).</p>}
+          : <p className="text-xs text-neutral-500 mb-3">Kies een toernooi om de stream te koppelen (auto-close + auto-thumbnail).</p>)}
 
         <label className={lbl}><Stap n={3} uitleg="De YouTube-titel. 'Tafel {nr}' komt er automatisch voor — vul hier de rest in (of gebruik stap 2)." />YouTube-titel</label>
         <input value={titel} onChange={(e) => setTitel(e.target.value)} placeholder="bijv. Fluke ranking 9ball #22"
