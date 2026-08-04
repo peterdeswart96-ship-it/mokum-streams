@@ -139,7 +139,12 @@ async function verwerk(now, context) {
 
     // Tafel vrijmaken vóór een ingepland toernooi (#93). Staat hier ná de gewone stop-check,
     // zodat een uitzending die al om een andere reden stopt niet dubbel wordt geteld.
-    for (const v of vrijTeMaken(planning, store, now)) {
+    //
+    // Achter een schakelaar, en die staat standaard UIT. Reden: dit ging live op de avond dat
+    // de automatische start voor het eerst echt gebruikt werd (04-08). Twee nieuwe dingen op
+    // één avond maakt onmogelijk uit te zoeken wat er misging als er iets misgaat. Aanzetten
+    // met de app-instelling TAFEL_VRIJMAKEN=true zodra de automatische start bewezen is.
+    for (const v of (process.env.TAFEL_VRIJMAKEN === 'true' ? vrijTeMaken(planning, store, now) : [])) {
       const key = String(v.tableNumber);
       if (!store[key] || store[key].stopped) continue;
       context.log(`[checkStops] tafel ${v.tableNumber}: stoppen — ${v.reden} (video ${v.videoId})`);

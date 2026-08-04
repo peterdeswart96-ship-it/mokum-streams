@@ -92,3 +92,22 @@ test('#93: rommel in de planning of de opslag valt niet om', () => {
   assert.deepStrictEqual(vrijTeMaken([null, {}, toernooi({ startOverride: 'geen datum' })], {}, OM(17, 5)), []);
   assert.deepStrictEqual(vrijTeMaken([toernooi()], { 1: { videoId: null } }, OM(17, 5)), []);
 });
+
+// Deze test bewaakt een afhankelijkheid tussen twee bestanden die je makkelijk over het
+// hoofd ziet. createBroadcasts maakt de uitzending aan op preRoll-minuten vóór de start —
+// dus MIDDENIN het vrijmaak-venster. Zou die entry geen tournamentId krijgen, dan sluit
+// deze regel een minuut later de zojuist gestarte uitzending weer af.
+test('#93: de entry die createBroadcasts schrijft wordt NIET vrijgemaakt', () => {
+  // Exact de velden uit backend/src/functions/createBroadcasts.js.
+  const versGemaakt = {
+    tableNumber: 1,
+    tournamentId: 75880936,
+    tournamentName: 'Fluke ranking 9ball Seizoen 3 #26',
+    videoId: 'nieuw123',
+    broadcastId: 'nieuw123',
+    title: 'Tafel 1 Fluke ranking 9ball Seizoen 3 #26',
+    scheduledStart: '2026-08-04T17:30:00Z',
+  };
+  // 19:21 Amsterdam: één minuut na de automatische start, nog binnen het venster.
+  assert.deepStrictEqual(vrijTeMaken([toernooi()], { 1: versGemaakt }, OM(17, 21)), []);
+});

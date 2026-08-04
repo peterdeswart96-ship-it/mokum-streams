@@ -721,7 +721,7 @@ Regels:
   2. Nieuw veld **`vrijgemaaktVoor`** op een broadcast-entry: het tournamentId waarvoor de
      uitzending automatisch is gesloten. Vanaf 30 minuten vóór de start van een ingepland
      toernooi sluit `checkStops` alles wat er nog op zijn tafels draait en er niet bij hoort
-     (`backend/src/planning/vrijmaken.js`, puur + getest). Reden: op 03-08 bleef een losse
+     (`backend/src/planning/vrijmaken.js`, puur + getest; achter app-instelling `TAFEL_VRIJMAKEN=true`, standaard uit). Reden: op 03-08 bleef een losse
      challenge op tafel 1 acht uur openstaan, waarna diezelfde tafel voor het toernooi werd
      gebruikt — één video van 8u31 met tweeënhalf uur lege tafel aan het begin. Een
      uitzending van hét toernooi zelf blijft met rust, en na de starttijd grijpt de regel niet
