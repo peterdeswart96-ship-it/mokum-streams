@@ -1,0 +1,235 @@
+// Duiding van logregels voor het ochtendrapport (#91).
+//
+// De logs zijn geschreven voor ontwikkelaars; dit rapport is voor Nick en Mark. Deze module
+// vertaalt de regels die ertoe doen naar gewone taal, telt wat er gebeurd is, en trekt er
+// conclusies uit. Puur — geen netwerk, geen opslag → volledig testbaar.
+//
+// Uitgangspunt: liever te weinig regels tonen dan te veel. Een rapport waar dertig regels
+// ruis in staan wordt niet gelezen, en dan valt de ene regel die ertoe deed ook weg.
+
+const PROBLEEM_RE = /WAARSCHUWING|Exception|niet bereikbaar|FOUT|mislukt|nog niet gelukt|niet gevonden|Unhealthy|threshold exceeded/i;
+
+// Eerste treffer wint, dus specifiek boven algemeen.
+const REGELS = [
+  {
+    test: /^\[createBroadcasts\]/,
+    soort: 'goed',
+    titel: 'Uitzending automatisch gestart volgens de planning',
+    uitleg: 'Het systeem begon uit zichzelf, tien minuten voor de eerste wedstrijd. Zo hoort het te gaan.',
+  },
+  {
+    test: /^\[streams\/start\].*ad-hoc \(geen toernooi\)/,
+    soort: 'let-op',
+    titel: 'Losse uitzending gestart, zonder toernooi eraan',
+    uitleg: 'Deze stopt nooit vanzelf: het systeem weet niet wanneer een losse partij klaar is. Iemand moet hem met de hand stoppen.',
+  },
+  {
+    test: /^\[streams\/start\]/,
+    soort: 'let-op',
+    titel: 'Uitzending met de hand gestart',
+    uitleg: 'Iemand heeft dit zelf aangezet in het dashboard. Bij een ingepland toernooi was dat niet nodig geweest.',
+  },
+  {
+    test: /^\[streams\/stop\]/,
+    soort: 'neutraal',
+    titel: 'Uitzending met de hand gestopt',
+    uitleg: 'Iemand heeft de uitzending zelf afgesloten in het dashboard.',
+  },
+  {
+    test: /^\[checkStops\].*ad-hoc stream gekoppeld/,
+    soort: 'let-op',
+    titel: 'Losse uitzending alsnog aan het toernooi gekoppeld',
+    uitleg: 'Er stond een losse uitzending op een tafel waar duidelijk een toernooi speelde. Het systeem heeft die alsnog overgenomen, zodat hij toch netjes wordt afgesloten en een thumbnail krijgt. Het betekent wel dat de video begint vóórdat het toernooi begon.',
+  },
+  {
+    test: /^\[checkStops\].*stoppen/,
+    soort: 'goed',
+    titel: 'Uitzending automatisch gestopt',
+    uitleg: 'Het systeem zag dat er niets meer te tonen was en heeft zelf afgesloten.',
+  },
+  {
+    test: /gefinaliseerd/,
+    soort: 'goed',
+    titel: 'Video afgerond',
+    uitleg: 'De video heeft automatisch een thumbnail en hoofdstukken per partij gekregen, en staat klaar op het kanaal.',
+  },
+  {
+    test: /^\[challenge\/aanmaken\]/,
+    soort: 'neutraal',
+    titel: 'Challenge aangemaakt via de ledenpagina',
+    uitleg: 'Een lid heeft zelf een challenge in Cuescore aangemaakt.',
+  },
+];
+
+// Wat betekent deze regel? Retour: { soort, titel, uitleg } of null als 'ie niet in het
+// rapport thuishoort (routinewerk zoals de planning-import en het pauzescherm).
+function duidRegel(bericht) {
+  const m = String(bericht || '').trim();
+  if (!m) return null;
+  if (PROBLEEM_RE.test(m)) {
+    return {
+      soort: 'fout',
+      titel: 'Technische waarschuwing',
+      uitleg: 'De server meldde een storing. Kijk of er in dezelfde minuut een uitzending is geraakt; is dat niet zo, dan is er niets aan de hand.',
+    };
+  }
+  for (const r of REGELS) if (r.test.test(m)) return { soort: r.soort, titel: r.titel, uitleg: r.uitleg };
+  return null;
+}
+
+const tafelUit = (m) => {
+  const t = /tafel (\d+)/i.exec(m || '');
+  return t ? Number(t[1]) : null;
+};
+
+const minuten = (a, b) => Math.round((b - a) / 60000);
+
+function uurNotatie(min) {
+  const u = Math.floor(min / 60);
+  const r = min % 60;
+  return u ? `${u} uur en ${r} minuten` : `${r} minuten`;
+}
+
+// Analyseert een hele avond. `regels` = [{ tijd: Date, bericht: string }] op volgorde.
+//
+// Retour:
+//   gebeurtenissen : de regels die in het rapport horen, met duiding
+//   cijfers        : tellingen voor de kop van de mail
+//   bevindingen    : conclusies in gewone taal ({ soort, kop, tekst })
+function analyseer(regels, { langsteOpenUren = 2 } = {}) {
+  const rijen = (regels || []).filter((r) => r && r.tijd && r.bericht);
+
+  const gebeurtenissen = [];
+  const problemen = new Map(); // unieke melding → aantal
+  const open = new Map();      // tafelnummer → starttijd van een lopende uitzending
+  const uitzendingen = [];     // { tafel, start, stop, adhoc }
+
+  let pauzeschakelingen = 0;
+  let hoofdstukken = 0;
+  let automatischGestart = 0;
+  let automatischGestopt = 0;
+  let handmatigGestart = 0;
+  let gekoppeld = 0;
+
+  for (const r of rijen) {
+    const m = String(r.bericht).replace(/\r?\n/g, ' ').trim();
+
+    // Eerst tellen, dan pas beslissen of we 'm tonen: een fout die zich honderd keer
+    // herhaalt is één probleem, maar mag nooit uit de samenvatting vallen.
+    if (PROBLEEM_RE.test(m)) problemen.set(m, (problemen.get(m) || 0) + 1);
+
+    if (/^\[pauzeScherm\]/.test(m)) { pauzeschakelingen++; continue; }
+
+    const hs = /(\d+) hoofdstukken/.exec(m);
+    if (hs) hoofdstukken += Number(hs[1]);
+
+    if (/^\[createBroadcasts\]/.test(m)) automatischGestart++;
+    if (/^\[checkStops\].*stoppen/.test(m)) automatischGestopt++;
+    if (/^\[checkStops\].*ad-hoc stream gekoppeld/.test(m)) gekoppeld++;
+
+    // Uitzendingen bijhouden om te zien hoe lang ze openstonden.
+    const tafel = tafelUit(m);
+    if (/^\[streams\/start\]/.test(m) || /^\[createBroadcasts\]/.test(m)) {
+      if (/^\[streams\/start\]/.test(m)) handmatigGestart++;
+      if (tafel) open.set(tafel, { start: r.tijd, adhoc: /ad-hoc \(geen toernooi\)/.test(m) });
+    }
+    // Afsluiten kan op drie manieren in de logs staan, en ze zien er alle drie anders uit:
+    //   [streams/stop] tafel 1 ...                      (met de hand)
+    //   [checkStops] tafel 3: stoppen — ...             (het besluit)
+    //   [OK] 1 stopStream-commando(s): tafels 3         (let op: "tafels", meervoud, en
+    //                                                    er kunnen er meerdere in staan)
+    const sluit = new Set();
+    if (/^\[streams\/stop\]/.test(m) && tafel) sluit.add(tafel);
+    const besluit = /^\[checkStops\] tafel (\d+): stoppen/.exec(m);
+    if (besluit) sluit.add(Number(besluit[1]));
+    const commando = /stopStream-commando\(s\): tafels? ([\d,\s]+)/.exec(m);
+    if (commando) for (const n of commando[1].split(',')) if (Number(n)) sluit.add(Number(n));
+
+    for (const t of sluit) {
+      if (!open.has(t)) continue;
+      const o = open.get(t);
+      uitzendingen.push({ tafel: t, start: o.start, stop: r.tijd, adhoc: o.adhoc });
+      open.delete(t);
+    }
+
+    const duiding = duidRegel(m);
+    if (duiding) gebeurtenissen.push({ tijd: r.tijd, bericht: m, ...duiding });
+  }
+
+  // Nooit gestopt = tot het eind van het venster open blijven staan.
+  const eind = rijen.length ? rijen[rijen.length - 1].tijd : null;
+  for (const [tafel, o] of open) uitzendingen.push({ tafel, start: o.start, stop: eind, adhoc: o.adhoc, nooitGestopt: true });
+
+  // ── Conclusies ─────────────────────────────────────────────────────────────
+  const bevindingen = [];
+
+  if (handmatigGestart > 0 && automatischGestart === 0) {
+    bevindingen.push({
+      soort: 'fout',
+      kop: 'Alle uitzendingen zijn met de hand gestart',
+      tekst: 'Het systeem heeft vannacht geen enkele uitzending uit zichzelf gestart. Dat gebeurt als het toernooi niet is ingepland in het dashboard. Gevolg: iemand moet het opmerken en zelf aanzetten, en dan mist het begin van de avond.',
+    });
+  }
+
+  if (gekoppeld > 0) {
+    bevindingen.push({
+      soort: 'fout',
+      kop: 'Een losse uitzending is alsnog aan het toernooi gekoppeld',
+      tekst: 'Er stond al een uitzending te draaien op een tafel die daarna voor het toernooi werd gebruikt. Het systeem heeft die overgenomen, dus de video is netjes afgesloten — maar hij begint met de tijd waarin er nog niets te zien was.',
+    });
+  }
+
+  // Alleen LOSSE uitzendingen die lang openstaan zijn een probleem, plus alles wat helemaal
+  // nooit gestopt is. Een toernooi-uitzending van zes uur is doodnormaal — die zou hier
+  // anders elke avond ten onrechte als fout in de mail staan, en dan leest niemand 'm meer.
+  for (const u of uitzendingen) {
+    const min = u.stop ? minuten(u.start, u.stop) : 0;
+    if (u.nooitGestopt) {
+      bevindingen.push({
+        soort: 'fout',
+        kop: `Uitzending op tafel ${u.tafel} is nooit gestopt`,
+        tekst: `Hij stond aan het eind van het rapport nog steeds open, inmiddels ${uurNotatie(min)}. Controleer of hij nog draait.`,
+      });
+    } else if (u.adhoc && min >= langsteOpenUren * 60) {
+      bevindingen.push({
+        soort: 'fout',
+        kop: `Losse uitzending op tafel ${u.tafel} stond ${uurNotatie(min)} open`,
+        tekst: 'Een uitzending zonder toernooi stopt nooit vanzelf; iemand moet hem afsluiten zodra de partij klaar is. Zo lang open betekent een video waarin kijkers vooral naar een lege tafel kijken.',
+      });
+    }
+  }
+
+  if (problemen.size) {
+    bevindingen.push({
+      soort: 'let-op',
+      kop: `${problemen.size} technische waarschuwing${problemen.size === 1 ? '' : 'en'}`,
+      tekst: 'De server meldde een storing. Draaide er op dat moment geen uitzending, dan heeft niemand er iets van gemerkt.',
+    });
+  }
+
+  if (!bevindingen.length) {
+    bevindingen.push({
+      soort: 'goed',
+      kop: 'Niets bijzonders',
+      tekst: 'Alles ging vanzelf: gestart, geschakeld, gestopt en afgerond zonder dat er iemand aan te pas kwam.',
+    });
+  }
+
+  return {
+    gebeurtenissen,
+    bevindingen,
+    cijfers: {
+      logregels: rijen.length,
+      automatischGestart,
+      handmatigGestart,
+      automatischGestopt,
+      afgerondeVideos: gebeurtenissen.filter((g) => /gefinaliseerd/.test(g.bericht)).length,
+      hoofdstukken,
+      pauzeschakelingen,
+      problemen: problemen.size,
+      uitzendingen,
+    },
+  };
+}
+
+module.exports = { duidRegel, analyseer, PROBLEEM_RE, REGELS, uurNotatie };

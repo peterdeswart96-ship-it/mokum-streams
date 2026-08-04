@@ -1,0 +1,98 @@
+name: Ochtendrapport per mail
+
+# Elke ochtend om 09:00 Amsterdamse tijd een overzicht van de avond ervoor naar Nick en Mark.
+# GitHub draait op UTC en houdt geen zomertijd bij, dus twee tijden: 07:00 UTC is 09:00 in de
+# zomer, 08:00 UTC is 09:00 in de winter. Het script bepaalt zelf welke van de twee telt.
+on:
+  schedule:
+    - cron: '0 7 * * *'   # zomertijd
+    - cron: '0 8 * * *'   # wintertijd
+  workflow_dispatch:
+    inputs:
+      datum:
+        description: 'Avond in de vorm jjjj-mm-dd (leeg = gisteren)'
+        required: false
+
+permissions:
+  id-token: write   # voor het inloggen bij Azure zonder wachtwoord (OIDC)
+  contents: read
+
+jobs:
+  rapport:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Draait deze run op het goede moment? In de zomer is 09:00 Amsterdam gelijk aan
+      # 07:00 UTC, in de winter aan 08:00 UTC. De andere run stopt hier.
+      - name: Alleen doorgaan om 09:00 Amsterdamse tijd
+        id: klok
+        run: |
+          uur=$(TZ=Europe/Amsterdam date +%H)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$uur" = "09" ]; then
+            echo "door=ja" >> "$GITHUB_OUTPUT"
+          else
+            echo "Het is nu $uur:00 in Amsterdam — deze run slaat over."
+            echo "door=nee" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: azure/login@v2
+        if: steps.klok.outputs.door == 'ja'
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # App Insights → gekoppelde werkruimte → de id waarmee je die bevraagt.
+      # Bewust alleen `az rest` en `az account get-access-token`: geen CLI-extensies, want
+      # die raakten op 01-08 beschadigd en legden toen de hele az-opdracht plat.
+      - name: Werkruimte en token ophalen
+        if: steps.klok.outputs.door == 'ja'
+        id: azure
+        run: |
+          set -euo pipefail
+          abonnement=$(az account show --query id -o tsv)
+          ws=$(az rest --method get --url "https://management.azure.com/subscriptions/$abonnement/resourceGroups/rg-mokum-streams/providers/microsoft.insights/components/mokum-streams-func?api-version=2020-02-02" --query 'properties.WorkspaceResourceId' -o tsv)
+          cid=$(az rest --method get --url "https://management.azure.com$ws?api-version=2022-10-01" --query 'properties.customerId' -o tsv)
+          echo "::add-mask::$cid"
+          echo "werkruimte=$cid" >> "$GITHUB_OUTPUT"
+          token=$(az account get-access-token --resource "https://api.loganalytics.io" --query accessToken -o tsv)
+          echo "::add-mask::$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+
+      - name: Rapport opstellen
+        if: steps.klok.outputs.door == 'ja'
+        env:
+          LOG_TOKEN: ${{ steps.azure.outputs.token }}
+          WERKRUIMTE_ID: ${{ steps.azure.outputs.werkruimte }}
+          RAPPORT_VAN: ${{ secrets.RAPPORT_SMTP_GEBRUIKER }}
+          RAPPORT_AAN: ${{ secrets.RAPPORT_ONTVANGERS }}
+        run: node scripts/avond-mail.js --datum "${{ github.event.inputs.datum }}" --uit mail.txt
+
+      # Versturen met curl in plaats van een kant-en-klare action: geen afhankelijkheid van
+      # derden die bij onze mailbox kan, en we zien precies wat er gebeurt.
+      # Het wachtwoord is een Google app-wachtwoord, geen accountwachtwoord.
+      - name: Versturen
+        if: steps.klok.outputs.door == 'ja'
+        env:
+          GEBRUIKER: ${{ secrets.RAPPORT_SMTP_GEBRUIKER }}
+          WACHTWOORD: ${{ secrets.RAPPORT_SMTP_WACHTWOORD }}
+          ONTVANGERS: ${{ secrets.RAPPORT_ONTVANGERS }}
+        run: |
+          set -euo pipefail
+          ontvangers=""
+          IFS=',' read -ra lijst <<< "$ONTVANGERS"
+          for adres in "${lijst[@]}"; do
+            ontvangers="$ontvangers --mail-rcpt $(echo "$adres" | xargs)"
+          done
+          # shellcheck disable=SC2086
+          curl --silent --show-error --ssl-reqd \
+            --url 'smtps://smtp.gmail.com:465' \
+            --user "$GEBRUIKER:$WACHTWOORD" \
+            --mail-from "$GEBRUIKER" $ontvangers \
+            --upload-file mail.txt
+          echo "Rapport verstuurd."
