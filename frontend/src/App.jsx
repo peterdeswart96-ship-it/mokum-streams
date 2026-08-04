@@ -835,15 +835,20 @@ const VIS_LABELS = { public: 'Openbaar', unlisted: 'Verborgen', private: 'Privé
 // keuzelijst ("Alle / Alleen scorebord / Geen") was de jumbotron niet aan te zetten, terwijl
 // je een avond juist graag begint met het pauzescherm en de highlights erop.
 //
-// Ontbreekt een sleutel in een bestaand record, dan telt hij als AAN: records van vóór deze
-// wijziging kennen `jumbotron` niet, en die hoort voortaan standaard mee te starten.
+// Ontbreekt een sleutel in een record, dan MOET hier hetzelfde uitkomen als in de backend —
+// anders liegt het vinkje. Dat ging op 04-08 mis: het scherm toonde de jumbotron als aan,
+// terwijl startCommandsFor 'm uitzette, en dus klikte niemand erop en werd er niets
+// opgeslagen. Spiegelt OVERLAY_DEFAULT_OFF uit backend/src/agent/commandQueue.js.
+const OVERLAY_STANDAARD_UIT = new Set(['jumbotron']);
 const PLANNER_OVERLAYS = [
   { key: 'sponsors', label: 'Sponsors', uitleg: 'Roterende sponsorlogo’s, rechtsboven' },
   { key: 'scoreboard', label: 'Scorebord', uitleg: 'Cuescore-stand van deze tafel, onderin' },
-  { key: 'jumbotron', label: 'Jumbotron', uitleg: 'Pauzescherm met highlights — gaat vanzelf uit zodra er gespeeld wordt' },
+  { key: 'jumbotron', label: 'Jumbotron', uitleg: 'Pauzescherm met highlights bij de start — gaat vanzelf uit zodra er gespeeld wordt' },
 ];
-const normaliseerOverlays = (ov) =>
-  Object.fromEntries(PLANNER_OVERLAYS.map((o) => [o.key, !(ov && ov[o.key] === false)]));
+const normaliseerOverlays = (ov) => Object.fromEntries(PLANNER_OVERLAYS.map((o) => [
+  o.key,
+  typeof (ov && ov[o.key]) === 'boolean' ? ov[o.key] : !OVERLAY_STANDAARD_UIT.has(o.key),
+]));
 const overlaysLabel = (ov) => {
   const aan = PLANNER_OVERLAYS.filter((o) => ov[o.key]).map((o) => o.label);
   return aan.length === PLANNER_OVERLAYS.length ? 'Alle' : (aan.join(' + ') || 'Geen');

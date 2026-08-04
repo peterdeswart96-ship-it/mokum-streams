@@ -717,7 +717,10 @@ Regels:
      planner had drie vaste combinaties ("Alle / Alleen scorebord / Geen") waarmee de
      jumbotron niet aan te zetten was, terwijl je een avond juist graag begint met het
      pauzescherm en de highlights erop. Het is nu een vinkje per overlay. Ontbreekt de
-     sleutel in een bestaand record, dan telt hij als AAN.
+     sleutel in een record, dan geldt dezelfde standaard als in de backend: sponsors en
+     scorebord AAN, jumbotron UIT (OVERLAY_DEFAULT_OFF). Nieuw geïmporteerde toernooien krijgen
+     jumbotron expliciet op true; records van vóór 04-08 hebben de sleutel niet en starten dus
+     zonder jumbotron tot je hem aanvinkt.
   2. Nieuw veld **`vrijgemaaktVoor`** op een broadcast-entry: het tournamentId waarvoor de
      uitzending automatisch is gesloten. Vanaf 30 minuten vóór de start van een ingepland
      toernooi sluit `checkStops` alles wat er nog op zijn tafels draait en er niet bij hoort
