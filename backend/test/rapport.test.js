@@ -165,3 +165,81 @@ test('uurNotatie: leest als een mens', () => {
   assert.strictEqual(uurNotatie(511), '8 uur en 31 minuten');
   assert.strictEqual(uurNotatie(120), '2 uur en 0 minuten');
 });
+
+// ── Herinnering: staat er vanavond iets klaar dat niet is ingepland? (#92) ───
+//
+// Voorbeeld uit de praktijk: op 03-08 stond "Mokum MEGA Summer Ranking #27" op
+// planned:false. Deze controle had die ochtend al gewaarschuwd.
+
+const { tekort, onderwerp: herinneringOnderwerp, tekst: herinneringTekst } = require('../src/rapport/herinnering');
+
+const NU = new Date('2026-08-03T10:00:00Z'); // 12:00 Amsterdam
+const record = (extra) => ({
+  tournamentId: 1, name: 'Toernooi', type: 'tournament', date: '2026-08-03',
+  plannedStart: '2026-08-03T17:15:00Z', tafels: [1, 3], enabled: true, planned: false,
+  status: 'concept', ...extra,
+});
+
+test('#92: een niet-ingepland toernooi van vandaag wordt gemeld', () => {
+  const l = tekort([record({ name: 'Mokum MEGA Summer Ranking #27' })], NU);
+  assert.strictEqual(l.length, 1);
+  assert.strictEqual(l[0].naam, 'Mokum MEGA Summer Ranking #27');
+  assert.strictEqual(l[0].start, '19:15');
+  assert.deepStrictEqual(l[0].tafels, [1, 3]);
+});
+
+test('#92: een ingepland toernooi levert geen herinnering op', () => {
+  assert.deepStrictEqual(tekort([record({ planned: true })], NU), []);
+});
+
+test('#92: toernooien van een andere dag tellen niet mee', () => {
+  assert.deepStrictEqual(tekort([record({ date: '2026-08-04' })], NU), []);
+  assert.deepStrictEqual(tekort([record({ date: '2026-08-02' })], NU), []);
+});
+
+test('#92: draait het al, of is het al klaar, dan geen herinnering meer', () => {
+  // Iemand heeft het met de hand gestart — daar hoeft geen mail meer overheen.
+  assert.deepStrictEqual(tekort([record({ status: 'live' })], NU), []);
+  assert.deepStrictEqual(tekort([record({ status: 'klaar' })], NU), []);
+});
+
+test('#92: bewust uitgezet of geannuleerd → met rust laten', () => {
+  assert.deepStrictEqual(tekort([record({ enabled: false })], NU), []);
+  assert.deepStrictEqual(tekort([record({ geannuleerd: true })], NU), []);
+});
+
+test('#92: doorlopende competities blijven buiten beschouwing', () => {
+  // Een league loopt maanden; "vandaag" zegt daar niets over. Zou anders elke dag een mail
+  // opleveren, en dan leest niemand 'm meer.
+  assert.deepStrictEqual(tekort([record({ type: 'competition' })], NU), []);
+});
+
+test('#92: meerdere toernooien komen op tijd gesorteerd', () => {
+  const l = tekort([
+    record({ tournamentId: 2, name: 'Laat', plannedStart: '2026-08-03T19:00:00Z' }),
+    record({ tournamentId: 3, name: 'Vroeg', plannedStart: '2026-08-03T15:30:00Z' }),
+  ], NU);
+  assert.deepStrictEqual(l.map((x) => x.naam), ['Vroeg', 'Laat']);
+  assert.match(herinneringOnderwerp(l), /2 toernooien/);
+});
+
+test('#92: bij één toernooi staat de naam in het onderwerp', () => {
+  const l = tekort([record({ name: 'Fluke ranking' })], NU);
+  assert.match(herinneringOnderwerp(l), /Fluke ranking/);
+  assert.match(herinneringOnderwerp(l), /19:15/);
+});
+
+test('#92: niets te melden → geen onderwerp, dus geen mail', () => {
+  assert.strictEqual(herinneringOnderwerp([]), null);
+});
+
+test('#92: de tekst legt uit waarom het uitmaakt', () => {
+  const t = herinneringTekst(tekort([record()], NU));
+  assert.match(t, /start het systeem niets uit zichzelf/);
+  assert.match(t, /Toernooi planner/);
+});
+
+test('#92: rommel in de planning laat de controle niet omvallen', () => {
+  assert.deepStrictEqual(tekort(null, NU), []);
+  assert.deepStrictEqual(tekort([null, {}, { name: 'x' }], NU), []);
+});

@@ -1,0 +1,73 @@
+name: Herinnering ongeplande toernooien
+
+# Kijkt 's middags of er vanavond een toernooi speelt dat nog niet is ingepland. Zo ja, dan
+# een mailtje; zo nee, dan hoor je niets. Dat laatste is belangrijk: een bericht dat elke dag
+# komt wordt genegeerd, en dan mis je 'm juist op de dag dat het ertoe doet.
+#
+# 15:00 Amsterdamse tijd — ruim voor een avondtoernooi, en de Cuescore-import van die dag
+# heeft dan allang gedraaid. GitHub kent geen zomertijd, dus twee cron-tijden en een controle.
+on:
+  schedule:
+    - cron: '0 13 * * *'   # zomertijd → 15:00 Amsterdam
+    - cron: '0 14 * * *'   # wintertijd → 15:00 Amsterdam
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  herinnering:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Alleen doorgaan om 15:00 Amsterdamse tijd
+        id: klok
+        run: |
+          uur=$(TZ=Europe/Amsterdam date +%H)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$uur" = "15" ]; then
+            echo "door=ja" >> "$GITHUB_OUTPUT"
+          else
+            echo "Het is nu $uur:00 in Amsterdam — deze run slaat over."
+            echo "door=nee" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Planning nakijken
+        if: steps.klok.outputs.door == 'ja'
+        id: check
+        env:
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          RAPPORT_VAN: ${{ secrets.RAPPORT_SMTP_GEBRUIKER }}
+          RAPPORT_AAN: ${{ secrets.RAPPORT_ONTVANGERS }}
+        run: |
+          set -euo pipefail
+          node scripts/planning-herinnering.js --uit herinnering.txt | tee uitvoer.log
+          if grep -q '^versturen=ja$' uitvoer.log; then
+            echo "versturen=ja" >> "$GITHUB_OUTPUT"
+          else
+            echo "versturen=nee" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Versturen
+        if: steps.klok.outputs.door == 'ja' && steps.check.outputs.versturen == 'ja'
+        env:
+          GEBRUIKER: ${{ secrets.RAPPORT_SMTP_GEBRUIKER }}
+          WACHTWOORD: ${{ secrets.RAPPORT_SMTP_WACHTWOORD }}
+          ONTVANGERS: ${{ secrets.RAPPORT_ONTVANGERS }}
+        run: |
+          set -euo pipefail
+          ontvangers=""
+          IFS=',' read -ra lijst <<< "$ONTVANGERS"
+          for adres in "${lijst[@]}"; do
+            ontvangers="$ontvangers --mail-rcpt $(echo "$adres" | xargs)"
+          done
+          # shellcheck disable=SC2086
+          curl --silent --show-error --ssl-reqd \
+            --url 'smtps://smtp.gmail.com:465' \
+            --user "$GEBRUIKER:$WACHTWOORD" \
+            --mail-from "$GEBRUIKER" $ontvangers \
+            --upload-file herinnering.txt
+          echo "Herinnering verstuurd."
