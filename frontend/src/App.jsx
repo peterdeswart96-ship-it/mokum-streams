@@ -126,7 +126,7 @@ function Badge({ status }) {
     scheduled: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
     offline: 'bg-neutral-700/40 text-neutral-400 border-neutral-600',
   };
-  const label = { live: '● LIVE', scheduled: 'gepland', offline: 'offline' }[status] || status;
+  const label = { live: '● LIVE', scheduled: 'klaargezet', offline: 'offline' }[status] || status;
   return <span className={`text-xs px-2 py-0.5 rounded border ${map[status] || map.offline}`}>{label}</span>;
 }
 
@@ -187,8 +187,13 @@ function fmtKwaliteit(q) {
 }
 
 // ── Overzichtsblok ─────────────────────────────────────────────────────────
-// Compacte samenvatting bovenaan: hoeveel tafels live/gepland/offline, plus een
+// Compacte samenvatting bovenaan: hoeveel tafels live/klaargezet/offline, plus een
 // waarschuwing als een live tafel onder 1080p uitzendt (na de scherpte-kwestie).
+//
+// LET OP het woord "klaargezet". Dit telt TAFELS met een YouTube-uitzending die al is
+// aangemaakt en op beeld wacht. De Toernooi planner onderaan telt iets heel anders:
+// TOERNOOIEN die je hebt ingepland. Beide stonden eerst op "gepland", en dan lees je
+// bovenin 0 terwijl er onderin 1 staat — terecht verwarrend (gemeld 04-08).
 function Overzicht({ tables, venueLive }) {
   const live = tables.filter((t) => t.status === 'live');
   const gepland = tables.filter((t) => t.status === 'scheduled');
@@ -197,8 +202,8 @@ function Overzicht({ tables, venueLive }) {
     const h = t.quality && t.quality.resolution ? Number(t.quality.resolution.split('x')[1]) : null;
     return h && h < 1080;
   });
-  const Stat = ({ n, label, kleur }) => (
-    <div className="flex items-baseline gap-1.5">
+  const Stat = ({ n, label, kleur, uitleg }) => (
+    <div className="flex items-baseline gap-1.5" title={uitleg}>
       <span className={`text-2xl font-display ${kleur}`}>{n}</span>
       <span className="text-sm text-ink-muted">{label}</span>
     </div>
@@ -206,9 +211,12 @@ function Overzicht({ tables, venueLive }) {
   return (
     <div className="bg-surface border border-line rounded-lg shadow-lg p-4 mb-4">
       <div className="flex items-center gap-x-6 gap-y-2 flex-wrap">
-        <Stat n={`${live.length}/${tables.length}`} label="live" kleur="text-brand-light" />
-        <Stat n={gepland.length} label="gepland" kleur="text-amber-400" />
-        <Stat n={offline.length} label="offline" kleur="text-neutral-500" />
+        <Stat n={`${live.length}/${tables.length}`} label="live" kleur="text-brand-light"
+              uitleg="Tafels die nu uitzenden" />
+        <Stat n={gepland.length} label="klaargezet" kleur="text-amber-400"
+              uitleg="Tafels waarvoor de YouTube-uitzending al is aangemaakt en op beeld uit de zaal wacht. Bij een ingepland toernooi gebeurt dat pas kort voor de starttijd." />
+        <Stat n={offline.length} label="offline" kleur="text-neutral-500"
+              uitleg="Tafels zonder uitzending" />
         {venueLive != null && (
           <div className="flex items-baseline gap-1.5 sm:ml-auto">
             <span className="text-2xl font-display text-ink">{venueLive}</span>
@@ -564,7 +572,7 @@ function Wizard({ onClose, onStarted, tables = [] }) {
             <select value={tafel} onChange={(e) => setTafel(Number(e.target.value))} className={`${veld} ${bezet.has(tafel) ? 'mb-1' : 'mb-4'}`}>
               {CAMERAS.map((n) => (
                 <option key={n} value={n} disabled={bezet.has(n)}>
-                  Tafel {n}{bezet.has(n) ? (bezet.get(n) === 'live' ? ' — bezet (live)' : ' — bezet (gepland)') : ''}
+                  Tafel {n}{bezet.has(n) ? (bezet.get(n) === 'live' ? ' — bezet (live)' : ' — bezet (klaargezet)') : ''}
                 </option>
               ))}
             </select>
@@ -966,7 +974,7 @@ function ToernooiPlanner({ onGepland }) {
         <span className="font-display flex items-center gap-2">
           Toernooi planner
           {aantalGepland > 0 && (
-            <span className="text-xs font-medium text-emerald-300 bg-emerald-500/10 border border-emerald-500/40 rounded-full px-2 py-0.5">{aantalGepland} gepland</span>
+            <span className="text-xs font-medium text-emerald-300 bg-emerald-500/10 border border-emerald-500/40 rounded-full px-2 py-0.5">{aantalGepland} toernooi{aantalGepland === 1 ? '' : 'en'} ingepland</span>
           )}
         </span>
         <span className={`text-ink-muted text-sm transition-transform ${open ? 'rotate-180' : ''}`}>▾</span>
