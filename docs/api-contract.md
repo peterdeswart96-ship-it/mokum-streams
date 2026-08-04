@@ -712,3 +712,17 @@ Regels:
   "chris jones" levert dertien spelers op die in een lijst met alleen namen niet uit elkaar te
   houden zijn. Het `playerId` wordt in de interface getoond — dat is het enige veld dat
   gegarandeerd uniek is.
+- 2026-08-04: v0.52 — **overlays per stuk + tafel vrijmaken vóór een toernooi (#93)**.
+  1. Het planning-record kent nu ook **`overlays.jumbotron`** (standaard `true`). De Toernooi
+     planner had drie vaste combinaties ("Alle / Alleen scorebord / Geen") waarmee de
+     jumbotron niet aan te zetten was, terwijl je een avond juist graag begint met het
+     pauzescherm en de highlights erop. Het is nu een vinkje per overlay. Ontbreekt de
+     sleutel in een bestaand record, dan telt hij als AAN.
+  2. Nieuw veld **`vrijgemaaktVoor`** op een broadcast-entry: het tournamentId waarvoor de
+     uitzending automatisch is gesloten. Vanaf 30 minuten vóór de start van een ingepland
+     toernooi sluit `checkStops` alles wat er nog op zijn tafels draait en er niet bij hoort
+     (`backend/src/planning/vrijmaken.js`, puur + getest). Reden: op 03-08 bleef een losse
+     challenge op tafel 1 acht uur openstaan, waarna diezelfde tafel voor het toernooi werd
+     gebruikt — één video van 8u31 met tweeënhalf uur lege tafel aan het begin. Een
+     uitzending van hét toernooi zelf blijft met rust, en na de starttijd grijpt de regel niet
+     meer in.

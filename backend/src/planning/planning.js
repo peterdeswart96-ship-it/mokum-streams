@@ -12,7 +12,9 @@ const STANDAARD_DEFAULTS = {
   // 15/16 niet onnodig leeg live als de loting laat komt.
   tafels: [1, 3],
   preRollMinuten: 10,
-  overlays: { sponsors: true, scoreboard: true },
+  // Jumbotron staat standaard AAN (#93): een avond begint met het pauzescherm en de
+  // highlights, en dat gaat vanzelf uit zodra er op die tafel gespeeld wordt.
+  overlays: { sponsors: true, scoreboard: true, jumbotron: true },
   visibility: 'public', // YouTube-zichtbaarheid van de geplande broadcast
 };
 
@@ -100,7 +102,7 @@ function defaultRecord(tournament, defaults = STANDAARD_DEFAULTS) {
     stopOverride: null,
     preRollMinuten: defaults.preRollMinuten == null ? 10 : defaults.preRollMinuten,
     tafels: Array.isArray(defaults.tafels) ? [...defaults.tafels] : [],
-    overlays: { sponsors: ov.sponsors !== false, scoreboard: ov.scoreboard !== false },
+    overlays: { sponsors: ov.sponsors !== false, scoreboard: ov.scoreboard !== false, jumbotron: ov.jumbotron !== false },
     visibility: defaults.visibility || 'public',
     planned: false, // per-toernooi arm-vlag: pas true na bevestigen in de Toernooi planner
   };

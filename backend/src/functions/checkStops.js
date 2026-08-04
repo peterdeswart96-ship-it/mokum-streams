@@ -5,6 +5,7 @@ const { getTournament, getTodaysTournaments } = require('../cuescore');
 const { enqueue } = require('../agent/commandQueue');
 const { stopReden, toernooiKlaar } = require('../planning/stop');
 const { kiesToernooiVoorTafel, anderToernooiNogOpTafel } = require('../planning/koppel');
+const { vrijTeMaken } = require('../planning/vrijmaken');
 const { isArmed } = require('../config/automation');
 
 // Timer-Function: bewaakt lopende broadcasts en stopt ze automatisch wanneer het
@@ -134,6 +135,17 @@ async function verwerk(now, context) {
         store[key] = { ...entry, stopped: true };
         storeGewijzigd = true;
       }
+    }
+
+    // Tafel vrijmaken vóór een ingepland toernooi (#93). Staat hier ná de gewone stop-check,
+    // zodat een uitzending die al om een andere reden stopt niet dubbel wordt geteld.
+    for (const v of vrijTeMaken(planning, store, now)) {
+      const key = String(v.tableNumber);
+      if (!store[key] || store[key].stopped) continue;
+      context.log(`[checkStops] tafel ${v.tableNumber}: stoppen — ${v.reden} (video ${v.videoId})`);
+      teStoppen.push(v.tableNumber);
+      store[key] = { ...store[key], stopped: true, vrijgemaaktVoor: v.tournamentId };
+      storeGewijzigd = true;
     }
 
     if (storeGewijzigd) await writeJson(pad, store);

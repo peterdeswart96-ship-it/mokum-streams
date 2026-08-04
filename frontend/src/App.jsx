@@ -823,17 +823,23 @@ function datumLabel(iso) {
 // bevestiging) de planning vast (record.planned = true). NB: fase 1 zet nog niets
 // automatisch live — dat komt in fase 2/3.
 const VIS_LABELS = { public: 'Openbaar', unlisted: 'Verborgen', private: 'Privé' };
-const OVERLAY_PRESETS = [
-  { key: 'alle', label: 'Alle', overlays: { sponsors: true, scoreboard: true } },
-  { key: 'scorebord', label: 'Alleen scorebord', overlays: { sponsors: false, scoreboard: true } },
-  { key: 'geen', label: 'Geen', overlays: { sponsors: false, scoreboard: false } },
+// Overlays per stuk aan of uit, in plaats van drie vaste combinaties (#93). Met de oude
+// keuzelijst ("Alle / Alleen scorebord / Geen") was de jumbotron niet aan te zetten, terwijl
+// je een avond juist graag begint met het pauzescherm en de highlights erop.
+//
+// Ontbreekt een sleutel in een bestaand record, dan telt hij als AAN: records van vóór deze
+// wijziging kennen `jumbotron` niet, en die hoort voortaan standaard mee te starten.
+const PLANNER_OVERLAYS = [
+  { key: 'sponsors', label: 'Sponsors', uitleg: 'Roterende sponsorlogo’s, rechtsboven' },
+  { key: 'scoreboard', label: 'Scorebord', uitleg: 'Cuescore-stand van deze tafel, onderin' },
+  { key: 'jumbotron', label: 'Jumbotron', uitleg: 'Pauzescherm met highlights — gaat vanzelf uit zodra er gespeeld wordt' },
 ];
-function overlaysNaarPreset(ov) {
-  const s = !!(ov && ov.sponsors); const b = !!(ov && ov.scoreboard);
-  if (!s && b) return 'scorebord';
-  if (!s && !b) return 'geen';
-  return 'alle';
-}
+const normaliseerOverlays = (ov) =>
+  Object.fromEntries(PLANNER_OVERLAYS.map((o) => [o.key, !(ov && ov[o.key] === false)]));
+const overlaysLabel = (ov) => {
+  const aan = PLANNER_OVERLAYS.filter((o) => ov[o.key]).map((o) => o.label);
+  return aan.length === PLANNER_OVERLAYS.length ? 'Alle' : (aan.join(' + ') || 'Geen');
+};
 function tijdVan(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -861,7 +867,7 @@ function ToernooiPlanner({ onGepland }) {
   const [open, setOpen] = useState(false);
   const [bezig, setBezig] = useState(false);
   const [fout, setFout] = useState('');
-  const [edits, setEdits] = useState({});       // tournamentId -> { tafels, visibility, overlayPreset, preRoll }
+  const [edits, setEdits] = useState({});       // tournamentId -> { tafels, visibility, overlays, preRoll }
   const [confirm, setConfirm] = useState(null); // record dat bevestigd wordt
 
   const laad = useCallback(() => {
@@ -894,7 +900,7 @@ function ToernooiPlanner({ onGepland }) {
     return {
       tafels: e.tafels ?? (r.tafels || []),
       visibility: e.visibility ?? (r.visibility || 'public'),
-      overlayPreset: e.overlayPreset ?? overlaysNaarPreset(r.overlays),
+      overlays: e.overlays ?? normaliseerOverlays(r.overlays),
       preRoll: e.preRoll ?? (r.preRollMinuten ?? 10),
       // Start = override of Cuescore-start (val terug op 19:00). Eind = eigen override of
       // standaard 01:00 (nachtelijke veiligheids-stop). We volgen bewust NIET de Cuescore-
@@ -904,16 +910,13 @@ function ToernooiPlanner({ onGepland }) {
       eindTijd: e.eindTijd ?? (hhmm(r.stopOverride) || '01:00'),
     };
   }
-  // Vertaalt een lokale patch (overlayPreset/preRoll/start/eindTijd) naar de server-velden.
+  // Vertaalt een lokale patch (overlays/preRoll/start/eindTijd) naar de server-velden.
   function naarServerPatch(patch, r) {
     const out = {};
     if ('tafels' in patch) out.tafels = patch.tafels;
     if ('visibility' in patch) out.visibility = patch.visibility;
     if ('preRoll' in patch) out.preRollMinuten = patch.preRoll;
-    if ('overlayPreset' in patch) {
-      const preset = OVERLAY_PRESETS.find((p) => p.key === patch.overlayPreset) || OVERLAY_PRESETS[0];
-      out.overlays = preset.overlays;
-    }
+    if ('overlays' in patch) out.overlays = patch.overlays;
     if ('startTijd' in patch) out.startOverride = tijdNaarIso(r.date, patch.startTijd);
     if ('eindTijd' in patch) out.stopOverride = tijdNaarIso(r.date, patch.eindTijd, { eind: true, startHm: huidig(r).startTijd });
     return out;
@@ -939,10 +942,9 @@ function ToernooiPlanner({ onGepland }) {
   }
   function plan(r) {
     const cur = huidig(r);
-    const preset = OVERLAY_PRESETS.find((p) => p.key === cur.overlayPreset) || OVERLAY_PRESETS[0];
     return doe(async () => {
       await updatePlanning(r.tournamentId, {
-        tafels: cur.tafels, visibility: cur.visibility, overlays: preset.overlays,
+        tafels: cur.tafels, visibility: cur.visibility, overlays: cur.overlays,
         preRollMinuten: cur.preRoll, planned: true,
         startOverride: tijdNaarIso(r.date, cur.startTijd),
         stopOverride: tijdNaarIso(r.date, cur.eindTijd, { eind: true, startHm: cur.startTijd }),
@@ -1042,9 +1044,15 @@ function ToernooiPlanner({ onGepland }) {
                           </select>
                         </td>
                         <td className={cell}>
-                          <select className={sel} value={cur.overlayPreset} disabled={opSlot || bezig} onChange={(e) => wijzig(r, { overlayPreset: e.target.value })}>
-                            {OVERLAY_PRESETS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
-                          </select>
+                          <div className="flex flex-col gap-0.5">
+                            {PLANNER_OVERLAYS.map((o) => (
+                              <label key={o.key} title={o.uitleg} className="flex items-center gap-1.5 text-xs cursor-pointer">
+                                <input type="checkbox" checked={!!cur.overlays[o.key]} disabled={opSlot || bezig}
+                                       onChange={(e) => wijzig(r, { overlays: { ...cur.overlays, [o.key]: e.target.checked } })} />
+                                {o.label}
+                              </label>
+                            ))}
+                          </div>
                         </td>
                         <td className={cell}><PlannerStatus status={status} /></td>
                         <td className={cell}>
@@ -1075,7 +1083,6 @@ function ToernooiPlanner({ onGepland }) {
 
       {confirm && (() => {
         const cur = huidig(confirm);
-        const preset = OVERLAY_PRESETS.find((p) => p.key === cur.overlayPreset);
         return (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-40 p-4" onClick={() => setConfirm(null)}>
             <div className="bg-surface text-ink border border-line rounded-lg shadow-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
@@ -1087,7 +1094,7 @@ function ToernooiPlanner({ onGepland }) {
                 <div className="flex justify-between gap-3"><dt className="text-ink-muted">Start</dt><dd>{cur.startTijd} · stream {cur.preRoll} min eerder</dd></div>
                 <div className="flex justify-between gap-3"><dt className="text-ink-muted">Eind</dt><dd>{cur.eindTijd} of Cuescore “Finished” · nachtstop-vangnet</dd></div>
                 <div className="flex justify-between gap-3"><dt className="text-ink-muted">Zichtbaarheid</dt><dd>{VIS_LABELS[cur.visibility]}</dd></div>
-                <div className="flex justify-between gap-3"><dt className="text-ink-muted">Overlays</dt><dd>{preset ? preset.label : '—'}</dd></div>
+                <div className="flex justify-between gap-3"><dt className="text-ink-muted">Overlays</dt><dd>{overlaysLabel(cur.overlays)}</dd></div>
               </dl>
               <label className="block text-sm mb-4">
                 <span className="text-ink-muted">Voorloop (minuten vóór start)</span>

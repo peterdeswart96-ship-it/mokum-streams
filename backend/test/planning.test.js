@@ -11,7 +11,9 @@ test('defaultRecord past de standaard-instellingen toe (alles aan)', () => {
   });
   assert.strictEqual(r.enabled, true);
   assert.deepStrictEqual(r.tafels, [1, 3]); // standaard alleen de twee vaste cameratafels
-  assert.deepStrictEqual(r.overlays, { sponsors: true, scoreboard: true });
+  // Jumbotron staat sinds #93 standaard AAN: een avond begint met het pauzescherm en de
+  // highlights, en dat gaat vanzelf uit zodra er op die tafel gespeeld wordt.
+  assert.deepStrictEqual(r.overlays, { sponsors: true, scoreboard: true, jumbotron: true });
   assert.strictEqual(r.preRollMinuten, 10);
   assert.strictEqual(r.date, '2026-07-14');
   assert.strictEqual(r.source, 'cuescore');
