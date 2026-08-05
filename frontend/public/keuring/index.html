@@ -132,8 +132,9 @@
       <div class="knoppen">
         <span class="snelheid">Snelheid:</span>
         <button class="snelknop actief" id="bS1">1× <kbd>1</kbd></button>
-        <button class="snelknop" id="bS15">1.5× <kbd>2</kbd></button>
-        <button class="snelknop" id="bS2">2× <kbd>3</kbd></button>
+        <button class="snelknop" id="bS2">2× <kbd>2</kbd></button>
+        <button class="snelknop" id="bS4">4× <kbd>3</kbd></button>
+        <button id="bNaarEind">⏭ Naar het eind <kbd>E</kbd></button>
         <button id="bOpnieuw">↻ Opnieuw <kbd>R</kbd></button>
         <button id="bVorige">‹ Vorige <kbd>P</kbd></button>
       </div>
@@ -192,7 +193,9 @@ let alle = [];      // alle clips met hun oordeel
 let lijst = [];     // wat we nu doorlopen (afhankelijk van het filter)
 let idx = 0;
 let speler = null;
-let snelheid = 1;   // afspeelsnelheid tijdens het keuren (1× / 1.5× / 2×)
+let snelheid = 1;   // afspeelsnelheid tijdens het keuren (1× / 2× / 4×)
+let turbo = null;   // timer die 4× nabootst (zie pasSnelheidToe)
+const EIND_KIJK = 5; // seconden vóór het clip-einde waar "Naar het eind" naartoe springt
 const CLIP_NA = 4;  // naloop-seconden na het rack (== CLIP_NA_SEC in de backend) — voor 'Eind standaard'
 
 const datumKort = (iso) => {
@@ -261,19 +264,57 @@ function metaTonen(c) {
 }
 
 // Laadt de huidige clip in de speler (met het clipvenster) en herstelt de afspeelsnelheid.
-function laadClip(c) {
+// `vanaf` is optioneel: laat de clip op een andere seconde beginnen (bijv. vlak vóór het eind).
+function laadClip(c, vanaf) {
   if (!speler || !speler.loadVideoById) return;
-  speler.loadVideoById({ videoId: c.videoId, startSeconds: c.clipVan, endSeconds: c.clipTot });
-  if (speler.setPlaybackRate) speler.setPlaybackRate(snelheid);
+  const start = vanaf == null ? c.clipVan : Math.max(c.clipVan, Math.min(vanaf, c.clipTot - 1));
+  speler.loadVideoById({ videoId: c.videoId, startSeconds: start, endSeconds: c.clipTot });
+  pasSnelheidToe();
 }
 
-// Afspeelsnelheid zetten (YouTube ondersteunt tot 2×) + de actieve knop markeren.
+// Springt naar de laatste seconden van de clip, zodat je meteen ziet of het eindpunt goed
+// valt zonder de hele run-out af te wachten.
+function naarEind() {
+  const c = lijst[idx];
+  if (!c || !speler || !speler.seekTo) return;
+  speler.seekTo(Math.max(c.clipVan, c.clipTot - EIND_KIJK), true);
+  if (speler.playVideo) speler.playVideo();
+}
+
+// Afspeelsnelheid kiezen (1× / 2× / 4×) + de actieve knop markeren.
 function setSnelheid(rate) {
   snelheid = rate;
-  if (speler && speler.setPlaybackRate) speler.setPlaybackRate(rate);
-  for (const [id, r] of [['bS1', 1], ['bS15', 1.5], ['bS2', 2]]) {
+  pasSnelheidToe();
+  for (const [id, r] of [['bS1', 1], ['bS2', 2], ['bS4', 4]]) {
     const b = $(id); if (b) b.classList.toggle('actief', r === rate);
   }
+}
+
+// De YouTube-speler gaat zelf niet hoger dan 2×. Voor 4× draaien we dus op 2× en springen
+// we er elke seconde nóg 2 seconden bovenop — netto ongeveer vier keer zo snel, alleen met
+// zichtbare sprongetjes. Prima om doorheen te scannen, niet om rustig te kijken.
+function pasSnelheidToe() {
+  if (speler && speler.setPlaybackRate) speler.setPlaybackRate(Math.min(snelheid, 2));
+  if (snelheid <= 2) { clearInterval(turbo); turbo = null; return; }
+  if (turbo) return;
+  turbo = setInterval(() => {
+    if (!speler || !speler.getCurrentTime || speler.getPlayerState() !== YT.PlayerState.PLAYING) return;
+    const c = lijst[idx];
+    const doel = speler.getCurrentTime() + (snelheid - 2);
+    if (!c || doel > c.clipTot - 1) return;  // laatste seconden gewoon op 2× uitkijken
+    speler.seekTo(doel, true);
+  }, 1000);
+}
+
+// Vangnet: na een sprong houdt YouTube het ingestelde clip-einde niet altijd vast, dus
+// zetten we de speler zelf stil zodra we voorbij het einde van de clip zijn.
+function bewaakEinde() {
+  setInterval(() => {
+    const c = lijst[idx];
+    if (!c || !speler || !speler.getCurrentTime) return;
+    if (speler.getPlayerState() !== YT.PlayerState.PLAYING) return;
+    if (speler.getCurrentTime() > c.clipTot + 0.5) speler.pauseVideo();
+  }, 400);
 }
 
 async function keur(status) {
@@ -326,7 +367,7 @@ async function schuifEind(delta) {
     await api('/api/manage/highlights', { method: 'POST', body: JSON.stringify({ sleutel: c.sleutel, eind }) });
     c.clipTot = eind == null ? standaard : eind;
     c.eindAangepast = eind != null;
-    laadClip(c);
+    laadClip(c, c.clipTot - EIND_KIJK);  // meteen het nieuwe eind laten zien
     metaTonen(c);
   } catch (e) {
     $('meta').innerHTML = `<span class="fout">eind opslaan mislukt (${esc(e.message)})</span>`;
@@ -400,8 +441,9 @@ function koppel() {
   $('bEindVroeger').onclick = () => schuifEind(-5);
   $('bResetEind').onclick = () => schuifEind(null);
   $('bS1').onclick = () => setSnelheid(1);
-  $('bS15').onclick = () => setSnelheid(1.5);
   $('bS2').onclick = () => setSnelheid(2);
+  $('bS4').onclick = () => setSnelheid(4);
+  $('bNaarEind').onclick = naarEind;
   $('bView').onclick = () => zetView($('tabel').hidden ? 'tabel' : 'keuren');
   $('fStatus').onchange = renderTabel;
   $('fZoek').oninput = renderTabel;
@@ -412,6 +454,7 @@ function koppel() {
     if (e.key === 'ArrowLeft'  || e.key.toLowerCase() === 'n') { e.preventDefault(); keur('afgekeurd'); }
     if (e.key.toLowerCase() === 'r') toon();
     if (e.key.toLowerCase() === 'p') vorige();
+    if (e.key.toLowerCase() === 'e') { e.preventDefault(); naarEind(); }
     if (e.key === ']') { e.preventDefault(); schuifStart(5); }
     if (e.key === '[') { e.preventDefault(); schuifStart(-5); }
     if (e.key === '0') { e.preventDefault(); schuifStart(null); }
@@ -419,8 +462,8 @@ function koppel() {
     if (e.key === ',') { e.preventDefault(); schuifEind(-5); }
     if (e.key === '/') { e.preventDefault(); schuifEind(null); }
     if (e.key === '1') setSnelheid(1);
-    if (e.key === '2') setSnelheid(1.5);
-    if (e.key === '3') setSnelheid(2);
+    if (e.key === '2') setSnelheid(2);
+    if (e.key === '3') setSnelheid(4);
   });
 }
 
@@ -429,9 +472,9 @@ function startSpeler() {
     width: '100%', height: '100%',
     playerVars: { autoplay: 1, mute: 1, controls: 1, modestbranding: 1, rel: 0, playsinline: 1 },
     events: {
-      onReady: toon,
+      onReady: () => { toon(); bewaakEinde(); },
       // Snelheid opnieuw zetten zodra de nieuwe clip speelt (loadVideoById reset 'm soms).
-      onStateChange: (e) => { if (e.data === YT.PlayerState.PLAYING && speler.setPlaybackRate) speler.setPlaybackRate(snelheid); },
+      onStateChange: (e) => { if (e.data === YT.PlayerState.PLAYING) pasSnelheidToe(); },
     },
   });
 }
