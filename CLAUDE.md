@@ -33,6 +33,20 @@ Automatisering van YouTube-livestreams voor Mokum Pool & Darts (Amsterdam). Opdr
 8. **Live versie ophalen bij patchen:** bij het bewerken van een bestaand bestand altijd de LIVE versie ophalen via `raw.githubusercontent.com` — nooit een eerder gedownloade of gecachte versie als basis.
 9. **Issues pas sluiten** nadat: workflow groen ÉN geslaagde test in de browser/functie-omgeving.
 
+## Hoe een avond verloopt (sinds 4 augustus 2026 volledig automatisch)
+Plan een toernooi in de Toernooi planner en de rest gaat vanzelf:
+1. **30 min vóór aanvang** — losse uitzendingen op de toernooitafels worden gesloten
+   (`TAFEL_VRIJMAKEN=true`), zodat het toernooi een schone tafel krijgt.
+2. **5 min vóór aanvang** (`STANDAARD_PREROLL`) — uitzendingen worden aangemaakt en gestart,
+   met de jumbotron aan; het pauzescherm draait tot de eerste bal valt.
+3. **Tijdens** — pauzescherm schakelt mee per tafel; bij de finale sluiten de overige
+   cameratafels (#72).
+4. **Na de finale** — medaillescherm 3 min, dan stop, dan automatisch thumbnail + hoofdstukken.
+5. **Vangnetten** — eigen eindtijd 01:30, en de nachtstop van 02:00 die altijd stopt.
+
+Een lopende wedstrijd wordt nooit afgekapt (#76). De 14.1-league hoort NIET in de planner:
+dat zijn losse partijen die je per stuk handmatig start, wél gekoppeld aan de league.
+
 ## Bekende beslissingen
 - Authenticatie dashboard (fase 3): Entra External ID (zoals CV Optimizer)
 - Website-integratie (fase 4): JS-widget via Boei17, geen iframe
@@ -47,19 +61,19 @@ Automatisering van YouTube-livestreams voor Mokum Pool & Darts (Amsterdam). Opdr
 - Retentiebeleid oude streams (nu handmatig verwijderen, later evt. automatiseren)
 <!-- ===== WIKI-SCHEMA — PLAK NIET VERWIJDEREN ===== -->
 
-## Projectwiki (kennisbank)
+## Waar de kennis staat
 
-Dit project heeft een door de LLM onderhouden wiki in `wiki/`. De wiki is het
-langetermijngeheugen van het project: besluiten, architectuur, conventies,
-actuele status en geleerde lessen.
+Dit project houdt zijn geheugen in de repo, niet in een chat. Raadpleeg ALTIJD deze bestanden
+voordat je vragen beantwoordt over architectuur, besluiten of geschiedenis:
 
-**Kernregel: raadpleeg ALTIJD `wiki/` voordat je vragen beantwoordt over de
-architectuur, patronen, besluiten of geschiedenis van dit project. Lees eerst
-`wiki/index.md` om te zien welke pagina's er zijn, en open daarna de relevante
-pagina's. Raadpleeg ook altijd `wiki/api-contract.md` bij vragen over de
-API-afspraken tussen frontend- en backend-sessie.**
+- `docs/api-contract.md` — het koppelvlak frontend↔backend, met changelog onderaan. **Wijzig
+  dit bestand vóór de code** (werkafspraak 3).
+- `docs/sessies/` — overdrachten per sessie: wat er is gebouwd, welke besluiten er zijn
+  genomen en waaróm, en welke valkuilen tijd hebben gekost. Begin bij de nieuwste.
+- `docs/` verder — projectplan, runbooks, en per onderwerp een document
+  (bijv. `cuescore-challenge.md` voor het koppelvlak met Cuescore).
+- **GitHub-issues** — de redenering staat in de omschrijving, het bewijs in de afsluitende
+  comment van gesloten issues.
 
-Zie `wiki/index.md` voor de volledige catalogus en `CLAUDE.md` in de
-wiki-root voor de volledige spelregels.
-
-<!-- ===== EINDE WIKI-SCHEMA ===== -->
+NB: eerdere versies van dit bestand verwezen naar een map `wiki/`. Die bestaat niet (en heeft
+nooit bestaan in deze repo); de bovenstaande bestanden zijn de kennisbank.
