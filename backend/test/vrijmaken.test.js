@@ -111,3 +111,30 @@ test('#93: de entry die createBroadcasts schrijft wordt NIET vrijgemaakt', () =>
   // 19:21 Amsterdam: één minuut na de automatische start, nog binnen het venster.
   assert.deepStrictEqual(vrijTeMaken([toernooi()], { 1: versGemaakt }, OM(17, 21)), []);
 });
+
+// Het gat dat op 05-08 aan het licht kwam bij de vraag "wat als iemand om 17:00 een challenge
+// start en die vergeet te stoppen?". De automatische koppeling (#69) hangt zo'n losse
+// uitzending alsnog aan het toernooi van die avond. Hij draagt dan het juiste tournamentId en
+// werd daarom overgeslagen — waardoor de tafel om starttijd bezet was, createBroadcasts geen
+// eigen uitzending aanmaakte, en je één video kreeg die uren te vroeg begon. Precies wat er
+// op 03-08 misging.
+test('#93: een AUTOMATISCH GEKOPPELDE uitzending wordt wél vrijgemaakt', () => {
+  const gekoppeld = {
+    tableNumber: 1,
+    videoId: 'I9a3epTPE5I',
+    adhoc: false,                       // de koppeling zet dit op false
+    tournamentId: 75880936,             // en zet het toernooi erin
+    autoGekoppeld: '2026-08-04T16:30:00Z', // ← hieraan herken je dat 'ie geadopteerd is
+    stopped: false,
+  };
+  const r = vrijTeMaken([toernooi()], { 1: gekoppeld }, OM(17, 5));
+  assert.strictEqual(r.length, 1);
+  assert.match(r[0].reden, /begon te vroeg/);
+});
+
+test('#93: een uitzending die MET het toernooi is gestart blijft met rust', () => {
+  // Zelfde tournamentId, maar zonder autoGekoppeld: iemand heeft 'm bewust voor dit
+  // toernooi gestart, of createBroadcasts heeft 'm net aangemaakt.
+  const eigen = { tableNumber: 1, videoId: 'abc', tournamentId: 75880936, stopped: false };
+  assert.deepStrictEqual(vrijTeMaken([toernooi()], { 1: eigen }, OM(17, 5)), []);
+});

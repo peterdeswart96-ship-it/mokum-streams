@@ -43,8 +43,17 @@ function vrijTeMaken(planning, store, now, { minutenVoor = STANDAARD_MINUTEN_VOO
     for (const tafel of rec.tafels || []) {
       const entry = (store || {})[String(tafel)];
       if (!entry || entry.stopped || !entry.videoId) continue;
-      // Hoort deze uitzending al bij dit toernooi? Dan met rust laten.
-      if (entry.tournamentId != null && String(entry.tournamentId) === String(rec.tournamentId)) continue;
+      // Hoort deze uitzending al bij dit toernooi? Dan met rust laten — MAAR alleen als hij
+      // ook echt VOOR dit toernooi is gestart.
+      //
+      // Een losse uitzending die eerder op de avond is begonnen kan door de automatische
+      // koppeling (#69) alsnog aan dit toernooi zijn gehangen. Die draagt dan wel het juiste
+      // tournamentId, maar is begonnen toen er nog niets speelde. Zou die hier blijven staan,
+      // dan is de tafel om 19:10 bezet, maakt createBroadcasts geen eigen uitzending aan, en
+      // krijg je één video die uren te vroeg begint — exact het probleem van 03-08 dat deze
+      // regel juist moest voorkomen. `autoGekoppeld` onderscheidt de twee gevallen.
+      const eigen = entry.tournamentId != null && String(entry.tournamentId) === String(rec.tournamentId);
+      if (eigen && !entry.autoGekoppeld) continue;
       if (gezien.has(Number(tafel))) continue;
       gezien.add(Number(tafel));
 
@@ -53,9 +62,11 @@ function vrijTeMaken(planning, store, now, { minutenVoor = STANDAARD_MINUTEN_VOO
         videoId: entry.videoId,
         tournamentId: rec.tournamentId,
         tournamentName: rec.name || '',
-        reden: entry.adhoc || entry.tournamentId == null
-          ? `losse uitzending stond nog open; "${rec.name || 'toernooi'}" begint zo op deze tafel`
-          : `uitzending van een ander toernooi stond nog open; "${rec.name || 'toernooi'}" begint zo op deze tafel`,
+        reden: entry.autoGekoppeld
+          ? `losse uitzending was al aan dit toernooi gekoppeld maar begon te vroeg; "${rec.name || 'toernooi'}" krijgt een schone tafel`
+          : entry.adhoc || entry.tournamentId == null
+            ? `losse uitzending stond nog open; "${rec.name || 'toernooi'}" begint zo op deze tafel`
+            : `uitzending van een ander toernooi stond nog open; "${rec.name || 'toernooi'}" begint zo op deze tafel`,
       });
     }
   }
