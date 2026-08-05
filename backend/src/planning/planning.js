@@ -3,6 +3,11 @@
 // planning-records: nieuwe krijgen de standaard-instellingen, bestaande behouden
 // hun handmatige keuzes. Géén netwerk → unit-testbaar.
 
+// Hoeveel minuten vóór de eerste wedstrijd de uitzending begint. Stond op 10; sinds 05-08
+// op 5 (besluit Peter) — tien minuten pauzescherm voor er iets gebeurt is aan de lange kant.
+// Per toernooi aan te passen in de Toernooi planner; dit is alleen de startwaarde.
+const STANDAARD_PREROLL = 5;
+
 // Eén set standaard-instellingen (alles aan). Wordt ook opgeslagen in
 // config/defaults.json en is via het dashboard aan te passen.
 const STANDAARD_DEFAULTS = {
@@ -11,7 +16,7 @@ const STANDAARD_DEFAULTS = {
   // voeg je per keer handmatig toe voor een groot toernooi (besluit Peter 27-07). Zo gaan
   // 15/16 niet onnodig leeg live als de loting laat komt.
   tafels: [1, 3],
-  preRollMinuten: 10,
+  preRollMinuten: STANDAARD_PREROLL,
   // Jumbotron staat standaard AAN (#93): een avond begint met het pauzescherm en de
   // highlights, en dat gaat vanzelf uit zodra er op die tafel gespeeld wordt.
   overlays: { sponsors: true, scoreboard: true, jumbotron: true },
@@ -55,7 +60,7 @@ function planningDue(record, now, { graceMinuten = 30 } = {}) {
   const startIso = effectiveStart(record);
   const start = startIso ? Date.parse(startIso) : NaN;
   if (Number.isNaN(start)) return false;
-  const preRoll = (record.preRollMinuten == null ? 10 : record.preRollMinuten) * 60000;
+  const preRoll = (record.preRollMinuten == null ? STANDAARD_PREROLL : record.preRollMinuten) * 60000;
   const nu = now.getTime();
   return nu >= start - preRoll && nu <= start + graceMinuten * 60000;
 }
@@ -100,7 +105,7 @@ function defaultRecord(tournament, defaults = STANDAARD_DEFAULTS) {
     enabled: defaults.enabled !== false,
     startOverride: null,
     stopOverride: null,
-    preRollMinuten: defaults.preRollMinuten == null ? 10 : defaults.preRollMinuten,
+    preRollMinuten: defaults.preRollMinuten == null ? STANDAARD_PREROLL : defaults.preRollMinuten,
     tafels: Array.isArray(defaults.tafels) ? [...defaults.tafels] : [],
     overlays: { sponsors: ov.sponsors !== false, scoreboard: ov.scoreboard !== false, jumbotron: ov.jumbotron !== false },
     visibility: defaults.visibility || 'public',
@@ -147,6 +152,7 @@ function mergePlanning(existing, imported, defaults = STANDAARD_DEFAULTS) {
 
 module.exports = {
   STANDAARD_DEFAULTS,
+  STANDAARD_PREROLL,
   afgeleideDatum,
   isMeerdaags,
   bepaalType,

@@ -942,7 +942,7 @@ function ToernooiPlanner({ onGepland }) {
       tafels: e.tafels ?? (r.tafels || []),
       visibility: e.visibility ?? (r.visibility || 'public'),
       overlays: e.overlays ?? normaliseerOverlays(r.overlays),
-      preRoll: e.preRoll ?? (r.preRollMinuten ?? 10),
+      preRoll: e.preRoll ?? (r.preRollMinuten ?? 5),
       // Start = override of Cuescore-start (val terug op 19:00). Eind = eigen override of
       // standaard 01:00 (nachtelijke veiligheids-stop). We volgen bewust NIET de Cuescore-
       // eindtijd: die staat meestal op 23:59 (plaatsvuller), terwijl toernooien vaak later

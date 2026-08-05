@@ -14,7 +14,9 @@ test('defaultRecord past de standaard-instellingen toe (alles aan)', () => {
   // Jumbotron staat sinds #93 standaard AAN: een avond begint met het pauzescherm en de
   // highlights, en dat gaat vanzelf uit zodra er op die tafel gespeeld wordt.
   assert.deepStrictEqual(r.overlays, { sponsors: true, scoreboard: true, jumbotron: true });
-  assert.strictEqual(r.preRollMinuten, 10);
+  // Sinds 05-08 vijf minuten in plaats van tien: tien minuten pauzescherm voordat er iets
+  // gebeurt is aan de lange kant (besluit Peter). Per toernooi aan te passen in de planner.
+  assert.strictEqual(r.preRollMinuten, 5);
   assert.strictEqual(r.date, '2026-07-14');
   assert.strictEqual(r.source, 'cuescore');
   assert.strictEqual(r.plannedStart, '2026-07-14T17:30:00Z');

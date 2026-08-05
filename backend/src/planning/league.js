@@ -1,4 +1,5 @@
 const { zaalDag } = require('../schedule/schedule');
+const { STANDAARD_PREROLL } = require('./planning');
 
 // Per-avond-logica voor doorlopende competities (leagues). Een league is één
 // doorlopend Cuescore-tournament; de streameenheid is de wedstrijden van vandaag.
@@ -63,7 +64,7 @@ function herresolveerTafels(tournament, geplandeTafels, now) {
 // (er is vandaag een wedstrijd én we zitten in het pre-roll-venster van de
 // vroegste wedstrijd op die tafel).
 function leagueDueTables(tournament, record, now, { graceMinuten = 30 } = {}) {
-  const preRoll = (record.preRollMinuten == null ? 10 : record.preRollMinuten) * 60000;
+  const preRoll = (record.preRollMinuten == null ? STANDAARD_PREROLL : record.preRollMinuten) * 60000;
   const nu = now.getTime();
   return cameraTablesWithMatchToday(tournament, record.tafels || [], now).filter(({ earliestStart }) => {
     const s = Date.parse(earliestStart);
