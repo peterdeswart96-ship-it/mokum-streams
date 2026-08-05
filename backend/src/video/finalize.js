@@ -53,12 +53,17 @@ async function maakToernooiThumbnail({ naamRaw, sponsor, spelers, tableNumber, s
 }
 
 // Challenge-thumbnail: het VS-ontwerp (challenge-match.html), met canvas-fallback.
-async function maakChallengeThumbnail({ spelerA, spelerB, spelsoort, tableNumber, datum }) {
+async function maakChallengeThumbnail({ spelerA, spelerB, spelsoort, tableNumber, datum, spelersTekst }) {
   if (heeftTemplate('challenge-match')) {
     // Nieuwe stijl: de spelersnamen ZIJN de titel ("A VS B"); de template vult {{SPELERS}}.
+    //
+    // `spelersTekst` overschrijft dat met een vrije tekst. Nodig voor oude challenges waarbij
+    // de namen nergens staan — niet in de titel, niet in de logs, en de oude thumbnail toont
+    // soms een scorebord van de dág ervoor (05-08). Dan is "9 BALL BANK CHALLENGE" een stuk
+    // eerlijker dan "? VS ?".
     return renderThumbnail({
       templateKey: 'challenge-match', toernooinaam: 'Challenge',
-      spelers: `${spelerA || '?'} VS ${spelerB || '?'}`, datum: datumThumb(datum),
+      spelers: spelersTekst || `${spelerA || '?'} VS ${spelerB || '?'}`, datum: datumThumb(datum),
     });
   }
   return genereerThumbnail({ type: 'challenge', spelerA, spelerB, spelsoort: spelsoort || null, tafel: tableNumber, datumLabel: datumNL(datum) });
@@ -140,20 +145,22 @@ async function finaliseerToernooi({ videoId, tournamentId, tableNumber, alleenHo
 }
 
 // Finaliseert een losse challenge (geen Cuescore-data → geen hoofdstukken).
-async function finaliseerChallenge({ videoId, spelerA, spelerB, tableNumber, spelsoort, datumISO }, opts = {}) {
+async function finaliseerChallenge({ videoId, spelerA, spelerB, tableNumber, spelsoort, datumISO, spelersTekst }, opts = {}) {
   const video = await yt.getVideoDetails(videoId);
   if (!video) throw new Error(`video ${videoId} niet gevonden`);
   await maakBackup(video);
   const datum = datumISO || opts.streamStartISO || video.actualStartTime || video.scheduledStartTime;
 
-  const png = await maakChallengeThumbnail({ spelerA, spelerB, spelsoort, tableNumber, datum });
+  const png = await maakChallengeThumbnail({ spelerA, spelerB, spelsoort, tableNumber, datum, spelersTekst });
   // Tafel is bij oude challenges vaak niet bekend (staat niet in de titel) → weglaten i.p.v.
   // "Tafel undefined" tonen.
   const tafelDeel = tableNumber ? ` — Tafel ${tableNumber}` : '';
   const beschrijving = [
     MOKUM_LIVE,
     '',
-    `Challenge match — ${spelerA || '?'} vs ${spelerB || '?'}${tafelDeel} — ${datumNL(datum)}`,
+    spelersTekst
+      ? `${spelersTekst}${tafelDeel} — ${datumNL(datum)}`
+      : `Challenge match — ${spelerA || '?'} vs ${spelerB || '?'}${tafelDeel} — ${datumNL(datum)}`,
     '', 'Mokum Pool & Darts',
   ].join('\n');
 
