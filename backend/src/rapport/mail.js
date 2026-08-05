@@ -51,7 +51,7 @@ function tekst(datum, analyse) {
   r.push(`  automatisch gestopt   : ${c.automatischGestopt}`);
   r.push(`  pauzescherm geschakeld: ${c.pauzeschakelingen}x`);
   r.push('', 'WAT ER GEBEURDE');
-  for (const g of analyse.gebeurtenissen) r.push(`  ${klok(g.tijd)}  ${g.titel}`, `           ${g.uitleg}`);
+  for (const g of analyse.gebeurtenissen) r.push(`  ${klok(g.tijd)}  ${g.titel}${g.aantal > 1 ? ` (${g.aantal}x, laatste ${klok(g.laatsteTijd)})` : ''}`, `           ${g.uitleg}`);
   r.push('', `Gebaseerd op ${c.logregels} logregels, venster 12:00-08:00.`);
   return r.join('\n');
 }
@@ -78,7 +78,7 @@ function html(datum, analyse) {
       <td style="padding:8px 12px 8px 0;vertical-align:top;white-space:nowrap;font-family:Consolas,monospace;font-size:13px;${zacht}">${esc(klok(g.tijd))}</td>
       <td style="padding:8px 0;vertical-align:top;border-bottom:1px solid #f0eae9;">
         <div style="font-size:14px;color:#1b1614;font-weight:600;">
-          ${esc(g.titel)}
+          ${esc(g.titel)}${g.aantal > 1 ? esc(` (${g.aantal}x, laatste ${klok(g.laatsteTijd)})`) : ''}
           ${MERK[g.soort] ? `<span style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:${KLEUR[g.soort]};font-weight:bold;">&nbsp;·&nbsp;${esc(MERK[g.soort])}</span>` : ''}
         </div>
         <div style="font-size:13px;${zacht}margin-top:2px;">${esc(g.uitleg)}</div>

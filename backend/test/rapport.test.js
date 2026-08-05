@@ -20,10 +20,51 @@ test('duiding: een automatische stop is goed nieuws', () => {
   assert.strictEqual(d.soort, 'goed');
 });
 
-test('duiding: een waarschuwing wint van elke andere regel', () => {
+test('duiding: een echte fout wint van elke andere regel', () => {
   // Deze regel begint met [Tag=...] en zou anders nergens op matchen.
-  const d = duidRegel("[Tag=''] Process reporting unhealthy: Unhealthy. errorCode NoScriptHost");
+  const d = duidRegel('[WAARSCHUWING] [streams/start] tafel 1: opruimen van de stream key mislukt');
   assert.strictEqual(d.soort, 'fout');
+});
+
+// Opstartruis van Azure stond eerst als rood PROBLEEM in de mail (gemeld 05-08). De server
+// slaapt als er niets te doen is; start hij weer op, dan vraagt Azure "ben je er al?"
+// terwijl Node nog laadt. Op 04-08 stond dit om 23:53 in de logs en om 23:55 stopte
+// checkStops de tafel gewoon — er is niets door geraakt.
+test('#91: opstartruis is geen probleem', () => {
+  const d = duidRegel("[Tag=''] Process reporting unhealthy: Unhealthy. errorCode NoScriptHost");
+  assert.strictEqual(d.soort, 'neutraal');
+  assert.match(d.titel, /opnieuw opgestart/);
+
+  const a = analyseer([{ tijd: T(21, 53), bericht: "[Tag=''] Process reporting unhealthy: NoScriptHost" }]);
+  assert.strictEqual(a.cijfers.problemen, 0);
+  assert.ok(!a.bevindingen.some((b) => /waarschuwing/i.test(b.kop)), JSON.stringify(a.bevindingen));
+});
+
+// `[createBroadcasts] tafel-herresolutie` schrijft de timer elke vijf minuten zolang een
+// toernooi loopt. Die stond op 05-08 negen keer als "Uitzending automatisch gestart" in de
+// mail, terwijl er twee uitzendingen waren.
+test('#91: alleen de échte startregel telt als automatische start', () => {
+  const a = analyseer([
+    { tijd: T(17, 20), bericht: '[createBroadcasts] tafel-herresolutie toernooi 75880936: [1,3] → [1,3]' },
+    { tijd: T(17, 20), bericht: '[OK] Broadcast + startcommando\'s: tafel 1 — "Tafel 1 Fluke" (Tnb1nUZBFSc)' },
+    { tijd: T(17, 20), bericht: '[OK] Broadcast + startcommando\'s: tafel 3 — "Tafel 3 Fluke" (-WbrJ0B5Heg)' },
+    { tijd: T(17, 25), bericht: '[createBroadcasts] tafel-herresolutie toernooi 75880936: [1,3] → [1,3]' },
+    { tijd: T(17, 30), bericht: '[createBroadcasts] tafel-herresolutie toernooi 75880936: [1,3] → [1,3]' },
+  ]);
+  assert.strictEqual(a.cijfers.automatischGestart, 2);
+  assert.strictEqual(a.gebeurtenissen.length, 1, 'twee starts op hetzelfde tijdstip worden samengevouwen');
+  assert.strictEqual(a.gebeurtenissen[0].aantal, 2);
+  assert.ok(!a.gebeurtenissen.some((g) => /herresolutie/.test(g.bericht)), 'herresolutie hoort niet in het rapport');
+});
+
+test('#91: herhaalde regels worden samengevouwen in plaats van herhaald', () => {
+  const a = analyseer(Array.from({ length: 9 }, (_, i) => ({
+    tijd: T(17, 20 + i * 5),
+    bericht: '[OK] Broadcast + startcommando\'s: tafel 1 — "x" (abc)',
+  })));
+  assert.strictEqual(a.gebeurtenissen.length, 1);
+  assert.strictEqual(a.gebeurtenissen[0].aantal, 9);
+  assert.ok(a.gebeurtenissen[0].laatsteTijd);
 });
 
 test('duiding: routinewerk hoort niet in het rapport', () => {

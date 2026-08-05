@@ -7,15 +7,39 @@
 // Uitgangspunt: liever te weinig regels tonen dan te veel. Een rapport waar dertig regels
 // ruis in staan wordt niet gelezen, en dan valt de ene regel die ertoe deed ook weg.
 
-const PROBLEEM_RE = /WAARSCHUWING|Exception|niet bereikbaar|FOUT|mislukt|nog niet gelukt|niet gevonden|Unhealthy|threshold exceeded/i;
+const PROBLEEM_RE = /WAARSCHUWING|Exception|niet bereikbaar|FOUT|mislukt|nog niet gelukt|niet gevonden|threshold exceeded/i;
+
+// Opstartruis van Azure, géén storing (#91, gemeld 05-08).
+//
+// De Function App schaalt naar nul als er niets te doen is. Start hij weer op, dan vraagt
+// Azure "ben je er al?" terwijl Node nog laadt, en dat levert deze regel op. Op 04-08 stond
+// 'ie om 23:53 in de logs; om 23:55 stopte checkStops de tafel gewoon en om 23:56 was de
+// video afgerond. Er is dus niets door geraakt.
+//
+// Hij stond eerst als rood PROBLEEM in de mail. Dat schrikt Nick en Mark op zonder reden, en
+// erger: als élke ochtend zo'n rode balk staat, kijkt niemand meer op van een échte.
+const OPSTARTRUIS_RE = /Process reporting unhealthy|NoScriptHost/i;
 
 // Eerste treffer wint, dus specifiek boven algemeen.
 const REGELS = [
   {
-    test: /^\[createBroadcasts\]/,
+    // DIT is de regel die een echte start markeert. `[createBroadcasts] tafel-herresolutie`
+    // ziet er verwarrend genoeg uit alsof er iets start, maar dat schrijft de timer elke vijf
+    // minuten zolang een toernooi loopt — die stond eerst negen keer in de mail (05-08).
+    test: /^\[OK\] Broadcast \+ startcommando/,
     soort: 'goed',
     titel: 'Uitzending automatisch gestart volgens de planning',
-    uitleg: 'Het systeem begon uit zichzelf, tien minuten voor de eerste wedstrijd. Zo hoort het te gaan.',
+    uitleg: 'Het systeem begon uit zichzelf, kort voor de eerste wedstrijd. Zo hoort het te gaan.',
+  },
+  {
+    test: /^\[createBroadcasts\]/,
+    soort: null, // routinewerk: niet in het rapport
+  },
+  {
+    test: OPSTARTRUIS_RE,
+    soort: 'neutraal',
+    titel: 'Server opnieuw opgestart',
+    uitleg: 'Normaal: de server slaapt als er niets te doen is en start weer op zodra er werk komt. Er gaat niets verloren.',
   },
   {
     test: /^\[streams\/start\].*ad-hoc \(geen toernooi\)/,
@@ -66,6 +90,14 @@ const REGELS = [
 function duidRegel(bericht) {
   const m = String(bericht || '').trim();
   if (!m) return null;
+  // Opstartruis eerst: die bevat het woord "Unhealthy" en zou anders als storing tellen.
+  if (OPSTARTRUIS_RE.test(m)) {
+    return {
+      soort: 'neutraal',
+      titel: 'Server opnieuw opgestart',
+      uitleg: 'Normaal: de server slaapt als er niets te doen is en start weer op zodra er werk komt. Er gaat niets verloren.',
+    };
+  }
   if (PROBLEEM_RE.test(m)) {
     return {
       soort: 'fout',
@@ -73,7 +105,10 @@ function duidRegel(bericht) {
       uitleg: 'De server meldde een storing. Kijk of er in dezelfde minuut een uitzending is geraakt; is dat niet zo, dan is er niets aan de hand.',
     };
   }
-  for (const r of REGELS) if (r.test.test(m)) return { soort: r.soort, titel: r.titel, uitleg: r.uitleg };
+  for (const r of REGELS) {
+    if (!r.test.test(m)) continue;
+    return r.soort ? { soort: r.soort, titel: r.titel, uitleg: r.uitleg } : null;
+  }
   return null;
 }
 
@@ -115,21 +150,24 @@ function analyseer(regels, { langsteOpenUren = 2 } = {}) {
     const m = String(r.bericht).replace(/\r?\n/g, ' ').trim();
 
     // Eerst tellen, dan pas beslissen of we 'm tonen: een fout die zich honderd keer
-    // herhaalt is één probleem, maar mag nooit uit de samenvatting vallen.
-    if (PROBLEEM_RE.test(m)) problemen.set(m, (problemen.get(m) || 0) + 1);
+    // herhaalt is één probleem, maar mag nooit uit de samenvatting vallen. Opstartruis
+    // telt niet mee — zie OPSTARTRUIS_RE.
+    if (PROBLEEM_RE.test(m) && !OPSTARTRUIS_RE.test(m)) problemen.set(m, (problemen.get(m) || 0) + 1);
 
     if (/^\[pauzeScherm\]/.test(m)) { pauzeschakelingen++; continue; }
 
     const hs = /(\d+) hoofdstukken/.exec(m);
     if (hs) hoofdstukken += Number(hs[1]);
 
-    if (/^\[createBroadcasts\]/.test(m)) automatischGestart++;
+    const autoStart = /^\[OK\] Broadcast \+ startcommando/.test(m);
+    if (autoStart) automatischGestart++;
     if (/^\[checkStops\].*stoppen/.test(m)) automatischGestopt++;
     if (/^\[checkStops\].*ad-hoc stream gekoppeld/.test(m)) gekoppeld++;
 
-    // Uitzendingen bijhouden om te zien hoe lang ze openstonden.
+    // Uitzendingen bijhouden om te zien hoe lang ze openstonden. Let op dat de
+    // automatische start uit een ÁNDERE regel komt dan de handmatige.
     const tafel = tafelUit(m);
-    if (/^\[streams\/start\]/.test(m) || /^\[createBroadcasts\]/.test(m)) {
+    if (/^\[streams\/start\]/.test(m) || autoStart) {
       if (/^\[streams\/start\]/.test(m)) handmatigGestart++;
       if (tafel) open.set(tafel, { start: r.tijd, adhoc: /ad-hoc \(geen toernooi\)/.test(m) });
     }
@@ -153,7 +191,17 @@ function analyseer(regels, { langsteOpenUren = 2 } = {}) {
     }
 
     const duiding = duidRegel(m);
-    if (duiding) gebeurtenissen.push({ tijd: r.tijd, bericht: m, ...duiding });
+    if (duiding) {
+      // Twee keer hetzelfde achter elkaar? Optellen in plaats van herhalen. Een timer die
+      // elke minuut hetzelfde meldt hoort niet als twintig regels in een mail te staan.
+      const vorige = gebeurtenissen[gebeurtenissen.length - 1];
+      if (vorige && vorige.titel === duiding.titel) {
+        vorige.aantal = (vorige.aantal || 1) + 1;
+        vorige.laatsteTijd = r.tijd;
+      } else {
+        gebeurtenissen.push({ tijd: r.tijd, bericht: m, aantal: 1, ...duiding });
+      }
+    }
   }
 
   // Nooit gestopt = tot het eind van het venster open blijven staan.
