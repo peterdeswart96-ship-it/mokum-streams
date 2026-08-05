@@ -1216,7 +1216,7 @@ function ToernooiPlanner({ onGepland }) {
                 <div className="flex justify-between gap-3"><dt className="text-ink-muted">Datum</dt><dd>{datumLabel(confirm.date)}</dd></div>
                 <div className="flex justify-between gap-3"><dt className="text-ink-muted">Tafels</dt><dd>{cur.tafels.join(', ') || '—'}</dd></div>
                 <div className="flex justify-between gap-3"><dt className="text-ink-muted">Start</dt><dd>{cur.startTijd} · stream {cur.preRoll} min eerder</dd></div>
-                <div className="flex justify-between gap-3"><dt className="text-ink-muted">Eind</dt><dd>{cur.eindTijd} of Cuescore “Finished” · nachtstop-vangnet</dd></div>
+                <div className="flex justify-between gap-3"><dt className="text-ink-muted">Eind</dt><dd>zodra de finale klaar is · uiterlijk {cur.eindTijd}</dd></div>
                 <div className="flex justify-between gap-3"><dt className="text-ink-muted">Zichtbaarheid</dt><dd>{VIS_LABELS[cur.visibility]}</dd></div>
                 <div className="flex justify-between gap-3"><dt className="text-ink-muted">Overlays</dt><dd>{overlaysLabel(cur.overlays)}</dd></div>
               </dl>
@@ -1234,7 +1234,13 @@ function ToernooiPlanner({ onGepland }) {
                   {bezig ? 'Bezig…' : 'Bevestig plannen'}
                 </button>
               </div>
-              <p className="text-xs text-ink-muted mt-3">Fase 1: dit legt de planning vast. Automatisch starten/stoppen volgt in fase 2/3 — voor nu start je nog handmatig via “+ Nieuwe stream”.</p>
+              {/* Stond hier nog uit de tijd dat inplannen alleen vastlegde en je zelf moest
+                  starten. Sinds 04-08 doet het systeem het hele traject zelf (#42). */}
+              <p className="text-xs text-ink-muted mt-3">
+                Hierna gaat het vanzelf: de uitzendingen starten {cur.preRoll} minuten voor aanvang,
+                het pauzescherm schakelt mee met de wedstrijden, en na de finale sluit alles zichzelf
+                af met thumbnail en hoofdstukken. Ingrijpen kan altijd via het dashboard.
+              </p>
             </div>
           </div>
         );
