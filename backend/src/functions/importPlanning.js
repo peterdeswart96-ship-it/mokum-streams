@@ -21,7 +21,10 @@ async function verwerk(now, context) {
 
   let imported;
   try {
-    imported = await getUpcomingTournaments({ now, days: 14 });
+    // Vijf weken vooruit in plaats van twee: Peter wil een hele maand in één keer kunnen
+    // inplannen (05-08). De Toernooi planner toont niet meer dan er is, dus dit is de plek
+    // die het venster bepaalt.
+    imported = await getUpcomingTournaments({ now, days: 35 });
   } catch (e) {
     context.log(`[FOUT] Cuescore-import mislukt, planning ongewijzigd: ${e.message}`);
     return { ok: false, error: e.message };

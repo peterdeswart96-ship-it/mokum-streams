@@ -875,6 +875,34 @@ function tijdNaarIso(datum, hm, { eind = false, startHm = null } = {}) {
   return d.toISOString();
 }
 
+// Maandag van de week waarin `datum` (jjjj-mm-dd) valt — de sleutel om op te groeperen.
+function maandagVan(datum) {
+  const d = new Date(`${datum}T12:00:00Z`);
+  if (Number.isNaN(d.getTime())) return datum || '';
+  const dag = (d.getUTCDay() + 6) % 7; // maandag = 0
+  d.setUTCDate(d.getUTCDate() - dag);
+  return d.toISOString().slice(0, 10);
+}
+
+// "4 – 10 aug" als kop boven een week.
+function weekLabel(maandag) {
+  const a = new Date(`${maandag}T12:00:00Z`);
+  const b = new Date(a.getTime() + 6 * 86400000);
+  const dagMaand = (d) => new Intl.DateTimeFormat('nl-NL', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(d);
+  return `${new Intl.DateTimeFormat('nl-NL', { day: 'numeric', timeZone: 'UTC' }).format(a)} – ${dagMaand(b)}`;
+}
+
+// Groepeert de records per week, op volgorde.
+function perWeek(records) {
+  const groepen = new Map();
+  for (const r of records || []) {
+    const k = maandagVan(r.date);
+    if (!groepen.has(k)) groepen.set(k, []);
+    groepen.get(k).push(r);
+  }
+  return [...groepen.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+}
+
 function ToernooiPlanner({ onGepland }) {
   const [records, setRecords] = useState(null); // null = laden
   const [open, setOpen] = useState(false);
@@ -882,23 +910,23 @@ function ToernooiPlanner({ onGepland }) {
   const [fout, setFout] = useState('');
   const [edits, setEdits] = useState({});       // tournamentId -> { tafels, visibility, overlays, preRoll }
   const [confirm, setConfirm] = useState(null); // record dat bevestigd wordt
+  const [dichteWeken, setDichteWeken] = useState({}); // maandag -> true als ingeklapt
 
   const laad = useCallback(() => {
     return getPlanning().then((d) => {
       const drempel = Date.now() - 12 * 3600 * 1000; // vandaag telt nog mee
       const lijst = (d.items || [])
+        // Doorlopende competities horen hier NIET (besluit Peter 05-08). De 14.1-league is in
+        // de praktijk geen toernooi maar een reeks losse partijen die spelers zelf plannen;
+        // die start je per partij met de hand. In de startknop blijft de league wél kiesbaar,
+        // want daar koppel je de uitzending aan de league voor auto-stop en hoofdstukken.
+        .filter((r) => (r.type || 'tournament') !== 'competition')
         .filter((r) => {
-          // Een doorlopende competitie is relevant zolang hij LOOPT; een toernooi tot
-          // de dag voorbij is. Op de startdatum filteren zou een league van 16 juni
-          // meteen wegstrepen (#86) — en dan kun je 'm ook nooit inplannen.
-          const competitie = (r.type || 'tournament') === 'competition';
-          const ijk = competitie
-            ? Date.parse(r.plannedStop || '')
-            : Date.parse(r.plannedStart || `${r.date}T00:00:00Z`);
+          const ijk = Date.parse(r.plannedStart || `${r.date}T00:00:00Z`);
           return !Number.isNaN(ijk) && ijk >= drempel;
         })
         .sort((a, b) => String(a.plannedStart || a.date).localeCompare(String(b.plannedStart || b.date)))
-        .slice(0, 10);
+        .slice(0, 60); // ruime bovengrens; het venster wordt door de import bepaald (35 dagen)
       setRecords(lijst);
     }).catch(() => setRecords([]));
   }, []);
@@ -991,17 +1019,41 @@ function ToernooiPlanner({ onGepland }) {
           ) : records.length === 0 ? (
             <p className="text-sm text-ink-muted">Geen aankomende toernooien. Klik “↻ Ververs” om Cuescore op te halen.</p>
           ) : (
-            <div className="overflow-x-auto">
+            // Per week een uitklapblok (#05-08): een hele maand in één tabel is op een
+            // telefoon niet te doen. De eerstvolgende week staat open, de rest dicht.
+            <div className="flex flex-col gap-2">
+              {perWeek(records).map(([maandag, rijen], i) => {
+                const dicht = dichteWeken[maandag] === undefined ? i > 0 : dichteWeken[maandag];
+                const gepland = rijen.filter((r) => (r.status || (r.planned ? 'gepland' : 'concept')) === 'gepland').length;
+                return (
+                  <section key={maandag} className="border border-line rounded-lg">
+                    <button onClick={() => setDichteWeken((v) => ({ ...v, [maandag]: !dicht }))} aria-expanded={!dicht}
+                            className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left">
+                      <span className="text-sm">
+                        <span className="font-medium">Week {weekLabel(maandag)}</span>
+                        <span className="text-ink-muted"> · {rijen.length} toernooi{rijen.length === 1 ? '' : 'en'}</span>
+                        {gepland > 0 && (
+                          <span className="ml-2 text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/40 rounded-full px-2 py-0.5">
+                            {gepland} ingepland
+                          </span>
+                        )}
+                      </span>
+                      <span className={`text-ink-muted text-xs transition-transform ${dicht ? '-rotate-90' : ''}`}>▼</span>
+                    </button>
+                    {!dicht && (
+            <div className="overflow-x-auto px-3 pb-3">
               <table className="w-full text-sm border-collapse min-w-[860px]">
                 <thead>
                   <tr className="text-left text-ink-muted border-b border-line">
+                    {/* Actie en Status vooraan: dat wil je zien zonder te scrollen (#05-08). */}
+                    <th className={cell}>Actie</th><th className={cell}>Status</th>
                     <th className={cell}>Datum</th><th className={cell}>Tafels</th><th className={cell}>Start</th>
                     <th className={cell}>Toernooi</th><th className={cell}>Eind</th><th className={cell}>Zichtbaarheid</th>
-                    <th className={cell}>Overlays</th><th className={cell}>Status</th><th className={cell}>Actie</th>
+                    <th className={cell}>Overlays</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {records.map((r) => {
+                  {rijen.map((r) => {
                     const cur = huidig(r);
                     // Status uit de backend (concept/gepland/live/klaar/geannuleerd); val terug
                     // op planned-vlag als de backend 'm (nog) niet meestuurt.
@@ -1016,6 +1068,17 @@ function ToernooiPlanner({ onGepland }) {
                     const eindDatum = (r.plannedStop || '').slice(0, 10);
                     return (
                       <tr key={r.tournamentId} className="border-b border-line/50">
+                        <td className={cell}>
+                          {status === 'concept' && (
+                            <button onClick={() => setConfirm(r)} disabled={bezig || cur.tafels.length === 0}
+                                    className="bg-brand hover:bg-brand-dark text-white rounded px-2.5 py-1 text-xs font-medium disabled:opacity-50">Plan</button>
+                          )}
+                          {status === 'gepland' && (
+                            <button onClick={() => annuleer(r)} disabled={bezig} className="text-xs text-brand-light underline disabled:opacity-50">Annuleren</button>
+                          )}
+                          {status === 'live' && <span className="text-xs text-ink-muted">loopt…</span>}
+                        </td>
+                        <td className={cell}><PlannerStatus status={status} /></td>
                         <td className={cell}>
                           {competitie ? (
                             <span className="whitespace-nowrap">
@@ -1067,22 +1130,16 @@ function ToernooiPlanner({ onGepland }) {
                             ))}
                           </div>
                         </td>
-                        <td className={cell}><PlannerStatus status={status} /></td>
-                        <td className={cell}>
-                          {status === 'concept' && (
-                            <button onClick={() => setConfirm(r)} disabled={bezig || cur.tafels.length === 0}
-                                    className="bg-brand hover:bg-brand-dark text-white rounded px-2.5 py-1 text-xs font-medium disabled:opacity-50">Plan</button>
-                          )}
-                          {status === 'gepland' && (
-                            <button onClick={() => annuleer(r)} disabled={bezig} className="text-xs text-brand-light underline disabled:opacity-50">Annuleren</button>
-                          )}
-                          {status === 'live' && <span className="text-xs text-ink-muted">loopt…</span>}
-                        </td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
+            </div>
+                    )}
+                  </section>
+                );
+              })}
             </div>
           )}
           {fout && <p className="text-sm text-brand-light bg-brand/10 border border-brand/40 rounded p-2 mt-3">{fout}</p>}
