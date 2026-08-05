@@ -20,7 +20,37 @@ const PROBLEEM_RE = /WAARSCHUWING|Exception|niet bereikbaar|FOUT|mislukt|nog nie
 // erger: als élke ochtend zo'n rode balk staat, kijkt niemand meer op van een échte.
 const OPSTARTRUIS_RE = /Process reporting unhealthy|NoScriptHost/i;
 
+// Tafelnummer uit een regel, of null. Let op de vormen die in de logs voorkomen:
+//   [checkStops] tafel 3: stoppen — ...
+//   [OK] Broadcast + startcommando's: tafel 1 — "..."
+//   [finalizeVideos] tafel 16 gefinaliseerd (...)
+const tafelIn = (m) => {
+  const t = /tafel (\d+)/i.exec(m || '');
+  return t ? Number(t[1]) : null;
+};
+const metTafel = (m, tekst) => {
+  const n = tafelIn(m);
+  return n ? `Tafel ${n}: ${tekst}` : tekst.charAt(0).toUpperCase() + tekst.slice(1);
+};
+
+// Waarom stopte een tafel? De reden staat achter "stoppen — " en is geschreven voor
+// ontwikkelaars; hier vertalen we 'm naar wat het voor de zaal betekent. Zonder dit stond er
+// alleen "het systeem zag dat er niets meer te tonen was", en dan mis je precies het stuk dat
+// het interessant maakt (gemeld 05-08).
+function stopUitleg(m) {
+  const finale = /finale bezig op tafel (\d+)/i.exec(m);
+  if (finale) return `De finale was bezig op tafel ${finale[1]}, dus op deze tafel viel niets meer te zien. Hij sloot vanzelf zodat de aandacht naar de finale ging.`;
+  if (/podium-grace/i.test(m)) return 'Het toernooi was klaar. Het medaillescherm met de winnaar bleef nog drie minuten in beeld en daarna sloot de uitzending.';
+  if (/competitie/i.test(m)) return 'De laatste wedstrijd van de avond op deze tafel was gespeeld.';
+  if (/eindtijd/i.test(m)) return 'De eindtijd die in de planner staat was bereikt.';
+  if (/toernooi klaar/i.test(m)) return 'Het toernooi was afgelopen.';
+  const reden = /stoppen\s*[—-]\s*(.+)$/i.exec(m);
+  return reden ? `Reden: ${reden[1].replace(/\s*\(#\d+\)\s*$/, '')}.` : 'Het systeem zag dat er niets meer te tonen was en heeft zelf afgesloten.';
+}
+
 // Eerste treffer wint, dus specifiek boven algemeen.
+// `titel` en `uitleg` mogen ook een functie van de logregel zijn, zodat het tafelnummer en
+// de reden bewaard blijven in plaats van weggepoetst te worden.
 const REGELS = [
   {
     // DIT is de regel die een echte start markeert. `[createBroadcasts] tafel-herresolutie`
@@ -28,7 +58,7 @@ const REGELS = [
     // minuten zolang een toernooi loopt — die stond eerst negen keer in de mail (05-08).
     test: /^\[OK\] Broadcast \+ startcommando/,
     soort: 'goed',
-    titel: 'Uitzending automatisch gestart volgens de planning',
+    titel: (m) => metTafel(m, 'automatisch gestart volgens de planning'),
     uitleg: 'Het systeem begon uit zichzelf, kort voor de eerste wedstrijd. Zo hoort het te gaan.',
   },
   {
@@ -44,38 +74,41 @@ const REGELS = [
   {
     test: /^\[streams\/start\].*ad-hoc \(geen toernooi\)/,
     soort: 'let-op',
-    titel: 'Losse uitzending gestart, zonder toernooi eraan',
+    titel: (m) => metTafel(m, 'losse uitzending gestart, zonder toernooi eraan'),
     uitleg: 'Deze stopt nooit vanzelf: het systeem weet niet wanneer een losse partij klaar is. Iemand moet hem met de hand stoppen.',
   },
   {
     test: /^\[streams\/start\]/,
     soort: 'let-op',
-    titel: 'Uitzending met de hand gestart',
+    titel: (m) => metTafel(m, 'met de hand gestart'),
     uitleg: 'Iemand heeft dit zelf aangezet in het dashboard. Bij een ingepland toernooi was dat niet nodig geweest.',
   },
   {
     test: /^\[streams\/stop\]/,
     soort: 'neutraal',
-    titel: 'Uitzending met de hand gestopt',
+    titel: (m) => metTafel(m, 'met de hand gestopt'),
     uitleg: 'Iemand heeft de uitzending zelf afgesloten in het dashboard.',
   },
   {
     test: /^\[checkStops\].*ad-hoc stream gekoppeld/,
     soort: 'let-op',
-    titel: 'Losse uitzending alsnog aan het toernooi gekoppeld',
+    titel: (m) => metTafel(m, 'losse uitzending alsnog aan het toernooi gekoppeld'),
     uitleg: 'Er stond een losse uitzending op een tafel waar duidelijk een toernooi speelde. Het systeem heeft die alsnog overgenomen, zodat hij toch netjes wordt afgesloten en een thumbnail krijgt. Het betekent wel dat de video begint vóórdat het toernooi begon.',
   },
   {
     test: /^\[checkStops\].*stoppen/,
     soort: 'goed',
-    titel: 'Uitzending automatisch gestopt',
-    uitleg: 'Het systeem zag dat er niets meer te tonen was en heeft zelf afgesloten.',
+    titel: (m) => metTafel(m, 'automatisch gestopt'),
+    uitleg: stopUitleg,
   },
   {
     test: /gefinaliseerd/,
     soort: 'goed',
-    titel: 'Video afgerond',
-    uitleg: 'De video heeft automatisch een thumbnail en hoofdstukken per partij gekregen, en staat klaar op het kanaal.',
+    titel: (m) => metTafel(m, 'video afgerond'),
+    uitleg: (m) => {
+      const hs = /(\d+) hoofdstukken/.exec(m);
+      return `De video heeft automatisch een thumbnail gekregen${hs ? ` en ${hs[1]} hoofdstukken — een per gespeelde partij` : ' en hoofdstukken per partij'}, en staat klaar op het kanaal.`;
+    },
   },
   {
     test: /^\[challenge\/aanmaken\]/,
@@ -107,7 +140,9 @@ function duidRegel(bericht) {
   }
   for (const r of REGELS) {
     if (!r.test.test(m)) continue;
-    return r.soort ? { soort: r.soort, titel: r.titel, uitleg: r.uitleg } : null;
+    if (!r.soort) return null;
+    const waarde = (v) => (typeof v === 'function' ? v(m) : v);
+    return { soort: r.soort, titel: waarde(r.titel), uitleg: waarde(r.uitleg) };
   }
   return null;
 }

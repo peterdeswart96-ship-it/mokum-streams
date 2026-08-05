@@ -52,9 +52,30 @@ test('#91: alleen de échte startregel telt als automatische start', () => {
     { tijd: T(17, 30), bericht: '[createBroadcasts] tafel-herresolutie toernooi 75880936: [1,3] → [1,3]' },
   ]);
   assert.strictEqual(a.cijfers.automatischGestart, 2);
-  assert.strictEqual(a.gebeurtenissen.length, 1, 'twee starts op hetzelfde tijdstip worden samengevouwen');
-  assert.strictEqual(a.gebeurtenissen[0].aantal, 2);
+  // Twee verschillende tafels blijven apart staan — het tafelnummer zit in de titel.
+  assert.deepStrictEqual(a.gebeurtenissen.map((g) => g.titel), [
+    'Tafel 1: automatisch gestart volgens de planning',
+    'Tafel 3: automatisch gestart volgens de planning',
+  ]);
   assert.ok(!a.gebeurtenissen.some((g) => /herresolutie/.test(g.bericht)), 'herresolutie hoort niet in het rapport');
+});
+
+// Het rapport gooide weg wélke tafel stopte en waarom; er stond alleen "het systeem zag dat
+// er niets meer te tonen was". Juist die reden maakt het interessant (gemeld 05-08).
+test('#91: een automatische stop vertelt welke tafel en waarom', () => {
+  const d = duidRegel('[checkStops] tafel 3: stoppen — finale bezig op tafel 1; deze tafel heeft geen wedstrijd meer (#72)');
+  assert.strictEqual(d.titel, 'Tafel 3: automatisch gestopt');
+  assert.match(d.uitleg, /finale was bezig op tafel 1/);
+
+  const podium = duidRegel('[checkStops] tafel 1: stoppen — toernooi klaar, podium-grace van 180s verstreken');
+  assert.strictEqual(podium.titel, 'Tafel 1: automatisch gestopt');
+  assert.match(podium.uitleg, /medaillescherm/);
+});
+
+test('#91: een afgeronde video noemt de tafel en het aantal hoofdstukken', () => {
+  const d = duidRegel('[finalizeVideos] tafel 16 gefinaliseerd (v6RSnIDhLrw) — 2 hoofdstukken');
+  assert.strictEqual(d.titel, 'Tafel 16: video afgerond');
+  assert.match(d.uitleg, /2 hoofdstukken/);
 });
 
 test('#91: herhaalde regels worden samengevouwen in plaats van herhaald', () => {
