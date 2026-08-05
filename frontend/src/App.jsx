@@ -831,6 +831,12 @@ function datumLabel(iso) {
 // bevestiging) de planning vast (record.planned = true). NB: fase 1 zet nog niets
 // automatisch live — dat komt in fase 2/3.
 const VIS_LABELS = { public: 'Openbaar', unlisted: 'Verborgen', private: 'Privé' };
+
+// Uiterste eindtijd die de planner voorstelt. Alleen een vangnet: normaal sluit een
+// uitzending vanzelf zodra de finale gespeeld is (podium-grace). Stond op 01:00; sinds 05-08
+// op 01:30 omdat avondtoernooien geregeld uitlopen. De harde grens blijft de nachtstop van
+// 02:00, die kijkt niet naar Cuescore en stopt altijd.
+const STANDAARD_EINDTIJD = '01:30';
 // Overlays per stuk aan of uit, in plaats van drie vaste combinaties (#93). Met de oude
 // keuzelijst ("Alle / Alleen scorebord / Geen") was de jumbotron niet aan te zetten, terwijl
 // je een avond juist graag begint met het pauzescherm en de highlights erop.
@@ -944,11 +950,13 @@ function ToernooiPlanner({ onGepland }) {
       overlays: e.overlays ?? normaliseerOverlays(r.overlays),
       preRoll: e.preRoll ?? (r.preRollMinuten ?? 5),
       // Start = override of Cuescore-start (val terug op 19:00). Eind = eigen override of
-      // standaard 01:00 (nachtelijke veiligheids-stop). We volgen bewust NIET de Cuescore-
-      // eindtijd: die staat meestal op 23:59 (plaatsvuller), terwijl toernooien vaak later
-      // doorlopen — 01:00 is de gewenste standaard, en blijft per rij aanpasbaar.
+      // standaard 01:30. We volgen bewust NIET de Cuescore-eindtijd: die staat meestal op
+      // 23:59 (plaatsvuller), terwijl toernooien vaak later doorlopen. Sinds 05-08 half twee
+      // in plaats van één uur — avondtoernooien lopen geregeld uit. Het is hoe dan ook een
+      // vangnet: normaal stopt de uitzending vanzelf zodra de finale gespeeld is. De harde
+      // grens blijft de nachtstop van 02:00.
       startTijd: e.startTijd ?? (hhmm(r.startOverride) || hhmm(r.plannedStart) || '19:00'),
-      eindTijd: e.eindTijd ?? (hhmm(r.stopOverride) || '01:00'),
+      eindTijd: e.eindTijd ?? (hhmm(r.stopOverride) || STANDAARD_EINDTIJD),
     };
   }
   // Vertaalt een lokale patch (overlays/preRoll/start/eindTijd) naar de server-velden.
