@@ -278,10 +278,9 @@ function analyseer(regels, { langsteOpenUren = 2 } = {}) {
       }
     }
 
-    // Pas hier de tafel losmaken van zijn uitzending. Deed ik dat eerder — bij het bepalen
-    // van `sluit` — dan raakte juist de stopregel zelf zijn naam en kleur kwijt, terwijl dat
-    // de regel is waar je ze het hardst nodig hebt.
-    for (const t of sluit) lopend.delete(t);
+    // De koppeling tafel → uitzending vervalt BEWUST niet bij de stop, maar pas als er een
+    // nieuwe uitzending op die tafel begint. Het afronden van de video komt namelijk een
+    // minuut ná de stop, en juist die regel wil je aan de goede uitzending kunnen hangen.
   }
 
   // Nooit gestopt = tot het eind van het venster open blijven staan.

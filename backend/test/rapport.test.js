@@ -358,3 +358,28 @@ test('#91: de kleuren komen uit een vast, gevalideerd palet', () => {
   // Meer dan vier uitzendingen: dan begint het palet opnieuw, in vaste volgorde.
   assert.strictEqual(a.cijfers.streams[0].kleur, a.cijfers.streams[4].kleur);
 });
+
+// De video wordt een minuut ná de stop afgerond. Die regel hoort nog steeds bij dezelfde
+// uitzending — juist daar wil je zien wélke video er klaar staat (gemeld 05-08).
+test('#91: de afronding hangt nog aan de uitzending, ook na de stop', () => {
+  const a = analyseer([
+    { tijd: T(17, 20), bericht: '[OK] Broadcast + startcommando\'s: tafel 3 — "Tafel 3 Fluke" (abc12345)' },
+    { tijd: T(21, 23), bericht: '[checkStops] tafel 3: stoppen — finale bezig op tafel 1' },
+    { tijd: T(21, 24), bericht: '[finalizeVideos] tafel 3 gefinaliseerd (abc12345) — 8 hoofdstukken' },
+  ]);
+  const klaar = a.gebeurtenissen.find((g) => /video afgerond/.test(g.titel));
+  assert.strictEqual(klaar.stream, 'Tafel 3 Fluke');
+  assert.strictEqual(klaar.kleur, a.cijfers.streams[0].kleur);
+});
+
+test('#91: een nieuwe uitzending op dezelfde tafel neemt het stokje over', () => {
+  const a = analyseer([
+    { tijd: T(14, 40), bericht: '[streams/start] tafel 1 HANDMATIG gestart — "Eerste" — ad-hoc (geen toernooi), public, video aaa11111' },
+    { tijd: T(14, 44), bericht: '[streams/stop] tafel 1 HANDMATIG gestopt — "Eerste" — video aaa11111' },
+    { tijd: T(17, 20), bericht: '[OK] Broadcast + startcommando\'s: tafel 1 — "Tweede" (bbb22222)' },
+    { tijd: T(21, 30), bericht: '[finalizeVideos] tafel 1 gefinaliseerd (bbb22222) — 4 hoofdstukken' },
+  ]);
+  assert.strictEqual(a.cijfers.streams.length, 2);
+  const klaar = a.gebeurtenissen.find((g) => /video afgerond/.test(g.titel));
+  assert.strictEqual(klaar.stream, 'Tweede');
+});
