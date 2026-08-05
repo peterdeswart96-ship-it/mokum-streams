@@ -46,9 +46,17 @@ function startCommandsFor(record, tableNumber, overlayBron = OVERLAY_BRON, opts 
   // Ververs het scorebord bij de start (als het aan staat): anders houdt de OBS-browserbron
   // de vorige-toernooi-pagina vast tot de eerste pauze-omslag. Zo staat er meteen het juiste
   // toernooi op — geen handmatige cache-leging meer nodig.
-  const scoreboardAan = overlayCmds.some((c) => c.sourceName === overlayBron.scoreboard && c.enabled);
-  if (scoreboardAan) {
-    cmds.push({ type: 'refreshSource', tableNumber, sourceName: overlayBron.scoreboard });
+  // Verversen bij de start geldt voor ELKE webpagina-overlay die aan gaat, niet alleen het
+  // scorebord. Een browserbron in OBS houdt de pagina vast die hij ooit geladen heeft: de
+  // pc staat 24/7 aan en de bron herlaadt zichzelf niet. Zonder dit draait de jumbotron na
+  // een wijziging nog wekenlang de oude versie (gezien 05-08, toen de rotatievolgorde was
+  // aangepast maar OBS de oude pagina bleef tonen).
+  for (const sleutel of ['scoreboard', 'jumbotron']) {
+    const bron = overlayBron[sleutel];
+    if (!bron) continue;
+    if (overlayCmds.some((c) => c.sourceName === bron && c.enabled)) {
+      cmds.push({ type: 'refreshSource', tableNumber, sourceName: bron });
+    }
   }
   return cmds;
 }

@@ -36,6 +36,7 @@ test('startCommandsFor levert startStream + alle overlays op de gewenste stand',
     { type: 'setOverlay', tableNumber: 3, sourceName: 'Scoreboard', enabled: false },
     { type: 'setOverlay', tableNumber: 3, sourceName: 'Jumbotron', enabled: true }, // expliciet aan
     { type: 'setOverlay', tableNumber: 3, sourceName: 'Pauzemelding', enabled: false }, // break-overlay: standaard uit
+    { type: 'refreshSource', tableNumber: 3, sourceName: 'Jumbotron' },
   ]);
 });
 
@@ -70,4 +71,19 @@ test('startCommandsFor: content-overlays standaard aan, break-overlays standaard
   assert.strictEqual(byBron['Scoreboard'], true);
   assert.strictEqual(byBron['Jumbotron'], false);      // break-overlay
   assert.strictEqual(byBron['Pauzemelding'], false);   // break-overlay
+});
+
+// Een browserbron in OBS houdt de pagina vast die hij ooit geladen heeft; de pc staat 24/7
+// aan en de pagina herlaadt zichzelf niet. Zonder dit draait de jumbotron na een wijziging
+// nog wekenlang de oude versie — gezien op 05-08, toen de rotatievolgorde was aangepast maar
+// OBS de oude pagina bleef tonen.
+test('#93: elke webpagina-overlay die aan gaat wordt bij de start herladen', () => {
+  const cmds = startCommandsFor({ overlays: { sponsors: true, scoreboard: true, jumbotron: true } }, 1);
+  const refresh = cmds.filter((c) => c.type === 'refreshSource').map((c) => c.sourceName);
+  assert.deepStrictEqual(refresh, ['Scoreboard', 'Jumbotron']);
+});
+
+test('#93: een overlay die UIT gaat wordt niet herladen', () => {
+  const cmds = startCommandsFor({ overlays: { scoreboard: false, jumbotron: false } }, 1);
+  assert.deepStrictEqual(cmds.filter((c) => c.type === 'refreshSource'), []);
 });
