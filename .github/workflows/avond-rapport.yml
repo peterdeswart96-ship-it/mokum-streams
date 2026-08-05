@@ -1,12 +1,18 @@
 name: Ochtendrapport per mail
 
-# Elke ochtend om 09:00 Amsterdamse tijd een overzicht van de avond ervoor naar Nick en Mark.
-# GitHub draait op UTC en houdt geen zomertijd bij, dus twee tijden: 07:00 UTC is 09:00 in de
-# zomer, 08:00 UTC is 09:00 in de winter. Het script bepaalt zelf welke van de twee telt.
+# Elke ochtend een overzicht van de avond ervoor naar Nick en Mark.
+#
+# LET OP de tijd. GitHub voert geplande workflows uit "als het uitkomt": op 05-08 vuurde deze
+# cron tweeënhalf uur te laat. Er stond eerst een controle in die alleen doorging als het
+# precies 09:00 in Amsterdam was, om zomer- en wintertijd op te vangen — maar die maakte van
+# elke vertraging stilte, en toen kwam er dus géén rapport.
+#
+# Daarom nu: één cron, geen poortwachter. Liever een rapport dat een uur schuift dan een
+# rapport dat niet komt. 06:00 UTC is 08:00 in de zomer en 07:00 in de winter; met de
+# gebruikelijke vertraging landt de mail ergens in de ochtend.
 on:
   schedule:
-    - cron: '0 7 * * *'   # zomertijd
-    - cron: '0 8 * * *'   # wintertijd
+    - cron: '0 6 * * *'
   workflow_dispatch:
     inputs:
       datum:
@@ -27,21 +33,7 @@ jobs:
         with:
           node-version: '20'
 
-      # Draait deze run op het goede moment? In de zomer is 09:00 Amsterdam gelijk aan
-      # 07:00 UTC, in de winter aan 08:00 UTC. De andere run stopt hier.
-      - name: Alleen doorgaan om 09:00 Amsterdamse tijd
-        id: klok
-        run: |
-          uur=$(TZ=Europe/Amsterdam date +%H)
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$uur" = "09" ]; then
-            echo "door=ja" >> "$GITHUB_OUTPUT"
-          else
-            echo "Het is nu $uur:00 in Amsterdam — deze run slaat over."
-            echo "door=nee" >> "$GITHUB_OUTPUT"
-          fi
-
       - uses: azure/login@v2
-        if: steps.klok.outputs.door == 'ja'
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -50,8 +42,10 @@ jobs:
       # App Insights → gekoppelde werkruimte → de id waarmee je die bevraagt.
       # Bewust alleen `az rest` en `az account get-access-token`: geen CLI-extensies, want
       # die raakten op 01-08 beschadigd en legden toen de hele az-opdracht plat.
+      #
+      # De werkruimte staat in een ándere resource group (DefaultResourceGroup-WEU) dan de
+      # Function App; de CI-identiteit heeft daar apart Monitoring Reader op gekregen.
       - name: Werkruimte en token ophalen
-        if: steps.klok.outputs.door == 'ja'
         id: azure
         run: |
           set -euo pipefail
@@ -65,7 +59,6 @@ jobs:
           echo "token=$token" >> "$GITHUB_OUTPUT"
 
       - name: Rapport opstellen
-        if: steps.klok.outputs.door == 'ja'
         env:
           LOG_TOKEN: ${{ steps.azure.outputs.token }}
           WERKRUIMTE_ID: ${{ steps.azure.outputs.werkruimte }}
@@ -77,7 +70,6 @@ jobs:
       # derden die bij onze mailbox kan, en we zien precies wat er gebeurt.
       # Het wachtwoord is een Google app-wachtwoord, geen accountwachtwoord.
       - name: Versturen
-        if: steps.klok.outputs.door == 'ja'
         env:
           GEBRUIKER: ${{ secrets.RAPPORT_SMTP_GEBRUIKER }}
           WACHTWOORD: ${{ secrets.RAPPORT_SMTP_WACHTWOORD }}

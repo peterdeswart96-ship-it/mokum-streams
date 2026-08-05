@@ -4,12 +4,16 @@ name: Herinnering ongeplande toernooien
 # een mailtje; zo nee, dan hoor je niets. Dat laatste is belangrijk: een bericht dat elke dag
 # komt wordt genegeerd, en dan mis je 'm juist op de dag dat het ertoe doet.
 #
-# 15:00 Amsterdamse tijd — ruim voor een avondtoernooi, en de Cuescore-import van die dag
-# heeft dan allang gedraaid. GitHub kent geen zomertijd, dus twee cron-tijden en een controle.
+# LET OP de tijd. GitHub voert geplande workflows uit "als het uitkomt" — op 04-08 vuurden
+# deze crons twee uur te laat. Er stond eerst een controle in die alleen doorging als het
+# precies 15:00 in Amsterdam was; die maakte van elke vertraging stilte, en toen kwam er dus
+# geen herinnering. Nu: één cron, geen poortwachter.
+#
+# 11:00 UTC is 13:00 in de zomer en 12:00 in de winter. Met de gebruikelijke vertraging landt
+# het bericht ruim vóór een avondtoernooi, en dat is het enige dat telt.
 on:
   schedule:
-    - cron: '0 13 * * *'   # zomertijd → 15:00 Amsterdam
-    - cron: '0 14 * * *'   # wintertijd → 15:00 Amsterdam
+    - cron: '0 11 * * *'
   workflow_dispatch:
 
 permissions:
@@ -24,19 +28,7 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Alleen doorgaan om 15:00 Amsterdamse tijd
-        id: klok
-        run: |
-          uur=$(TZ=Europe/Amsterdam date +%H)
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$uur" = "15" ]; then
-            echo "door=ja" >> "$GITHUB_OUTPUT"
-          else
-            echo "Het is nu $uur:00 in Amsterdam — deze run slaat over."
-            echo "door=nee" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Planning nakijken
-        if: steps.klok.outputs.door == 'ja'
         id: check
         env:
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
@@ -52,7 +44,7 @@ jobs:
           fi
 
       - name: Versturen
-        if: steps.klok.outputs.door == 'ja' && steps.check.outputs.versturen == 'ja'
+        if: steps.check.outputs.versturen == 'ja'
         env:
           GEBRUIKER: ${{ secrets.RAPPORT_SMTP_GEBRUIKER }}
           WACHTWOORD: ${{ secrets.RAPPORT_SMTP_WACHTWOORD }}
