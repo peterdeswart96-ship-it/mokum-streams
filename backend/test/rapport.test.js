@@ -305,3 +305,56 @@ test('#92: rommel in de planning laat de controle niet omvallen', () => {
   assert.deepStrictEqual(tekort(null, NU), []);
   assert.deepStrictEqual(tekort([null, {}, { name: 'x' }], NU), []);
 });
+
+// ── Naam en kleur per uitzending (#91, gevraagd 05-08) ───────────────────────
+
+test('#91: elke uitzending krijgt een naam, een tafel en een eigen kleur', () => {
+  const a = analyseer([
+    { tijd: T(17, 20), bericht: '[OK] Broadcast + startcommando\'s: tafel 1 — "Tafel 1 Fluke ranking 9ball Seizoen 3 #26" (Tnb1nUZBFSc)' },
+    { tijd: T(17, 20), bericht: '[OK] Broadcast + startcommando\'s: tafel 3 — "Tafel 3 Fluke ranking 9ball Seizoen 3 #26" (-WbrJ0B5Heg)' },
+    { tijd: T(21, 23), bericht: '[checkStops] tafel 3: stoppen — finale bezig op tafel 1; deze tafel heeft geen wedstrijd meer (#72)' },
+  ]);
+  assert.strictEqual(a.cijfers.streams.length, 2);
+  assert.deepStrictEqual(a.cijfers.streams.map((s) => s.tafel), [1, 3]);
+  assert.strictEqual(a.cijfers.streams[0].naam, 'Tafel 1 Fluke ranking 9ball Seizoen 3 #26');
+  assert.strictEqual(a.cijfers.streams[0].videoId, 'Tnb1nUZBFSc');
+  assert.notStrictEqual(a.cijfers.streams[0].kleur, a.cijfers.streams[1].kleur, 'twee uitzendingen, twee kleuren');
+});
+
+test('#91: een latere regel erft de naam en kleur van de uitzending op die tafel', () => {
+  const a = analyseer([
+    { tijd: T(17, 20), bericht: '[OK] Broadcast + startcommando\'s: tafel 3 — "Tafel 3 Fluke" (abc12345)' },
+    { tijd: T(21, 23), bericht: '[checkStops] tafel 3: stoppen — finale bezig op tafel 1' },
+    { tijd: T(21, 24), bericht: '[finalizeVideos] tafel 3 gefinaliseerd (abc12345) — 8 hoofdstukken' },
+  ]);
+  const stop = a.gebeurtenissen.find((g) => /automatisch gestopt/.test(g.titel));
+  assert.strictEqual(stop.stream, 'Tafel 3 Fluke');
+  assert.strictEqual(stop.kleur, a.cijfers.streams[0].kleur);
+});
+
+test('#91: een handmatige start zonder titel krijgt toch een leesbare naam', () => {
+  const a = analyseer([
+    { tijd: T(14, 40), bericht: '[streams/start] tafel 1 HANDMATIG gestart via het dashboard — ad-hoc (geen toernooi), public, video I9a3epTPE5I' },
+  ]);
+  assert.match(a.cijfers.streams[0].naam, /Losse uitzending op tafel 1/);
+  assert.strictEqual(a.cijfers.streams[0].videoId, 'I9a3epTPE5I');
+});
+
+test('#91: de titel uit de nieuwe streams/start-regel wordt overgenomen', () => {
+  // Sinds 05-08 logt streams.js de titel mee, juist voor dit rapport.
+  const a = analyseer([
+    { tijd: T(14, 40), bericht: '[streams/start] tafel 1 HANDMATIG gestart via het dashboard — "Challenge match Peter vs Lennert" — ad-hoc (geen toernooi), public, video abc12345' },
+  ]);
+  assert.strictEqual(a.cijfers.streams[0].naam, 'Challenge match Peter vs Lennert');
+});
+
+test('#91: de kleuren komen uit een vast, gevalideerd palet', () => {
+  const a = analyseer(Array.from({ length: 6 }, (_, i) => ({
+    tijd: T(17, i),
+    bericht: `[OK] Broadcast + startcommando's: tafel ${i + 1} — "Uitzending ${i}" (id${i}0000)`,
+  })));
+  const toegestaan = new Set(['#2a78d6', '#eb6834', '#1baf7a', '#4a3aa7']);
+  for (const s of a.cijfers.streams) assert.ok(toegestaan.has(s.kleur), s.kleur);
+  // Meer dan vier uitzendingen: dan begint het palet opnieuw, in vaste volgorde.
+  assert.strictEqual(a.cijfers.streams[0].kleur, a.cijfers.streams[4].kleur);
+});

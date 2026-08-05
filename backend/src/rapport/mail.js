@@ -50,8 +50,11 @@ function tekst(datum, analyse) {
   r.push(`  met de hand gestart   : ${c.handmatigGestart}`);
   r.push(`  automatisch gestopt   : ${c.automatischGestopt}`);
   r.push(`  pauzescherm geschakeld: ${c.pauzeschakelingen}x`);
+  r.push('', 'UITZENDINGEN');
+  for (const st of c.streams || []) r.push(`  tafel ${st.tafel}  ${st.naam}${st.videoId ? ` — https://youtu.be/${st.videoId}` : ''}`);
+  if (!(c.streams || []).length) r.push('  (er is niets uitgezonden)');
   r.push('', 'WAT ER GEBEURDE');
-  for (const g of analyse.gebeurtenissen) r.push(`  ${klok(g.tijd)}  ${g.titel}${g.aantal > 1 ? ` (${g.aantal}x, laatste ${klok(g.laatsteTijd)})` : ''}`, `           ${g.uitleg}`);
+  for (const g of analyse.gebeurtenissen) r.push(`  ${klok(g.tijd)}  ${g.stream ? `[${g.stream}] ` : ''}${g.titel}${g.aantal > 1 ? ` (${g.aantal}x, laatste ${klok(g.laatsteTijd)})` : ''}`, `           ${g.uitleg}`);
   r.push('', `Gebaseerd op ${c.logregels} logregels, venster 12:00-08:00.`);
   return r.join('\n');
 }
@@ -73,10 +76,15 @@ function html(datum, analyse) {
       <div style="font-size:14px;color:#1b1614;margin-top:4px;">${esc(b.tekst)}</div>
     </div>`;
 
+  // Elke uitzending krijgt een eigen kleur als linkerrand, zodat je in één oogopslag ziet
+  // welke regels bij elkaar horen. De naam staat er altijd in tekst bij: kleur mag nooit het
+  // enige onderscheid zijn (kleurenblindheid, en zwart-wit uitgeprint).
   const gebeurtenis = (g) => `
     <tr>
       <td style="padding:8px 12px 8px 0;vertical-align:top;white-space:nowrap;font-family:Consolas,monospace;font-size:13px;${zacht}">${esc(klok(g.tijd))}</td>
-      <td style="padding:8px 0;vertical-align:top;border-bottom:1px solid #f0eae9;">
+      <td style="padding:0;width:4px;${g.kleur ? `background:${g.kleur};` : ''}"></td>
+      <td style="padding:8px 0 8px 10px;vertical-align:top;border-bottom:1px solid #f0eae9;">
+        ${g.stream ? `<div style="font-size:12px;font-weight:bold;color:${g.kleur || '#6d625e'};">${esc(g.stream)}</div>` : ''}
         <div style="font-size:14px;color:#1b1614;font-weight:600;">
           ${esc(g.titel)}${g.aantal > 1 ? esc(` (${g.aantal}x, laatste ${klok(g.laatsteTijd)})`) : ''}
           ${MERK[g.soort] ? `<span style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:${KLEUR[g.soort]};font-weight:bold;">&nbsp;·&nbsp;${esc(MERK[g.soort])}</span>` : ''}
@@ -84,6 +92,14 @@ function html(datum, analyse) {
         <div style="font-size:13px;${zacht}margin-top:2px;">${esc(g.uitleg)}</div>
       </td>
     </tr>`;
+
+  // Legenda: welke uitzending had welke kleur, met tafel en videolink.
+  const legenda = (analyse.cijfers.streams || []).map((s) => `
+    <div style="display:inline-block;margin:0 14px 6px 0;font-size:12px;">
+      <span style="display:inline-block;width:10px;height:10px;background:${s.kleur};vertical-align:middle;border-radius:2px;"></span>
+      <span style="color:#1b1614;">&nbsp;Tafel ${esc(s.tafel)} — ${esc(s.naam)}</span>
+      ${s.videoId ? `<a href="https://youtu.be/${esc(s.videoId)}" style="color:#6d625e;">&nbsp;↗</a>` : ''}
+    </div>`).join('');
 
   return `<div style="font-family:Arial,Helvetica,sans-serif;background:#faf8f7;padding:24px 12px;">
   <div style="max-width:640px;margin:0 auto;">
@@ -104,6 +120,9 @@ function html(datum, analyse) {
 
     <div style="font-size:13px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;${zacht}margin-bottom:8px;">In het kort</div>
     ${analyse.bevindingen.map(bevinding).join('')}
+
+    <div style="font-size:13px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;${zacht}margin:24px 0 8px;">Uitzendingen</div>
+    <div style="${doos}margin-bottom:14px;">${legenda || '<span style="font-size:13px;color:#6d625e;">Er is vannacht niets uitgezonden.</span>'}</div>
 
     <div style="font-size:13px;font-weight:bold;text-transform:uppercase;letter-spacing:.08em;${zacht}margin:24px 0 8px;">Wat er gebeurde</div>
     <div style="${doos}padding:4px 16px;">

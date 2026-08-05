@@ -105,8 +105,10 @@ app.http('adminStreamStart', {
     // Handmatige acties horen in de log (#80). Zonder deze regel is achteraf niet te zien
     // dat iemand een tafel bijzette: op 29-07 verscheen tafel 16 om 20:39 in de uitzending
     // en was alleen uit de bijeffecten af te leiden dat een mens dat had gedaan.
+    // De TITEL staat er bewust in: het ochtendrapport leest 'm hieruit, en zonder titel
+    // heet elke handmatige uitzending daar "losse uitzending" en weet je niet welke (#91).
     const koppeling = tournamentId ? `gekoppeld aan toernooi ${tournamentId}` : 'ad-hoc (geen toernooi)';
-    context.log(`[streams/start] tafel ${tafelNr} HANDMATIG gestart via het dashboard — ${koppeling}, ${privacyStatus}, video ${broadcast.id}`);
+    context.log(`[streams/start] tafel ${tafelNr} HANDMATIG gestart via het dashboard — "${title}" — ${koppeling}, ${privacyStatus}, video ${broadcast.id}`);
 
     return json(200, { table: store[String(tafelNr)], commands: nieuwe });
   },
@@ -171,7 +173,9 @@ app.http('adminStreamStop', {
     }
 
     // Zie de start-kant: handmatige acties horen zichtbaar te zijn in het avondrapport.
-    const wat = entry ? `video ${entry.videoId}` : 'geen dag-entry gevonden (stond die stream wel in dit systeem?)';
+    const wat = entry
+      ? `"${entry.title || entry.tournamentName || 'zonder titel'}" — video ${entry.videoId}`
+      : 'geen dag-entry gevonden (stond die stream wel in dit systeem?)';
     context.log(`[streams/stop] tafel ${tafelNr} HANDMATIG gestopt via het dashboard — ${wat}`);
 
     return json(200, { command: cmd });

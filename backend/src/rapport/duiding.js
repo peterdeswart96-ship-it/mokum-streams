@@ -154,6 +154,23 @@ const tafelUit = (m) => {
 
 const minuten = (a, b) => Math.round((b - a) / 60000);
 
+// Kleur per uitzending, zodat je in het rapport in één oogopslag ziet welke regels bij
+// elkaar horen. Vier vaste kleuren uit het gevalideerde categorische palet (blauw, oranje,
+// aqua, violet): die halen alle controles op kleurenblindheid, ook als je ze twee aan twee
+// vergelijkt. De naam van de uitzending staat er altijd in tekst bij — kleur mag nooit het
+// enige onderscheid zijn, en aqua haalt de contrastdrempel op een lichte achtergrond niet.
+const STREAM_KLEUREN = ['#2a78d6', '#eb6834', '#1baf7a', '#4a3aa7'];
+
+// Titel uit een logregel: die staat tussen dubbele aanhalingstekens.
+const titelUit = (m) => {
+  const t = /"([^"]{2,120})"/.exec(m || '');
+  return t ? t[1] : null;
+};
+const videoUit = (m) => {
+  const v = /video ([A-Za-z0-9_-]{6,})|\(([A-Za-z0-9_-]{8,})\)/.exec(m || '');
+  return v ? (v[1] || v[2]) : null;
+};
+
 function uurNotatie(min) {
   const u = Math.floor(min / 60);
   const r = min % 60;
@@ -172,6 +189,8 @@ function analyseer(regels, { langsteOpenUren = 2 } = {}) {
   const gebeurtenissen = [];
   const problemen = new Map(); // unieke melding → aantal
   const open = new Map();      // tafelnummer → starttijd van een lopende uitzending
+  const streams = [];          // elke uitzending van de avond, met naam en kleur
+  const lopend = new Map();    // tafelnummer → de uitzending die daar nu draait
   const uitzendingen = [];     // { tafel, start, stop, adhoc }
 
   let pauzeschakelingen = 0;
@@ -225,6 +244,21 @@ function analyseer(regels, { langsteOpenUren = 2 } = {}) {
       open.delete(t);
     }
 
+    // Welke uitzending hoort bij deze regel? We houden per tafel bij wat er draait, zodat
+    // ook een regel die de naam niet noemt (een stop, een afronding) 'm toch meekrijgt.
+    if (tafel && (autoStart || /^\[streams\/start\]/.test(m))) {
+      const naam = titelUit(m);
+      streams.push({
+        tafel,
+        naam: naam || (autoStart ? `Tafel ${tafel}` : `Losse uitzending op tafel ${tafel}`),
+        videoId: videoUit(m),
+        kleur: STREAM_KLEUREN[streams.length % STREAM_KLEUREN.length],
+      });
+      lopend.set(tafel, streams[streams.length - 1]);
+    }
+    const stream = tafel ? lopend.get(tafel) : null;
+    if (stream && !stream.videoId) stream.videoId = videoUit(m);
+
     const duiding = duidRegel(m);
     if (duiding) {
       // Twee keer hetzelfde achter elkaar? Optellen in plaats van herhalen. Een timer die
@@ -234,9 +268,20 @@ function analyseer(regels, { langsteOpenUren = 2 } = {}) {
         vorige.aantal = (vorige.aantal || 1) + 1;
         vorige.laatsteTijd = r.tijd;
       } else {
-        gebeurtenissen.push({ tijd: r.tijd, bericht: m, aantal: 1, ...duiding });
+        gebeurtenissen.push({
+          tijd: r.tijd,
+          bericht: m,
+          aantal: 1,
+          ...duiding,
+          ...(stream ? { stream: stream.naam, kleur: stream.kleur, tafel: stream.tafel } : {}),
+        });
       }
     }
+
+    // Pas hier de tafel losmaken van zijn uitzending. Deed ik dat eerder — bij het bepalen
+    // van `sluit` — dan raakte juist de stopregel zelf zijn naam en kleur kwijt, terwijl dat
+    // de regel is waar je ze het hardst nodig hebt.
+    for (const t of sluit) lopend.delete(t);
   }
 
   // Nooit gestopt = tot het eind van het venster open blijven staan.
@@ -311,6 +356,7 @@ function analyseer(regels, { langsteOpenUren = 2 } = {}) {
       pauzeschakelingen,
       problemen: problemen.size,
       uitzendingen,
+      streams,
     },
   };
 }
