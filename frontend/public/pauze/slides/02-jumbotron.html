@@ -700,20 +700,25 @@ async function haalSheets() {
 }
 
 // ============ Pauze-schema (#71) — CLIP-GEDREVEN ============
-// Tijdens een pauze rouleert de jumbotron clip-gedreven: één highlight (heel rack) → de live
-// scores van de actieve tafels (~15s) → één info-sheet (roulerend: winnaars → komende →
-// poster, 5s) → volgende highlight → ... De highlights-fase heeft géén vaste tijd: 'ie duurt
-// tot de clip klaar is. Instelbaar in OBS met ?scoresSec= / ?sheetSec= / ?posterSec= .
+// Tijdens een pauze rouleert de jumbotron:
+//
+//   SCORES (30s) → HIGHLIGHT (duurt zolang de clip duurt) → INFO-SHEET (15s) → weer scores
+//
+// Begint bewust bij de scores (besluit Peter 05-08): een kijker die net binnenkomt wil eerst
+// weten wat er in de zaal speelt. De highlights-fase heeft géén vaste tijd — die duurt precies
+// tot de clip klaar is. Een fase zonder inhoud wordt overgeslagen.
+// Instelbaar in OBS met ?scoresSec= / ?sheetSec= / ?posterSec= .
 const zoekSchema = new URLSearchParams(location.search);
 const FASE_MS = {
-  scores: (Number(zoekSchema.get('scoresSec')) || 15) * 1000,
+  // 30s: met een kaart per 6 seconden komen zo vier à vijf tafels langs in één beurt.
+  scores: (Number(zoekSchema.get('scoresSec')) || 30) * 1000,
   // 15s: de winnaars- en komende-toernooien-sheets zijn leeslijstjes met vijf regels.
   // Bij 5s was er geen tijd om ze uit te lezen voordat de rotatie doorschoof.
   sheet:  (Number(zoekSchema.get('sheetSec')) || 15) * 1000,
   poster: (Number(zoekSchema.get('posterSec')) || 5) * 1000,
 };
-const FASE_VOLGORDE = { highlights: 'scores', scores: 'sheet', sheet: 'highlights' };
-let fase = 'highlights';
+const FASE_VOLGORDE = { scores: 'highlights', highlights: 'sheet', sheet: 'scores' };
+let fase = 'scores';
 let faseSinds = 0;          // ms-teller (via de scheduler-tik; geen Date.now → OBS-safe)
 let sheetBeurt = 0;         // rouleert de info-sheets: winnaars → komende → poster
 let podiumOnderbrak = false; // podium was actief → rotatie herstarten zodra het klaar is
@@ -744,12 +749,14 @@ function naVolgendeFase() {
     faseSinds = 0;
     if (faseHeeftInhoud(fase)) { betreedFase(); return; }
   }
-  fase = 'highlights'; faseSinds = 0; // niets te tonen → highlights (toont de lege melding)
+  // Geen enkele fase heeft inhoud (geen tafels live, geen clips, geen sheets). Dan blijven we
+  // op highlights staan: die laag toont in dat geval een nette melding in plaats van niets.
+  fase = 'highlights'; faseSinds = 0;
 }
 // Actie bij het betreden van een fase.
 function betreedFase() {
   if (fase === 'highlights') {
-    bladUit(); hlAan(); hlVolgendeClip();   // speel de volgende clip; einde → scores
+    bladUit(); hlAan(); hlVolgendeClip();   // speel de volgende clip; einde → info-sheet
   } else if (fase === 'scores') {
     hlUit(); bladUit(); scoresRotatie();
   } else if (fase === 'sheet') {
@@ -766,7 +773,8 @@ const SCHEMA_TIK_MS = 1000;
 
 // Eén tik van het pauze-schema. Podium heeft altijd voorrang (winnaar-moment).
 function schemaTik() {
-  if (podiumActief) { hlUit(); bladUit(); fase = 'highlights'; faseSinds = 0; podiumOnderbrak = true; return; }
+  // Na het medaillescherm begint de rotatie weer vooraan, dus bij de scores.
+  if (podiumActief) { hlUit(); bladUit(); fase = 'scores'; faseSinds = 0; podiumOnderbrak = true; return; }
   if (posterBezig) return;              // poster-animatie loopt; even niet ingrijpen
   if (podiumOnderbrak) { podiumOnderbrak = false; betreedFase(); return; } // herstart na podium
 
@@ -1048,7 +1056,7 @@ let posterBeschikbaar = false;
 posterImg.addEventListener('load', () => { posterBeschikbaar = true; });
 posterImg.addEventListener('error', () => { posterBeschikbaar = false; });
 
-// Pauze-schema starten: highlights → scores → poster → herhaal (zie schemaTik). Helemaal
+// Pauze-schema starten: scores → highlight → info-sheet → herhaal (zie schemaTik). Helemaal
 // onderaan, zodat alle functies en poster-variabelen die 'ie aanroept al bestaan.
 setInterval(schemaTik, SCHEMA_TIK_MS);
 // In de test-stand meteen na een paar seconden een eerste keer, zodat je 'm snel ziet.
