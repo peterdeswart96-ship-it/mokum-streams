@@ -22,12 +22,21 @@ function normaliseerPreRoll(v) {
   return n;
 }
 
+// LET OP: elke overlay die hier NIET staat, verdwijnt bij het opslaan. De jumbotron was op
+// 04-08 toegevoegd aan het dashboard, aan de standaardinstellingen en aan de startcommando's,
+// maar niet hier — en dus deed het vinkje ogenschijnlijk niets: de waarde werd bij het
+// bewaren stil weggepoetst (gemeld 05-08).
+//
+// De standaarden verschillen per overlay en volgen die van de agent (OVERLAY_DEFAULT_OFF in
+// agent/commandQueue.js): content-overlays staan aan als de sleutel ontbreekt, de jumbotron
+// staat dan uit — die hoort alleen tijdens een pauze in beeld.
 function normaliseerOverlays(patch, huidig) {
   const o = patch || {};
   const h = huidig || {};
   return {
     sponsors: o.sponsors !== undefined ? !!o.sponsors : h.sponsors !== false,
     scoreboard: o.scoreboard !== undefined ? !!o.scoreboard : h.scoreboard !== false,
+    jumbotron: o.jumbotron !== undefined ? !!o.jumbotron : !!h.jumbotron,
   };
 }
 

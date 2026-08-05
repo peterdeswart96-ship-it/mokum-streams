@@ -23,7 +23,9 @@ test('applyPlanningPatch wijzigt alleen toegestane velden', () => {
   });
   assert.strictEqual(r.enabled, false);
   assert.deepStrictEqual(r.tafels, [1, 3]);
-  assert.deepStrictEqual(r.overlays, { sponsors: false, scoreboard: true }); // scoreboard behouden
+  // jumbotron staat er sinds 05-08 bij: elke overlay die NIET in normaliseerOverlays staat,
+  // verdwijnt stil bij het opslaan — precies wat er met het jumbotron-vinkje gebeurde.
+  assert.deepStrictEqual(r.overlays, { sponsors: false, scoreboard: true, jumbotron: false }); // scoreboard behouden
   assert.strictEqual(r.preRollMinuten, 15);
   assert.strictEqual(r.startOverride, '2026-07-14T18:00:00Z');
   assert.strictEqual(r.name, 'Fluke ranking'); // niet gewijzigd
@@ -55,6 +57,26 @@ test('mergeDefaults werkt de standaard-instellingen bij', () => {
   const current = { enabled: true, tafels: [1, 3, 15, 16], preRollMinuten: 10, overlays: { sponsors: true, scoreboard: true } };
   const merged = mergeDefaults(current, { preRollMinuten: 5, overlays: { scoreboard: false } });
   assert.strictEqual(merged.preRollMinuten, 5);
-  assert.deepStrictEqual(merged.overlays, { sponsors: true, scoreboard: false });
+  assert.deepStrictEqual(merged.overlays, { sponsors: true, scoreboard: false, jumbotron: false });
   assert.deepStrictEqual(merged.tafels, [1, 3, 15, 16]); // ongewijzigd
+});
+
+// Het jumbotron-vinkje in de Toernooi planner deed ogenschijnlijk niets: de waarde werd bij
+// het opslaan weggegooid omdat normaliseerOverlays 'm niet kende (gemeld 05-08). Deze test
+// bewaakt dat elke overlay die het dashboard kan aanvinken ook echt bewaard blijft.
+test('#93: het jumbotron-vinkje blijft bewaard bij opslaan', () => {
+  const r = applyPlanningPatch(
+    { overlays: { sponsors: true, scoreboard: true } },
+    { overlays: { sponsors: true, scoreboard: true, jumbotron: true } },
+  );
+  assert.strictEqual(r.overlays.jumbotron, true);
+
+  // En weer uit kunnen zetten.
+  const uit = applyPlanningPatch(r, { overlays: { ...r.overlays, jumbotron: false } });
+  assert.strictEqual(uit.overlays.jumbotron, false);
+});
+
+test('#93: ontbreekt de jumbotron-sleutel, dan geldt UIT (zoals de agent hem leest)', () => {
+  const r = applyPlanningPatch({ overlays: { sponsors: true, scoreboard: true } }, { overlays: { sponsors: false } });
+  assert.strictEqual(r.overlays.jumbotron, false);
 });
