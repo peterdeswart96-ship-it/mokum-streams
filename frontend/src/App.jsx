@@ -436,6 +436,10 @@ function Wizard({ onClose, onStarted, tables = [] }) {
   const [fout, setFout] = useState('');
   const [toernooien, setToernooien] = useState([]); // aankomende Cuescore-toernooien voor de dropdown
   const [gekozen, setGekozen] = useState('');        // geselecteerd tournamentId in de dropdown
+  // Tafels die zo meteen door een ingepland toernooi worden opgeëist (#93). Vanaf een half
+  // uur voor de aanvang maakt de backend die tafels vrij — een losse uitzending die je dan
+  // start, wordt binnen een minuut weer gestopt. Dat is verwarrender dan 'm hier weigeren.
+  const [gereserveerd, setGereserveerd] = useState({}); // tafelnr → { naam, vanaf }
 
   // Aankomende toernooien uit de planning (Cuescore-import) — zelfde bron als de planner.
   useEffect(() => {
@@ -456,6 +460,21 @@ function Wizard({ onClose, onStarted, tables = [] }) {
         .sort((a, b) => String(a.plannedStart || a.date).localeCompare(String(b.plannedStart || b.date)))
         .slice(0, 15);
       setToernooien(lijst);
+
+      // Welke tafels worden nu opgeëist? Het venster loopt gelijk met dat van de backend:
+      // vanaf een half uur vóór de aanvang tot de aanvang zelf. Daarna is de tafel toch al
+      // bezet door de uitzending van het toernooi, en vangt de bezet-controle het af.
+      const nu = Date.now();
+      const res = {};
+      for (const r of d.items || []) {
+        if (r.planned !== true || (r.type || 'tournament') === 'competition') continue;
+        const start = Date.parse(r.startOverride || r.plannedStart || '');
+        if (Number.isNaN(start)) continue;
+        const vanaf = start - 30 * 60000;
+        if (nu < vanaf || nu > start) continue;
+        for (const t of r.tafels || []) res[Number(t)] = { naam: r.name, vanaf, tournamentId: r.tournamentId };
+      }
+      setGereserveerd(res);
     }).catch(() => setToernooien([]));
   }, []);
 
@@ -491,11 +510,28 @@ function Wizard({ onClose, onStarted, tables = [] }) {
     setTitel(`Challenge match ${spelerA || '?'} vs ${spelerB || '?'}`);
   }, [type, spelerA, spelerB]);
 
+  // Blokkeert de reservering op deze tafel jóuw uitzending? Nee als je juist hét toernooi
+  // hebt gekozen dat de tafel opeist: dan ben je 'm vroeg aan het starten, en dat mag — het
+  // vrijmaken laat een uitzending die bewust voor dit toernooi is gestart met rust.
+  function blokkeert(n) {
+    const res = gereserveerd[n];
+    if (!res) return false;
+    return String(res.tournamentId) !== String(gekozen);
+  }
+
+  // Staat de gekozen tafel op slot zodra de planning binnen is? Schuif dan door naar een
+  // vrije tafel, zodat je niet in een doodlopende stap belandt.
+  useEffect(() => {
+    if (!blokkeert(tafel) && !bezet.has(tafel)) return;
+    const vrij = CAMERAS.find((n) => !bezet.has(n) && !blokkeert(n));
+    if (vrij) setTafel(vrij);
+  }, [gereserveerd, gekozen]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Mag je door naar de volgende stap? Per stap één duidelijke voorwaarde.
   const magVerder = (() => {
     if (stap === 1) return !!type;
     if (stap === 2) {
-      if (bezet.has(tafel)) return false; // bezette tafel → nooit doorlopen
+      if (bezet.has(tafel) || blokkeert(tafel)) return false; // bezet of zo dadelijk opgeëist
       if (type === 'toernooi' || type === 'league') return !!gekozen;
       if (type === 'challenge') return !!(spelerA.trim() && spelerB.trim());
       return titel.trim().length > 0 && titel.trim().length <= CUSTOM_TITEL_MAX;
@@ -569,16 +605,26 @@ function Wizard({ onClose, onStarted, tables = [] }) {
         {stap === 2 && (
           <div>
             <label className={lbl}>Tafel</label>
-            <select value={tafel} onChange={(e) => setTafel(Number(e.target.value))} className={`${veld} ${bezet.has(tafel) ? 'mb-1' : 'mb-4'}`}>
+            <select value={tafel} onChange={(e) => setTafel(Number(e.target.value))}
+                    className={`${veld} ${bezet.has(tafel) || blokkeert(tafel) ? 'mb-1' : 'mb-4'}`}>
               {CAMERAS.map((n) => (
-                <option key={n} value={n} disabled={bezet.has(n)}>
-                  Tafel {n}{bezet.has(n) ? (bezet.get(n) === 'live' ? ' — bezet (live)' : ' — bezet (klaargezet)') : ''}
+                <option key={n} value={n} disabled={bezet.has(n) || blokkeert(n)}>
+                  Tafel {n}
+                  {bezet.has(n) ? (bezet.get(n) === 'live' ? ' — bezet (live)' : ' — bezet (klaargezet)') : ''}
+                  {!bezet.has(n) && blokkeert(n) ? ' — gereserveerd' : ''}
                 </option>
               ))}
             </select>
             {bezet.has(tafel) && (
               <p className="text-xs mb-4 text-brand-light">
                 Op deze tafel loopt al een uitzending. Stop die eerst, of kies een andere tafel.
+              </p>
+            )}
+            {!bezet.has(tafel) && blokkeert(tafel) && (
+              <p className="text-xs mb-4 text-brand-light">
+                Deze tafel is sinds {new Date(gereserveerd[tafel].vanaf).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}{' '}
+                gereserveerd voor <strong>{gereserveerd[tafel].naam}</strong>. Wat je hier start wordt binnen een
+                minuut weer gestopt om de tafel vrij te maken voor het toernooi.
               </p>
             )}
 
