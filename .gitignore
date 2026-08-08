@@ -37,6 +37,11 @@ Thumbs.db
 # Vite cache
 .vite/
 
+# Uitvoer van backend/scripts/thumbnail-status.js — een momentopname van het kanaal,
+# geen broncode. Opnieuw te maken door het script te draaien.
+thumbnail-status.md
+thumbnail-status.json
+
 # Thumbnail-bron-achtergronden (AI-plaatjes + gekeyde overlays, ~22MB). De canonieke
 # templates in assets/thumbnail-templates zijn zelfvoorzienend (bg als base64 ingebed),
 # dus de runtime heeft deze bronnen niet nodig. Blijven lokaal om te kunnen herbouwen.
