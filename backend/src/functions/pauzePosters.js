@@ -32,6 +32,11 @@ function corsHeaders(request) {
 }
 const json = (status, body, request) => ({ status, jsonBody: body, headers: corsHeaders(request) });
 
+// Bestandsnamen bevatten in de praktijk spaties ("Poster Mokum koppel toernooi.jpeg"), dus
+// ze moeten de URL in ge-escaped. Per paddeel coderen en niet in één keer: encodeURIComponent
+// maakt van een `/` een `%2F`, en dan breekt een poster in een submap.
+const urlVeilig = (naam) => String(naam).split('/').map(encodeURIComponent).join('/');
+
 // Somt de container op. `includeMetadata` is nodig, anders komt `tot`/`volgorde` niet mee.
 // De URL bouwen we uit `container.url` en niet uit een hardgecodeerde accountnaam, zodat dit
 // blijft werken als het opslagaccount ooit verhuist.
@@ -41,7 +46,7 @@ async function leesContainer() {
   for await (const b of container.listBlobsFlat({ includeMetadata: true })) {
     blobs.push({
       naam: b.name,
-      url: `${container.url}/${encodeURIComponent(b.name)}`,
+      url: `${container.url}/${urlVeilig(b.name)}`,
       metadata: b.metadata || {},
     });
   }
