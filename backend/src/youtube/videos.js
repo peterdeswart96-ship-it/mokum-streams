@@ -93,7 +93,9 @@ async function getVideosDetails(ids) {
   const out = [];
   for (let i = 0; i < ids.length; i += 50) {
     const res = await yt.videos.list({
-      part: ['snippet', 'contentDetails', 'liveStreamingDetails'],
+      // `status` erbij voor de zichtbaarheid: alleen OPENBARE video's staan op de
+      // streams-tab van het kanaal, en dat is wat je wilt weten bij het opschonen.
+      part: ['snippet', 'contentDetails', 'liveStreamingDetails', 'status'],
       id: ids.slice(i, i + 50), maxResults: 50,
     });
     for (const v of res.data.items || []) {
@@ -105,6 +107,7 @@ async function getVideosDetails(ids) {
         duration: cd.duration || null, // ISO 8601 (PT#H#M#S)
         actualStartTime: lsd.actualStartTime || null,
         actualEndTime: lsd.actualEndTime || null,
+        visibility: (v.status && v.status.privacyStatus) || null, // public | unlisted | private
       });
     }
   }

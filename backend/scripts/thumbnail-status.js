@@ -9,6 +9,11 @@
 //  - thumbnail-status.md    leesbaar overzicht, per groep een tabel
 //  - thumbnail-status.json  dezelfde indeling mét video-id's, als invoer voor opruimacties
 //
+// Het rapport heeft twee helften. De eerste gaat over thumbnails; de tweede over
+// ZICHTBAARHEID — welke video's staan openbaar en dus op youtube.com/@MokumPoolDarts/streams.
+// Die twee lopen niet gelijk: een video kan een keurige thumbnail hebben en toch verborgen
+// staan, of naamloos zijn en toch openbaar. Voor opschonen telt alleen de tweede.
+//
 // Waarom deze indeling: "196 video's zonder thumbnail" zegt niets zolang je niet weet of er
 // iets aan te doen is. De groepen hieronder scheiden "er is een ontwerp, dit kan meteen" van
 // "hier moet eerst een ontwerp of een invoerbron komen" van "hier valt niks te maken".
@@ -107,10 +112,41 @@ const veilig = (s) => String(s || '').replace(/\|/g, '\\|');
     const rijen = ingedeeld.get(g.sleutel);
     if (!rijen.length) continue;
     uit.push(`## ${g.titel} — ${rijen.length}\n`);
-    uit.push('| Datum | Duur | Titel | Video |');
-    uit.push('|---|---|---|---|');
+    uit.push('| Datum | Duur | Titel | Zicht | Video |');
+    uit.push('|---|---|---|---|---|');
     for (const r of rijen.sort((a, b) => String(b.datum).localeCompare(String(a.datum)))) {
-      uit.push(`| ${r.datum || '?'} | ${mmss(r.durationSec)} | ${veilig(r.naam)} | \`${r.videoId}\` |`);
+      uit.push(`| ${r.datum || '?'} | ${mmss(r.durationSec)} | ${veilig(r.naam)} | ${r.zichtbaarheid || '?'} | \`${r.videoId}\` |`);
+    }
+    uit.push('');
+  }
+
+  // ── Tweede helft: wat staat er openbaar? ────────────────────────────────────
+  // Dit is de streams-tab. Alleen `public` telt: verborgen video's bestaan wel, maar een
+  // bezoeker ziet ze niet staan. Bewust los van de thumbnail-indeling hierboven — voor
+  // opschonen maakt het niet uit of er een thumbnail op zit.
+  const openbaar = inv.rows.filter((r) => r.zichtbaarheid === 'public');
+  const perCat = new Map();
+  for (const r of openbaar) {
+    const k = r.categorie || 'overig';
+    if (!perCat.has(k)) perCat.set(k, []);
+    perCat.get(k).push(r);
+  }
+
+  uit.push('# Wat staat er openbaar (de streams-tab)\n');
+  uit.push(Object.entries(inv.perZichtbaarheid || {}).map(([k, v]) => `**${v}** ${k}`).join(' · ') + '\n');
+  uit.push('| Categorie | Openbaar | Waarvan zonder thumbnail |');
+  uit.push('|---|---:|---:|');
+  for (const [k, v] of [...perCat].sort((a, b) => b[1].length - a[1].length)) {
+    uit.push(`| ${k} | ${v.length} | ${v.filter((r) => !r.thumbnail).length} |`);
+  }
+  uit.push('');
+
+  for (const [k, v] of [...perCat].sort((a, b) => b[1].length - a[1].length)) {
+    uit.push(`## Openbaar — ${k} (${v.length})\n`);
+    uit.push('| Datum | Duur | Titel | Thumb | Video |');
+    uit.push('|---|---|---|---|---|');
+    for (const r of v.sort((a, b) => String(b.datum).localeCompare(String(a.datum)))) {
+      uit.push(`| ${r.datum || '?'} | ${mmss(r.durationSec)} | ${veilig(r.naam)} | ${r.thumbnail ? 'ja' : '—'} | \`${r.videoId}\` |`);
     }
     uit.push('');
   }
@@ -119,11 +155,19 @@ const veilig = (s) => String(s || '').replace(/\|/g, '\\|');
   fs.writeFileSync('thumbnail-status.json', JSON.stringify({
     stand: new Date().toISOString(),
     totaal: inv.aantal, metThumbnail: inv.metThumbnail, zonderThumbnail: zonder.length,
+    perZichtbaarheid: inv.perZichtbaarheid || {},
     groepen: Object.fromEntries(GROEPEN.map((g) => [g.sleutel, ingedeeld.get(g.sleutel)])),
     reeksen: Object.fromEntries([...perReeks].map(([k, v]) => [k, v.map((r) => r.videoId)])),
+    // Per categorie de OPENBARE video's — invoer voor naar-diversen.js.
+    openbaar: Object.fromEntries([...perCat].map(([k, v]) => [k, v])),
   }, null, 2), 'utf8');
 
   console.log(`${inv.aantal} video's, ${inv.metThumbnail} met thumbnail, ${zonder.length} zonder.`);
   for (const g of GROEPEN) console.log(`  ${String(ingedeeld.get(g.sleutel).length).padStart(4)}  ${g.titel}`);
+  console.log(`\nZichtbaarheid: ${Object.entries(inv.perZichtbaarheid || {}).map(([k, v]) => `${v} ${k}`).join(', ')}`);
+  console.log(`Openbaar (= de streams-tab): ${openbaar.length}`);
+  for (const [k, v] of [...perCat].sort((a, b) => b[1].length - a[1].length)) {
+    console.log(`  ${String(v.length).padStart(4)}  ${k}`);
+  }
   console.log(`\nGeschreven: ${path.resolve('thumbnail-status.md')} + .json`);
 })();

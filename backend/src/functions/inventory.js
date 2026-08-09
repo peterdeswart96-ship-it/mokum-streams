@@ -67,17 +67,22 @@ app.http('adminInventory', {
         datum: (v.actualStartTime || v.publishedAt || '').slice(0, 10),
         nieuweNaam: nieuweNaam(v.title),
         categorie: categorie(v.title),
+        // public | unlisted | private. Alleen OPENBARE video's staan op de streams-tab
+        // van het kanaal; verborgen video's zijn er wel, maar ziet een bezoeker niet.
+        zichtbaarheid: v.visibility,
       }));
 
       // Sorteer op datum (nieuwste eerst).
       rows.sort((a, b) => String(b.datum).localeCompare(String(a.datum)));
 
       const perCat = rows.reduce((acc, r) => { acc[r.categorie] = (acc[r.categorie] || 0) + 1; return acc; }, {});
+      const perZicht = rows.reduce((acc, r) => { acc[r.zichtbaarheid || 'onbekend'] = (acc[r.zichtbaarheid || 'onbekend'] || 0) + 1; return acc; }, {});
       return json(200, {
         aantal: rows.length,
         metThumbnail: rows.filter((r) => r.thumbnail).length,
         metHoofdstukken: rows.filter((r) => r.hoofdstukken).length,
         perCategorie: perCat,
+        perZichtbaarheid: perZicht,
         rows,
       });
     } catch (e) {
