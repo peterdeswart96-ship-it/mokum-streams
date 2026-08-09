@@ -398,13 +398,22 @@
   </div>
   <canvas class="confetti" id="confetti" width="1920" height="1080" hidden></canvas>
 
-  <div class="poster" id="poster" hidden><img src="../img/poster-10ball.png" alt="Mokum 10-ball Summer Break"></div>
+  <!-- Geen vaste src (#96): de posters komen uit /api/pauze/posters en worden per beurt
+       ingeladen. Een <img> zonder src doet niets, dus een lege lijst geeft geen kapot beeld. -->
+  <div class="poster" id="poster" hidden><img alt="Poster"></div>
   <div class="curtain" id="curtain"><div class="panel left"></div><div class="panel right"></div></div>
 
 <script>
 // Toont live wedstrijden uit onze eigen /api/live (venueTables), één tafelkaart tegelijk,
 // die van rechts inschuift. Rouleert door alle live tafels (#54).
-const APP_API = 'https://mokum-streams-func.azurewebsites.net';
+// Draait deze pagina op localhost, dan praat hij met de Functions-host op poort 7071 in
+// plaats van met productie. Zo kun je een nieuw endpoint uitproberen zonder eerst te
+// deployen. Op de stream-pc en op GitHub Pages is de hostname nooit localhost, dus daar
+// verandert er niets. Bewust géén ?api=-parameter: dan zou een willekeurige URL de kaart
+// naar een andere backend kunnen sturen.
+const APP_API = /^(localhost|127\.0\.0\.1)$/.test(location.hostname)
+  ? 'http://localhost:7071'
+  : 'https://mokum-streams-func.azurewebsites.net';
 const REFRESH_MS = 15000; // data verversen
 const CARD_MS = 6000;     // hoe lang elke tafelkaart in beeld blijft
 
@@ -699,10 +708,30 @@ async function haalSheets() {
   } catch (e) { /* netwerkfout → vorige lijst laten staan */ }
 }
 
+// ============ Posters (#96) ============
+// De posters staan in de blob-container `pauze-posters` en komen via /api/pauze/posters
+// binnen — de backend filtert al op de verloopdatum, dus alles in deze lijst mag vandaag
+// draaien. Vroeger hing er één poster hard in de HTML; een nieuwe toevoegen kostte een
+// commit en een deploy.
+const POSTERS_VERVERS_MS = 30 * 60 * 1000;
+let posters = [];      // [{ naam, url, tot, volgorde }] — al gesorteerd door de backend
+let posterBeurt = 0;   // welke poster is de volgende
+
+// Periodiek opnieuw ophalen. Cruciaal: een browserbron in OBS herlaadt zichzelf niet en de
+// pc staat 24/7 aan. Zonder deze verversing zou een poster die je vanmiddag uploadt pas
+// verschijnen na een handmatige herstart van de bron — en een verlopen poster nooit weggaan.
+async function haalPosters() {
+  try {
+    const r = await fetch(`${APP_API}/api/pauze/posters`, { cache: 'no-store' });
+    const d = await r.json();
+    if (Array.isArray(d.posters)) posters = d.posters;
+  } catch (e) { /* netwerkfout → vorige lijst laten staan, liever oud dan leeg */ }
+}
+
 // ============ Pauze-schema (#71) — CLIP-GEDREVEN ============
 // Tijdens een pauze rouleert de jumbotron:
 //
-//   SCORES (30s) → HIGHLIGHT (duurt zolang de clip duurt) → INFO-SHEET (15s) → weer scores
+//   SCORES (30s) → HIGHLIGHT (duurt zolang de clip duurt) → INFO-SHEET (15s) → POSTER (15s)
 //
 // Begint bewust bij de scores (besluit Peter 05-08): een kijker die net binnenkomt wil eerst
 // weten wat er in de zaal speelt. De highlights-fase heeft géén vaste tijd — die duurt precies
@@ -715,12 +744,17 @@ const FASE_MS = {
   // 15s: de winnaars- en komende-toernooien-sheets zijn leeslijstjes met vijf regels.
   // Bij 5s was er geen tijd om ze uit te lezen voordat de rotatie doorschoof.
   sheet:  (Number(zoekSchema.get('sheetSec')) || 15) * 1000,
-  poster: (Number(zoekSchema.get('posterSec')) || 5) * 1000,
+  // 15s (was 5s, #96): een poster is een affiche met datum en voorwaarden — daar moet je
+  // even naar kunnen kijken. De 2+2 seconden gordijn komen hier bovenop.
+  poster: (Number(zoekSchema.get('posterSec')) || 15) * 1000,
 };
-const FASE_VOLGORDE = { scores: 'highlights', highlights: 'sheet', sheet: 'scores' };
+// De poster is sinds #96 een eigen fase en niet meer één van de info-sheets. Anders kwam bij
+// zes posters elke poster pas één keer per acht rondes langs.
+const FASE_VOLGORDE = { scores: 'highlights', highlights: 'sheet', sheet: 'poster', poster: 'scores' };
+const AANTAL_FASEN = Object.keys(FASE_VOLGORDE).length;
 let fase = 'scores';
 let faseSinds = 0;          // ms-teller (via de scheduler-tik; geen Date.now → OBS-safe)
-let sheetBeurt = 0;         // rouleert de info-sheets: winnaars → komende → poster
+let sheetBeurt = 0;         // rouleert de info-sheets: winnaars → komende
 let podiumOnderbrak = false; // podium was actief → rotatie herstarten zodra het klaar is
 
 // Beschikbare info-sheets in rouleer-volgorde (lege overslaan).
@@ -728,13 +762,13 @@ function sheetLijst() {
   const l = [];
   if (sheetWinnaars.length) l.push('winnaars');
   if (sheetKomende.length) l.push('komende');
-  if (posterBeschikbaar) l.push('poster');
   return l;
 }
 function faseHeeftInhoud(f) {
   if (f === 'highlights') return hlClips.length > 0;
   if (f === 'scores') return liveTafels.length > 0;
   if (f === 'sheet') return sheetLijst().length > 0;
+  if (f === 'poster') return posters.length > 0;
   return false;
 }
 // Toon één tekst-sheet (winnaars of komende); de poster wordt apart afgespeeld.
@@ -744,7 +778,7 @@ function toonSheet(kies) {
 }
 // Naar de volgende fase mét inhoud, en de bijbehorende actie uitvoeren.
 function naVolgendeFase() {
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < AANTAL_FASEN; i++) {
     fase = FASE_VOLGORDE[fase];
     faseSinds = 0;
     if (faseHeeftInhoud(fase)) { betreedFase(); return; }
@@ -762,10 +796,13 @@ function betreedFase() {
   } else if (fase === 'sheet') {
     hlUit();
     const sheets = sheetLijst();
-    const kies = sheets[sheetBeurt % sheets.length];
+    toonSheet(sheets[sheetBeurt % sheets.length]);
     sheetBeurt += 1;
-    if (kies === 'poster') { bladUit(); toonPoster().then(() => { if (fase === 'sheet' && !podiumActief) naVolgendeFase(); }); }
-    else toonSheet(kies);
+  } else if (fase === 'poster') {
+    // De poster loopt niet op de faseSinds-timer maar op zijn eigen gordijn-animatie:
+    // dicht → poster → wachten → dicht → weg. Pas als dat klaar is gaan we door.
+    hlUit(); bladUit();
+    toonPoster().then(() => { if (fase === 'poster' && !podiumActief) naVolgendeFase(); });
   }
 }
 
@@ -793,8 +830,12 @@ function schemaTik() {
   } else if (fase === 'sheet') {
     hlUit();
     if (!sheetLijst().length) { naVolgendeFase(); return; }
-    // winnaars/komende lopen op de timer; de poster regelt zichzelf via toonPoster().then.
     if ((!bladWEl.hidden || !bladKEl.hidden) && faseSinds >= FASE_MS.sheet) { bladUit(); naVolgendeFase(); }
+  } else if (fase === 'poster') {
+    hlUit(); bladUit();
+    // Geen timer: toonPoster() regelt de duur zelf en schakelt door als hij klaar is. Hier
+    // vangen we alleen af dat de lijst intussen leeg is geraakt (alle posters verlopen).
+    if (!posters.length) { naVolgendeFase(); return; }
   }
 }
 
@@ -1010,6 +1051,8 @@ haalHighlights();
 setInterval(haalHighlights, HIGHLIGHTS_VERVERS_MS);
 haalSheets();
 setInterval(haalSheets, SHEETS_VERVERS_MS);
+haalPosters();
+setInterval(haalPosters, POSTERS_VERVERS_MS);
 
 window.onYouTubeIframeAPIReady = hlStartSpeler;
 const ytApi = document.createElement('script');
@@ -1019,48 +1062,66 @@ document.head.appendChild(ytApi);
 // In demo-modus meteen tonen (niet op de eerste fetch wachten).
 if (DEMO) updatePodium(demoPodium);
 
-// --- Promo-poster met theatergordijn-overgang (#54) ---
+// --- Promo-posters met theatergordijn-overgang (#54, #96) ---
 // Test-stand: met ?test (of ?snel) in de URL komt de poster al na een paar seconden,
 // zodat je de overgang in OBS kunt testen zonder 2 minuten te wachten. De gewone URL
 // blijft 120s / 20s (productie).
 const TEST = /[?&](test|snel)\b/.test(location.search);
-// De poster hoort nu in het pauze-schema: hij komt aan de beurt na de scores-fase en blijft
-// FASE_MS.poster in beeld (standaard 5s, in te stellen met ?posterSec=).
+// De poster is een eigen fase in het pauze-schema en blijft FASE_MS.poster in beeld
+// (standaard 15s, in te stellen met ?posterSec=).
 const POSTER_DUUR_MS = FASE_MS.poster;
 const GORDIJN_MS = 2000;           // duur van dicht-/openschuiven (== CSS-transition hierboven)
 let posterBezig = false;
 const wacht = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function toonPoster() {
-  posterBezig = true;
-  const curtain = document.getElementById('curtain');
-  const poster = document.getElementById('poster');
-  curtain.classList.add('dicht');        // gordijn dicht
-  await wacht(GORDIJN_MS);
-  poster.hidden = false;                  // poster erachter klaarzetten
-  tickerEl.hidden = true;                 // de poster is fullbleed → ticker eronderuit (#65)
-  curtain.classList.remove('dicht');      // gordijn open → poster in beeld
-  await wacht(GORDIJN_MS + POSTER_DUUR_MS);
-  curtain.classList.add('dicht');         // weer dicht
-  await wacht(GORDIJN_MS);
-  poster.hidden = true;                   // terug naar de jumbotron
-  if (!podiumActief) tickerEl.hidden = false;
-  curtain.classList.remove('dicht');      // gordijn open
-  await wacht(GORDIJN_MS);
-  posterBezig = false;
+// Laadt een afbeelding vóór het gordijn opengaat. Zonder dit risqueer je een leeg vlak op de
+// stream terwijl de browser nog aan het downloaden is — de posters komen van blob-opslag en
+// zijn een halve megabyte of meer. Mislukt het laden, dan slaan we deze poster over.
+function laadAfbeelding(url) {
+  return new Promise((klaar) => {
+    const proef = new Image();
+    proef.onload = () => { posterImg.src = url; klaar(true); };
+    proef.onerror = () => klaar(false);
+    proef.src = url;
+  });
 }
 
-// Alleen tonen als de poster-afbeelding echt bestaat (anders geen zwart vlak op de stream).
-const posterImg = document.querySelector('#poster img');
-let posterBeschikbaar = false;
-posterImg.addEventListener('load', () => { posterBeschikbaar = true; });
-posterImg.addEventListener('error', () => { posterBeschikbaar = false; });
+// Eén poster tonen: de volgende in de rij, achter een gordijn dat dicht- en weer opengaat.
+// Resolvet altijd, ook als er niets te tonen viel — de aanroeper schakelt daarna door.
+async function toonPoster() {
+  posterBezig = true;
+  try {
+    if (!posters.length) return;
+    const poster = posters[posterBeurt % posters.length];
+    posterBeurt += 1;
+    if (!(await laadAfbeelding(poster.url))) return;   // plaatje kapot of weg → overslaan
 
-// Pauze-schema starten: scores → highlight → info-sheet → herhaal (zie schemaTik). Helemaal
-// onderaan, zodat alle functies en poster-variabelen die 'ie aanroept al bestaan.
+    const curtain = document.getElementById('curtain');
+    const vlak = document.getElementById('poster');
+    curtain.classList.add('dicht');        // gordijn dicht
+    await wacht(GORDIJN_MS);
+    vlak.hidden = false;                    // poster erachter klaarzetten
+    tickerEl.hidden = true;                 // de poster is fullbleed → ticker eronderuit (#65)
+    curtain.classList.remove('dicht');      // gordijn open → poster in beeld
+    await wacht(GORDIJN_MS + POSTER_DUUR_MS);
+    curtain.classList.add('dicht');         // weer dicht
+    await wacht(GORDIJN_MS);
+    vlak.hidden = true;                     // terug naar de jumbotron
+    if (!podiumActief) tickerEl.hidden = false;
+    curtain.classList.remove('dicht');      // gordijn open
+    await wacht(GORDIJN_MS);
+  } finally {
+    posterBezig = false;
+  }
+}
+
+const posterImg = document.querySelector('#poster img');
+
+// Pauze-schema starten: scores → highlight → info-sheet → poster → herhaal (zie schemaTik).
+// Helemaal onderaan, zodat alle functies en poster-variabelen die 'ie aanroept al bestaan.
 setInterval(schemaTik, SCHEMA_TIK_MS);
 // In de test-stand meteen na een paar seconden een eerste keer, zodat je 'm snel ziet.
-if (TEST) setTimeout(() => { if (posterBeschikbaar && !podiumActief) toonPoster(); }, 6000);
+if (TEST) setTimeout(() => { if (posters.length && !podiumActief) toonPoster(); }, 6000);
 </script>
 </body>
 </html>
