@@ -1,5 +1,5 @@
 const { app } = require('@azure/functions');
-const { readJson, writeJson } = require('../storage/blob');
+const { readJson, writeJsonAlsGewijzigd } = require('../storage/blob');
 const { getTodaysTournaments } = require('../cuescore');
 const { bouwLiveMatches, telZaalLive, bouwZaalRaster } = require('../planning/pauze');
 const { podiumVoorZaal } = require('../planning/podium');
