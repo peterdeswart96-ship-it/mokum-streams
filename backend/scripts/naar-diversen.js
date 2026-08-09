@@ -14,10 +14,13 @@
 // Draaien — eerst kijken, dan pas doen:
 //   node backend/scripts/naar-diversen.js                      # proefdraai, verandert niets
 //   node backend/scripts/naar-diversen.js --doen               # voert het uit
+//   node backend/scripts/naar-diversen.js --videos <id>,<id>   # losse video's i.p.v. groepen
 //   node backend/scripts/naar-diversen.js --herstel <bestand>  # draait een eerdere run terug
 //
-// Invoer is thumbnail-status.json (van thumbnail-status.js). Elke uitgevoerde run schrijft
-// een herstelbestand met de vorige zichtbaarheid per video, zodat alles terug te draaien is.
+// Invoer is thumbnail-status.json (van thumbnail-status.js), of met --videos een handjevol
+// id's dat je zelf aanwijst — voor het geval dat iemand vergeet een uitzending te stoppen en
+// er een stream van tien uur op het kanaal staat. Elke uitgevoerde run schrijft een
+// herstelbestand met de vorige zichtbaarheid per video, zodat alles terug te draaien is.
 
 const fs = require('fs');
 const path = require('path');
@@ -33,8 +36,14 @@ const PLAYLIST_NAAM = waarde('--playlist', 'Diversen');
 const BRON = waarde('--bron', 'thumbnail-status.json');
 
 // Welke groepen uit thumbnail-status.json mee mogen, plus losse titels die er niet in vallen.
-const GROEPEN = (waarde('--groepen', 'test,naamloos')).split(',').map((s) => s.trim()).filter(Boolean);
-const LOSSE_TITELS = ['5 juli 2025', 'Tafel 1 Straight pool'];
+// Met --videos <id,id> pak je losse video's, ook als ze niet in thumbnail-status.json staan:
+// dat is het geval bij een uitzending die iemand vergeten is te stoppen en die daarna uren
+// heeft doorgelopen. Dan is --groepen niet van toepassing en wil je gewoon deze ene weg.
+const LOSSE_IDS = (waarde('--videos', '')).split(',').map((s) => s.trim()).filter(Boolean);
+const GROEPEN = LOSSE_IDS.length
+  ? (waarde('--groepen', '')).split(',').map((s) => s.trim()).filter(Boolean)
+  : (waarde('--groepen', 'test,naamloos')).split(',').map((s) => s.trim()).filter(Boolean);
+const LOSSE_TITELS = LOSSE_IDS.length ? [] : ['5 juli 2025', 'Tafel 1 Straight pool'];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -123,13 +132,16 @@ async function herstel(bestand) {
 (async () => {
   if (HERSTEL) return herstel(HERSTEL);
 
-  if (!fs.existsSync(BRON)) {
+  // thumbnail-status.json is alleen nodig als we met groepen of titels werken. Bij --videos
+  // kunnen we rechtstreeks aan de slag; de titel halen we dan bij YouTube op.
+  const heeftBron = fs.existsSync(BRON);
+  if (!heeftBron && (GROEPEN.length || LOSSE_TITELS.length)) {
     console.error(`${BRON} niet gevonden. Draai eerst: node backend/scripts/thumbnail-status.js`);
     process.exit(1);
   }
-  const status = JSON.parse(fs.readFileSync(BRON, 'utf8'));
+  const status = heeftBron ? JSON.parse(fs.readFileSync(BRON, 'utf8')) : { groepen: {} };
 
-  // Selectie samenstellen: hele groepen + losse titels uit de overige groepen.
+  // Selectie samenstellen: hele groepen + losse titels + expliciet opgegeven video's.
   const gekozen = new Map();
   for (const g of GROEPEN) {
     for (const r of status.groepen[g] || []) gekozen.set(r.videoId, { ...r, waarom: g });
@@ -137,6 +149,19 @@ async function herstel(bestand) {
   for (const rijen of Object.values(status.groepen)) {
     for (const r of rijen) {
       if (LOSSE_TITELS.includes((r.naam || '').trim())) gekozen.set(r.videoId, { ...r, waarom: 'losse titel' });
+    }
+  }
+  if (LOSSE_IDS.length) {
+    const yt = await getYouTubeClient();
+    const res = await yt.videos.list({ part: ['snippet'], id: LOSSE_IDS });
+    const gevonden = new Map((res.data.items || []).map((v) => [v.id, v.snippet]));
+    for (const id of LOSSE_IDS) {
+      const s = gevonden.get(id);
+      if (!s) { console.error(`video ${id} bestaat niet of is niet van dit kanaal — overgeslagen`); continue; }
+      gekozen.set(id, {
+        videoId: id, naam: s.title,
+        datum: (s.publishedAt || '').slice(0, 10), waarom: 'handmatig opgegeven',
+      });
     }
   }
   const selectie = [...gekozen.values()].sort((a, b) => String(b.datum).localeCompare(String(a.datum)));
