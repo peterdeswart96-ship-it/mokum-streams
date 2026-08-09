@@ -22,6 +22,38 @@ Kies één:
   voor storage). De agent wijst dan naar `http://localhost:7071`.
 - **Azure** (echte deploy): volg `docs/azure-setup.md`.
 
+### ⚠️ Lokaal draaien tegen de PRODUCTIE-opslag: zet eerst de timers uit
+
+`func start` start niet alleen de HTTP-endpoints — het start **alle timers**. Wijs je
+`AzureWebJobsStorage` naar het echte opslagaccount (bijvoorbeeld omdat je een endpoint
+tegen echte data wilt proberen), dan draaien die timers op jouw machine tegen de
+productiegegevens. Twee daarvan sturen commando's naar OBS in de zaal:
+
+- **`checkStops`** kan een `stopStream` in de wachtrij zetten — een lopende uitzending stopt.
+- **`pauzeScherm`** kan overlays aan- en uitschakelen — het pauzescherm springt in beeld.
+
+Gebeurd op 09-08-2026: tijdens het testen van het poster-endpoint (#96) liep de lokale
+host drie keer mee terwijl er twee toernooien live waren. Er ging niets mis, want de code
+was gelijk aan productie en de timer-lease wordt via dezelfde opslag gedeeld. Met een
+half-afgemaakte wijziging in `checkStops` was dat anders afgelopen.
+
+Zet daarom per timer een app-instelling in `local.settings.json` (of als env-var):
+
+```
+AzureWebJobs.checkStops.Disabled      = true
+AzureWebJobs.pauzeScherm.Disabled     = true
+AzureWebJobs.createBroadcasts.Disabled = true
+AzureWebJobs.nachtStop.Disabled       = true
+AzureWebJobs.finalizeVideos.Disabled  = true
+```
+
+De HTTP-endpoints blijven gewoon werken. `liveMatches`, `liveVideos` en `importPlanning`
+zijn read-only richting de zaal en mogen blijven draaien — die schrijven alleen hun eigen
+JSON-blob.
+
+Wil je juist een timer testen, laat dan alleen díe aan en de rest uit. En doe het niet op
+een avond dat er gestreamd wordt.
+
 ## Agent draaien
 `cd agent; npm ci; Copy-Item agent-config.example.json agent-config.json` → vul in:
 `backendUrl`, en per tafel de obs-websocket `port` + wachtwoord (via env
