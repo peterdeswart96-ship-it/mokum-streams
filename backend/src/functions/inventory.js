@@ -70,6 +70,13 @@ app.http('adminInventory', {
         // public | unlisted | private. Alleen OPENBARE video's staan op de streams-tab
         // van het kanaal; verborgen video's zijn er wel, maar ziet een bezoeker niet.
         zichtbaarheid: v.visibility,
+        // Een uitzending die NU loopt heeft nog geen thumbnail en hoort niet als achterstand
+        // geteld te worden — de automatische afronding komt na afloop nog langs. YouTube's
+        // eigen `liveBroadcastContent` is het duidelijkste signaal; het ontbreken van een
+        // eindtijd vangt de gevallen op waarin dat veld al is omgeklapt.
+        loopt: v.liveBroadcastContent === 'live'
+          || Boolean(v.actualStartTime && !v.actualEndTime),
+        geeindigd: v.actualEndTime || null,
       }));
 
       // Sorteer op datum (nieuwste eerst).
@@ -81,6 +88,7 @@ app.http('adminInventory', {
         aantal: rows.length,
         metThumbnail: rows.filter((r) => r.thumbnail).length,
         metHoofdstukken: rows.filter((r) => r.hoofdstukken).length,
+        nogBezig: rows.filter((r) => r.loopt).length,
         perCategorie: perCat,
         perZichtbaarheid: perZicht,
         rows,

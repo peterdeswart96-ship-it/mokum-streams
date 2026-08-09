@@ -108,6 +108,7 @@ async function getVideosDetails(ids) {
         actualStartTime: lsd.actualStartTime || null,
         actualEndTime: lsd.actualEndTime || null,
         visibility: (v.status && v.status.privacyStatus) || null, // public | unlisted | private
+        liveBroadcastContent: s.liveBroadcastContent || 'none',   // live | upcoming | none
       });
     }
   }

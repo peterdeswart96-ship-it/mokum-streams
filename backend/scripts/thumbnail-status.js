@@ -70,7 +70,23 @@ const veilig = (s) => String(s || '').replace(/\|/g, '\\|');
   if (!res.ok) { console.error(`inventory faalde: HTTP ${res.status}`); process.exit(1); }
   const inv = await res.json();
 
-  const zonder = inv.rows.filter((r) => !r.thumbnail);
+  // Lopende en net afgelopen uitzendingen zijn GEEN achterstand: die krijgen hun thumbnail
+  // straks van de automatische afronding. Zonder dit onderscheid tel je elke avond dat er
+  // gestreamd wordt vier video's te veel, en ga je dingen met de hand doen die vanzelf
+  // gebeuren. (Precies dat gebeurde op 09-08 met twee MEGA Ranking-uitzendingen.)
+  const AFRONDING_GRACE_MS = 2 * 60 * 60 * 1000;
+  const nu = Date.now();
+  const wachtOpAfronding = (r) => {
+    if (r.loopt) return true;
+    if (!r.geeindigd) return false;
+    const eind = Date.parse(r.geeindigd);
+    return Number.isFinite(eind) && (nu - eind) < AFRONDING_GRACE_MS;
+  };
+
+  const alZonder = inv.rows.filter((r) => !r.thumbnail);
+  const bezig = alZonder.filter(wachtOpAfronding);
+  const zonder = alZonder.filter((r) => !wachtOpAfronding(r));
+
   const ingedeeld = new Map(GROEPEN.map((g) => [g.sleutel, []]));
   for (const r of zonder) {
     const g = GROEPEN.find((x) => x.hoort(r.naam || ''));
@@ -92,6 +108,12 @@ const veilig = (s) => String(s || '').replace(/\|/g, '\\|');
   uit.push(`# Video's zonder thumbnail — stand ${new Date().toISOString().slice(0, 10)}\n`);
   uit.push(`${inv.aantal} video's op het kanaal, ${inv.metThumbnail} met onze thumbnail, **${zonder.length} zonder**.`);
   uit.push(`Hoofdstukken: ${inv.metHoofdstukken} van ${inv.aantal}.\n`);
+  if (bezig.length) {
+    uit.push(`> ${bezig.length} uitzending(en) lopen nog of zijn net afgelopen. Die tellen hier niet mee —`);
+    uit.push('> de automatische afronding zet er straks zelf een thumbnail op:\n');
+    for (const r of bezig) uit.push(`> - ${r.loopt ? 'LIVE' : 'net klaar'} · ${veilig(r.naam)} (\`${r.videoId}\`)`);
+    uit.push('');
+  }
   uit.push('| Groep | Aantal |');
   uit.push('|---|---:|');
   for (const g of GROEPEN) uit.push(`| ${g.titel} | ${ingedeeld.get(g.sleutel).length} |`);
@@ -155,6 +177,7 @@ const veilig = (s) => String(s || '').replace(/\|/g, '\\|');
   fs.writeFileSync('thumbnail-status.json', JSON.stringify({
     stand: new Date().toISOString(),
     totaal: inv.aantal, metThumbnail: inv.metThumbnail, zonderThumbnail: zonder.length,
+    wachtOpAfronding: bezig,
     perZichtbaarheid: inv.perZichtbaarheid || {},
     groepen: Object.fromEntries(GROEPEN.map((g) => [g.sleutel, ingedeeld.get(g.sleutel)])),
     reeksen: Object.fromEntries([...perReeks].map(([k, v]) => [k, v.map((r) => r.videoId)])),
@@ -163,6 +186,10 @@ const veilig = (s) => String(s || '').replace(/\|/g, '\\|');
   }, null, 2), 'utf8');
 
   console.log(`${inv.aantal} video's, ${inv.metThumbnail} met thumbnail, ${zonder.length} zonder.`);
+  if (bezig.length) {
+    console.log(`  (${bezig.length} lopen nog of zijn net klaar — niet meegeteld, de afronding komt nog)`);
+    for (const r of bezig) console.log(`      ${r.loopt ? 'LIVE     ' : 'net klaar'}  ${r.videoId}  ${(r.naam || '').slice(0, 55)}`);
+  }
   for (const g of GROEPEN) console.log(`  ${String(ingedeeld.get(g.sleutel).length).padStart(4)}  ${g.titel}`);
   console.log(`\nZichtbaarheid: ${Object.entries(inv.perZichtbaarheid || {}).map(([k, v]) => `${v} ${k}`).join(', ')}`);
   console.log(`Openbaar (= de streams-tab): ${openbaar.length}`);
