@@ -10,7 +10,13 @@ const { isPauzeAutoOn, pauzeSchermKeys, pauzeSchermUitKeys, pauzeSchermRefreshKe
 // (na debounce) → Jumbotron + Pauzemelding aan; zodra er weer gespeeld wordt → uit.
 // Draait alleen als PAUZESCHERM_AUTO=true én de agent de tafel als 'streaming' meldt.
 
-const CRON_ELKE_30_SEC = '*/30 * * * * *';
+// Elke minuut op seconde 40 (was elke 30 seconden, #101). Deze timer was met twee tikken
+// per minuut de duurste van allemaal: elke ronde een Cuescore-aanroep én een schrijfactie.
+// De omslagdrempels zelf zijn tijdgebaseerd (DEBOUNCE_MS / SPELEN_DEBOUNCE_MS hieronder) en
+// veranderen dus niet mee; wat verandert is de resolutie waarmee we ze opmerken — een
+// omslag kan alleen op een tik gebeuren. Seconde 40 om niet samen te vallen met checkStops
+// en liveMatches (sec 0) en liveVideos (sec 20).
+const CRON_ELKE_MIN_OFFSET = '40 * * * * *';
 const DEBOUNCE_MS = 20000; // 20s 'geen wedstrijd' vóór we naar pauze gaan (anti-flapper)
 // En andersom: nadat Cuescore weer een wedstrijd meldt, blijft het pauzescherm nog even
 // staan. Een tafeltoewijzing komt uit de loting, maar daarna moeten de spelers er nog
@@ -84,7 +90,7 @@ async function verwerk(now, context) {
 }
 
 app.timer('pauzeScherm', {
-  schedule: CRON_ELKE_30_SEC,
+  schedule: CRON_ELKE_MIN_OFFSET,
   handler: async (myTimer, context) => {
     await verwerk(new Date(), context);
   },
