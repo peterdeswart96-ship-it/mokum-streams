@@ -14,14 +14,20 @@ function getConnectionString() {
 
 const CONTAINER = process.env.STORAGE_CONTAINER || 'mokum-streams';
 
-let containerClientCache = null;
+const containerClientCache = new Map();
 
-async function getContainerClient() {
-  if (containerClientCache) return containerClientCache;
+// Zonder naam: de standaardcontainer met onze interne JSON. Met naam: een andere container
+// op hetzelfde account — bv. `pauze-posters` (#96), die bewust openbaar leesbaar is en
+// dáárom niet met de interne JSON gemengd mag worden.
+//
+// `createIfNotExists` maakt een container alleen aan als hij ontbreekt en zegt níets over de
+// openbare toegang: die staat per container ingesteld en wordt hier niet aangeraakt.
+async function getContainerClient(naam = CONTAINER) {
+  if (containerClientCache.has(naam)) return containerClientCache.get(naam);
   const service = BlobServiceClient.fromConnectionString(getConnectionString());
-  const container = service.getContainerClient(CONTAINER);
+  const container = service.getContainerClient(naam);
   await container.createIfNotExists();
-  containerClientCache = container;
+  containerClientCache.set(naam, container);
   return container;
 }
 
