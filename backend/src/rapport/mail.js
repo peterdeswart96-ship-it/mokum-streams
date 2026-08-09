@@ -5,8 +5,6 @@
 // het element zelf. Ook een leesbare tekstversie, voor wie de mail op een horloge of in een
 // spamfilter ziet.
 
-const { uurNotatie } = require('./duiding');
-
 const KLEUR = {
   goed: '#1f7a4d',
   'let-op': '#a26a10',

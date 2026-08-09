@@ -1,6 +1,5 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const crypto = require('node:crypto');
 
 // Tests voor het aanmaken van challenges door leden (#90). Alleen de pure onderdelen:
 // versleuteling, tokens en sjabloonvalidatie. De Cuescore-client zelf is netwerkcode en

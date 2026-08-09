@@ -9,6 +9,7 @@
   "main": "src/functions/*.js",
   "scripts": {
     "start": "func start",
+    "lint": "eslint . --max-warnings 0",
     "test": "node --test",
     "stamp": "node scripts/stamp.js",
     "deploy": "npm run stamp && func azure functionapp publish mokum-streams-func --javascript --build remote"
@@ -22,5 +23,9 @@
     "@sparticuz/chromium": "^149.0.0",
     "googleapis": "^144.0.0",
     "puppeteer-core": "^25.3.0"
+  },
+  "devDependencies": {
+    "eslint": "^10.8.1",
+    "globals": "^17.9.0"
   }
 }

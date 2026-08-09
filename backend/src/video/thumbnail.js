@@ -16,7 +16,7 @@ GlobalFonts.registerFromPath(path.join(FONTS, 'ArchivoBlack-Regular.ttf'), 'Moku
 GlobalFonts.registerFromPath(path.join(FONTS, 'Archivo-Bold.ttf'), 'MokumSans');
 
 const W = 1280, H = 720;
-const PAD_X = 76, PAD_TOP = 46, PAD_BOT = 52;
+const PAD_X = 76, PAD_TOP = 46;
 const ROOD = '#cc0000', ROOD_LICHT = '#ff2b2b', GOUD = '#f4c430';
 
 // Mokum-logo en (optioneel) sponsorlogo als bestand.

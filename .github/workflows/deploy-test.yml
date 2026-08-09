@@ -49,10 +49,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Install, test en build
+      - name: Install, controleer, test en build
         working-directory: backend
         run: |
           npm ci
+          npm run lint
           npm test
           npm run build --if-present
 

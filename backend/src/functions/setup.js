@@ -1,5 +1,5 @@
 const { app } = require('@azure/functions');
-const { readJson, writeJson } = require('../storage/blob');
+const { writeJson } = require('../storage/blob');
 const { listLiveStreams, createReusableLiveStream } = require('../youtube/broadcasts');
 const { planLiveStreamSeed } = require('../setup/seed');
 const { isAdmin } = require('../admin/auth');

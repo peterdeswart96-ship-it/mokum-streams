@@ -24,7 +24,6 @@ const STANDAARD_MINUTEN_VOOR = 30;
 // Welke tafels moeten nu vrijgemaakt worden?
 // Retour: [{ tableNumber, videoId, reden, tournamentId, tournamentName }]
 function vrijTeMaken(planning, store, now, { minutenVoor = STANDAARD_MINUTEN_VOOR } = {}) {
-  const vandaag = zaalDag(now);
   const uit = [];
   const gezien = new Set();
 

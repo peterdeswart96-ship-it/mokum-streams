@@ -76,10 +76,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'   # gelijk aan de runtime van de Function App
-      - name: Install en test
+      - name: Install, controleer en test
         working-directory: backend
         run: |
           npm ci
+          npm run lint
           npm test
 
       - name: Controleer dat de deploy-gegevens bestaan
