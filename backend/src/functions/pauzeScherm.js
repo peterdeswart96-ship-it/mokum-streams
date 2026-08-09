@@ -1,5 +1,5 @@
 const { app } = require('@azure/functions');
-const { readJson, writeJson } = require('../storage/blob');
+const { readJson, writeJson, writeJsonAlsGewijzigd } = require('../storage/blob');
 const { getTodaysTournaments } = require('../cuescore');
 const { enqueue, OVERLAY_BRON } = require('../agent/commandQueue');
 const { tafelSpeeltNu, volgendeToestand, pauzeCommandos, refreshCommandos } = require('../planning/pauze');
@@ -76,8 +76,11 @@ async function verwerk(now, context) {
     const bestaand = (await readJson('commands.json', [])) || [];
     await writeJson('commands.json', enqueue(bestaand, commands));
   }
-  // Toestand altijd wegschrijven (debounce-timing loopt door tussen runs).
-  await writeJson(STATE_PAD, store);
+  // Toestand wegschrijven, maar alleen als er iets aan veranderd is (#101). Dit is met
+  // twee tikken per minuut de vaakst schrijvende timer; tussen wedstrijden door staat de
+  // toestand vaak een half uur stil. De debounce-timing loopt gewoon door: die zit ín
+  // `store`, dus zodra hij verschuift is de vorm anders en wordt er wél geschreven.
+  await writeJsonAlsGewijzigd(STATE_PAD, store);
 }
 
 app.timer('pauzeScherm', {
