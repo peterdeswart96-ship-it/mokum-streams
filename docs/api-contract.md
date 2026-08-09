@@ -3,7 +3,7 @@
 Enige waarheid voor de koppelvlakken tussen frontend/widget, backend en (later) de
 agent. Wijzigen? Eerst dit bestand bijwerken (met datum + reden onderaan), dan code.
 
-Status: CONCEPT v0.5 — velden worden definitief in fase 2.
+Status: CONCEPT v0.53 — velden worden definitief in fase 2.
 
 ## Conventies
 - Alle velden camelCase. Tijden in ISO 8601 met tijdzone (Europe/Amsterdam
@@ -37,6 +37,33 @@ Antwoord:
 
 GET /api/schedule?days=7
 Antwoord: { "items": [ { "date", "startTime", "tournamentName", "tableNumbers": [..] } ] }
+
+GET /api/pauze/posters
+Antwoord:
+{
+  "generatedAt": "2026-08-09T18:00:00Z",
+  "posters": [
+    {
+      "naam": "poster-10ball.png",
+      "url": "https://mokumstreams2945.blob.core.windows.net/pauze-posters/poster-10ball.png",
+      "tot": "2026-09-01" | null,     // laatste dag dat de poster meedraait; null = blijft hangen
+      "volgorde": 1                    // oplopend; gelijke/ontbrekende waarden → op bestandsnaam
+    }
+  ]
+}
+- Publiek, geen auth. Voedt de poster-fase van de jumbotron-kaart (#96).
+- Bron: container `pauze-posters` op het opslagaccount, blob-niveau openbaar leesbaar. De
+  lijst wordt server-side opgehaald (connectionstring), dus de container zelf is NIET te
+  listen van buitenaf — alleen de URL's die dit endpoint teruggeeft zijn bereikbaar.
+- `tot` en `volgorde` komen uit de **blob-metadata**, in te stellen in de Azure Portal zonder
+  het bestand te hernoemen. Datums in `YYYY-MM-DD`, uitgelegd in Europe/Amsterdam.
+- **Het endpoint filtert zelf**: alleen posters waarvoor vandaag tussen `van` en `tot` valt
+  komen in de lijst. Zo hoeft de pauzekaart niets van datums te weten en zie je in het
+  antwoord meteen wat er hoort te draaien. Een blob met onleesbare datum-metadata wordt
+  behandeld alsof de datum er niet staat (liever tonen dan stilletjes verdwijnen).
+- Server-cache in blob `posters.json`, ~30 min vers — vier OBS-instanties vragen tegelijk
+  (zelfde patroon als `/api/sheets`, vgl. #94).
+- Lege lijst is een geldig antwoord: de kaart slaat de poster-fase dan over.
 
 POST /api/hit?source=qr&page=mokumlive   (ook GET) — cookieloze bezoek-/QR-teller
 - Publiek, geen auth, geen body nodig (past bij navigator.sendBeacon / fetch no-cors).
@@ -729,3 +756,23 @@ Regels:
      gebruikt — één video van 8u31 met tweeënhalf uur lege tafel aan het begin. Een
      uitzending van hét toernooi zelf blijft met rust, en na de starttijd grijpt de regel niet
      meer in.
+- 2026-08-09: v0.53 — **posters uit Blob Storage in de pauzerotatie (#96)**.
+  Nieuw publiek endpoint **`GET /api/pauze/posters`** → `{ generatedAt, posters: [...] }`
+  (vorm hierboven in "Publiek"). Reden: er hing één poster hard in
+  `frontend/public/pauze/slides/02-jumbotron.html` (`<img src="../img/poster-10ball.png">`).
+  Een poster toevoegen betekende een commit en een Pages-deploy — te veel gedoe voor iets dat
+  twee weken moet hangen. Nu is het een bestand in de container `pauze-posters` neerzetten.
+  1. **Verloopdatum per poster** via blob-metadata `tot` (en optioneel `van` om vooruit te
+     kunnen uploaden, en `volgorde` voor de plek in de rij). Zonder `tot` blijft een poster
+     hangen — dat is bewust het oude gedrag, zodat een bestaande poster niet stilletjes
+     verdwijnt als iemand vergeet een datum te zetten.
+  2. **Het filteren gebeurt in de backend, niet in de browser.** De pauzekaart hoeft dan niets
+     van datums te weten, en aan het antwoord van het endpoint zie je meteen wat er hoort te
+     draaien — dat scheelt zoeken als er iets niet in beeld komt.
+  3. **De poster wordt een eigen fase** in de pauzerotatie (besluit Peter 09-08):
+     `SCORES (30s) → HIGHLIGHT (duur van de clip) → INFO-SHEET (15s) → POSTER (15s)`. Was:
+     één van de info-sheets, 5 seconden. Met meerdere posters kwam elke poster anders pas
+     één keer per acht rondes langs. `?posterSec=` blijft bestaan om af te wijken.
+  4. Container `pauze-posters` is **blob-niveau openbaar leesbaar** (akkoord Peter 09-08).
+     Het opslagaccount heeft daarvoor `allowBlobPublicAccess: true` gekregen; de container
+     `mokum-streams` met de interne JSON blijft privé — toegang is per container.
