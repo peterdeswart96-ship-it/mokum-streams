@@ -87,7 +87,12 @@ app.http('adminVideoDetails', {
 // zijn — zet thumbnail + hoofdstukken. Idempotent via de `finalized`-vlag. Gated op
 // AUTOMATION_ARMED (onderdeel van de scherpgezette automatisering).
 app.timer('finalizeVideos', {
-  schedule: '0 * * * * *', // elke minuut
+  // Elke 5 minuten (was elke minuut, #101). Er valt hooguit een paar keer per dag iets af
+  // te ronden, maar de timer las elke minuut twee blobs — ruim 86.000 leesacties per maand
+  // voor een handvol echte acties. Een thumbnail die een paar minuten later verschijnt
+  // merkt niemand; de podium-grace die wél op de seconde moet kloppen zit in checkStops,
+  // en die blijft op een minuut staan.
+  schedule: '0 */5 * * * *',
   handler: async (myTimer, context) => {
     if (!isArmed()) return; // slapend tot scherpgezet
     // Beide dagen: een avondstream die ná middernacht stopt zit nog in de store van gisteren

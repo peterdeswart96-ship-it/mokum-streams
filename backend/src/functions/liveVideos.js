@@ -1,5 +1,5 @@
 const { app } = require('@azure/functions');
-const { readJson, writeJson } = require('../storage/blob');
+const { readJson, writeJsonAlsGewijzigd } = require('../storage/blob');
 const { listActiveBroadcasts } = require('../youtube/broadcasts');
 const { koppelVideosAanTafels } = require('../youtube/liveVideos');
 
@@ -25,8 +25,13 @@ async function verwerk(now, context) {
   }
 
   const videos = koppelVideosAanTafels(broadcasts, cameras);
-  await writeJson('live-videos.json', { updatedAt: now.toISOString(), videos });
-  context.log(`[liveVideos] ${Object.keys(videos).length}/${cameras.length} tafels live op YouTube`);
+  // `updatedAt` buiten de vergelijking: dat verandert per definitie elke ronde, en dan zou
+  // er alsnog elke minuut geschreven worden. Niets leest dit veld om te bepalen of de data
+  // vers is, dus een tijdstempel die stilstaat als er niets gebeurt is geen probleem (#101).
+  const geschreven = await writeJsonAlsGewijzigd(
+    'live-videos.json', { updatedAt: now.toISOString(), videos }, { negeer: ['updatedAt'] },
+  );
+  if (geschreven) context.log(`[liveVideos] ${Object.keys(videos).length}/${cameras.length} tafels live op YouTube`);
 }
 
 app.timer('liveVideos', {

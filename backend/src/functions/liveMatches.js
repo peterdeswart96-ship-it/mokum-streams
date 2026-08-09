@@ -34,9 +34,16 @@ async function verwerk(now, context) {
   // alleen naar de cameratafels. null zolang een cameratafel nog speelt of geen finale
   // gespeeld is.
   const podium = podiumVoorZaal(tournaments, cameras);
-  await writeJson('live-matches.json', { updatedAt: now.toISOString(), matches, venueLive, venueTables, podium });
+  // `updatedAt` buiten de vergelijking, anders verschilt er per definitie elke ronde iets
+  // en schrijven we alsnog elke minuut. Tussen twee wedstrijden in verandert er soms een
+  // half uur niets — dan hoeft er ook niets naar de opslag (#101).
+  const geschreven = await writeJsonAlsGewijzigd(
+    'live-matches.json',
+    { updatedAt: now.toISOString(), matches, venueLive, venueTables, podium },
+    { negeer: ['updatedAt'] },
+  );
   const live = Object.values(matches).filter((m) => m && m.status === 'playing').length;
-  context.log(`[liveMatches] bijgewerkt — ${live}/${cameras.length} tafels live · ${venueLive} in de zaal`);
+  if (geschreven) context.log(`[liveMatches] bijgewerkt — ${live}/${cameras.length} tafels live · ${venueLive} in de zaal`);
 }
 
 app.timer('liveMatches', {
