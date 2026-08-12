@@ -731,7 +731,7 @@ async function haalPosters() {
 // ============ Pauze-schema (#71) — CLIP-GEDREVEN ============
 // Tijdens een pauze rouleert de jumbotron:
 //
-//   SCORES (30s) → HIGHLIGHT (duurt zolang de clip duurt) → INFO-SHEET (15s) → POSTER (15s)
+//   SCORES (30s) → POSTER (15s) → HIGHLIGHT (duurt zolang de clip duurt) → INFO-SHEET (15s)
 //
 // Begint bewust bij de scores (besluit Peter 05-08): een kijker die net binnenkomt wil eerst
 // weten wat er in de zaal speelt. De highlights-fase heeft géén vaste tijd — die duurt precies
@@ -750,7 +750,14 @@ const FASE_MS = {
 };
 // De poster is sinds #96 een eigen fase en niet meer één van de info-sheets. Anders kwam bij
 // zes posters elke poster pas één keer per acht rondes langs.
-const FASE_VOLGORDE = { scores: 'highlights', highlights: 'sheet', sheet: 'poster', poster: 'scores' };
+//
+// De poster staat BEWUST vlak achter de scores en niet achteraan (12-08). De highlight-fase
+// heeft geen eigen tijdslimiet — die duurt zolang de clip duurt, en dat is in de praktijk
+// gemiddeld 167 seconden (kortste 67, langste 324). Achteraan kwam de poster daardoor pas na
+// ruim vier minuten aan de beurt, terwijl een pauze tussen twee racks vaak korter is dan een
+// minuut: je zag hem simpelweg bijna nooit. Vooraan begint elke pauze met scores en dan de
+// poster. Dit kost niemand kijktijd — de volgorde verandert, de duur niet.
+const FASE_VOLGORDE = { scores: 'poster', poster: 'highlights', highlights: 'sheet', sheet: 'scores' };
 const AANTAL_FASEN = Object.keys(FASE_VOLGORDE).length;
 let fase = 'scores';
 let faseSinds = 0;          // ms-teller (via de scheduler-tik; geen Date.now → OBS-safe)
@@ -1117,7 +1124,7 @@ async function toonPoster() {
 
 const posterImg = document.querySelector('#poster img');
 
-// Pauze-schema starten: scores → highlight → info-sheet → poster → herhaal (zie schemaTik).
+// Pauze-schema starten: scores → poster → highlight → info-sheet → herhaal (zie schemaTik).
 // Helemaal onderaan, zodat alle functies en poster-variabelen die 'ie aanroept al bestaan.
 setInterval(schemaTik, SCHEMA_TIK_MS);
 // In de test-stand meteen na een paar seconden een eerste keer, zodat je 'm snel ziet.
