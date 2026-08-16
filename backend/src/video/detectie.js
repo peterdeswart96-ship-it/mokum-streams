@@ -63,6 +63,11 @@ function templateVoorToernooi(naam) {
   if (n.includes('speedy') || n.includes('multiball') || n.includes('multi ball') || n.includes('multi-ball')) return 'speedy-multi-ball';
   if (n.includes('handicap')) return 'handicap-madness';
   if (n.includes('blind')) return 'blind-double';
+  // "Paas koppel toernooi @Mokum" is hoe dit type in de praktijk in Cuescore heet (NL);
+  // "doubles" erbij voor het geval het ooit Engels getypt wordt. Bewust niet op los
+  // "double" — dat zou "Blind Double" overrulen als deze regel per ongeluk boven die
+  // check zou komen te staan.
+  if (n.includes('koppel') || n.includes('doubles')) return 'doubles-tournament';
   if (n.includes('best of one') || n.includes('best-of-one')) return 'best-of-one';
   if (n.includes('amsterdam open') || n.includes('go customs') || n.includes('customs')) return 'go-customs-amsterdam-open';
   return null;
@@ -81,6 +86,7 @@ const TEMPLATE_TEKST = {
   'speedy-multi-ball':         { titel: 'Speedy Multiball' },
   'handicap-madness':          { titel: 'Handicap Madness' },
   'blind-double':              { titel: 'Blind Double' },
+  'doubles-tournament':        { titel: 'Doubles Tournament' },
   'best-of-one':               { titel: 'Best of One' },
   'go-customs-amsterdam-open': { titel: 'Amsterdam Open', sponsor: 'GO CUSTOMS' },
   'nk-10ball':                 { titel: 'NK 10-Ball Kwalificatie' },

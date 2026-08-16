@@ -58,6 +58,13 @@ test('templateVoorToernooi: kiest de juiste template per (Cuescore-)naam', () =>
   // "Summer Ranking" zonder "MEGA" in de naam (typefout) → toch de MEGA Summer-template:
   assert.strictEqual(templateVoorToernooi('Mokum Summer Ranking 22'), 'mega-summer-ranking');
   assert.strictEqual(templateVoorToernooi('Mokum Summer ranking #22'), 'mega-summer-ranking');
+  // Koppeltoernooi (#96-vervolg) — "koppel" is hoe dit type in Cuescore in de praktijk heet
+  // (echt voorbeeld: "Paas koppel toernooi @Mokum"); "doubles" voor een Engelse variant.
+  assert.strictEqual(templateVoorToernooi('Paas koppel toernooi @Mokum'), 'doubles-tournament');
+  assert.strictEqual(templateVoorToernooi('Mokum Doubles Tournament #3'), 'doubles-tournament');
+  // "Blind Double" blijft bij zijn eigen template — "double" alleen (geen "doubles"/"koppel")
+  // mag dit niet overrulen.
+  assert.strictEqual(templateVoorToernooi('Blind Double Members'), 'blind-double');
 });
 
 test('templateVoorToernooi: onbekend toernooi → null (canvas-fallback)', () => {
