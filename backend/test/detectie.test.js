@@ -65,6 +65,10 @@ test('templateVoorToernooi: kiest de juiste template per (Cuescore-)naam', () =>
   // "Blind Double" blijft bij zijn eigen template — "double" alleen (geen "doubles"/"koppel")
   // mag dit niet overrulen.
   assert.strictEqual(templateVoorToernooi('Blind Double Members'), 'blind-double');
+  // King of the table — echt voorbeeld: "Tafel 16 King of the table" (14-08, geen toernooi
+  // gekoppeld, wachtte op dit ontwerp).
+  assert.strictEqual(templateVoorToernooi('Tafel 16 King of the table'), 'king-of-the-table');
+  assert.strictEqual(templateVoorToernooi('KING OF THE TABLE #4'), 'king-of-the-table');
 });
 
 test('templateVoorToernooi: onbekend toernooi → null (canvas-fallback)', () => {

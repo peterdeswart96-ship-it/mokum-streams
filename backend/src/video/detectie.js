@@ -68,6 +68,7 @@ function templateVoorToernooi(naam) {
   // "double" — dat zou "Blind Double" overrulen als deze regel per ongeluk boven die
   // check zou komen te staan.
   if (n.includes('koppel') || n.includes('doubles')) return 'doubles-tournament';
+  if (n.includes('king of the table')) return 'king-of-the-table';
   if (n.includes('best of one') || n.includes('best-of-one')) return 'best-of-one';
   if (n.includes('amsterdam open') || n.includes('go customs') || n.includes('customs')) return 'go-customs-amsterdam-open';
   return null;
@@ -87,6 +88,7 @@ const TEMPLATE_TEKST = {
   'handicap-madness':          { titel: 'Handicap Madness' },
   'blind-double':              { titel: 'Blind Double' },
   'doubles-tournament':        { titel: 'Doubles Tournament' },
+  'king-of-the-table':         { titel: 'King of the Table' },
   'best-of-one':               { titel: 'Best of One' },
   'go-customs-amsterdam-open': { titel: 'Amsterdam Open', sponsor: 'GO CUSTOMS' },
   'nk-10ball':                 { titel: 'NK 10-Ball Kwalificatie' },
