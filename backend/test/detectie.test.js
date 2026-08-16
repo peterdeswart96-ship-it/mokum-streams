@@ -89,6 +89,21 @@ test('templateVoorToernooi: 9-ball Sunday in al zijn schrijfwijzen (#95)', () =>
   assert.strictEqual(templateVoorToernooi('Tafel 1 Very last minute 9 ball'), 'last-minute-9ball');
 });
 
+test('templateVoorToernooi: Mokum 8-ball Ranking (#95), niet te verwarren met 8&10-ball', () => {
+  const titels = [
+    'MOKUM 8BALL RANKING #10',
+    'MOKUM 8BALL RANKING SEIZOEN 2 #1',
+    'Mokum 8ball Ranking Seizoen 2 #16',
+    'Mokum 8 ball Ranking',
+    'EIND TOERNOOI TOP 16 MOKUM 8BALL RANKING',
+    'Eind toernooi top 24 Mokum 8ball ranking 2de seizoen',
+  ];
+  for (const t of titels) assert.strictEqual(templateVoorToernooi(t), '8-ball-ranking', t);
+  // Een editienummer als #10 mag de 8&10-ball-combinatie niet per ongeluk triggeren —
+  // die vereist 8 en 10 vlak náást elkaar, niet los verspreid in de titel.
+  assert.strictEqual(templateVoorToernooi('Mokum 8 & 10ball Ranking (10ball) #19'), '8-10-ball-ranking');
+});
+
 test('templateVoorToernooi: onbekend toernooi → null (canvas-fallback)', () => {
   assert.strictEqual(templateVoorToernooi('Willekeurig Open Toernooi #1'), null);
   assert.strictEqual(templateVoorToernooi(''), null);

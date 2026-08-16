@@ -55,6 +55,9 @@ function templateVoorToernooi(naam) {
   // "raNKing"/"baNK". Vóór de 8&10-regel voor de duidelijkheid (botst niet: geen 8).
   if (/\bnk\b/.test(n) && /10[.\-\s]?ball/.test(n)) return 'nk-10ball';
   if (/(?:8\s*(?:&|en|\/|\+|,|-)?\s*10|10\s*(?:&|en|\/|\+|,|-)?\s*8)/.test(n)) return '8-10-ball-ranking';
+  // Mokum 8-ball Ranking (#95) — vóór de generieke checks, ná de 8&10-combinatie hierboven
+  // (die heeft voorrang: "8ball ranking #10" bevat toevallig een 10, maar niet vlak ná de 8).
+  if (/8[.\-\s]?ball/.test(n) && n.includes('ranking')) return '8-ball-ranking';
   // 14.1 alleen als het de Mokum Summer League is — niet een NK-kwalificatie o.i.d. die
   // toevallig 14.1 als discipline heeft (die krijgt geen serie-template).
   if (/14[.\-\s]?1(?!\d)/.test(n) && /(summer|league)/.test(n)) return '14-1-summer-league';
@@ -88,6 +91,7 @@ const TEMPLATE_TEKST = {
   'mega-summer-ranking':       { titel: 'MEGA Summer Ranking' },
   'mega-ranking-buffalo':      { titel: 'MEGA Ranking' },              // Buffalo staat al als logo in de template
   '8-10-ball-ranking':         { titel: '8 & 10ball Ranking' },
+  '8-ball-ranking':            { titel: '8-Ball Ranking' },
   '14-1-summer-league':        { titel: '14.1 Summer League' },
   'speedy-multi-ball':         { titel: 'Speedy Multiball' },
   'handicap-madness':          { titel: 'Handicap Madness' },
