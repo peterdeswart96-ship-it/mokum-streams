@@ -71,6 +71,24 @@ test('templateVoorToernooi: kiest de juiste template per (Cuescore-)naam', () =>
   assert.strictEqual(templateVoorToernooi('KING OF THE TABLE #4'), 'king-of-the-table');
 });
 
+test('templateVoorToernooi: 9-ball Sunday in al zijn schrijfwijzen (#95)', () => {
+  // Negen echte titels uit het archief — allerlei volgorde, hoofdletters, prefix/suffix.
+  const titels = [
+    '9 BALL SUNDAY 19:30 €5 ENTRY',
+    '9 ball sunday 19:00 €10 entry',
+    '9 ball sunday 19:30 €5 entry',
+    '9 ball sunday',
+    'High stakes 9 ball sunday 19:30 €20 entry (16 players max)',
+    'MOKUM 9 BALL SUNDAY 19:00',
+    'MOKUM 9 BALL SUNDAY 19:30',
+    'Mokum 9-ball sunday',
+    'Mokum Sunday 9-ball', // omgekeerde volgorde
+  ];
+  for (const t of titels) assert.strictEqual(templateVoorToernooi(t), '9-ball-sunday', t);
+  // "Very last minute 9 ball" heeft geen "sunday" → blijft bij zijn eigen template.
+  assert.strictEqual(templateVoorToernooi('Tafel 1 Very last minute 9 ball'), 'last-minute-9ball');
+});
+
 test('templateVoorToernooi: onbekend toernooi → null (canvas-fallback)', () => {
   assert.strictEqual(templateVoorToernooi('Willekeurig Open Toernooi #1'), null);
   assert.strictEqual(templateVoorToernooi(''), null);

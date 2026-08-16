@@ -60,6 +60,10 @@ function templateVoorToernooi(naam) {
   if (/14[.\-\s]?1(?!\d)/.test(n) && /(summer|league)/.test(n)) return '14-1-summer-league';
   if (n.includes('fluke')) return 'fluke-ranking';
   if (n.includes('last minute') || n.includes('last-minute')) return 'last-minute-9ball';
+  // 9-ball Sunday (#95): in de praktijk in minstens negen schrijfwijzen, met/zonder "Mokum",
+  // "High stakes" ervoor, entreeprijs erachter, en "Sunday 9-ball" in omgekeerde volgorde.
+  // Daarom op de twee kernwoorden los van elkaar, niet op een vaste combinatie.
+  if (/9[.\-\s]?ball/.test(n) && n.includes('sunday')) return '9-ball-sunday';
   if (n.includes('speedy') || n.includes('multiball') || n.includes('multi ball') || n.includes('multi-ball')) return 'speedy-multi-ball';
   if (n.includes('handicap')) return 'handicap-madness';
   if (n.includes('blind')) return 'blind-double';
@@ -80,6 +84,7 @@ function templateVoorToernooi(naam) {
 const TEMPLATE_TEKST = {
   'fluke-ranking':             { titel: 'Fluke Ranking' },
   'last-minute-9ball':         { titel: 'Last Minute 9-Ball' },
+  '9-ball-sunday':             { titel: '9-Ball Sunday' },
   'mega-summer-ranking':       { titel: 'MEGA Summer Ranking' },
   'mega-ranking-buffalo':      { titel: 'MEGA Ranking' },              // Buffalo staat al als logo in de template
   '8-10-ball-ranking':         { titel: '8 & 10ball Ranking' },
