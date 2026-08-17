@@ -6,6 +6,7 @@ const { enqueue } = require('../agent/commandQueue');
 const { stopReden, toernooiKlaar } = require('../planning/stop');
 const { kiesToernooiVoorTafel, anderToernooiNogOpTafel } = require('../planning/koppel');
 const { vrijTeMaken } = require('../planning/vrijmaken');
+const { inactiviteitsCheck } = require('../planning/inactiviteit');
 const { isArmed } = require('../config/automation');
 
 // Timer-Function: bewaakt lopende broadcasts en stopt ze automatisch wanneer het
@@ -22,6 +23,18 @@ const { isArmed } = require('../config/automation');
 // viel daardoor buiten de hele automatisering. We proberen 'm hier alsnog aan het
 // Cuescore-toernooi op die tafel te koppelen; daarna loopt de normale keten
 // (podium-grace → stop → finalize met thumbnail + hoofdstukken) gewoon door.
+//
+// Inactiviteits-vangnet (#100, #105): twee situaties waarin de normale toernooi-logica
+// een uitzending nooit vanzelf laat stoppen —
+//   - koppelen lukt niet (het is bijv. een challenge, geen toernooi) → blijft voor altijd
+//     ad-hoc. Vier vergeten streams van 8-11 uur op 09-08 kwamen hierdoor.
+//   - wél gekoppeld, maar Cuescore geeft voor dat toernooi-ID 0 wedstrijden terug. Op
+//     16-08 had Cuescore de wedstrijddata van hetzelfde toernooi op een ANDER ID staan —
+//     de gekoppelde ID bleef voor altijd leeg, dus `toernooiKlaar()` werd nooit `true`.
+// Beide gevallen vallen terug op `inactiviteitsCheck()`: is er op deze tafel, over ALLE
+// toernooien van vandaag heen (venueTables uit live-matches.json), al een uur niets meer
+// gebeurd? Zo ja, dan stoppen we alsnog. Dat is dezelfde tafelgebaseerde blik die op 16-08
+// de live-scores en het podium wél liet kloppen, terwijl de toernooi-specifieke logica vastliep.
 
 const CRON_ELKE_MIN = '0 * * * * *';
 // Hoelang het medaillescherm in beeld blijft vóór we sluiten. Ruim genoeg dat de
@@ -43,6 +56,10 @@ async function verwerk(now, context) {
     .filter((d, i, arr) => arr.findIndex((x) => x.pad === d.pad) === i);
   const planning = (await readJson('planning.json', [])) || [];
   const recById = new Map(planning.map((r) => [String(r.tournamentId), r]));
+  // Voor het inactiviteits-vangnet (#100, #105): dezelfde tafelbrede blik die het
+  // dashboard en het pauzescherm al gebruiken, niet gebonden aan één toernooi-ID.
+  const liveMatches = await readJson('live-matches.json', null);
+  const venueTables = (liveMatches && liveMatches.venueTables) || [];
 
   const teStoppen = [];
   const cache = new Map();
@@ -77,7 +94,24 @@ async function verwerk(now, context) {
       if (entry.adhoc || entry.tournamentId == null) {
         const lijst = await toernooienVanDag(ref);
         const gevonden = lijst && kiesToernooiVoorTafel(lijst, entry.tableNumber, ref);
-        if (!gevonden) continue;
+        if (!gevonden) {
+          // Koppelen lukt niet (bijv. een challenge — geen toernooi) → blijft ad-hoc.
+          // Vangnet #100: na een uur stilte op deze tafel toch stoppen, anders loopt
+          // zo'n stream door tot de nachtstop van 02:00.
+          const ic = inactiviteitsCheck(entry, venueTables, now);
+          if (ic.laatsteActiviteit !== entry.laatsteActiviteit) {
+            entry = { ...entry, laatsteActiviteit: ic.laatsteActiviteit };
+            store[key] = entry;
+            storeGewijzigd = true;
+          }
+          if (ic.moetStoppen) {
+            context.log(`[checkStops] tafel ${entry.tableNumber}: stoppen — losse uitzending, al een uur geen wedstrijd op deze tafel (#100)`);
+            teStoppen.push(entry.tableNumber);
+            store[key] = { ...entry, stopped: true };
+            storeGewijzigd = true;
+          }
+          continue;
+        }
         entry = {
           ...entry,
           tournamentId: gevonden.id,
@@ -117,7 +151,25 @@ async function verwerk(now, context) {
         context.log(`[checkStops] tafel ${entry.tableNumber}: toernooi klaar → podium-grace gestart.`);
       }
 
-      const reden = stopReden(entry, rec, tournament, now, { graceMs: STOP_GRACE_MS });
+      // Vangnet #105: het toernooi IS gekoppeld, maar Cuescore geeft voor dit ID 0
+      // wedstrijden terug (zoals op 16-08 — de wedstrijddata stond op een ander ID).
+      // toernooiKlaar() kan dan nooit true worden. Val terug op dezelfde tafelbrede
+      // inactiviteitscheck als #100, met hetzelfde uur als grens.
+      const toernooiIsLeeg = !!tournament && (tournament.matches || []).length === 0;
+      let inactiviteitReden = null;
+      if (toernooiIsLeeg) {
+        const ic = inactiviteitsCheck(entry, venueTables, now);
+        if (ic.laatsteActiviteit !== entry.laatsteActiviteit) {
+          entry = { ...entry, laatsteActiviteit: ic.laatsteActiviteit };
+          store[key] = entry;
+          storeGewijzigd = true;
+        }
+        if (ic.moetStoppen) {
+          inactiviteitReden = 'toernooidata bij Cuescore komt leeg terug en al een uur geen wedstrijd op deze tafel (#105)';
+        }
+      }
+
+      const reden = stopReden(entry, rec, tournament, now, { graceMs: STOP_GRACE_MS }) || inactiviteitReden;
       if (reden) {
         // Automatisch gekoppeld? Sluit de tafel pas als er vandaag écht niets meer op
         // staat — ook niet in een ánder toernooi (bijv. twee qualifiers op één avond).

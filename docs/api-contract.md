@@ -3,7 +3,7 @@
 Enige waarheid voor de koppelvlakken tussen frontend/widget, backend en (later) de
 agent. Wijzigen? Eerst dit bestand bijwerken (met datum + reden onderaan), dan code.
 
-Status: CONCEPT v0.53 — velden worden definitief in fase 2.
+Status: CONCEPT v0.54 — velden worden definitief in fase 2.
 
 ## Conventies
 - Alle velden camelCase. Tijden in ISO 8601 met tijdzone (Europe/Amsterdam
@@ -776,3 +776,17 @@ Regels:
   4. Container `pauze-posters` is **blob-niveau openbaar leesbaar** (akkoord Peter 09-08).
      Het opslagaccount heeft daarvoor `allowBlobPublicAccess: true` gekregen; de container
      `mokum-streams` met de interne JSON blijft privé — toegang is per container.
+- 2026-08-17: v0.54 — **inactiviteits-vangnet voor het stoppen van een uitzending (#100, #105)**.
+  Nieuw veld **`laatsteActiviteit`** (ISO-tijdstip) op een broadcast-entry: het laatste
+  moment dat er, over alle toernooien van vandaag heen, een wedstrijd `playing` stond op
+  deze tafel (bron: `venueTables` uit `live-matches.json`). Ontbreekt het veld nog (oude
+  entries, of nooit activiteit gezien), dan geldt `scheduledStart` als referentie.
+  `checkStops` gebruikt dit als vangnet in twee gevallen die anders nooit vanzelf stoppen:
+  1. Een **losse uitzending die niet aan een toernooi te koppelen is** (bijv. een
+     challenge). Vier vergeten streams van 8-11 uur op 09-08 kwamen hierdoor.
+  2. Een **wél gekoppelde uitzending waarvan Cuescore voor dat toernooi-ID 0 wedstrijden
+     teruggeeft.** Op 16-08 had Cuescore de wedstrijddata van het koppeltoernooi op een
+     ánder toernooi-ID staan dan waar wij aan gekoppeld waren — de gekoppelde ID bleef de
+     hele avond leeg, dus de gewone toernooi-klaar-detectie werd nooit `true`.
+  Grens: **een uur** onafgebroken stilte op de tafel (besluit Peter, 09-08), instelbaar via
+  `inactiviteitsCheck()`'s `grensMs`-parameter. Puur/getest in `planning/inactiviteit.js`.
