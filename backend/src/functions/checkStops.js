@@ -93,7 +93,9 @@ async function verwerk(now, context) {
       // niet (niets gevonden of te onzeker), dan blijft de stream handmatig.
       if (entry.adhoc || entry.tournamentId == null) {
         const lijst = await toernooienVanDag(ref);
-        const gevonden = lijst && kiesToernooiVoorTafel(lijst, entry.tableNumber, ref);
+        const gevonden = lijst && kiesToernooiVoorTafel(lijst, entry.tableNumber, ref, {
+          streamType: entry.streamType, titel: entry.title,
+        });
         if (!gevonden) {
           // Koppelen lukt niet (bijv. een challenge — geen toernooi) → blijft ad-hoc.
           // Vangnet #100: na een uur stilte op deze tafel toch stoppen, anders loopt
