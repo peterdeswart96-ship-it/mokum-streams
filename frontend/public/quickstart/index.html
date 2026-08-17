@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quickstart — de websites van Mokum</title>
+<link rel="icon" href="/mokum-logo.png">
+<link rel="apple-touch-icon" href="/mokum-logo.png">
+<meta name="robots" content="noindex">
+<style>
+  /* Printen is het doel: witte achtergrond, zwarte tekst, rood alleen als accent.
+     Een donker vel zoals de rest van onze pagina's zou een halve toner-cartridge kosten
+     en op papier grauw worden. */
+  @page { size: A4 portrait; margin: 14mm; }
+
+  :root {
+    --rood: #cc0000;
+    --grijs: #666;
+    --lijn: #ddd;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: #e9e9e9; color: #111;
+    font-family: Arial, Helvetica, sans-serif; line-height: 1.5;
+  }
+
+  /* Eén .vel = één A4. Op het scherm een kaart, bij het printen een pagina. */
+  .vel {
+    background: #fff; width: 210mm; min-height: 297mm; margin: 24px auto;
+    padding: 18mm 16mm; box-shadow: 0 2px 16px rgba(0,0,0,.18);
+    display: flex; flex-direction: column;
+  }
+
+  .merk { font-family: "Arial Black", Arial, sans-serif; font-size: 15pt; letter-spacing: .5px; }
+  .merk .m { color: var(--rood); }
+  .kop { display: flex; align-items: baseline; justify-content: space-between; border-bottom: 3px solid var(--rood); padding-bottom: 8px; }
+  .kop .nr { color: var(--grijs); font-size: 10pt; }
+
+  h1 { font-family: "Arial Black", Arial, sans-serif; font-size: 30pt; margin: 22px 0 4px; line-height: 1.1; }
+  .onderkop { font-size: 13pt; color: #333; margin: 0 0 6px; }
+
+  .midden { display: flex; gap: 14mm; align-items: flex-start; margin: 16px 0 6px; }
+  .qrblok { text-align: center; flex: 0 0 62mm; }
+  .qrblok img { width: 62mm; height: 62mm; display: block; }
+  .qrblok .scan { font-size: 10pt; color: var(--grijs); margin-top: 6px; }
+  .stappen { flex: 1; margin: 0; padding: 0; list-style: none; counter-reset: s; }
+  .stappen li { counter-increment: s; position: relative; padding-left: 34px; margin-bottom: 14px; font-size: 12.5pt; }
+  .stappen li::before {
+    content: counter(s); position: absolute; left: 0; top: 1px;
+    width: 24px; height: 24px; border-radius: 50%; background: var(--rood); color: #fff;
+    font-family: "Arial Black", Arial, sans-serif; font-size: 11pt; line-height: 24px; text-align: center;
+  }
+
+  .adres {
+    font-family: Consolas, "Courier New", monospace; font-size: 11pt;
+    background: #f4f4f4; border: 1px solid var(--lijn); border-radius: 6px;
+    padding: 8px 12px; display: inline-block; margin-top: 4px;
+  }
+
+  h2 { font-size: 13pt; margin: 20px 0 8px; padding-top: 12px; border-top: 1px solid var(--lijn); }
+  .vragen { margin: 0; padding: 0; list-style: none; }
+  .vragen li { margin-bottom: 10px; font-size: 11.5pt; }
+  .vragen .v { font-weight: bold; }
+  .vragen .a { color: #333; }
+
+  .let-op {
+    border-left: 4px solid var(--rood); background: #fff5f5;
+    padding: 10px 14px; margin: 14px 0; font-size: 11pt;
+  }
+
+  .voet {
+    margin-top: auto; padding-top: 12px; border-top: 1px solid var(--lijn);
+    font-size: 9.5pt; color: var(--grijs); display: flex; justify-content: space-between; gap: 10mm;
+  }
+
+  /* Telefoon-vel */
+  .twee { display: flex; gap: 12mm; margin-top: 10px; }
+  .kolom { flex: 1; }
+  .kolom h3 { font-family: "Arial Black", Arial, sans-serif; font-size: 14pt; margin: 0 0 10px; }
+  .kolom ol { margin: 0; padding-left: 20px; font-size: 11.5pt; }
+  .kolom li { margin-bottom: 9px; }
+  .toets { background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px; padding: 1px 7px; font-size: 10.5pt; white-space: nowrap; }
+
+  /* Alleen op het scherm */
+  .balk {
+    position: sticky; top: 0; z-index: 5; background: #1a1a1a; color: #ddd;
+    padding: 10px 16px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  .balk button {
+    background: var(--rood); border: 0; color: #fff; border-radius: 8px;
+    padding: 9px 16px; font: inherit; font-size: 14px; cursor: pointer;
+  }
+  .balk .tip { font-size: 13px; color: #999; }
+
+  @media print {
+    body { background: #fff; }
+    .balk { display: none; }
+    .vel {
+      width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none;
+      break-after: page; page-break-after: always;
+    }
+    .vel:last-of-type { break-after: auto; page-break-after: auto; }
+    /* Zonder dit drukt de browser de rode balken en vlakken niet af. */
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+
+  /* Op een telefoon is een vel van 210mm breder dan het scherm. */
+  @media screen and (max-width: 820px) {
+    .vel { width: auto; min-height: 0; margin: 12px; padding: 20px 18px; }
+    .midden { flex-direction: column; gap: 18px; align-items: center; }
+    .qrblok { flex: none; }
+    .qrblok img { width: 55mm; height: 55mm; }
+    .twee { flex-direction: column; gap: 22px; }
+    h1 { font-size: 24pt; }
+  }
+</style>
+</head>
+<body>
+
+<div class="balk">
+  <span class="merk"><span class="m">Mokum</span> — quickstart</span>
+  <button onclick="window.print()">Printen (4 vellen A4)</button>
+  <span class="tip">Print op ware grootte, niet "passend maken" — anders wordt de QR-code te klein.</span>
+</div>
+
+<!-- ───────────────────────── 1. MOKUM LIVE ───────────────────────── -->
+<section class="vel">
+  <div class="kop">
+    <span class="merk"><span class="m">Mokum</span> Pool &amp; Darts</span>
+    <span class="nr">1 van 4</span>
+  </div>
+
+  <h1>Mokum Live</h1>
+  <p class="onderkop">Alle scores in de zaal, en de wedstrijden die nu worden uitgezonden.</p>
+
+  <div class="midden">
+    <div class="qrblok">
+      <img src="qr/mokumlive.svg" alt="QR-code naar Mokum Live">
+      <div class="scan">Richt je camera hierop</div>
+    </div>
+    <ol class="stappen">
+      <li>Open de camera van je telefoon en houd hem voor de code. Er verschijnt een balkje — tik daarop.</li>
+      <li>Je ziet meteen alle tafels met de stand van dat moment.</li>
+      <li>Staat er een <strong>📺</strong> bij een tafel? Dan is die live. Tik erop om mee te kijken.</li>
+    </ol>
+  </div>
+
+  <span class="adres">mokum-streams.pdscloud.nl/mokumlive</span>
+
+  <h2>Waar gasten naar vragen</h2>
+  <ul class="vragen">
+    <li><span class="v">"Hoe staat het bij tafel 3?"</span><br>
+      <span class="a">Sta de gast toe zelf te kijken — de stand ververst vanzelf, je hoeft niets te doen.</span></li>
+    <li><span class="v">"Kan ik dit thuis volgen?"</span><br>
+      <span class="a">Ja. Dezelfde pagina werkt overal, en de livestreams zijn vrij te bekijken.</span></li>
+    <li><span class="v">"Waarom staat mijn tafel er niet bij?"</span><br>
+      <span class="a">Alleen wedstrijden die in Cuescore staan verschijnen hier. Een vrij potje dus niet.</span></li>
+    <li><span class="v">"Wordt er op mijn tafel gefilmd?"</span><br>
+      <span class="a">Er hangen camera's boven tafel <strong>1, 3, 15 en 16</strong>. Op de andere tafels niet.</span></li>
+  </ul>
+
+  <div class="let-op">
+    <strong>Tip voor jezelf:</strong> zet deze pagina op het startscherm van je telefoon, dan open je hem
+    met één tik en ziet hij eruit als een app. Hoe dat moet staat op vel&nbsp;4.
+  </div>
+
+  <div class="voet">
+    <span>Mokum Pool &amp; Darts · Vragen? Nick of Mark</span>
+    <span>Vel 1 — Mokum Live</span>
+  </div>
+</section>
+
+<!-- ───────────────────────── 2. ARCHIEF ───────────────────────── -->
+<section class="vel">
+  <div class="kop">
+    <span class="merk"><span class="m">Mokum</span> Pool &amp; Darts</span>
+    <span class="nr">2 van 4</span>
+  </div>
+
+  <h1>Mokum Archief</h1>
+  <p class="onderkop">Een gespeelde partij terugkijken, zonder de hele avond door te spoelen.</p>
+
+  <div class="midden">
+    <div class="qrblok">
+      <img src="qr/archief.svg" alt="QR-code naar het Mokum Archief">
+      <div class="scan">Richt je camera hierop</div>
+    </div>
+    <ol class="stappen">
+      <li>Scan de code en typ een naam in het zoekveld — bijvoorbeeld die van jezelf.</li>
+      <li>Je krijgt alle partijen van die speler te zien, met datum en tegenstander.</li>
+      <li>Tik op een partij. De video begint precies op het moment dat die partij startte.</li>
+    </ol>
+  </div>
+
+  <span class="adres">mokum-streams.pdscloud.nl/archief</span>
+
+  <h2>Waar gasten naar vragen</h2>
+  <ul class="vragen">
+    <li><span class="v">"Kan ik mijn partij van vorige week terugzien?"</span><br>
+      <span class="a">Ja, zoek op je naam. Je springt direct naar het juiste moment in de uitzending.</span></li>
+    <li><span class="v">"Kan ik dat filmpje delen?"</span><br>
+      <span class="a">Ja — het is een gewone YouTube-link, die kun je doorsturen of op social zetten.</span></li>
+    <li><span class="v">"Mijn partij staat er niet bij."</span><br>
+      <span class="a">Dan is die tafel niet uitgezonden, of stond de wedstrijd niet in Cuescore.
+      Alleen wat gefilmd is en in Cuescore stond, staat in het archief.</span></li>
+    <li><span class="v">"Kan die video weg?"</span><br>
+      <span class="a">Kan zeker. Vraag het aan Nick of Mark, zij regelen het.</span></li>
+  </ul>
+
+  <div class="voet">
+    <span>Mokum Pool &amp; Darts · Vragen? Nick of Mark</span>
+    <span>Vel 2 — Mokum Archief</span>
+  </div>
+</section>
+
+<!-- ───────────────────────── 3. CHALLENGE ───────────────────────── -->
+<section class="vel">
+  <div class="kop">
+    <span class="merk"><span class="m">Mokum</span> Pool &amp; Darts</span>
+    <span class="nr">3 van 4</span>
+  </div>
+
+  <h1>Mokum Challenge</h1>
+  <p class="onderkop">Zelf een challenge-partij aanmaken, zonder dat wij erbij hoeven te komen.</p>
+
+  <div class="midden">
+    <div class="qrblok">
+      <img src="qr/challenge.svg" alt="QR-code naar Mokum Challenge">
+      <div class="scan">Richt je camera hierop</div>
+    </div>
+    <ol class="stappen">
+      <li>Scan de code en log in met je <strong>eigen Cuescore-account</strong> — dezelfde als waarmee je aan toernooien meedoet.</li>
+      <li>Kies je tegenstander, de spelsoort en tot hoeveel je speelt.</li>
+      <li>Klaar: de partij staat in Cuescore en de scores komen vanzelf op Mokum Live.</li>
+    </ol>
+  </div>
+
+  <span class="adres">mokum-streams.pdscloud.nl/challenge.html</span>
+
+  <h2>Waar gasten naar vragen</h2>
+  <ul class="vragen">
+    <li><span class="v">"Ik heb geen Cuescore-account."</span><br>
+      <span class="a">Dat is gratis aan te maken op cuescore.com. Zonder account kan dit niet.</span></li>
+    <li><span class="v">"Moet ik mijn wachtwoord invullen?"</span><br>
+      <span class="a">Ja — Cuescore biedt geen andere manier om namens jou een partij aan te maken.
+      Het wordt versleuteld bewaard zodat je het niet elke keer hoeft in te typen.
+      Wil iemand dat niet, dan maakt Nick of Mark de partij handmatig aan.</span></li>
+    <li><span class="v">"Wordt mijn challenge uitgezonden?"</span><br>
+      <span class="a">Alleen als je op tafel 1, 3, 15 of 16 speelt én iemand de stream start. Vraag het even.</span></li>
+  </ul>
+
+  <div class="let-op">
+    <strong>Voor het personeel:</strong> deze pagina is voor leden. Er zit geen extra code op,
+    dus deel de link niet breder dan de zaal.
+  </div>
+
+  <div class="voet">
+    <span>Mokum Pool &amp; Darts · Vragen? Nick of Mark</span>
+    <span>Vel 3 — Mokum Challenge</span>
+  </div>
+</section>
+
+<!-- ───────────────────────── 4. OP JE TELEFOON ───────────────────────── -->
+<section class="vel">
+  <div class="kop">
+    <span class="merk"><span class="m">Mokum</span> Pool &amp; Darts</span>
+    <span class="nr">4 van 4</span>
+  </div>
+
+  <h1>Op je telefoon zetten</h1>
+  <p class="onderkop">Eén tik op je startscherm in plaats van elke keer zoeken. Duurt een halve minuut.</p>
+
+  <div class="midden">
+    <div class="qrblok">
+      <img src="qr/quickstart.svg" alt="QR-code naar deze uitleg">
+      <div class="scan">Deze uitleg op je eigen scherm</div>
+    </div>
+    <div>
+      <p style="font-size:12pt;margin-top:0">
+        Het werkt voor alle drie de pagina's. Begin met de pagina die je wilt toevoegen —
+        scan hem van vel 1, 2 of 3 — en volg dan de stappen hiernaast voor jouw telefoon.
+      </p>
+      <p style="font-size:12pt">
+        <strong>Mokum Live</strong> is het handigst om toe te voegen: die opent daarna
+        zonder adresbalk, net als een echte app.
+      </p>
+    </div>
+  </div>
+
+  <div class="twee">
+    <div class="kolom">
+      <h3>iPhone</h3>
+      <ol>
+        <li>Open de pagina in <strong>Safari</strong>. Dit werkt niet in Chrome op een iPhone.</li>
+        <li>Tik onderin op het <span class="toets">deel-icoon</span> — het vierkantje met het pijltje omhoog.</li>
+        <li>Scrol in de lijst naar beneden tot <span class="toets">Zet op beginscherm</span>.</li>
+        <li>Tik rechtsboven op <span class="toets">Voeg toe</span>.</li>
+      </ol>
+    </div>
+    <div class="kolom">
+      <h3>Android</h3>
+      <ol>
+        <li>Open de pagina in <strong>Chrome</strong>.</li>
+        <li>Tik rechtsboven op de <span class="toets">drie puntjes</span>.</li>
+        <li>Kies <span class="toets">Toevoegen aan startscherm</span>.</li>
+        <li>Tik op <span class="toets">Toevoegen</span> en daarna nog een keer om te bevestigen.</li>
+      </ol>
+    </div>
+  </div>
+
+  <h2>Als het niet lukt</h2>
+  <ul class="vragen">
+    <li><span class="v">Ik zie "Zet op beginscherm" niet staan.</span><br>
+      <span class="a">Je zit waarschijnlijk niet in Safari. Kopieer het adres en plak het in Safari.</span></li>
+    <li><span class="v">De camera herkent de code niet.</span><br>
+      <span class="a">Houd hem verder weg — vaak scan je te dichtbij. Anders typ je het adres over,
+      dat staat op elk vel onder de code.</span></li>
+    <li><span class="v">Het icoontje is een grijs vierkantje.</span><br>
+      <span class="a">Verwijder hem en voeg hem opnieuw toe; hij haalt het Mokum-logo dan alsnog op.</span></li>
+  </ul>
+
+  <div class="voet">
+    <span>Mokum Pool &amp; Darts · Vragen? Nick of Mark</span>
+    <span>Vel 4 — Op je telefoon zetten</span>
+  </div>
+</section>
+
+</body>
+</html>
