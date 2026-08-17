@@ -61,3 +61,48 @@ test('anderToernooiNogOpTafel: ander toernooi met openstaande wedstrijd houdt de
   const elders = [toernooi(3, 'Ander', [m(16, '2026-07-22T20:00:00Z', 'scheduled')])];
   assert.strictEqual(anderToernooiNogOpTafel(elders, 2, 1, NU), false);
 });
+
+// ── #103 (16-08): nooit een challenge koppelen, en de ingetypte titel meewegen ──────
+
+test('#103: een challenge wordt NOOIT gekoppeld, ook niet bij precies één kandidaat', () => {
+  const lijst = [toernooi(1, 'Very Last minute 9ball', [m(16, '2026-08-16T18:00:00Z', 'playing')])];
+  const ctx = { streamType: 'challenge', titel: 'Tafel 16 Challenge match Leon vs Dev' };
+  assert.strictEqual(kiesToernooiVoorTafel(lijst, 16, NU, ctx), null);
+});
+
+test('#103: het echte incident — enige kandidaat deelt geen woord met de ingetypte titel → niet koppelen', () => {
+  // 15-08-2026: tafel 1 & 3 kregen "Mokum 8 & 10ball Ranking" terwijl de titel duidelijk
+  // over iets anders ging. Op dat moment was het toevallig de ENIGE kandidaat.
+  const lijst = [toernooi(1, 'Mokum 8 & 10ball Ranking  (10ball) #23', [m(1, '2026-07-22T15:00:00Z', 'finished')])];
+  const ctx = { titel: 'Tafel 1 Very last minute 9 ball' };
+  assert.strictEqual(kiesToernooiVoorTafel(lijst, 1, NU, ctx), null);
+});
+
+test('#103: dezelfde titel koppelt WEL zodra het juiste toernooi als kandidaat verschijnt', () => {
+  const lijst = [toernooi(2, 'Very Last minute 9ball', [m(1, '2026-07-22T18:00:00Z', 'playing')])];
+  const ctx = { titel: 'Tafel 1 Very last minute 9 ball' };
+  assert.strictEqual(kiesToernooiVoorTafel(lijst, 1, NU, ctx).id, 2);
+});
+
+test('#103: geen (bruikbare) titel ingetypt → oude gedrag blijft, één kandidaat koppelt gewoon', () => {
+  const lijst = [toernooi(2, 'MEGA Summer #24', [m(1, '2026-07-22T18:30:00Z', 'finished')])];
+  assert.strictEqual(kiesToernooiVoorTafel(lijst, 1, NU, {}).id, 2);
+  assert.strictEqual(kiesToernooiVoorTafel(lijst, 1, NU, { titel: 'Tafel 1' }).id, 2); // alleen het tafelnummer, geen echte titel
+  assert.strictEqual(kiesToernooiVoorTafel(lijst, 1, NU, { titel: '' }).id, 2);
+});
+
+test('#103: meerdere kandidaten + titel wijst er eenduidig één aan → koppelen', () => {
+  const lijst = [
+    toernooi(1, 'Fluke ranking 9ball #23', [m(1, '2026-07-22T18:00:00Z', 'playing')]),
+    toernooi(2, 'Handicap Madness', [m(1, '2026-07-22T18:00:00Z', 'playing')]),
+  ];
+  assert.strictEqual(kiesToernooiVoorTafel(lijst, 1, NU, { titel: 'Tafel 1 Handicap Madness' }).id, 2);
+});
+
+test('#103: meerdere kandidaten + titel matcht geen van beide even goed → nog steeds niet koppelen', () => {
+  const lijst = [
+    toernooi(1, 'Fluke ranking 9ball #23', [m(1, '2026-07-22T18:00:00Z', 'playing')]),
+    toernooi(2, 'Handicap Madness', [m(1, '2026-07-22T18:00:00Z', 'playing')]),
+  ];
+  assert.strictEqual(kiesToernooiVoorTafel(lijst, 1, NU, { titel: 'Tafel 1 Toernooi vanavond' }), null);
+});
