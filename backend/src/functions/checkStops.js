@@ -7,6 +7,7 @@ const { stopReden, toernooiKlaar } = require('../planning/stop');
 const { kiesToernooiVoorTafel, anderToernooiNogOpTafel } = require('../planning/koppel');
 const { vrijTeMaken } = require('../planning/vrijmaken');
 const { inactiviteitsCheck } = require('../planning/inactiviteit');
+const { challengeMoetStoppen } = require('../planning/challengeLimiet');
 const { isArmed } = require('../config/automation');
 
 // Timer-Function: bewaakt lopende broadcasts en stopt ze automatisch wanneer het
@@ -35,6 +36,13 @@ const { isArmed } = require('../config/automation');
 // toernooien van vandaag heen (venueTables uit live-matches.json), al een uur niets meer
 // gebeurd? Zo ja, dan stoppen we alsnog. Dat is dezelfde tafelgebaseerde blik die op 16-08
 // de live-scores en het podium wél liet kloppen, terwijl de toernooi-specifieke logica vastliep.
+//
+// Challenge-tijdslimiet (besluit Peter i.o.m. Nick, 18-08): een challenge-stream stopt
+// bovendien hoe dan ook na 2 uur, ONGEACHT of er nog gespeeld wordt — anders dan alle
+// regels hierboven, die een lopende partij juist nooit afkappen. Legt de verantwoordelijk-
+// heid bij de spelers: duurt de partij langer, dan vragen ze zelf om een nieuwe stream
+// (deel 2, 3...). De wizard waarschuwt hier bij het aanmaken al voor. Zie
+// `planning/challengeLimiet.js`.
 
 const CRON_ELKE_MIN = '0 * * * * *';
 // Hoelang het medaillescherm in beeld blijft vóór we sluiten. Ruim genoeg dat de
@@ -106,8 +114,14 @@ async function verwerk(now, context) {
             store[key] = entry;
             storeGewijzigd = true;
           }
-          if (ic.moetStoppen) {
-            context.log(`[checkStops] tafel ${entry.tableNumber}: stoppen — losse uitzending, al een uur geen wedstrijd op deze tafel (#100)`);
+          // Challenge-tijdslimiet: na 2 uur sowieso stoppen, ook als er nog gespeeld
+          // wordt (besluit Peter i.o.m. Nick, 18-08 — zie planning/challengeLimiet.js).
+          const limietBereikt = challengeMoetStoppen(entry, now);
+          if (ic.moetStoppen || limietBereikt) {
+            const reden = limietBereikt
+              ? 'challenge: 2 uur-tijdslimiet bereikt'
+              : 'losse uitzending, al een uur geen wedstrijd op deze tafel (#100)';
+            context.log(`[checkStops] tafel ${entry.tableNumber}: stoppen — ${reden}`);
             teStoppen.push(entry.tableNumber);
             store[key] = { ...entry, stopped: true };
             storeGewijzigd = true;

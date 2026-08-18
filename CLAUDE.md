@@ -53,6 +53,7 @@ dat zijn losse partijen die je per stuk handmatig start, wél gekoppeld aan de l
 - Video-id's komen uit eigen backend; kanaal-embed alleen als fallback
 - Handmatige controle + noodstop gewenst → dashboardknoppen + **Stream Deck** (budget akkoord)
 - Remote beheer OBS-pc: **Tailscale** (veilige netwerklaag, geen poorten open) + RustDesk/Chrome Remote Desktop voor het scherm. NB: klassieke Windows-RDP vergrendelt de console-sessie en kan OBS-capture/NVENC verstoren — kies een tool die de console spiegelt.
+- **Challenge-streams stoppen hard na 2 uur** (besluit Peter i.o.m. Nick, 18-08), ongeacht of de partij nog bezig is — legt de verantwoordelijkheid bij de spelers om zelf een nieuwe stream (deel 2, 3...) te vragen als het langer duurt. De wizard waarschuwt hier bij het aanmaken al voor. Zie `backend/src/planning/challengeLimiet.js`.
 
 ## Openstaand (na intake 2026-07-08)
 - ~~Kanaalverificatie + livestreamen~~ ✅ bevestigd (2026-07-08): Feature eligibility niveau 1/2/3 allemaal "Enabled" — livestreamen mag, geen wachttijd. "Insluiten toestaan" per broadcast programmatisch zetten bij #9.

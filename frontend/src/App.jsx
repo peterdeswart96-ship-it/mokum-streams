@@ -674,6 +674,11 @@ function Wizard({ onClose, onStarted, tables = [] }) {
                 <p className="text-xs text-ink-muted mt-2">
                   Maak de challenge eerst aan in Cuescore (scorebord → Aanmaken), dan werkt het scorebord op de stream.
                 </p>
+                <p className="text-xs mt-2 rounded border px-3 py-2" style={{ borderColor: '#a16207', background: '#a1620722', color: '#fcd34d' }}>
+                  <strong>Stopt automatisch na 2 uur</strong> — ook als de partij nog bezig is. Geef dit
+                  door aan de spelers: duurt het langer, dan moet er een nieuwe stream (deel 2, 3...)
+                  gestart worden.
+                </p>
               </>
             )}
 
