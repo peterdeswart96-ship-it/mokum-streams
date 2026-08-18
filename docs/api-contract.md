@@ -3,7 +3,7 @@
 Enige waarheid voor de koppelvlakken tussen frontend/widget, backend en (later) de
 agent. Wijzigen? Eerst dit bestand bijwerken (met datum + reden onderaan), dan code.
 
-Status: CONCEPT v0.54 — velden worden definitief in fase 2.
+Status: CONCEPT v0.55 — velden worden definitief in fase 2.
 
 ## Conventies
 - Alle velden camelCase. Tijden in ISO 8601 met tijdzone (Europe/Amsterdam
@@ -790,3 +790,20 @@ Regels:
      hele avond leeg, dus de gewone toernooi-klaar-detectie werd nooit `true`.
   Grens: **een uur** onafgebroken stilte op de tafel (besluit Peter, 09-08), instelbaar via
   `inactiviteitsCheck()`'s `grensMs`-parameter. Puur/getest in `planning/inactiviteit.js`.
+- 2026-08-18: v0.55 — **podium per cameratafel i.p.v. zaalbreed** (#104). Het bestaande
+  `podium`-veld (v0.33) is zaalbreed: zodra ergens in de zaal nog een cameratafel speelt,
+  blijft het podium OVERAL weg, ook op een tafel waar de eigen finale al lang klaar is. Kwam
+  aan het licht op 16-08 (koppeltoernooi-finale klaar op tafel 1, tafel 15 speelde nog een
+  ander toernooi → geen medaillescherm op tafel 1).
+  Nieuw veld **`podiumPerTafel`** op `GET /api/live` (en op `live-matches.json`):
+  `{ "1": { tournamentName, podium: [...] } | null, "3": ..., "15": ..., "16": ... }` — per
+  cameratafel dezelfde vorm als het bestaande `podium`-veld, maar nu bepaald op basis van
+  ALLEEN de tafels waar dát toernooi zelf op gespeeld werd (`podiumPerTafel()` in
+  `planning/podium.js`). Het oude `podium`-veld blijft ongewijzigd bestaan (backward-
+  compatible; geen risico voor een lopende uitzending bij deze deploy).
+  **Activering is een aparte, latere stap:** de jumbotron-pagina
+  (`frontend/public/pauze/slides/02-jumbotron.html`) gebruikt `podiumPerTafel` pas als de
+  OBS-browserbron van die tafel `?tafel=N` in de URL heeft staan (bijv.
+  `...02-jumbotron.html?tafel=1`); zonder die parameter blijft het oude gedeelde `podium`-
+  gedrag gelden. Bewust zo gebouwd — de vier OBS-instanties tegelijk aanpassen terwijl er
+  wordt uitgezonden is te riskant (#104), dus dat doet Peter op een rustig moment per tafel.

@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { podiumVan, podiumVoorZaal, winnaarVerliezer } = require('../src/planning/podium');
+const { podiumVan, podiumVoorZaal, podiumPerTafel, winnaarVerliezer } = require('../src/planning/podium');
 
 // Helper: bouwt een genormaliseerde wedstrijd zoals normalizeMatch die oplevert.
 function match(round, status, a, sa, b, sb) {
@@ -87,4 +87,53 @@ test('podiumVoorZaal: geen cameratafel bezig maar geen finale gespeeld → null'
   const t = { name: 'A', matches: [opTafel(match('Semi final', 'finished', 'Anna', 4, 'Bob', 1), 1)] };
   assert.strictEqual(podiumVoorZaal([t], CAMS), null);
   assert.strictEqual(podiumVoorZaal([], CAMS), null);
+});
+
+// #104: reconstructie van het incident van 16-08 — koppeltoernooi-finale klaar op tafel 1,
+// terwijl er op tafel 15 nog een wedstrijd van een ANDER toernooi loopt. podiumVoorZaal()
+// blokkeert dan zaalbreed; podiumPerTafel() moet tafel 1 gewoon zijn podium geven.
+test('podiumPerTafel: twee toernooien tegelijk op camera, één klaar één niet → alleen de klare tafel toont zijn podium', () => {
+  const koppel = { name: 'Koppeltoernooi', matches: [opTafel(match('Final', 'finished', 'Anna', 5, 'Bob', 2), 1)] };
+  const ander = { name: 'Ander toernooi', matches: [opTafel(match('Round 3', 'playing', 'X', 1, 'Y', 0), 15)] };
+  const uit = podiumPerTafel([koppel, ander], CAMS);
+  assert.strictEqual(uit[1].tournamentName, 'Koppeltoernooi');
+  assert.strictEqual(uit[1].podium[0].speler.name, 'Anna');
+  assert.strictEqual(uit[3], null);   // niet bij dit toernooi betrokken
+  assert.strictEqual(uit[15], null);  // eigen toernooi speelt nog
+  assert.strictEqual(uit[16], null);
+});
+
+test('podiumPerTafel: een koppeltoernooi op tafel 1&3 toont zijn podium op BEIDE tafels', () => {
+  const koppel = {
+    name: 'Koppeltoernooi',
+    matches: [
+      opTafel(match('Final', 'finished', 'Anna', 5, 'Bob', 2), 1),
+      opTafel(match('Final', 'finished', 'Anna', 5, 'Bob', 2), 3),
+    ],
+  };
+  const uit = podiumPerTafel([koppel], CAMS);
+  assert.strictEqual(uit[1].tournamentName, 'Koppeltoernooi');
+  assert.strictEqual(uit[3].tournamentName, 'Koppeltoernooi');
+  assert.strictEqual(uit[15], null);
+});
+
+test('podiumPerTafel: nog een wedstrijd op EIGEN tafel → geen podium op die tafel, andere tafels blijven ongemoeid', () => {
+  const bezig = { name: 'Bezig', matches: [opTafel(match('Round 1', 'playing', 'X', 1, 'Y', 0), 1)] };
+  const klaar = { name: 'Klaar', matches: [opTafel(match('Final', 'finished', 'Anna', 5, 'Bob', 2), 3)] };
+  const uit = podiumPerTafel([bezig, klaar], CAMS);
+  assert.strictEqual(uit[1], null);
+  assert.strictEqual(uit[3].tournamentName, 'Klaar');
+});
+
+test('podiumPerTafel: latere toernooi op dezelfde tafel wint (zelfde tafel, andere tijdstippen)', () => {
+  const middag = { name: 'Middagtoernooi', matches: [opTafel(match('Final', 'finished', 'Anna', 5, 'Bob', 2), 1)] };
+  const avond = { name: 'Avondtoernooi', matches: [opTafel(match('Round 1', 'playing', 'X', 1, 'Y', 0), 1)] };
+  const uit = podiumPerTafel([middag, avond], CAMS);
+  assert.strictEqual(uit[1], null); // avondtoernooi speelt nog op diezelfde tafel → overschrijft
+});
+
+test('podiumPerTafel: toernooi zonder cameratafel-wedstrijd raakt geen enkele tafel', () => {
+  const t = { name: 'A', matches: [opTafel(match('Final', 'finished', 'Anna', 5, 'Bob', 3), 8)] };
+  const uit = podiumPerTafel([t], CAMS);
+  assert.deepStrictEqual(uit, { 1: null, 3: null, 15: null, 16: null });
 });

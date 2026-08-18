@@ -2,7 +2,7 @@ const { app } = require('@azure/functions');
 const { readJson, writeJsonAlsGewijzigd } = require('../storage/blob');
 const { getTodaysTournaments } = require('../cuescore');
 const { bouwLiveMatches, telZaalLive, bouwZaalRaster } = require('../planning/pauze');
-const { podiumVoorZaal } = require('../planning/podium');
+const { podiumVoorZaal, podiumPerTafel } = require('../planning/podium');
 
 // Timer-Function: haalt periodiek de live wedstrijd-status per cameratafel op uit
 // Cuescore en schrijft die naar live-matches.json. Puur lees-werk (geen streams/
@@ -32,14 +32,22 @@ async function verwerk(now, context) {
   const venueTables = bouwZaalRaster(tournaments, now);
   // podium = medaillescherm van een net-afgerond toernooi (winnaar-moment #54); kijkt
   // alleen naar de cameratafels. null zolang een cameratafel nog speelt of geen finale
-  // gespeeld is.
+  // gespeeld is. LET OP (#104): dit veld is zaalbreed — het blokkeert op ELKE cameratafel
+  // zodra er ergens in de zaal nog een cameratafel speelt, ook als dat een heel ander
+  // toernooi is. Blijft ongewijzigd staan voor de jumbotron-instanties die nog geen eigen
+  // tafelnummer meesturen (?tafel=N) — zie podiumPerTafel hieronder voor de juiste,
+  // per-tafel-versie.
   const podium = podiumVoorZaal(tournaments, cameras);
+  // podiumPerTafel: zelfde afleiding, maar per cameratafel — een tafel waarvan het EIGEN
+  // toernooi klaar is toont zijn podium, ongeacht wat er op een andere cameratafel speelt.
+  // Actief zodra de jumbotron-OBS-bron van die tafel `?tafel=N` in de URL heeft staan.
+  const podiumTafels = podiumPerTafel(tournaments, cameras);
   // `updatedAt` buiten de vergelijking, anders verschilt er per definitie elke ronde iets
   // en schrijven we alsnog elke minuut. Tussen twee wedstrijden in verandert er soms een
   // half uur niets — dan hoeft er ook niets naar de opslag (#101).
   const geschreven = await writeJsonAlsGewijzigd(
     'live-matches.json',
-    { updatedAt: now.toISOString(), matches, venueLive, venueTables, podium },
+    { updatedAt: now.toISOString(), matches, venueLive, venueTables, podium, podiumPerTafel: podiumTafels },
     { negeer: ['updatedAt'] },
   );
   const live = Object.values(matches).filter((m) => m && m.status === 'playing').length;

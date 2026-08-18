@@ -79,4 +79,36 @@ function podiumVoorZaal(tournaments, cameraTables) {
   return keuze;
 }
 
-module.exports = { podiumVan, podiumVoorZaal, winnaarVerliezer };
+// Kiest per CAMERATAFEL welk podium die tafel nu moet tonen (#104). podiumVoorZaal()
+// hierboven blokkeert het podium op ELKE cameratafel zodra er ÉÉN cameratafel nog speelt —
+// dat klopte toen er meestal maar één toernooi tegelijk op de cameratafels stond, maar een
+// avond met bijvoorbeeld een koppeltoernooi op tafel 1&3 én een los toernooi op 15&16 is
+// inmiddels normaal. Tafel 1 hoort dan gewoon zijn podium te tonen ook al speelt tafel 15
+// nog. Regels per tafel, in volgorde van de toernooienlijst (laatste wint):
+//   - Speelt er nog een wedstrijd van DIT toernooi op een van ZIJN EIGEN cameratafels?
+//     → die tafels tonen (nog) geen podium.
+//   - Anders, als dit toernooi een gespeelde finale heeft → zijn podium op zijn eigen tafels.
+// Toernooien die geen enkele cameratafel raken doen niet mee.
+function podiumPerTafel(tournaments, cameraTables) {
+  const lijst = tournaments || [];
+  const cams = (cameraTables || []).map(Number);
+  const opCamera = (m) => cams.includes(Number(m && m.table));
+  const speelt = (m) => String((m && m.status) || '').toLowerCase() === 'playing';
+
+  const resultaat = {};
+  for (const cam of cams) resultaat[cam] = null;
+
+  for (const t of lijst) {
+    const matches = (t && t.matches) || [];
+    const eigenTafels = [...new Set(matches.filter(opCamera).map((m) => Number(m.table)))];
+    if (!eigenTafels.length) continue; // dit toernooi raakt geen enkele cameratafel
+
+    const bezigOpEigenTafel = matches.some((m) => speelt(m) && eigenTafels.includes(Number(m.table)));
+    const p = bezigOpEigenTafel ? null : podiumVan(t);
+    const waarde = p ? { tournamentName: (t && t.name) || '', podium: p } : null;
+    for (const tafel of eigenTafels) resultaat[tafel] = waarde;
+  }
+  return resultaat;
+}
+
+module.exports = { podiumVan, podiumVoorZaal, podiumPerTafel, winnaarVerliezer };

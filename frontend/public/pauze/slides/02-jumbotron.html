@@ -485,8 +485,11 @@ async function ververs() {
       leegTeller += 1;
       if (leegTeller >= 2) liveTafels = [];
     }
-    // Podium (winnaar-moment): in demo-modus altijd de demo, anders wat de backend geeft.
-    updatePodium(DEMO ? demoPodium : (d.podium || null));
+    // Podium (winnaar-moment): in demo-modus altijd de demo. Anders, met een eigen
+    // tafelnummer (#104), het per-tafel podium van precies déze tafel; zonder tafelnummer
+    // (oude OBS-bronnen) het gedeelde zaalbrede podium, zoals voorheen.
+    const eigenPodium = MIJN_TAFEL && d.podiumPerTafel ? (d.podiumPerTafel[MIJN_TAFEL] || null) : (d.podium || null);
+    updatePodium(DEMO ? demoPodium : eigenPodium);
     tickerRegels = d.ticker;
   } catch (e) {
     /* netwerkfout → vorige beeld laten staan */
@@ -738,6 +741,10 @@ async function haalPosters() {
 // tot de clip klaar is. Een fase zonder inhoud wordt overgeslagen.
 // Instelbaar in OBS met ?scoresSec= / ?sheetSec= / ?posterSec= .
 const zoekSchema = new URLSearchParams(location.search);
+// #104: eigen tafelnummer, voor het per-tafel podium. Zonder ?tafel=N (huidige OBS-bronnen)
+// blijft het oude zaalbrede gedrag gelden — pas als de OBS-bron van deze tafel de parameter
+// erbij krijgt, gebruikt de pagina zijn eigen podium i.p.v. het gedeelde.
+const MIJN_TAFEL = Number(zoekSchema.get('tafel')) || null;
 const FASE_MS = {
   // 30s: met een kaart per 6 seconden komen zo vier à vijf tafels langs in één beurt.
   scores: (Number(zoekSchema.get('scoresSec')) || 30) * 1000,

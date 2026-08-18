@@ -55,7 +55,11 @@ app.http('publicLive', {
     // Mokum-tafelraster in het pauzescherm (#54). Leeg tot de liveMatches-timer draait.
     const venueTables = Array.isArray(liveMatches.venueTables) ? liveMatches.venueTables : [];
     // podium = medaillescherm van een net-afgerond toernooi (winnaar-moment #54), of null.
+    // Zaalbreed — zie podiumPerTafel hieronder voor de per-tafel-versie (#104).
     const podium = liveMatches.podium || null;
+    // podiumPerTafel: per cameratafel welk podium DIE tafel moet tonen, ongeacht wat er op
+    // een andere cameratafel speelt. { "1": {...} | null, "3": ..., ... }.
+    const podiumPerTafel = liveMatches.podiumPerTafel || {};
     // ticker = de regels die onderin het pauzescherm voorbij scrollen (#65). Nooit leeg:
     // zonder ingestelde regels komt de standaardtekst terug.
     const ticker = tickerVoorUitzending(await readJson('ticker.json', []));
@@ -64,6 +68,7 @@ app.http('publicLive', {
       venueLive,
       venueTables,
       podium,
+      podiumPerTafel,
       ticker,
       agent,
       tables: buildLiveTables(cameras, store, status, liveMatches, liveVideos),
