@@ -577,10 +577,30 @@
     renderStream();
   });
 
+  // Ververs-timer + zichtbaarheid (#107-vervolg): een browsertab op de achtergrond
+  // (andere tab, geminimaliseerd, scherm uit) throttelt setInterval fors — soms tot
+  // eens per minuut, soms helemaal niet meer. Wie de pagina laat openstaan terwijl hij
+  // iets anders doet en er later weer op kijkt, ziet dan verouderde standen totdat de
+  // volgende (vertraagde) ronde toevallig langskomt. Vandaar: de timer loopt alleen
+  // terwijl het tabblad zichtbaar is, en een tabblad dat weer zichtbaar wordt, ververst
+  // ONMIDDELLIJK — precies het moment waarop iemand terugkijkt.
+  let verversTimer = null;
+  function stopVerversen() {
+    if (verversTimer) { clearInterval(verversTimer); verversTimer = null; }
+  }
+  function startVerversen() {
+    stopVerversen();
+    verversTimer = setInterval(laad, REFRESH_MS);
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') { laad(); startVerversen(); }
+    else stopVerversen();
+  });
+
   pasControlsToe();
   renderStream();
   laad();
-  setInterval(laad, REFRESH_MS);
+  startVerversen();
 </script>
 <script src="/site-nav.js" defer></script>
 </body>

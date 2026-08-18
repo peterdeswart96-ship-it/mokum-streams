@@ -53,6 +53,7 @@
   .voortgang { font-size: 12px; color: #888; text-align: center; }
   .melding { text-align: center; color: #999; padding: 50px 16px; font-size: 15px; }
   .fout { color: #ff6b6b; }
+  .melding a { color: #ff6b6b; font-weight: bold; }
   .rij-filter { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #999; margin-top: 12px; }
   input[type=checkbox] { width: 16px; height: 16px; accent-color: #cc0000; }
   .token { display: flex; gap: 8px; }
@@ -217,7 +218,11 @@ async function api(pad, opts = {}) {
     ...opts,
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}`, ...(opts.headers || {}) },
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) {
+    const fout = new Error(`HTTP ${res.status}`);
+    fout.status = res.status;
+    throw fout;
+  }
   return res.json();
 }
 
@@ -494,8 +499,18 @@ async function laden() {
     document.head.appendChild(s);
   } catch (e) {
     $('melding').hidden = false;
-    $('melding').innerHTML = `<span class="fout">Kon de clips niet laden (${esc(e.message)}).</span>`;
-    $('inlog').hidden = false;
+    // Alleen bij een ECHTE auth-fout (401 = ongeldig/ontbrekend token) het inlogvak tonen.
+    // Elke andere fout (netwerkhapering, backend net aan het deployen, een 5xx) liet
+    // eerder óók het inlogvak zien — dan lijkt het alsof het token weg is, terwijl het
+    // gewoon in localStorage stond. Dat leidde tot onnodig steeds opnieuw intikken.
+    if (e.status === 401) {
+      $('melding').innerHTML = '<span class="fout">Token ongeldig of verlopen — vul het opnieuw in.</span>';
+      $('inlog').hidden = false;
+    } else {
+      $('melding').innerHTML = `<span class="fout">Kon de clips niet laden (${esc(e.message)}). </span>`
+        + `<a href="#" id="opnieuwLink">Probeer opnieuw</a>`;
+      $('opnieuwLink').onclick = (ev) => { ev.preventDefault(); $('melding').textContent = 'Laden…'; laden(); };
+    }
   }
 }
 
