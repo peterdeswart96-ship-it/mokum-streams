@@ -41,3 +41,14 @@ test('#80: een ontbrekende starttijd is WEL tijdelijk — de stream kan nog begi
   assert.strictEqual(finalizeVervolg({}, bericht).opgegeven, false);
   assert.strictEqual(finalizeVervolg({ finalizePogingen: 9 }, bericht, { max: 10 }).opgegeven, true);
 });
+
+test('#102: geldt hetzelfde voor een challenge-entry — de functie kijkt niet naar tournamentId', () => {
+  const challengeEntry = { streamType: 'challenge', spelerA: 'Anna', spelerB: 'Bob', finalizePogingen: 4 };
+  const v = finalizeVervolg(challengeEntry, 'tijdelijke storing');
+  assert.strictEqual(v.pogingen, 5);
+  assert.strictEqual(v.opgegeven, false);
+
+  const v2 = finalizeVervolg(challengeEntry, 'video xyz niet gevonden');
+  assert.strictEqual(v2.onherstelbaar, true);
+  assert.strictEqual(v2.opgegeven, true);
+});

@@ -5,6 +5,7 @@ const { zaalDag } = require('../schedule/schedule');
 const { isArmed } = require('../config/automation');
 const { finaliseerToernooi, finaliseerChallenge, finaliseerAlleenThumbnail, herstelVideo } = require('../video/finalize');
 const { finalizeVervolg } = require('../video/finalizeBeleid');
+const { finaliseerActie } = require('../video/finalizeKeuze');
 const { getVideoDetails } = require('../youtube/videos');
 
 // Handmatige finalize-endpoints (#56, bouwsteen 3b). Admin-beveiligd (Bearer ADMIN_TOKEN).
@@ -86,6 +87,13 @@ app.http('adminVideoDetails', {
 // Timer: finaliseert automatisch beheerde streams (met tournamentId) zodra ze gestopt
 // zijn — zet thumbnail + hoofdstukken. Idempotent via de `finalized`-vlag. Gated op
 // AUTOMATION_ARMED (onderdeel van de scherpgezette automatisering).
+//
+// Challenges (#102): geen tournamentId, dus geen hoofdstukken — maar wél een thumbnail
+// + beschrijving als de wizard spelersnamen heeft opgeslagen (streamType: 'challenge').
+// Erven zo gratis dezelfde retry-/opgeeflogica (#80) als toernooien, via dezelfde timer
+// (geen aparte cronjob die apart kan achterlopen). Start pas zodra `stopped: true` op de
+// entry staat — voor een challenge gebeurt dat via de 2-uurslimiet (#108) of het
+// inactiviteits-vangnet (#100), of gewoon een handmatige stop.
 app.timer('finalizeVideos', {
   // Elke 5 minuten (was elke minuut, #101). Er valt hooguit een paar keer per dag iets af
   // te ronden, maar de timer las elke minuut twee blobs — ruim 86.000 leesacties per maand
@@ -106,11 +114,17 @@ app.timer('finalizeVideos', {
       let gewijzigd = false;
       for (const key of Object.keys(store)) {
         const e = store[key];
-        if (!e || !e.stopped || e.finalized || e.finalizeOpgegeven || !e.videoId || e.tournamentId == null) continue;
+        // Welke actie (#102)? 'toernooi' | 'challenge' | null (nog niet klaar, of een
+        // ad-hoc stream zonder genoeg gegevens — blijft dan ongewijzigd ad-hoc).
+        const actie = finaliseerActie(e);
+        if (!actie) continue;
         try {
-          const res = await finaliseerToernooi({ videoId: e.videoId, tournamentId: e.tournamentId, tableNumber: e.tableNumber });
+          const res = actie === 'toernooi'
+            ? await finaliseerToernooi({ videoId: e.videoId, tournamentId: e.tournamentId, tableNumber: e.tableNumber })
+            : await finaliseerChallenge({ videoId: e.videoId, spelerA: e.spelerA, spelerB: e.spelerB, tableNumber: e.tableNumber });
           e.finalized = true; gewijzigd = true;
-          context.log(`[finalizeVideos] tafel ${e.tableNumber} gefinaliseerd (${e.videoId}) — ${res.aantalHoofdstukken} hoofdstukken`);
+          const detail = res.type === 'challenge' ? 'challenge-thumbnail' : `${res.aantalHoofdstukken} hoofdstukken`;
+          context.log(`[finalizeVideos] tafel ${e.tableNumber} gefinaliseerd (${e.videoId}) — ${detail}`);
         } catch (err) {
           // Teller ophogen en WEGSCHRIJVEN (#80). Stond dit niet in de opslag, dan telde
           // niets door en bleef 'ie eeuwig opnieuw proberen — 423 keer op 29-07.
