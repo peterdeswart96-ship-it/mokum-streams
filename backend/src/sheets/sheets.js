@@ -4,6 +4,7 @@
 // sheet-rijen van die de jumbotron toont.
 
 const { FINALE_RE } = require('../cuescore/parse');
+const { isMeerdaags } = require('../planning/planning');
 
 const MND_KORT = ['', 'jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
 
@@ -77,11 +78,18 @@ function komendeRegel(t) {
   };
 }
 
-// Komende-sheet: geplande (niet-afgeronde) toernooien met een starttijd, vroegste eerst,
-// hoogstens `max`.
+// Komende-sheet: geplande (niet-afgeronde) ENKELDAAGSE toernooien met een starttijd,
+// vroegste eerst, hoogstens `max`. Een doorlopende competitie (bijv. de 14.1 Summer
+// League) hoort hier niet tussen (#97): die heeft geen "aanvangstijd" in de zin van deze
+// sheet — z'n `start` is de datum waarop de competitie ooit begon, vaak maanden terug —
+// en zou daardoor bovenaan blijven hangen en een echt toernooi verdringen. Zelfde
+// meerdaags-regel als de planner (`bepaalType()` in planning/planning.js) gebruikt om
+// leagues over te slaan: span > 26 uur = doorlopend. Ontbreekt `stop` (kan, zie
+// cuescore/parse.js), dan telt het toernooi als enkeldaags en blijft het staan — de
+// veilige kant op (liever een toernooi te veel dan een echt toernooi kwijt).
 function bouwKomende(tournaments, { max = 5 } = {}) {
   return (tournaments || [])
-    .filter((t) => t && !t.finished && t.start)
+    .filter((t) => t && !t.finished && t.start && !isMeerdaags(t.start, t.stop))
     .sort((a, b) => String(a.start || '').localeCompare(String(b.start || '')))
     .slice(0, max)
     .map(komendeRegel);

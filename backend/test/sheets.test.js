@@ -76,3 +76,32 @@ test('bouwKomende: geplande toernooien, vroegste eerst, met dag/mnd/tijd', () =>
   assert.deepStrictEqual(uit.map((r) => r.naam), ['Ranking #20', 'MEGA #26']); // afgerond eruit
   assert.deepStrictEqual(uit[0], { dag: '25', mnd: 'jul', tijd: '12:30', naam: 'Ranking #20', discipline: '10-Ball' });
 });
+
+// #97: een doorlopende competitie (bijv. de 14.1 Summer League) heeft geen "aanvangstijd"
+// in de zin van deze sheet — `start` is de datum waarop de competitie ooit begon, vaak
+// maanden terug. Zonder filter zou zoiets bovenaan blijven hangen (vroegste start wint de
+// sortering) en een echt toernooi van de avond verdringen.
+test('#97: een doorlopende competitie van twee maanden valt weg, een toernooi van een avond blijft', () => {
+  const lijst = [
+    { name: 'Mokum 14.1 Summer league', start: '2026-06-16T12:00:00Z', stop: '2026-08-31T22:00:00Z', finished: false },
+    { name: 'Fluke ranking #28', discipline: '9-Ball', start: '2026-08-18T17:30:00Z', stop: '2026-08-18T22:00:00Z', finished: false },
+  ];
+  const uit = bouwKomende(lijst, { max: 5 });
+  assert.deepStrictEqual(uit.map((r) => r.naam), ['Fluke ranking #28']);
+});
+
+test('#97: ontbrekende stop telt als enkeldaags — blijft staan (veilige kant, kan geen doorlopende competitie herkennen)', () => {
+  const lijst = [
+    { name: 'Toernooi zonder stoptime', start: '2026-08-19T17:15:00Z', stop: null, finished: false },
+  ];
+  const uit = bouwKomende(lijst, { max: 5 });
+  assert.deepStrictEqual(uit.map((r) => r.naam), ['Toernooi zonder stoptime']);
+});
+
+test('#97: een gewoon avondtoernooi met start én stop binnen 26 uur blijft gewoon staan', () => {
+  const lijst = [
+    // 17:15 tot 01:00 de volgende ochtend — een lange finaleavond, geen doorlopende league.
+    { name: 'Avondtoernooi', start: '2026-08-22T17:15:00Z', stop: '2026-08-23T01:00:00Z', finished: false },
+  ];
+  assert.deepStrictEqual(bouwKomende(lijst, { max: 5 }).map((r) => r.naam), ['Avondtoernooi']);
+});
