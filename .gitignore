@@ -42,6 +42,9 @@ Thumbs.db
 thumbnail-status.md
 thumbnail-status.json
 
+# Uitvoer van backend/scripts/herthumbnail-batch.js — resultaatlog per batchrun, geen broncode.
+herthumbnail-resultaat-*.json
+
 # Thumbnail-bron-achtergronden (AI-plaatjes + gekeyde overlays, ~22MB). De canonieke
 # templates in assets/thumbnail-templates zijn zelfvoorzienend (bg als base64 ingebed),
 # dus de runtime heeft deze bronnen niet nodig. Blijven lokaal om te kunnen herbouwen.
