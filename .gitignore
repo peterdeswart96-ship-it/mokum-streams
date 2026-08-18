@@ -44,6 +44,7 @@ thumbnail-status.json
 
 # Uitvoer van backend/scripts/herthumbnail-batch.js — resultaatlog per batchrun, geen broncode.
 herthumbnail-resultaat-*.json
+herthumbnail-challenges-resultaat-*.json
 
 # Thumbnail-bron-achtergronden (AI-plaatjes + gekeyde overlays, ~22MB). De canonieke
 # templates in assets/thumbnail-templates zijn zelfvoorzienend (bg als base64 ingebed),
