@@ -72,7 +72,11 @@ const wachten = (ms) => new Promise((r) => setTimeout(r, ms));
     }
   } else {
     const res = await fetch(`${API}/api/manage/inventory`, { headers: { Authorization: `Bearer ${TOKEN || ''}` } });
-    if (!res.ok) { console.error(`inventory faalde: HTTP ${res.status} — heb je ADMIN_TOKEN gezet?`); process.exit(1); }
+    if (!res.ok) {
+      console.error(`inventory faalde: HTTP ${res.status} — heb je ADMIN_TOKEN gezet?`);
+      process.exitCode = 1;
+      return; // zie toelichting bij "Geen kandidaten" hieronder — geen process.exit() na een fetch
+    }
     const inv = await res.json();
 
     kandidaten = inv.rows
@@ -85,7 +89,9 @@ const wachten = (ms) => new Promise((r) => setTimeout(r, ms));
 
   if (!kandidaten.length) {
     console.log('Geen kandidaten voor deze selectie.');
-    process.exit(0);
+    return; // GEEN process.exit() hier — crasht op Windows met een libuv-assertion
+            // zolang er nog open fetch-sockets zijn (UV_HANDLE_CLOSING); gewoon laten
+            // aflopen sluit ze netjes af.
   }
 
   console.log(`${kandidaten.length} video('s) geselecteerd${doen ? '' : ' (DRY-RUN — voeg --doen toe om echt uit te voeren)'}:\n`);
