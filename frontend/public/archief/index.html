@@ -24,12 +24,9 @@
   .kop-titel .titel { font-family: "Arial Black", Arial, sans-serif; font-size: 22px; color: #fff; line-height: 1.05; }
   .kop-titel .titel .m { color: #cc0000; }
   .kop-titel .titel-sub { font-size: 12px; color: #999; margin-top: 3px; }
-  header .terug { justify-self: end; font-size: 12px; color: #999; text-decoration: none; border: 1px solid #2a2a2a; border-radius: 8px; padding: 6px 10px; white-space: nowrap; }
-  header .terug:hover { border-color: #cc0000; color: #fff; }
   @media (max-width: 620px) {
     header { grid-template-columns: auto 1fr; }
     .kop-titel .titel { font-size: 18px; }
-    header .terug { display: none; }
   }
 
   main { padding: 12px 12px 48px; max-width: 720px; margin: 0 auto; }
@@ -102,7 +99,6 @@
       <div class="titel"><span class="m">Mokum</span> Archief</div>
       <div class="titel-sub">Zoek een eerder gespeelde partij</div>
     </div>
-    <a class="terug" href="/mokumlive/">← Live</a>
   </header>
 
   <main>
@@ -314,5 +310,6 @@ function koppelGebeurtenissen() {
   }
 })();
 </script>
+<script src="/site-nav.js" defer></script>
 </body>
 </html>
