@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // Vervangt de thumbnail van bestaande OPENBARE video's door het (nieuwere) template-ontwerp
 // dat nu bij hun titel hoort — voor reeksen die pas ná het finaliseren van die video's een
-// eigen ontwerp kregen (#95: 8-ball-ranking, 9-ball-sunday, king-of-the-table,
-// doubles-tournament, allemaal toegevoegd op 2026-08-16). Video's van vóór die datum hebben
-// dus nog de oude/generieke thumbnail, ook al matcht hun titel inmiddels een eigen template.
+// eigen (of vernieuwd) ontwerp kregen (#95, zie TEMPLATE_SINDS hieronder per reeks). Video's
+// van vóór die datum hebben dus nog het oude ontwerp, ook al matcht hun titel het template
+// inmiddels wel.
 //
 // Gebruikt dezelfde /api/manage/finalize-route als de handmatige "alleen thumbnail"-actie —
 // dus met backup (idempotent, overschrijft de allereerste backup niet) en /undo blijft werken.
@@ -31,9 +31,15 @@ const reeksFilter = reeksArg
   ? (reeksArg.includes('=') ? reeksArg.split('=')[1] : args[reeksIdx + 1]).split(',').map((s) => s.trim())
   : null;
 
-// Reeksen die op 2026-08-16 hun eigen template kregen — vóór die datum gefinaliseerd = oud ontwerp.
-const NIEUWE_TEMPLATES = new Set(['8-ball-ranking', '9-ball-sunday', 'king-of-the-table', 'doubles-tournament']);
-const TEMPLATE_SINDS = '2026-08-16';
+// Reeksen die pas ná deze datum hun (huidige) eigen template kregen — video's van vóór die
+// datum hebben dus nog het oude ontwerp, ook al matcht hun titel het template inmiddels wel.
+const TEMPLATE_SINDS = {
+  '8-ball-ranking': '2026-08-16',
+  '9-ball-sunday': '2026-08-16',
+  'king-of-the-table': '2026-08-16',
+  'doubles-tournament': '2026-08-16',
+  'speedy-multi-ball': '2026-08-18', // nieuwe AI-achtergrond, verving het oude handgetekende ontwerp
+};
 
 const wachten = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -43,9 +49,9 @@ const wachten = (ms) => new Promise((r) => setTimeout(r, ms));
   const inv = await res.json();
 
   const kandidaten = inv.rows
-    .filter((r) => r.zichtbaarheid === 'public' && r.datum && r.datum < TEMPLATE_SINDS)
+    .filter((r) => r.zichtbaarheid === 'public' && r.datum)
     .map((r) => ({ key: templateVoorToernooi(r.naam), datum: r.datum, naam: r.naam, videoId: r.videoId }))
-    .filter((r) => NIEUWE_TEMPLATES.has(r.key))
+    .filter((r) => TEMPLATE_SINDS[r.key] && r.datum < TEMPLATE_SINDS[r.key])
     .filter((r) => !reeksFilter || reeksFilter.includes(r.key))
     .sort((a, b) => a.key.localeCompare(b.key) || a.datum.localeCompare(b.datum));
 
