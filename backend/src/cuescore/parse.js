@@ -4,10 +4,14 @@
 // Logica geleend van de Cuescore Live Notifier (cuescore_timer/run.ps1),
 // geport naar Node. Zie wiki/architecture.md voor de velduitleg.
 
-// Regex voor een datumkop op de toernooien-pagina, bijv. "Tuesday, July 8, 2026".
-// We vangen het datumdeel ("July 8, 2026") in groep 1.
+// Regex voor een datumkop op de toernooien-pagina. Cuescore toonde lang "Tuesday, July 8,
+// 2026"; sinds medio augustus 2026 is de weekdagnaam weg en staat er kaal "August 18, 2026"
+// (in <div class="date upcoming|result">). De weekdag is daarom optioneel — zonder deze fix
+// vond parseTournamentsByDate helemaal geen datumkoppen meer, waardoor zowel de planning-
+// import als de dag-koppeling (welk toernooi speelt vandaag op welke tafel) leeg bleef.
+// We vangen het datumdeel ("July 8, 2026" / "August 18, 2026") in groep 1.
 const DATUM_RE =
-  /(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\s+([A-Z][a-z]+ \d{1,2}, \d{4})/g;
+  /(?:(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\s+)?([A-Z][a-z]+ \d{1,2}, \d{4})/g;
 
 // Regex voor toernooi-links: /tournament/<slug>/<id>.
 const TOERNOOI_LINK_RE = /\/tournament\/[^/]+\/(\d+)/g;
