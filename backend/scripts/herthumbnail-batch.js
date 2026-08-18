@@ -13,6 +13,9 @@
 //   node backend/scripts/herthumbnail-batch.js --reeks king-of-the-table,doubles-tournament
 // Écht uitvoeren:
 //   node backend/scripts/herthumbnail-batch.js --reeks king-of-the-table,doubles-tournament --doen
+//
+// Eén of meer specifieke video's (bijv. links die je net kreeg), los van de reeks-datumgrens:
+//   node backend/scripts/herthumbnail-batch.js --video ExiAMoestpg,e1d6x7RhWBo --doen
 
 const fs = require('fs');
 const path = require('path');
@@ -31,6 +34,12 @@ const reeksFilter = reeksArg
   ? (reeksArg.includes('=') ? reeksArg.split('=')[1] : args[reeksIdx + 1]).split(',').map((s) => s.trim())
   : null;
 
+const videoArg = args.find((a) => a.startsWith('--video'));
+const videoIdx = args.indexOf(videoArg);
+const videoFilter = videoArg
+  ? (videoArg.includes('=') ? videoArg.split('=')[1] : args[videoIdx + 1]).split(',').map((s) => s.trim())
+  : null;
+
 // Reeksen die pas ná deze datum hun (huidige) eigen template kregen — video's van vóór die
 // datum hebben dus nog het oude ontwerp, ook al matcht hun titel het template inmiddels wel.
 const TEMPLATE_SINDS = {
@@ -44,16 +53,35 @@ const TEMPLATE_SINDS = {
 const wachten = (ms) => new Promise((r) => setTimeout(r, ms));
 
 (async () => {
-  const res = await fetch(`${API}/api/manage/inventory`, { headers: { Authorization: `Bearer ${TOKEN || ''}` } });
-  if (!res.ok) { console.error(`inventory faalde: HTTP ${res.status} — heb je ADMIN_TOKEN gezet?`); process.exit(1); }
-  const inv = await res.json();
+  let kandidaten;
 
-  const kandidaten = inv.rows
-    .filter((r) => r.zichtbaarheid === 'public' && r.datum)
-    .map((r) => ({ key: templateVoorToernooi(r.naam), datum: r.datum, naam: r.naam, videoId: r.videoId }))
-    .filter((r) => TEMPLATE_SINDS[r.key] && r.datum < TEMPLATE_SINDS[r.key])
-    .filter((r) => !reeksFilter || reeksFilter.includes(r.key))
-    .sort((a, b) => a.key.localeCompare(b.key) || a.datum.localeCompare(b.datum));
+  if (videoFilter) {
+    // Losse video's op ID: titel live opzoeken, geen datumgrens of reeks-filter — Peter wijst
+    // 'm zelf aan (bijv. een link die hij net kreeg), dus die keuze staat al vast.
+    kandidaten = [];
+    for (const videoId of videoFilter) {
+      const r = await fetch(`${API}/api/manage/video?videoId=${encodeURIComponent(videoId)}`, {
+        headers: { Authorization: `Bearer ${TOKEN || ''}` },
+      });
+      if (!r.ok) { console.error(`  ${videoId}: video niet gevonden (HTTP ${r.status})`); continue; }
+      const v = await r.json();
+      const key = templateVoorToernooi(v.title);
+      if (!key) { console.error(`  ${videoId}: "${v.title}" matcht geen enkel template`); continue; }
+      const datum = (v.actualStartTime || '').slice(0, 10) || null;
+      kandidaten.push({ key, datum, naam: v.title, videoId });
+    }
+  } else {
+    const res = await fetch(`${API}/api/manage/inventory`, { headers: { Authorization: `Bearer ${TOKEN || ''}` } });
+    if (!res.ok) { console.error(`inventory faalde: HTTP ${res.status} — heb je ADMIN_TOKEN gezet?`); process.exit(1); }
+    const inv = await res.json();
+
+    kandidaten = inv.rows
+      .filter((r) => r.zichtbaarheid === 'public' && r.datum)
+      .map((r) => ({ key: templateVoorToernooi(r.naam), datum: r.datum, naam: r.naam, videoId: r.videoId }))
+      .filter((r) => TEMPLATE_SINDS[r.key] && r.datum < TEMPLATE_SINDS[r.key])
+      .filter((r) => !reeksFilter || reeksFilter.includes(r.key))
+      .sort((a, b) => a.key.localeCompare(b.key) || a.datum.localeCompare(b.datum));
+  }
 
   if (!kandidaten.length) {
     console.log('Geen kandidaten voor deze selectie.');
@@ -69,7 +97,7 @@ const wachten = (ms) => new Promise((r) => setTimeout(r, ms));
       const r = await fetch(`${API}/api/manage/finalize`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ videoId: k.videoId, tournamentName: k.naam, datumISO: `${k.datum}T00:00:00Z` }),
+        body: JSON.stringify({ videoId: k.videoId, tournamentName: k.naam, datumISO: k.datum ? `${k.datum}T00:00:00Z` : undefined }),
       });
       const body = await r.json().catch(() => ({}));
       if (!r.ok || body.ok === false) throw new Error(body.error || `HTTP ${r.status}`);
