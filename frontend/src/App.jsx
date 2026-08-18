@@ -419,6 +419,16 @@ const STREAM_TYPES = {
 
 const CUSTOM_TITEL_MAX = 30;
 
+// Cuescore zet niet altijd een starttijd op een toernooi (met name last-minute
+// toernooien die dezelfde dag nog worden aangemaakt) — dan is plannedStart null.
+// Val dan NIET terug op middernacht UTC: die valt vaak al 12+ uur in het verleden
+// tegen de tijd dat iemand 's middags/avonds het dashboard opent, waardoor het
+// toernooi ten onrechte uit de lijst verdwijnt (#107). Eind van de dag is veilig:
+// het toernooi blijft dan de hele dag zichtbaar, ook zonder bekende starttijd.
+function ijkVoorPlanning(record) {
+  return Date.parse(record.plannedStart || `${record.date}T23:59:59Z`);
+}
+
 function Wizard({ onClose, onStarted, tables = [] }) {
   // Welke tafels zijn al bezet? Zonder dit kies je een tafel die al live is, klik je
   // drie stappen door en krijg je pas bij "Start stream" een 409 van de backend.
@@ -454,7 +464,7 @@ function Wizard({ onClose, onStarted, tables = [] }) {
           const competitie = (r.type || 'tournament') === 'competition';
           const ijk = competitie
             ? Date.parse(r.plannedStop || '')
-            : Date.parse(r.plannedStart || `${r.date}T00:00:00Z`);
+            : ijkVoorPlanning(r);
           return !Number.isNaN(ijk) && ijk >= drempel;
         })
         .sort((a, b) => String(a.plannedStart || a.date).localeCompare(String(b.plannedStart || b.date)))
@@ -974,7 +984,7 @@ function ToernooiPlanner({ onGepland }) {
         // want daar koppel je de uitzending aan de league voor auto-stop en hoofdstukken.
         .filter((r) => (r.type || 'tournament') !== 'competition')
         .filter((r) => {
-          const ijk = Date.parse(r.plannedStart || `${r.date}T00:00:00Z`);
+          const ijk = ijkVoorPlanning(r);
           return !Number.isNaN(ijk) && ijk >= drempel;
         })
         .sort((a, b) => String(a.plannedStart || a.date).localeCompare(String(b.plannedStart || b.date)))
