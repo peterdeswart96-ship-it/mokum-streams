@@ -60,8 +60,27 @@
 
 <script>
 const APP_API = 'https://mokum-streams-func.azurewebsites.net';
-const POLL_MS = 4000;              // hoe vaak we /api/live checken
+const POLL_MS_DRUK = 8000;         // hoe vaak we /api/live checken binnen bedrijfstijd
+const POLL_MS_RUSTIG = 60000;      // daarbuiten (#101-vervolg): geen reden om net zo hard te pollen als de zaal dicht is
 const MAX_LEEFTIJD_MS = 10 * 60000; // ruim venster als de tafel al live is bij de eerste poll
+
+// Snelheids-throttle (20-08, #101-vervolg): niet op de klok, maar op wat /api/live zélf
+// zegt — dat is preciezer dan een openingstijden-schema (ook goed bij een toernooi dat een
+// keer buiten de gewone uren valt) en simpeler dan een aparte regel per tafel.
+let snelModusActief = true; // optimistisch tot de eerste poll iets anders leert
+
+// Moet de volgende poll snel, op basis van de stand van déze tafel? Snel vanaf 15 min vóór de
+// geplande start (createBroadcasts maakt de uitzending ~5 min van tevoren aan; 15 min marge
+// dekt een wat trage of vroege aanmaak) tot de tafel weer niet meer live is.
+function berekenSnelModus(t) {
+  if (t && t.status === 'live') return true;
+  const start = t && Date.parse(t.scheduledStart || '');
+  if (t && !Number.isNaN(start)) {
+    const overMin = (start - Date.now()) / 60000;
+    if (overMin <= 15 && overMin > -MAX_LEEFTIJD_MS / 60000) return true;
+  }
+  return false;
+}
 const IN_MS = 700;                 // duur van het inschuiven (== CSS-transition)
 const HOUD_MS = 9300;              // hoe lang de intro blijft staan (~10s inclusief inschuiven)
 
@@ -108,6 +127,8 @@ async function poll() {
   }
 
   const t = (d.tables || []).find((x) => Number(x.tableNumber) === TAFEL);
+  snelModusActief = berekenSnelModus(t);
+
   const nu = (t && t.status === 'live' && t.videoId) ? t.videoId : null;
   const vorige = vorigeLiveVideoId;
   vorigeLiveVideoId = nu;
@@ -134,8 +155,11 @@ if (DEMO) {
   const lus = async () => { await speelIntro(naam, iso); await wacht(3000); lus(); };
   lus();
 } else {
-  poll();
-  setInterval(poll, POLL_MS);
+  const lusPoll = async () => {
+    await poll();
+    setTimeout(lusPoll, snelModusActief ? POLL_MS_DRUK : POLL_MS_RUSTIG);
+  };
+  lusPoll();
 }
 </script>
 </body>

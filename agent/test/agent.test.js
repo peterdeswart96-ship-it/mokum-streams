@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { runOnce, rotatieZichtbaar } = require('../src/agent');
+const { runOnce, rotatieZichtbaar, isDrukkeTijd } = require('../src/agent');
 
 // Fake OBS-pool die de aanroepen registreert i.p.v. echt OBS aan te spreken.
 function fakePool() {
@@ -122,6 +122,28 @@ test('rotatieZichtbaar: onvolledige/nul-config → altijd uit', () => {
   assert.strictEqual(rotatieZichtbaar({ everySec: 0, forSec: 20 }, 5_000), false);
   assert.strictEqual(rotatieZichtbaar({ everySec: 180 }, 5_000), false);
   assert.strictEqual(rotatieZichtbaar({}, 5_000), false);
+});
+
+// Alle momenten hieronder in augustus (CEST, UTC+2) om DST buiten beschouwing te laten.
+// Donderdag 20-08-2026, zaterdag 22-08, zondag 23-08, maandag 24-08.
+test('isDrukkeTijd: doordeweeks binnen 18:00-01:30 (+marge) is druk, overdag niet', () => {
+  assert.strictEqual(isDrukkeTijd(Date.UTC(2026, 7, 20, 17, 0)), true);  // do 19:00 lokaal
+  assert.strictEqual(isDrukkeTijd(Date.UTC(2026, 7, 20, 13, 0)), false); // do 15:00 lokaal
+});
+
+test('isDrukkeTijd: doordeweekse marge laat een uitlopende avond niet abrupt stoppen', () => {
+  assert.strictEqual(isDrukkeTijd(Date.UTC(2026, 7, 19, 23, 45)), true);  // do 01:45 lokaal, binnen marge tot 02:00
+  assert.strictEqual(isDrukkeTijd(Date.UTC(2026, 7, 20, 0, 30)), false); // do 02:30 lokaal, na de marge
+});
+
+test('isDrukkeTijd: weekend binnen 12:00-02:30 (+marge) is druk, ochtend niet', () => {
+  assert.strictEqual(isDrukkeTijd(Date.UTC(2026, 7, 22, 11, 0)), true);  // za 13:00 lokaal
+  assert.strictEqual(isDrukkeTijd(Date.UTC(2026, 7, 22, 6, 0)), false);  // za 08:00 lokaal
+});
+
+test('isDrukkeTijd: zaal-dag over middernacht — zondagavond loopt door tot in maandagochtend', () => {
+  assert.strictEqual(isDrukkeTijd(Date.UTC(2026, 7, 23, 0, 0)), true);  // zo 02:00 lokaal (za-avond loopt door)
+  assert.strictEqual(isDrukkeTijd(Date.UTC(2026, 7, 24, 2, 0)), false); // ma 04:00 lokaal, ruim na de marge
 });
 
 test('runOnce zet een rotatie-overlay aan wanneer die zichtbaar hoort te zijn', async () => {

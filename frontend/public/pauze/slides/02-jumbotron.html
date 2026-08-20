@@ -414,8 +414,26 @@
 const APP_API = /^(localhost|127\.0\.0\.1)$/.test(location.hostname)
   ? 'http://localhost:7071'
   : 'https://mokum-streams-func.azurewebsites.net';
-const REFRESH_MS = 15000; // data verversen
+const REFRESH_MS_DRUK = 15000;   // data verversen binnen bedrijfstijd
+const REFRESH_MS_RUSTIG = 60000; // daarbuiten (#101-vervolg): geen reden om net zo hard te pollen als de zaal dicht is
 const CARD_MS = 6000;     // hoe lang elke tafelkaart in beeld blijft
+
+// Snelheids-throttle (20-08, #101-vervolg): niet op de klok, maar op wat /api/live zélf
+// zegt — dat is preciezer dan een openingstijden-schema (ook goed bij een toernooi dat een
+// keer buiten de gewone uren valt) en simpeler dan een aparte regel per tafel.
+let snelModusActief = true; // optimistisch tot de eerste poll iets anders leert
+
+// Snel zodra minstens één cameratafel live is, of over uiterlijk 15 min live gaat
+// (createBroadcasts maakt de uitzending ~5 min van tevoren aan; marge dekt een wat trage of
+// vroege aanmaak). Zelfde velden (`status`, `scheduledStart`) als intro.html gebruikt.
+function berekenSnelModus(tables) {
+  return (tables || []).some((t) => {
+    if (t.status === 'live') return true;
+    const start = Date.parse(t.scheduledStart || '');
+    if (Number.isNaN(start)) return false;
+    return (start - Date.now()) / 60000 <= 15;
+  });
+}
 
 let liveTafels = [];
 let idx = 0;
@@ -474,6 +492,7 @@ async function ververs() {
   try {
     const r = await fetch(`${APP_API}/api/live`, { cache: 'no-store' });
     const d = await r.json();
+    snelModusActief = berekenSnelModus(d.tables);
     const alle = Array.isArray(d.venueTables) ? d.venueTables : [];
     const nieuw = alle.filter((t) => String(t.status || '').toLowerCase() === 'playing');
     if (nieuw.length) {
@@ -1059,8 +1078,11 @@ function stopConfetti() {
 // Opstarten: ticker meteen met de standaardtekst, data + highlights ophalen, dan het
 // pauze-schema starten. De YouTube-IFrame-API laadt async en roept hlStartSpeler aan.
 zetTicker(null);
-ververs();
-setInterval(ververs, REFRESH_MS);
+const lusVervers = async () => {
+  await ververs();
+  setTimeout(lusVervers, snelModusActief ? REFRESH_MS_DRUK : REFRESH_MS_RUSTIG);
+};
+lusVervers();
 haalHighlights();
 setInterval(haalHighlights, HIGHLIGHTS_VERVERS_MS);
 haalSheets();
