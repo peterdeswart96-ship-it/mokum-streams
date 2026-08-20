@@ -31,13 +31,42 @@ async function getContainerClient(naam = CONTAINER) {
   return container;
 }
 
+// ── Korte leescache (vervolg op #101) ─────────────────────────────────────────
+// #101 loste de onnodige schrijfacties op, maar readJson() zelf deed nog altijd
+// exists() + downloadToBuffer() bij élke aanroep. publicApi.js (o.a. /live, dat in
+// één request tot zes blobs leest) wordt continu gepolld door meerdere
+// OBS-jumbotron-instanties tegelijk (elke 15s, 24/7, de pc mag altijd aan blijven
+// staan) — dat verklaart het leeuwendeel van "Hot Read Operations" en "All Other
+// Operations" die #101 nog openliet.
+//
+// TTL bewust kort (5s): geen enkele automatische beslissing (checkStops,
+// liveMatches, ...) draait vaker dan elke 30-60s, dus die kan nooit op data ouder
+// dan zijn eigen interval varen. Een schrijf op hetzelfde pad ververst de cache
+// meteen, dus een schrijver leest binnen dezelfde instance nooit zijn eigen stale
+// waarde terug. updateJson() gebruikt deze cache bewust NIET: die leunt op een
+// verse ETag voor optimistische concurrency (tellers) en cachen zou dat breken.
+const LEES_CACHE_MS = 5000;
+const leesCache = new Map(); // blobPath -> { waarde, verlooptOm }
+
+function cacheZet(blobPath, waarde) {
+  leesCache.set(blobPath, { waarde, verlooptOm: Date.now() + LEES_CACHE_MS });
+}
+
 // Leest een JSON-blob; geeft `fallback` als de blob niet bestaat.
 async function readJson(blobPath, fallback = null) {
+  const gecached = leesCache.get(blobPath);
+  if (gecached && gecached.verlooptOm > Date.now()) return gecached.waarde;
+
   const container = await getContainerClient();
   const blob = container.getBlockBlobClient(blobPath);
-  if (!(await blob.exists())) return fallback;
+  if (!(await blob.exists())) {
+    cacheZet(blobPath, fallback);
+    return fallback;
+  }
   const buf = await blob.downloadToBuffer();
-  return JSON.parse(buf.toString('utf8'));
+  const waarde = JSON.parse(buf.toString('utf8'));
+  cacheZet(blobPath, waarde);
+  return waarde;
 }
 
 // Schrijft een JSON-blob (overschrijft).
@@ -48,6 +77,7 @@ async function writeJson(blobPath, obj) {
   await blob.upload(data, data.length, {
     blobHTTPHeaders: { blobContentType: 'application/json' },
   });
+  cacheZet(blobPath, obj);
 }
 
 // ── Niet schrijven als er niets verandert (#101) ──────────────────────────────
@@ -96,6 +126,7 @@ async function writeJsonAlsGewijzigd(blobPath, obj, { negeer = [] } = {}) {
 async function deleteBlob(blobPath) {
   const container = await getContainerClient();
   await container.getBlockBlobClient(blobPath).deleteIfExists();
+  leesCache.delete(blobPath);
 }
 
 // Lees-wijzig-schrijf met optimistische concurrency (ETag). `updater(huidig)` geeft
@@ -123,6 +154,7 @@ async function updateJson(blobPath, updater, fallback = null, retries = 6) {
         blobHTTPHeaders: { blobContentType: 'application/json' },
         conditions,
       });
+      cacheZet(blobPath, volgende);
       return volgende;
     } catch (e) {
       const code = e.statusCode || (e.details && e.details.errorCode);
