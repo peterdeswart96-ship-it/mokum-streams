@@ -64,36 +64,22 @@ const POLL_MS_DRUK = 8000;         // hoe vaak we /api/live checken binnen bedri
 const POLL_MS_RUSTIG = 60000;      // daarbuiten (#101-vervolg): geen reden om net zo hard te pollen als de zaal dicht is
 const MAX_LEEFTIJD_MS = 10 * 60000; // ruim venster als de tafel al live is bij de eerste poll
 
-// Openingstijden-throttle: buiten bedrijfstijd fors trager pollen. Zelfde Europe/Amsterdam-
-// aanpak (Intl, geen ruwe Date.getDay()/getHours()) als backend/src/schedule/schedule.js —
-// daar leerde #77 dat de zaal-dag over middernacht heen loopt en een naïeve kalenderdag-
-// omslag het systeem laat denken dat er niets meer speelt terwijl een avond nog uitloopt.
-function isDrukkeTijd(tafel) {
-  // Tafel 15/16 draaien alleen sporadisch bij een toernooi — geen vast schema, permanent
-  // traag is hier de bewuste keuze (Peter, 20-08) i.p.v. een uitzondering per toernooidag.
-  if (tafel === 15 || tafel === 16) return false;
+// Snelheids-throttle (20-08, #101-vervolg): niet op de klok, maar op wat /api/live zélf
+// zegt — dat is preciezer dan een openingstijden-schema (ook goed bij een toernooi dat een
+// keer buiten de gewone uren valt) en simpeler dan een aparte regel per tafel.
+let snelModusActief = true; // optimistisch tot de eerste poll iets anders leert
 
-  const delenVan = (moment) => {
-    const parts = new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'Europe/Amsterdam', weekday: 'short', hourCycle: 'h23',
-      hour: '2-digit', minute: '2-digit',
-    }).formatToParts(moment);
-    const get = (t) => parts.find((p) => p.type === t).value;
-    return { dag: get('weekday'), minuten: parseInt(get('hour'), 10) * 60 + parseInt(get('minute'), 10) };
-  };
-
-  const nu = new Date();
-  const { minuten } = delenVan(nu);
-  // Welke avond dit moment nog bij hoort: vóór 06:00 hoort bij de zaal-dag van gisteren
-  // (zelfde grens als zaalDag() in de backend) — anders valt een uitlopende vrijdagavond om
-  // 01:00 zaterdagochtend ineens onder het weekendschema i.p.v. het doordeweekse.
-  const { dag } = delenVan(new Date(nu.getTime() - 6 * 3600 * 1000));
-  const weekend = dag === 'Sat' || dag === 'Sun';
-
-  // 30 min marge aan beide kanten, zodat een avond die uitloopt of vroeg op gang komt nooit
-  // midden in de throttle terechtkomt. Doordeweeks 18:00-01:30, weekend 12:00-02:30 (Peter, 20-08).
-  const [openVanaf, dichtVanaf] = weekend ? [11 * 60 + 30, 3 * 60] : [17 * 60 + 30, 2 * 60];
-  return minuten >= openVanaf || minuten < dichtVanaf;
+// Moet de volgende poll snel, op basis van de stand van déze tafel? Snel vanaf 15 min vóór de
+// geplande start (createBroadcasts maakt de uitzending ~5 min van tevoren aan; 15 min marge
+// dekt een wat trage of vroege aanmaak) tot de tafel weer niet meer live is.
+function berekenSnelModus(t) {
+  if (t && t.status === 'live') return true;
+  const start = t && Date.parse(t.scheduledStart || '');
+  if (t && !Number.isNaN(start)) {
+    const overMin = (start - Date.now()) / 60000;
+    if (overMin <= 15 && overMin > -MAX_LEEFTIJD_MS / 60000) return true;
+  }
+  return false;
 }
 const IN_MS = 700;                 // duur van het inschuiven (== CSS-transition)
 const HOUD_MS = 9300;              // hoe lang de intro blijft staan (~10s inclusief inschuiven)
@@ -141,6 +127,8 @@ async function poll() {
   }
 
   const t = (d.tables || []).find((x) => Number(x.tableNumber) === TAFEL);
+  snelModusActief = berekenSnelModus(t);
+
   const nu = (t && t.status === 'live' && t.videoId) ? t.videoId : null;
   const vorige = vorigeLiveVideoId;
   vorigeLiveVideoId = nu;
@@ -169,7 +157,7 @@ if (DEMO) {
 } else {
   const lusPoll = async () => {
     await poll();
-    setTimeout(lusPoll, isDrukkeTijd(TAFEL) ? POLL_MS_DRUK : POLL_MS_RUSTIG);
+    setTimeout(lusPoll, snelModusActief ? POLL_MS_DRUK : POLL_MS_RUSTIG);
   };
   lusPoll();
 }
