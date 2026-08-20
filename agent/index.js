@@ -12,10 +12,10 @@ function main() {
     `Mokum Streams-agent gestart — ${config.tables.length} tafel(s), poll elke ${config.pollIntervalMs}ms`
   );
 
-  const timer = startLoop(config, pool, backend);
+  const loop = startLoop(config, pool, backend);
 
   const stop = async () => {
-    clearInterval(timer);
+    loop.stop();
     await pool.disconnectAll();
     process.exit(0);
   };

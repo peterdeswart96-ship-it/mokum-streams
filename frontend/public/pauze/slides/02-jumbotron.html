@@ -414,8 +414,41 @@
 const APP_API = /^(localhost|127\.0\.0\.1)$/.test(location.hostname)
   ? 'http://localhost:7071'
   : 'https://mokum-streams-func.azurewebsites.net';
-const REFRESH_MS = 15000; // data verversen
+const REFRESH_MS_DRUK = 15000;   // data verversen binnen bedrijfstijd
+const REFRESH_MS_RUSTIG = 60000; // daarbuiten (#101-vervolg): geen reden om net zo hard te pollen als de zaal dicht is
 const CARD_MS = 6000;     // hoe lang elke tafelkaart in beeld blijft
+
+// Openingstijden-throttle: buiten bedrijfstijd fors trager pollen. Zelfde Europe/Amsterdam-
+// aanpak (Intl, geen ruwe Date.getDay()/getHours()) als backend/src/schedule/schedule.js —
+// daar leerde #77 dat de zaal-dag over middernacht heen loopt en een naïeve kalenderdag-
+// omslag het systeem laat denken dat er niets meer speelt terwijl een avond nog uitloopt.
+function isDrukkeTijd(tafel) {
+  // Tafel 15/16 draaien alleen sporadisch bij een toernooi — geen vast schema, permanent
+  // traag is hier de bewuste keuze (Peter, 20-08) i.p.v. een uitzondering per toernooidag.
+  if (tafel === 15 || tafel === 16) return false;
+
+  const delenVan = (moment) => {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/Amsterdam', weekday: 'short', hourCycle: 'h23',
+      hour: '2-digit', minute: '2-digit',
+    }).formatToParts(moment);
+    const get = (t) => parts.find((p) => p.type === t).value;
+    return { dag: get('weekday'), minuten: parseInt(get('hour'), 10) * 60 + parseInt(get('minute'), 10) };
+  };
+
+  const nu = new Date();
+  const { minuten } = delenVan(nu);
+  // Welke avond dit moment nog bij hoort: vóór 06:00 hoort bij de zaal-dag van gisteren
+  // (zelfde grens als zaalDag() in de backend) — anders valt een uitlopende vrijdagavond om
+  // 01:00 zaterdagochtend ineens onder het weekendschema i.p.v. het doordeweekse.
+  const { dag } = delenVan(new Date(nu.getTime() - 6 * 3600 * 1000));
+  const weekend = dag === 'Sat' || dag === 'Sun';
+
+  // 30 min marge aan beide kanten, zodat een avond die uitloopt of vroeg op gang komt nooit
+  // midden in de throttle terechtkomt. Doordeweeks 18:00-01:30, weekend 12:00-02:30 (Peter, 20-08).
+  const [openVanaf, dichtVanaf] = weekend ? [11 * 60 + 30, 3 * 60] : [17 * 60 + 30, 2 * 60];
+  return minuten >= openVanaf || minuten < dichtVanaf;
+}
 
 let liveTafels = [];
 let idx = 0;
@@ -1059,8 +1092,11 @@ function stopConfetti() {
 // Opstarten: ticker meteen met de standaardtekst, data + highlights ophalen, dan het
 // pauze-schema starten. De YouTube-IFrame-API laadt async en roept hlStartSpeler aan.
 zetTicker(null);
-ververs();
-setInterval(ververs, REFRESH_MS);
+const lusVervers = async () => {
+  await ververs();
+  setTimeout(lusVervers, isDrukkeTijd(MIJN_TAFEL) ? REFRESH_MS_DRUK : REFRESH_MS_RUSTIG);
+};
+lusVervers();
 haalHighlights();
 setInterval(haalHighlights, HIGHLIGHTS_VERVERS_MS);
 haalSheets();

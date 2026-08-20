@@ -1,5 +1,38 @@
 const { valideerCommando } = require('./commands');
 
+// Openingstijden-throttle (20-08, #101-vervolg): buiten bedrijfstijd fors trager pollen.
+// Zelfde Europe/Amsterdam-aanpak (Intl, geen ruwe Date.getDay()/getHours()) als
+// backend/src/schedule/schedule.js — daar leerde #77 dat de zaal-dag over middernacht heen
+// loopt en een naïeve kalenderdag-omslag het systeem laat denken dat er niets meer speelt
+// terwijl een avond nog uitloopt.
+//
+// Anders dan de OBS-overlays (intro.html, 02-jumbotron.html) is dit venuebreed (geen
+// tafel-uitzondering voor 15/16): de camera-freeze-watchdog hoort bij élke streamende tafel
+// even snel te reageren, dus die uitzondering hoort in de "is er iets live"-check in
+// startLoop, niet hier.
+function isDrukkeTijd(nowMs = Date.now()) {
+  const delenVan = (moment) => {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/Amsterdam', weekday: 'short', hourCycle: 'h23',
+      hour: '2-digit', minute: '2-digit',
+    }).formatToParts(moment);
+    const get = (t) => parts.find((p) => p.type === t).value;
+    return { dag: get('weekday'), minuten: parseInt(get('hour'), 10) * 60 + parseInt(get('minute'), 10) };
+  };
+
+  const nu = new Date(nowMs);
+  const { minuten } = delenVan(nu);
+  // Welke avond dit moment nog bij hoort: vóór 06:00 hoort bij de zaal-dag van gisteren
+  // (zelfde grens als zaalDag() in de backend) — anders valt een uitlopende vrijdagavond om
+  // 01:00 zaterdagochtend ineens onder het weekendschema i.p.v. het doordeweekse.
+  const { dag } = delenVan(new Date(nowMs - 6 * 3600 * 1000));
+  const weekend = dag === 'Sat' || dag === 'Sun';
+
+  // 30 min marge aan beide kanten. Doordeweeks 18:00-01:30, weekend 12:00-02:30 (Peter, 20-08).
+  const [openVanaf, dichtVanaf] = weekend ? [11 * 60 + 30, 3 * 60] : [17 * 60 + 30, 2 * 60];
+  return minuten >= openVanaf || minuten < dichtVanaf;
+}
+
 // Kernlus van de agent: commando's ophalen, per commando uitvoeren via de
 // OBS-pool, en de status (incl. bevestigde commando-ids) terugsturen.
 // `pool` en `backend` worden geïnjecteerd zodat runOnce testbaar is met fakes.
@@ -182,18 +215,33 @@ async function runOnce(config, pool, backend, logger = console, nowMs = Date.now
     verwerkteCommandoIds,
     tables,
   });
+
+  return { tables };
 }
+
+// Trager pollen mag alleen als het ZOWEL buiten bedrijfstijd is ALS er nergens gestreamd
+// wordt — de freeze-watchdog moet op een streamende tafel altijd snel blijven reageren,
+// ook als die stream tegen de verwachting in buiten de venstertijden doorloopt.
+const POLL_MS_RUSTIG_FACTOR = 20; // 3s config -> 60s in de nacht; blijft evenredig bij een andere basisinstelling
 
 function startLoop(config, pool, backend, logger = console) {
+  let volgende = config.pollIntervalMs;
   const tick = async () => {
+    let iemandLive = false;
     try {
-      await runOnce(config, pool, backend, logger);
+      const { tables } = await runOnce(config, pool, backend, logger);
+      iemandLive = (tables || []).some((t) => t.streaming);
     } catch (e) {
       logger.log(`[LOOP] ${e.message}`);
+      iemandLive = true; // onbekende status → veilige kant, niet vertragen
     }
+    volgende = (isDrukkeTijd() || iemandLive)
+      ? config.pollIntervalMs
+      : config.pollIntervalMs * POLL_MS_RUSTIG_FACTOR;
+    timer = setTimeout(tick, volgende);
   };
-  tick();
-  return setInterval(tick, config.pollIntervalMs);
+  let timer = setTimeout(tick, 0);
+  return { stop: () => clearTimeout(timer) };
 }
 
-module.exports = { voerCommandoUit, runOnce, startLoop, rotatieZichtbaar, cameraBronVoor };
+module.exports = { voerCommandoUit, runOnce, startLoop, rotatieZichtbaar, cameraBronVoor, isDrukkeTijd };
