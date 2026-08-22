@@ -124,7 +124,10 @@ app.timer('finalizeVideos', {
             : await finaliseerChallenge({ videoId: e.videoId, spelerA: e.spelerA, spelerB: e.spelerB, tableNumber: e.tableNumber });
           e.finalized = true; gewijzigd = true;
           const detail = res.type === 'challenge' ? 'challenge-thumbnail' : `${res.aantalHoofdstukken} hoofdstukken`;
-          context.log(`[finalizeVideos] tafel ${e.tableNumber} gefinaliseerd (${e.videoId}) — ${detail}`);
+          // Warning-niveau (22-08): logLevel.default staat op Warning (#110), dus een gewone
+          // .log() haalt de log-omgeving niet meer — deze bevestiging dat de automatisering
+          // echt iets deed moet zichtbaar blijven.
+          context.warn(`[finalizeVideos] tafel ${e.tableNumber} gefinaliseerd (${e.videoId}) — ${detail}`);
         } catch (err) {
           // Teller ophogen en WEGSCHRIJVEN (#80). Stond dit niet in de opslag, dan telde
           // niets door en bleef 'ie eeuwig opnieuw proberen — 423 keer op 29-07.
@@ -135,9 +138,9 @@ app.timer('finalizeVideos', {
           if (v.opgegeven) {
             e.finalizeOpgegeven = true;
             const waarom = v.onherstelbaar ? 'video bestaat niet meer' : `${v.pogingen} pogingen mislukt`;
-            context.log(`[WAARSCHUWING] [finalizeVideos] tafel ${e.tableNumber} (${e.videoId}) OPGEGEVEN — ${waarom}: ${err.message}. Handmatig afronden kan met POST /api/manage/finalize.`);
+            context.warn(`[WAARSCHUWING] [finalizeVideos] tafel ${e.tableNumber} (${e.videoId}) OPGEGEVEN — ${waarom}: ${err.message}. Handmatig afronden kan met POST /api/manage/finalize.`);
           } else {
-            context.log(`[finalizeVideos] tafel ${e.tableNumber} poging ${v.pogingen}/${v.max} mislukt (${err.message}) — volgende ronde opnieuw`);
+            context.warn(`[finalizeVideos] tafel ${e.tableNumber} poging ${v.pogingen}/${v.max} mislukt (${err.message}) — volgende ronde opnieuw`);
           }
         }
       }
