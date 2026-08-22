@@ -82,7 +82,7 @@ async function verwerk(now, context) {
       try {
         dagCache.set(sleutel, await getTodaysTournaments({ now: ref }));
       } catch (e) {
-        context.log(`[checkStops] toernooien van ${sleutel} ophalen mislukt: ${e.message}`);
+        context.warn(`[checkStops] toernooien van ${sleutel} ophalen mislukt: ${e.message}`);
         dagCache.set(sleutel, null);
       }
     }
@@ -121,7 +121,7 @@ async function verwerk(now, context) {
             const reden = limietBereikt
               ? 'challenge: 2 uur-tijdslimiet bereikt'
               : 'losse uitzending, al een uur geen wedstrijd op deze tafel (#100)';
-            context.log(`[checkStops] tafel ${entry.tableNumber}: stoppen — ${reden}`);
+            context.warn(`[checkStops] tafel ${entry.tableNumber}: stoppen — ${reden}`);
             teStoppen.push(entry.tableNumber);
             store[key] = { ...entry, stopped: true };
             storeGewijzigd = true;
@@ -138,7 +138,7 @@ async function verwerk(now, context) {
         store[key] = entry;
         storeGewijzigd = true;
         cache.set(String(gevonden.id), gevonden);
-        context.log(`[checkStops] tafel ${entry.tableNumber}: ad-hoc stream gekoppeld aan "${gevonden.name}" (${gevonden.id}) → automatisering actief.`);
+        context.warn(`[checkStops] tafel ${entry.tableNumber}: ad-hoc stream gekoppeld aan "${gevonden.name}" (${gevonden.id}) → automatisering actief.`);
       }
 
       let tournament = null;
@@ -149,7 +149,7 @@ async function verwerk(now, context) {
           try {
             tournament = await getTournament(entry.tournamentId);
           } catch (e) {
-            context.log(`[WAARSCHUWING] stop-check ${id}: ${e.message}`);
+            context.warn(`[WAARSCHUWING] stop-check ${id}: ${e.message}`);
           }
           cache.set(id, tournament);
         }
@@ -164,7 +164,7 @@ async function verwerk(now, context) {
         entry.finaleKlaarSinds = now.toISOString();
         store[key] = entry;
         storeGewijzigd = true;
-        context.log(`[checkStops] tafel ${entry.tableNumber}: toernooi klaar → podium-grace gestart.`);
+        context.warn(`[checkStops] tafel ${entry.tableNumber}: toernooi klaar → podium-grace gestart.`);
       }
 
       // Vangnet #105: het toernooi IS gekoppeld, maar Cuescore geeft voor dit ID 0
@@ -197,8 +197,10 @@ async function verwerk(now, context) {
           }
         }
         // Reden altijd loggen (#76): bij het incident van 27-07 stond er alleen dát er
-        // gestopt werd, niet waarom — dat kostte de hele diagnose een dag.
-        context.log(`[checkStops] tafel ${entry.tableNumber}: stoppen — ${reden}`);
+        // gestopt werd, niet waarom — dat kostte de hele diagnose een dag. Op Warning-niveau
+        // (#111-vervolg, 22-08): logLevel.default staat op Warning, dus een gewone .log()
+        // haalt de log-omgeving niet meer — precies dít soort regels moet altijd doorkomen.
+        context.warn(`[checkStops] tafel ${entry.tableNumber}: stoppen — ${reden}`);
         teStoppen.push(entry.tableNumber);
         store[key] = { ...entry, stopped: true };
         storeGewijzigd = true;
@@ -215,7 +217,7 @@ async function verwerk(now, context) {
     for (const v of (process.env.TAFEL_VRIJMAKEN === 'true' ? vrijTeMaken(planning, store, now) : [])) {
       const key = String(v.tableNumber);
       if (!store[key] || store[key].stopped) continue;
-      context.log(`[checkStops] tafel ${v.tableNumber}: stoppen — ${v.reden} (video ${v.videoId})`);
+      context.warn(`[checkStops] tafel ${v.tableNumber}: stoppen — ${v.reden} (video ${v.videoId})`);
       teStoppen.push(v.tableNumber);
       store[key] = { ...store[key], stopped: true, vrijgemaaktVoor: v.tournamentId };
       storeGewijzigd = true;
@@ -233,7 +235,7 @@ async function verwerk(now, context) {
       tableNumber: Number(tn),
     }));
     await writeJson('commands.json', enqueue(commands, nieuw));
-    context.log(`[OK] ${teStoppen.length} stopStream-commando(s): tafels ${teStoppen.join(', ')}`);
+    context.warn(`[OK] ${teStoppen.length} stopStream-commando(s): tafels ${teStoppen.join(', ')}`);
   }
 }
 

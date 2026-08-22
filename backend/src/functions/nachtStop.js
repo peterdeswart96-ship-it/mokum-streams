@@ -43,7 +43,10 @@ async function verwerk(now, context) {
     const commands = (await readJson('commands.json', [])) || [];
     const metId = nieuweCommandos.map((c) => ({ id: crypto.randomUUID(), createdAt: now.toISOString(), ...c }));
     await writeJson('commands.json', enqueue(commands, metId));
-    context.log(`[nachtStop] veiligheids-stop: ${metId.length} stream(s) gestopt — tafels ${nieuweCommandos.map((c) => c.tableNumber).join(', ')}`);
+    // Warning-niveau (22-08, na een 11-uursstream die 's nachts niet werd opgemerkt):
+    // logLevel.default staat op Warning (#110), dus een gewone .log() haalt de log-omgeving
+    // niet meer. Dit is het laatste vangnet — juist déze regel mag nooit onzichtbaar zijn.
+    context.warn(`[nachtStop] veiligheids-stop: ${metId.length} stream(s) gestopt — tafels ${nieuweCommandos.map((c) => c.tableNumber).join(', ')}`);
   }
 }
 
