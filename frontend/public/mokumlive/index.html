@@ -312,7 +312,17 @@
 
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
   const num = (s) => { const n = parseInt(String(s ?? '').replace(/\D/g, ''), 10); return Number.isNaN(n) ? 9999 : n; };
-  const vandaag = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  // Zaal-dag i.p.v. kalenderdag (zelfde grens als backend/src/schedule/schedule.js
+  // zaalDag(), ZAAL_DAG_GRENS_UUR=6): een toernooiavond loopt vaak door tot ná
+  // middernacht, dus vóór 06:00 telt het nog als "gisteravond". Zonder deze correctie
+  // vroeg de pagina Cuescore vlak na middernacht om de venue-events van de NIEUWE
+  // kalenderdag op — een avondtoernooi dat nog bezig was viel dan uit de toernooi-
+  // dropdown (geconstateerd 25-08 vlak na 00:00, #113-achtig maar aan de frontend-kant).
+  const vandaag = () => {
+    const d = new Date();
+    if (d.getHours() < 6) d.setDate(d.getDate() - 1);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  };
 
   async function haalJson(url) {
     const r = await fetch(url, { cache: 'no-store' });
