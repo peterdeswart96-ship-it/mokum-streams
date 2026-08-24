@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { amsterdamDelen, winnaarUitToernooi, winnaarRegel, bouwWinnaars, bouwKomende } = require('../src/sheets/sheets');
+const { amsterdamDelen, winnaarUitToernooi, winnaarRegel, bouwWinnaars, bouwKomende, magSheetsHerbouwen } = require('../src/sheets/sheets');
 
 // Genormaliseerd toernooi zoals normalizeTournament het teruggeeft (alleen de velden die
 // de sheet-logica gebruikt).
@@ -104,4 +104,16 @@ test('#97: een gewoon avondtoernooi met start én stop binnen 26 uur blijft gewo
     { name: 'Avondtoernooi', start: '2026-08-22T17:15:00Z', stop: '2026-08-23T01:00:00Z', finished: false },
   ];
   assert.deepStrictEqual(bouwKomende(lijst, { max: 5 }).map((r) => r.naam), ['Avondtoernooi']);
+});
+
+test('#94: magSheetsHerbouwen is false midden in de nacht (02:00-12:00)', () => {
+  assert.strictEqual(magSheetsHerbouwen(2 * 60), false); // 02:00 — grens, hoort er nog bij
+  assert.strictEqual(magSheetsHerbouwen(5 * 60 + 48), false); // 05:48, uit het logvoorbeeld
+  assert.strictEqual(magSheetsHerbouwen(11 * 60 + 59), false); // 11:59
+});
+
+test('#94: magSheetsHerbouwen is true overdag en \'s avonds, buiten het nachtvenster', () => {
+  assert.strictEqual(magSheetsHerbouwen(12 * 60), true); // 12:00 — grens, mag weer
+  assert.strictEqual(magSheetsHerbouwen(19 * 60 + 30), true); // 19:30, drukke avond
+  assert.strictEqual(magSheetsHerbouwen(60), true); // 01:00, nog vóór het nachtvenster
 });

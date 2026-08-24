@@ -95,4 +95,14 @@ function bouwKomende(tournaments, { max = 5 } = {}) {
     .map(komendeRegel);
 }
 
-module.exports = { amsterdamDelen, winnaarUitToernooi, winnaarRegel, bouwWinnaars, komendeRegel, bouwKomende };
+// Mag de sheets-cache nu herbouwd worden? (#94) Tussen 02:00 en 12:00 kijkt niemand naar
+// de jumbotron — een verlopen cache dan gewoon laten staan i.p.v. Cuescore opnieuw
+// belasten. `minutenVanDeDag` komt uit schedule.js's zaalDelen() (Amsterdam-tijd).
+function magSheetsHerbouwen(minutenVanDeDag, { vanaf = 2 * 60, tot = 12 * 60 } = {}) {
+  return !(minutenVanDeDag >= vanaf && minutenVanDeDag < tot);
+}
+
+module.exports = {
+  amsterdamDelen, winnaarUitToernooi, winnaarRegel, bouwWinnaars, komendeRegel, bouwKomende,
+  magSheetsHerbouwen,
+};
