@@ -186,6 +186,29 @@ test('analyse: een herhaalde fout telt als één probleem, maar valt niet weg', 
   assert.ok(a.bevindingen.some((b) => /waarschuwing/i.test(b.kop)));
 });
 
+// #91-vervolg (23-08): één hardnekkige finalize (geen streamstart voor een video) meldde zich
+// negen keer, elke keer met een ander pogingnummer in de tekst ("poging 1/10" t/m "poging
+// 9/10") — dat zijn negen VERSCHILLENDE strings, dus de gewone dedup (exacte match) zag ze als
+// negen aparte problemen. Het rapport meldde "9 technische waarschuwingen" waar het er
+// eigenlijk 1 was.
+test('analyse: dezelfde storing met een oplopend pogingnummer telt als één probleem', () => {
+  const pogingen = Array.from({ length: 9 }, (_, i) => ({
+    tijd: T(18, 50 + i * 5),
+    bericht: `[finalizeVideos] tafel 16 poging ${i + 1}/10 mislukt (geen streamstart (actualStartTime) voor sHybJNyO8Es) — volgende ronde opnieuw`,
+  }));
+  const a = analyseer(pogingen);
+  assert.strictEqual(a.cijfers.problemen, 1);
+});
+
+test('analyse: twee ECHT verschillende storingen (andere video) tellen wél apart', () => {
+  const twee = [
+    { tijd: T(18, 50), bericht: '[finalizeVideos] tafel 16 poging 1/10 mislukt (geen streamstart (actualStartTime) voor sHybJNyO8Es) — volgende ronde opnieuw' },
+    { tijd: T(19, 0), bericht: '[finalizeVideos] tafel 1 poging 1/10 mislukt (video niet gevonden) — volgende ronde opnieuw' },
+  ];
+  const a = analyseer(twee);
+  assert.strictEqual(a.cijfers.problemen, 2);
+});
+
 test('analyse: lege invoer valt niet om', () => {
   for (const w of [null, undefined, []]) {
     const a = analyseer(w);

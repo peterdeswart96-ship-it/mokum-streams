@@ -9,6 +9,14 @@
 
 const PROBLEEM_RE = /WAARSCHUWING|Exception|niet bereikbaar|FOUT|mislukt|nog niet gelukt|niet gevonden|threshold exceeded/i;
 
+// Een herhaalde poging (#80's retry-teller, "poging N/M") is dezelfde storing die zich
+// opnieuw meldt, niet een nieuw probleem — het pogingnummer in de tekst zorgde er eerder voor
+// dat elke poging apart meetelde. Op 23-08 stond zo één hardnekkige finalize (steeds dezelfde
+// video, geen streamstart) negen keer als "9 technische waarschuwingen" in het rapport, terwijl
+// het één terugkerende oorzaak was. Vóór het tellen normaliseren we het pogingnummer weg.
+const POGING_RE = /\bpoging \d+\/\d+\b/i;
+const probleemSleutel = (m) => m.replace(POGING_RE, 'poging N/M');
+
 // Opstartruis van Azure, géén storing (#91, gemeld 05-08).
 //
 // De Function App schaalt naar nul als er niets te doen is. Start hij weer op, dan vraagt
@@ -206,7 +214,10 @@ function analyseer(regels, { langsteOpenUren = 2 } = {}) {
     // Eerst tellen, dan pas beslissen of we 'm tonen: een fout die zich honderd keer
     // herhaalt is één probleem, maar mag nooit uit de samenvatting vallen. Opstartruis
     // telt niet mee — zie OPSTARTRUIS_RE.
-    if (PROBLEEM_RE.test(m) && !OPSTARTRUIS_RE.test(m)) problemen.set(m, (problemen.get(m) || 0) + 1);
+    if (PROBLEEM_RE.test(m) && !OPSTARTRUIS_RE.test(m)) {
+      const sleutel = probleemSleutel(m);
+      problemen.set(sleutel, (problemen.get(sleutel) || 0) + 1);
+    }
 
     if (/^\[pauzeScherm\]/.test(m)) { pauzeschakelingen++; continue; }
 
@@ -360,4 +371,4 @@ function analyseer(regels, { langsteOpenUren = 2 } = {}) {
   };
 }
 
-module.exports = { duidRegel, analyseer, PROBLEEM_RE, REGELS, uurNotatie };
+module.exports = { duidRegel, analyseer, PROBLEEM_RE, REGELS, uurNotatie, probleemSleutel };
