@@ -24,7 +24,10 @@ function corsHeaders(request) {
 
 const json = (status, body, request) => ({ status, jsonBody: body, headers: corsHeaders(request) });
 const CAMERAS_DEFAULT = [1, 3, 15, 16];
-const AGENT_ONLINE_MS = 20000; // agent pollt elke ~3s → >20s stil = offline
+// Agent pollt elke ~3s tijdens bedrijfstijd/als er iets live is, maar wordt daarbuiten
+// bewust 20x trager (#111, POLL_MS_RUSTIG_FACTOR in agent/src/agent.js) — dus tot 60s
+// stilte is dan normaal, geen storing. 90s geeft ruim marge boven dat maximum.
+const AGENT_ONLINE_MS = 90000;
 
 // GET /api/live — live-status per cameratafel
 app.http('publicLive', {
