@@ -45,7 +45,7 @@ async function verwerk(now, context) {
   try {
     tournaments = await getTodaysTournaments({ now });
   } catch (e) {
-    context.log(`[pauzeScherm] Cuescore niet bereikbaar (${e.message}) → toestanden ongewijzigd.`);
+    context.warn(`[pauzeScherm] Cuescore niet bereikbaar (${e.message}) → toestanden ongewijzigd.`);
     return;
   }
 
@@ -74,7 +74,10 @@ async function verwerk(now, context) {
       ];
       const cmds = rauw.map((c) => ({ id: crypto.randomUUID(), createdAt: now.toISOString(), ...c }));
       commands.push(...cmds);
-      context.log(`[pauzeScherm] tafel ${tn} → ${res.toestand} (pauzescherm ${toonPauze ? 'AAN' : 'uit'})`);
+      // Warning-niveau (24-08, zie #112): logLevel.default staat op Warning, dus een gewone
+      // .log() haalt de log-omgeving niet meer — of het pauzescherm daadwerkelijk omschakelde
+      // moet zichtbaar blijven, anders is dit soort klachten nooit met de logs te bevestigen.
+      context.warn(`[pauzeScherm] tafel ${tn} → ${res.toestand} (pauzescherm ${toonPauze ? 'AAN' : 'uit'})`);
     }
   }
 

@@ -55,6 +55,9 @@ function templateVoorToernooi(naam) {
   // "raNKing"/"baNK". Vóór de 8&10-regel voor de duidelijkheid (botst niet: geen 8).
   if (/\bnk\b/.test(n) && /10[.\-\s]?ball/.test(n)) return 'nk-10ball';
   if (/(?:8\s*(?:&|en|\/|\+|,|-)?\s*10|10\s*(?:&|en|\/|\+|,|-)?\s*8)/.test(n)) return '8-10-ball-ranking';
+  // "Mokum 10-Ball Summer Break" — beide kernwoorden vereist, anders zou een willekeurig
+  // ander 10-ball-toernooi (bijv. een NK-kwalificatie) dit sjabloon ook kunnen pakken.
+  if (/10[.\-\s]?ball/.test(n) && n.includes('summer') && n.includes('break')) return '10ball-summer-break';
   // Mokum 8-ball Ranking (#95) — vóór de generieke checks, ná de 8&10-combinatie hierboven
   // (die heeft voorrang: "8ball ranking #10" bevat toevallig een 10, maar niet vlak ná de 8).
   if (/8[.\-\s]?ball/.test(n) && n.includes('ranking')) return '8-ball-ranking';
@@ -101,6 +104,7 @@ const TEMPLATE_TEKST = {
   'best-of-one':               { titel: 'Best of One' },
   'go-customs-amsterdam-open': { titel: 'Amsterdam Open', sponsor: 'GO CUSTOMS' },
   'nk-10ball':                 { titel: 'NK 10-Ball Kwalificatie' },
+  '10ball-summer-break':       { titel: '10-Ball Summer Break' },
 };
 
 // Korte, hoofdletter-datum voor de datumpil op de thumbnail, bv. "DI 22 JULI".
