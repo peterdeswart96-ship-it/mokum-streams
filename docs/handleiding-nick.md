@@ -69,5 +69,26 @@ fysieke noodstop-knop (Stream Deck) bij de pc.
 
 ---
 
+## Een sponsorplaatje verwijderen (uitzondering)
+
+Dit is de enige taak in deze handleiding die **niet** via het dashboard gaat — hiervoor
+moet je op de streaming-pc zelf inloggen (Peter kan je daar remote toegang toe geven,
+bijv. via Chrome Remote Desktop). Doe dit het liefst als er niets live staat.
+
+1. **Log in op de streaming-pc** (remote of fysiek in de zaal).
+2. Open de map **`C:\Mokum-Sponsors`** en verwijder daar het plaatje.
+3. Het plaatje staat ook nog in een lijstje in OBS zelf — dat moet je **op alle 4 de
+   OBS-vensters apart** bijwerken (Tafel 1, 3, 15, 16):
+   - Zoek in de bronnenlijst (rechtsonder) de bron **"Sponsor slideshow"**.
+   - Rechtsklik erop → **Properties** (Eigenschappen).
+   - Selecteer het plaatje in de lijst en klik op **Remove** (of het min-icoontje).
+   - Klik op **OK**.
+4. Herhaal stap 3 voor de andere 3 OBS-vensters.
+
+> Vergeet je stap 3, dan kan de diavoorstelling op dat tafel-scherm een leeg/kapot
+> plaatje blijven tonen, ook al is het bestand zelf al weg.
+
+---
+
 *Vragen of iets kapot? App Peter. Deze streams hebben bewust **geen geluid**
 (auteursrecht op de achtergrondmuziek) — dat is dus geen storing.*
