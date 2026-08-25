@@ -93,6 +93,12 @@ Namen in het **Engels** (afgesproken 2026-07-09); het **tafel-token blijft
 >   `C:\Users\poole\Mokum-Sponsors\`), niet verspreid over OneDrive/Downloads
 >   (sync-risico, gaps #9). Verwijs alle 4 de slideshows naar diezelfde bestanden.
 > Elke instantie moet uiteindelijk **dezelfde set + dezelfde namen** hebben.
+>
+> **Correctie (25-08-2026):** in de praktijk staat bij "Image Files" niet een
+> handmatige lijst losse bestanden, maar de **map zelf** (`C:/Mokum-Sponsors`) als
+> één item — OBS leest die map uit. Een sponsorplaatje verwijderen/toevoegen hoeft
+> dus maar op één plek (de map), niet per bestand in elke Properties-lijst. Zie
+> `docs/handleiding-nick.md` voor het stappenplan.
 
 > **UPDATE 2026-07-11 — overgestapt op de OFFICIËLE Cuescore-overlay.** Op alle 4
 > tafels vervangt een nieuwe browser-source **`Scoreboard Cuescore`** het oude

@@ -77,16 +77,16 @@ bijv. via Chrome Remote Desktop). Doe dit het liefst als er niets live staat.
 
 1. **Log in op de streaming-pc** (remote of fysiek in de zaal).
 2. Open de map **`C:\Mokum-Sponsors`** en verwijder daar het plaatje.
-3. Het plaatje staat ook nog in een lijstje in OBS zelf — dat moet je **op alle 4 de
-   OBS-vensters apart** bijwerken (Tafel 1, 3, 15, 16):
-   - Zoek in de bronnenlijst (rechtsonder) de bron **"Sponsor slideshow"**.
-   - Rechtsklik erop → **Properties** (Eigenschappen).
-   - Selecteer het plaatje in de lijst en klik op **Remove** (of het min-icoontje).
-   - Klik op **OK**.
-4. Herhaal stap 3 voor de andere 3 OBS-vensters.
+3. De "Sponsor slideshow"-bron in OBS wijst naar die hele map (niet naar losse
+   bestanden), dus meestal is stap 2 al genoeg. Blijft het plaatje toch nog een tijdje
+   voorbijkomen op een van de 4 tafels (1, 3, 15, 16), forceer dan een herinlezing:
+   - Rechtsklik de bron **"Sponsor slideshow"** in de bronnenlijst → zet het oogje
+     (zichtbaarheid) **uit en weer aan**.
+   - Blijft het plaatje er toch in staan, open dan **Properties** op die bron en klik op
+     **OK** — dat leest de map ook opnieuw in.
 
-> Vergeet je stap 3, dan kan de diavoorstelling op dat tafel-scherm een leeg/kapot
-> plaatje blijven tonen, ook al is het bestand zelf al weg.
+> Controleer dit gerust op alle 4 de OBS-vensters, maar in de praktijk delen ze
+> dezelfde map — verwijderen op één plek is voor alle 4 tegelijk genoeg.
 
 ---
 
