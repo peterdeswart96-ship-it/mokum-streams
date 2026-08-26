@@ -72,10 +72,30 @@ test('volgendeToestand: blijft pauze zolang er geen wedstrijd is (geen dubbele o
   assert.strictEqual(r.veranderd, false);
 });
 
-test('volgendeToestand: eerste run zonder vorige → start neutraal in spelen', () => {
+// #113-achtig, geconstateerd 25-08: het pauzescherm hoort "tot de eerste bal valt" te
+// draaien. Een verse tafel (geen vorige staat) moet dus in PAUZE beginnen — niet stil
+// aannemen dat 'spelen' klopt totdat het tegendeel bewezen is.
+test('volgendeToestand: eerste run zonder vorige → start neutraal in pauze', () => {
+  const r = volgendeToestand(null, false, 5000, 20000);
+  assert.strictEqual(r.toestand, 'pauze');
+  assert.strictEqual(r.veranderd, false);
+});
+
+test('volgendeToestand: eerste run zonder vorige, maar er speelt al iets → direct actief naar spelen (geen wachttijd ingesteld)', () => {
   const r = volgendeToestand(null, true, 5000, 20000);
   assert.strictEqual(r.toestand, 'spelen');
-  assert.strictEqual(r.veranderd, false);
+  assert.strictEqual(r.veranderd, true);
+});
+
+test('volgendeToestand: eerste run zonder vorige, er speelt al iets, mét wachttijd → pas na de wachttijd naar spelen', () => {
+  const a = volgendeToestand(null, true, 5000, 20000, 60000);
+  assert.strictEqual(a.toestand, 'pauze');
+  assert.strictEqual(a.veranderd, false);
+  assert.strictEqual(a.wachtSinds, 5000);
+
+  const b = volgendeToestand(a, true, 65000, 20000, 60000);
+  assert.strictEqual(b.toestand, 'spelen');
+  assert.strictEqual(b.veranderd, true);
 });
 
 // Vaste "nu" voor de weergavefuncties: 02-08-2026 14:00 Amsterdam. Sinds #86 hangt de

@@ -63,7 +63,15 @@ function tafelSpeeltNu(tournaments, tableNumber) {
 // zonder wachttijd kijk je een paar minuten naar een lege tafel. Standaard 0 (direct),
 // zodat bestaande aanroepen niets merken; pauzeScherm zet 'm op een minuut.
 function volgendeToestand(vorige, speeltNu, nowMs, debounceMs, spelenDebounceMs = 0) {
-  const prev = vorige || { toestand: 'spelen', sinds: nowMs, wachtSinds: null };
+  // Zonder eerdere staat (nieuwe tafel deze zaal-dag) starten we neutraal in PAUZE, niet
+  // 'spelen': het pauzescherm hoort te draaien "tot de eerste bal valt" (avond-verloop in
+  // CLAUDE.md), dus bij twijfel is pauze de veilige/bedoelde standaard. Ontdekt de eerstvolgende
+  // tik dat er al gespeeld wordt, dan schakelt de normale spelenDebounce daar gewoon voor —
+  // dat geeft ook meteen een actieve bevestiging (commando + log) i.p.v. stilzwijgend te
+  // vertrouwen dat de allereerste jumbotron-AAN vanuit createBroadcasts wel is aangekomen
+  // (geconstateerd 25-08: geen pauzescherm bij een verse start terwijl 'ie in de planner aan
+  // stond).
+  const prev = vorige || { toestand: 'pauze', sinds: nowMs, wachtSinds: null };
 
   if (speeltNu) {
     if (prev.toestand === 'spelen') {
