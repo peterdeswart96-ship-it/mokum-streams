@@ -8,6 +8,7 @@ const { kiesToernooiVoorTafel, anderToernooiNogOpTafel } = require('../planning/
 const { vrijTeMaken } = require('../planning/vrijmaken');
 const { inactiviteitsCheck } = require('../planning/inactiviteit');
 const { challengeMoetStoppen } = require('../planning/challengeLimiet');
+const { moetOpnieuwStarten, MAX_POGINGEN } = require('../planning/herstart');
 const { isArmed } = require('../config/automation');
 
 // Timer-Function: bewaakt lopende broadcasts en stopt ze automatisch wanneer het
@@ -43,6 +44,13 @@ const { isArmed } = require('../config/automation');
 // heid bij de spelers: duurt de partij langer, dan vragen ze zelf om een nieuwe stream
 // (deel 2, 3...). De wizard waarschuwt hier bij het aanmaken al voor. Zie
 // `planning/challengeLimiet.js`.
+//
+// Herstart-vangnet (#114, 26-08): een vers aangemaakte YouTube-broadcast bleek in een
+// gecontroleerde test soms een korte tijd nodig te hebben vóór 'ie echt data accepteert —
+// de allereerste StartStream-poging (vlak na createBroadcasts) kan daardoor stil
+// mislukken, zonder dat de agent een fout meldt. Deze check herkent een tafel die allang
+// had moeten zenden maar dat volgens de agent-status niet doet, en stuurt automatisch
+// (begrensd, met tussenpozen) een vers startStream-commando. Zie `planning/herstart.js`.
 
 const CRON_ELKE_MIN = '0 * * * * *';
 // Hoelang het medaillescherm in beeld blijft vóór we sluiten. Ruim genoeg dat de
@@ -68,8 +76,15 @@ async function verwerk(now, context) {
   // dashboard en het pauzescherm al gebruiken, niet gebonden aan één toernooi-ID.
   const liveMatches = await readJson('live-matches.json', null);
   const venueTables = (liveMatches && liveMatches.venueTables) || [];
+  // Voor het herstart-vangnet (#114): meldt de agent deze tafel als daadwerkelijk
+  // zendend? Zie moetOpnieuwStarten() hieronder.
+  const status = await readJson('status.json', null);
+  const streamtTafel = new Map(
+    ((status && status.tables) || []).map((t) => [Number(t.tableNumber), !!t.streaming])
+  );
 
   const teStoppen = [];
+  const teHerstarten = [];
   const cache = new Map();
 
   // Toernooien van een zaal-dag: lazy ophalen (alleen als een ad-hoc/gekoppelde stream
@@ -96,6 +111,22 @@ async function verwerk(now, context) {
     for (const key of Object.keys(store)) {
       let entry = store[key];
       if (!entry || entry.stopped) continue;
+
+      // Herstart-vangnet (#114): de broadcast is aangemaakt en het startStream-commando
+      // is verstuurd, maar de agent meldt nog altijd geen data — terwijl de geplande start
+      // al een tijdje voorbij is. Gecontroleerde test op 26-08 wees uit dat een vers
+      // gebonden YouTube-broadcast soms een korte tijd nodig heeft vóór 'ie echt gaat
+      // zenden: een tweede, latere poging (zonder enige menselijke tussenkomst) lukte
+      // toen gewoon. `continue` erna: de rest van deze ronde (koppelen/stoppen) heeft
+      // nog niets te doen zolang er niet eens wordt gezonden.
+      if (moetOpnieuwStarten(entry, streamtTafel.get(Number(entry.tableNumber)), now.getTime())) {
+        const pogingen = (Number(entry.startPogingen) || 0) + 1;
+        context.warn(`[checkStops] tafel ${entry.tableNumber}: nog geen data van de agent sinds de geplande start → opnieuw starten (poging ${pogingen}/${MAX_POGINGEN})`);
+        teHerstarten.push(entry.tableNumber);
+        store[key] = { ...entry, startPogingen: pogingen, laatsteStartPoging: now.toISOString() };
+        storeGewijzigd = true;
+        continue;
+      }
 
       // Handmatig gestart zonder toernooi? Probeer alsnog te koppelen (#69). Lukt dat
       // niet (niets gevonden of te onzeker), dan blijft de stream handmatig.
@@ -226,16 +257,21 @@ async function verwerk(now, context) {
     if (storeGewijzigd) await writeJson(pad, store);
   }
 
-  if (teStoppen.length > 0) {
+  if (teStoppen.length > 0 || teHerstarten.length > 0) {
     const commands = (await readJson('commands.json', [])) || [];
-    const nieuw = teStoppen.map((tn) => ({
-      id: crypto.randomUUID(),
-      createdAt: now.toISOString(),
-      type: 'stopStream',
-      tableNumber: Number(tn),
-    }));
+    const nieuw = [
+      ...teStoppen.map((tn) => ({
+        id: crypto.randomUUID(), createdAt: now.toISOString(), type: 'stopStream', tableNumber: Number(tn),
+      })),
+      // preflight NIET gezet: dit is geen automatische eerste start (die controleert eerst
+      // de camera, #43) maar een herhaling van een al-eerder-verstuurd commando.
+      ...teHerstarten.map((tn) => ({
+        id: crypto.randomUUID(), createdAt: now.toISOString(), type: 'startStream', tableNumber: Number(tn),
+      })),
+    ];
     await writeJson('commands.json', enqueue(commands, nieuw));
-    context.warn(`[OK] ${teStoppen.length} stopStream-commando(s): tafels ${teStoppen.join(', ')}`);
+    if (teStoppen.length) context.warn(`[OK] ${teStoppen.length} stopStream-commando(s): tafels ${teStoppen.join(', ')}`);
+    if (teHerstarten.length) context.warn(`[OK] ${teHerstarten.length} herstart-commando(s) (#114): tafels ${teHerstarten.join(', ')}`);
   }
 }
 
