@@ -1,6 +1,7 @@
 const { app } = require('@azure/functions');
 const { readJson, writeJson, writeJsonAlsGewijzigd } = require('../storage/blob');
 const { getTodaysTournaments } = require('../cuescore');
+const { zaalDag } = require('../schedule/schedule');
 const { enqueue, OVERLAY_BRON } = require('../agent/commandQueue');
 const { tafelSpeeltNu, volgendeToestand, pauzeCommandos, refreshCommandos } = require('../planning/pauze');
 const { isPauzeAutoOn, pauzeSchermKeys, pauzeSchermUitKeys, pauzeSchermRefreshKeys } = require('../config/automation');
@@ -23,7 +24,16 @@ const DEBOUNCE_MS = 20000; // 20s 'geen wedstrijd' vóór we naar pauze gaan (an
 // heen lopen, racken en inspelen. Zonder deze wachttijd kijk je een paar minuten naar
 // een lege tafel. Instelbaar via app-setting PAUZE_UIT_VERTRAGING_SEC.
 const SPELEN_DEBOUNCE_MS = (Number(process.env.PAUZE_UIT_VERTRAGING_SEC) || 60) * 1000;
-const STATE_PAD = 'pauze-state.json';
+// Per zaal-dag (net als broadcasts/<datum>.json), niet één eeuwigdurend bestand (26-08):
+// de oude, ongedateerde pauze-state.json bleef de staat van de VORIGE keer dat een tafel
+// streamde meedragen naar een volgende, compleet andere avond — een tafel die de vorige
+// keer toevallig in 'spelen' eindigde (bijv. een geforceerde stop terwijl er nog gespeeld
+// werd) begon de volgende avond dus met diezelfde onterechte aanname, i.p.v. netjes
+// neutraal in pauze. zaalDag() zorgt dat een avondstream die over middernacht heen loopt
+// wél in hetzelfde bestand blijft (zelfde truc als bij checkStops/nachtStop).
+function statePad(now) {
+  return `pauze-state/${zaalDag(now)}.json`;
+}
 
 async function verwerk(now, context) {
   if (!isPauzeAutoOn()) {
@@ -49,7 +59,8 @@ async function verwerk(now, context) {
     return;
   }
 
-  const store = (await readJson(STATE_PAD, {})) || {};
+  const pad = statePad(now);
+  const store = (await readJson(pad, {})) || {};
   const nowMs = now.getTime();
   const pauzeKeys = pauzeSchermKeys();          // aan tijdens pauze (bijv. jumbotron)
   const pauzeUitKeys = pauzeSchermUitKeys();     // aan tijdens spelen, uit bij pauze (bijv. scoreboard)
@@ -89,7 +100,7 @@ async function verwerk(now, context) {
   // twee tikken per minuut de vaakst schrijvende timer; tussen wedstrijden door staat de
   // toestand vaak een half uur stil. De debounce-timing loopt gewoon door: die zit ín
   // `store`, dus zodra hij verschuift is de vorm anders en wordt er wél geschreven.
-  await writeJsonAlsGewijzigd(STATE_PAD, store);
+  await writeJsonAlsGewijzigd(pad, store);
 }
 
 app.timer('pauzeScherm', {
