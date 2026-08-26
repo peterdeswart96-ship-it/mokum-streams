@@ -41,7 +41,7 @@ async function verwerk(now, context) {
     if (!tafelVrijVoor(store, tafelNr, rec.tournamentId)) return;
     const table = tableById.get(Number(tafelNr));
     if (!table || !table.streamId) {
-      context.log(`[FOUT] Tafel ${tafelNr} heeft geen streamId in config/tables.json — overslaan.`);
+      context.warn(`[FOUT] Tafel ${tafelNr} heeft geen streamId in config/tables.json — overslaan.`);
       return;
     }
     const title = buildBroadcastTitle({ tafel: tafelNr, toernooinaam: rec.name || '' });
@@ -72,9 +72,14 @@ async function verwerk(now, context) {
       // controleert eerst of de camera live beeld geeft (geen bevroren/dode cam de lucht in, #43).
       const overlayBron = table.overlaySources || undefined;
       nieuweCommandos.push(...startCommandsFor(rec, Number(tafelNr), overlayBron, { preflight: true }));
-      context.log(`[OK] Broadcast + startcommando's: tafel ${tafelNr} — "${title}" (${broadcast.id})`);
+      // Warning-niveau (26-08, #114-vervolg): logLevel.default staat op Warning (#110), dus
+      // een gewone .log() haalt de log-omgeving niet meer. Zonder deze regel was er op
+      // 25-08 geen enkel spoor van de startpoging te vinden — precies het gat waardoor het
+      // ochtendrapport (dat alleen ziet wat de backend zelf besloot) niets bijzonders meldde
+      // terwijl de stream in werkelijkheid niet vanzelf aansloeg.
+      context.warn(`[OK] Broadcast + startcommando's: tafel ${tafelNr} — "${title}" (${broadcast.id})`);
     } catch (e) {
-      context.log(`[FOUT] Broadcast tafel ${tafelNr} mislukt: ${e.message}`);
+      context.warn(`[FOUT] Broadcast tafel ${tafelNr} mislukt: ${e.message}`);
     }
   }
 
@@ -91,7 +96,7 @@ async function verwerk(now, context) {
         tafels = herresolveerTafels(tournament, rec.tafels || [], now);
         context.log(`[createBroadcasts] tafel-herresolutie toernooi ${rec.tournamentId}: [${(rec.tafels || []).join(',')}] → [${tafels.join(',')}]`);
       } catch (e) {
-        context.log(`[createBroadcasts] herresolutie mislukt (${e.message}) → geplande tafels [${tafels.join(',')}]`);
+        context.warn(`[createBroadcasts] herresolutie mislukt (${e.message}) → geplande tafels [${tafels.join(',')}]`);
       }
     }
     for (const tafelNr of tafels.filter((t) => tafelVrijVoor(store, t, rec.tournamentId))) {
@@ -110,7 +115,7 @@ async function verwerk(now, context) {
     try {
       tournament = await getTournament(rec.tournamentId);
     } catch (e) {
-      context.log(`[WAARSCHUWING] League ${rec.tournamentId} ophalen mislukt: ${e.message}`);
+      context.warn(`[WAARSCHUWING] League ${rec.tournamentId} ophalen mislukt: ${e.message}`);
       continue;
     }
     for (const { tableNumber, earliestStart } of leagueDueTables(tournament, rec, now)) {
@@ -125,7 +130,7 @@ async function verwerk(now, context) {
     const bestaand = (await readJson('commands.json', [])) || [];
     const metId = nieuweCommandos.map((c) => ({ id: crypto.randomUUID(), createdAt: now.toISOString(), ...c }));
     await writeJson('commands.json', enqueue(bestaand, metId));
-    context.log(`[OK] ${metId.length} commando's toegevoegd aan de wachtrij.`);
+    context.warn(`[OK] ${metId.length} commando's toegevoegd aan de wachtrij.`);
   }
 }
 
