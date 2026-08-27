@@ -48,7 +48,19 @@ async function getContainerClient(naam = CONTAINER) {
 const LEES_CACHE_MS = 5000;
 const leesCache = new Map(); // blobPath -> { waarde, verlooptOm }
 
+// Uitgesloten van de leescache (26-08, storingsweek): `commands.json` (de wachtrij die
+// de agent elke ~3s pollt) en `status.json` (wat de agent net meldde) zijn de twee
+// meest tijdgevoelige paden in het hele systeem. Bij meerdere Azure Function-instances
+// tegelijk (Azure schaalt zelf, niet uit te zetten) kan de ene instance een vers
+// commando wegschrijven terwijl een ándere instance nog een tot 5s oude, mogelijk lege
+// wachtrij teruggeeft aan de agent — precies het soort onzichtbare, willekeurige
+// vertraging die achter de start/stop-problemen van deze week kán zitten. De cache
+// bespaart hooguit een handvol centen per maand op deze twee paden; dat weegt niet op
+// tegen een extra bron van "spookvertraging" bij live streams.
+const ONGECACHTE_PADEN = new Set(['commands.json', 'status.json']);
+
 function cacheZet(blobPath, waarde) {
+  if (ONGECACHTE_PADEN.has(blobPath)) return;
   leesCache.set(blobPath, { waarde, verlooptOm: Date.now() + LEES_CACHE_MS });
 }
 
