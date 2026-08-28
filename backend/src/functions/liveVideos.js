@@ -20,7 +20,10 @@ async function verwerk(now, context) {
   try {
     broadcasts = await listActiveBroadcasts();
   } catch (e) {
-    context.log(`[liveVideos] YouTube niet bereikbaar (${e.message}) → vorige stand behouden.`);
+    // Warning-niveau (28-08, #117-vervolg): logLevel.default staat op Warning (#110) —
+    // dit raakt de YouTube-API, precies het oppervlak achter de start/stop-storingen van
+    // deze week, dus een langdurige onbereikbaarheid moet hier zichtbaar blijven.
+    context.warn(`[liveVideos] YouTube niet bereikbaar (${e.message}) → vorige stand behouden.`);
     return;
   }
 

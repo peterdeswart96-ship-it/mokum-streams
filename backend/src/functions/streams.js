@@ -59,7 +59,7 @@ app.http('adminStreamStart', {
         context.log(`[streams/start] tafel ${tafelNr}: oude broadcast ${o.videoId} (${o.status}) ${o.actie} — ${hoe} — "${o.titel}"`);
       }
     } catch (e) {
-      context.log(`[WAARSCHUWING] [streams/start] tafel ${tafelNr}: opruimen van de stream key mislukt (${e.message}) — we starten toch.`);
+      context.warn(`[WAARSCHUWING] [streams/start] tafel ${tafelNr}: opruimen van de stream key mislukt (${e.message}) — we starten toch.`);
     }
 
     let broadcast;
@@ -67,7 +67,9 @@ app.http('adminStreamStart', {
       broadcast = await createBroadcast({ title, description, scheduledStartTime: start, privacyStatus });
       await bindBroadcast({ broadcastId: broadcast.id, streamId: table.streamId });
     } catch (e) {
-      context.log(`[FOUT] ad-hoc broadcast tafel ${tafelNr}: ${e.message}`);
+      // Warning-niveau (28-08, #117-vervolg): de aanroeper krijgt dit direct als 502 terug,
+      // maar zonder deze regel is achteraf niet meer te herleiden wélke YouTube-fout het was.
+      context.warn(`[FOUT] ad-hoc broadcast tafel ${tafelNr}: ${e.message}`);
       return json(502, { error: `YouTube: ${e.message}` });
     }
 

@@ -26,13 +26,15 @@ async function verwerk(now, context) {
     // die het venster bepaalt.
     imported = await getUpcomingTournaments({ now, days: 35 });
   } catch (e) {
-    context.log(`[FOUT] Cuescore-import mislukt, planning ongewijzigd: ${e.message}`);
+    // Warning-niveau (28-08, #117-vervolg): logLevel.default staat op Warning (#110), dus
+    // draait deze uurlijkse import stil mis, dan blijft planning.json onopgemerkt verouderd.
+    context.warn(`[FOUT] Cuescore-import mislukt, planning ongewijzigd: ${e.message}`);
     return { ok: false, error: e.message };
   }
 
   const samengevoegd = mergePlanning(bestaand, imported, defaults);
   await writeJson('planning.json', samengevoegd);
-  context.log(`[OK] Planning bijgewerkt: ${imported.length} geïmporteerd, ${samengevoegd.length} records totaal.`);
+  context.warn(`[OK] Planning bijgewerkt: ${imported.length} geïmporteerd, ${samengevoegd.length} records totaal.`);
   return { ok: true, imported: imported.length, total: samengevoegd.length };
 }
 

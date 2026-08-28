@@ -45,7 +45,7 @@ app.http('adminArchiefRebuild', {
         try {
           toernooiCache.set(id, await getTournament(rec.tournamentId));
         } catch (e) {
-          context.log(`[archief] toernooi ${id} ophalen mislukt: ${e.message}`);
+          context.warn(`[archief] toernooi ${id} ophalen mislukt: ${e.message}`);
           toernooiCache.set(id, null);
         }
       }

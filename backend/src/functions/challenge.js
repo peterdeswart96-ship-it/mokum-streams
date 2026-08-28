@@ -136,7 +136,7 @@ app.http('challengeAanmaken', {
         breakrule: body.breakrule,
       });
     } catch (e) {
-      context.log(`[FOUT] [challenge/aanmaken] tafel ${tafel}: ${e.message}`);
+      context.warn(`[FOUT] [challenge/aanmaken] tafel ${tafel}: ${e.message}`);
       return json(502, { error: `Cuescore: ${e.message}` });
     }
     if (!r.ok) return json(502, { error: r.melding });

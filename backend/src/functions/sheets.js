@@ -84,7 +84,7 @@ app.http('publicSheets', {
       await writeJson(PAD, data);
       context.log(`[sheets] herbouwd: ${data.winners.length} winnaars, ${data.upcoming.length} komend`);
     } catch (e) {
-      context.log(`[sheets] herbouw mislukt: ${e.message}`);
+      context.warn(`[sheets] herbouw mislukt: ${e.message}`);
       if (!data) return json(502, { error: 'sheets bouwen mislukt', winners: [], upcoming: [] }, request);
       // Anders: serveer de (verlopen) cache — beter oud dan leeg.
     } finally {

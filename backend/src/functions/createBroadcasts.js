@@ -54,7 +54,7 @@ async function verwerk(now, context) {
         context.log(`[createBroadcasts] tafel ${tafelNr}: oude broadcast ${o.videoId} (${o.status}) ${o.actie} — ${hoe} — "${o.titel}"`);
       }
     } catch (e) {
-      context.log(`[WAARSCHUWING] [createBroadcasts] tafel ${tafelNr}: opruimen van de stream key mislukt (${e.message}) — we starten toch.`);
+      context.warn(`[WAARSCHUWING] [createBroadcasts] tafel ${tafelNr}: opruimen van de stream key mislukt (${e.message}) — we starten toch.`);
     }
     try {
       const broadcast = await createBroadcast({ title, description, scheduledStartTime: startIso, privacyStatus: rec.visibility || 'public' });

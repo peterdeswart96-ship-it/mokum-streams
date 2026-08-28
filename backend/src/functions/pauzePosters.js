@@ -81,10 +81,12 @@ app.http('publicPauzePosters', {
         await writeJson(PAD, data);
         context.log(`[posters] herbouwd: ${data.posters.length} geldig`);
         if (!data.posters.length) {
-          context.log('[WAARSCHUWING] [posters] geen enkele geldige poster — de pauzerotatie slaat de poster-fase over');
+          // Warning-niveau (28-08, #117-vervolg): een lege posterrotatie is een zichtbaar,
+          // avond-lang gemist stuk pauzescherm — dat hoort niet onopgemerkt te blijven.
+          context.warn('[WAARSCHUWING] [posters] geen enkele geldige poster — de pauzerotatie slaat de poster-fase over');
         }
       } catch (e) {
-        context.log(`[posters] herbouw mislukt: ${e.message}`);
+        context.warn(`[posters] herbouw mislukt: ${e.message}`);
         if (!data) return json(502, { error: 'posters ophalen mislukt', posters: [] }, request);
         // Anders: serveer de (verlopen) cache — beter oud dan leeg.
       }

@@ -21,7 +21,10 @@ async function verwerk(now, context) {
   try {
     tournaments = await getTodaysTournaments({ now });
   } catch (e) {
-    context.log(`[liveMatches] Cuescore niet bereikbaar (${e.message}) → vorige stand behouden.`);
+    // Warning-niveau (28-08, #117-vervolg): logLevel.default staat op Warning (#110) —
+    // zonder dit blijft een langdurige Cuescore-storing onopgemerkt terwijl het dashboard
+    // stilletjes op verouderde standen blijft draaien.
+    context.warn(`[liveMatches] Cuescore niet bereikbaar (${e.message}) → vorige stand behouden.`);
     return;
   }
 
