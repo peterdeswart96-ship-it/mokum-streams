@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { runOnce, rotatieZichtbaar, isDrukkeTijd } = require('../src/agent');
+const { runOnce, rotatieZichtbaar, isDrukkeTijd, isActieveRonde } = require('../src/agent');
 
 // Fake OBS-pool die de aanroepen registreert i.p.v. echt OBS aan te spreken.
 function fakePool() {
@@ -29,7 +29,7 @@ test('runOnce voert geldige commando uit en bevestigt alleen die', async () => {
   };
   const config = { tables: [{ tableNumber: 1 }], backendUrl: 'x', agentToken: 'y' };
 
-  await runOnce(config, pool, backend, { log() {} });
+  const resultaat = await runOnce(config, pool, backend, { log() {} });
 
   assert.deepStrictEqual(pool.calls, [
     ['start', 1],
@@ -39,6 +39,9 @@ test('runOnce voert geldige commando uit en bevestigt alleen die', async () => {
   assert.deepStrictEqual(posted.verwerkteCommandoIds, ['c1', 'c2', 'c3']);
   assert.strictEqual(posted.tables[0].tableNumber, 1);
   assert.strictEqual(posted.tables[0].bitrateKbps, 5000);
+  // De retourwaarde bevat verwerkteCommandoIds ook (28-08, isActieveRonde in startLoop
+  // leunt hierop om na een net verwerkt commando niet terug te vallen op traag pollen).
+  assert.deepStrictEqual(resultaat.verwerkteCommandoIds, ['c1', 'c2', 'c3']);
 });
 
 test('runOnce slaat een commando voor een niet-beheerde tafel over en bevestigt het', async () => {
@@ -174,6 +177,28 @@ test('isDrukkeTijd: weekend binnen 12:00-02:30 (+marge) is druk, ochtend niet', 
 test('isDrukkeTijd: zaal-dag over middernacht — zondagavond loopt door tot in maandagochtend', () => {
   assert.strictEqual(isDrukkeTijd(Date.UTC(2026, 7, 23, 0, 0)), true);  // zo 02:00 lokaal (za-avond loopt door)
   assert.strictEqual(isDrukkeTijd(Date.UTC(2026, 7, 24, 2, 0)), false); // ma 04:00 lokaal, ruim na de marge
+});
+
+// 28-08: zonder deze uitbreiding kon de agent buiten bedrijfstijd, vlak nadat hij een
+// startStream-commando verwerkte, alsnog terugvallen op het trage 60s-ritme — precies
+// terwijl een verse start nog 1-3 min. YouTube-opwarmtijd nodig kan hebben (#114) en de
+// agent juist snel had moeten blijven controleren.
+test('isActieveRonde: streamt een tafel → actief', () => {
+  assert.strictEqual(isActieveRonde([{ tableNumber: 1, streaming: true }], []), true);
+});
+
+test('isActieveRonde: niets streamt, maar er zijn net commando\'s verwerkt → toch actief', () => {
+  assert.strictEqual(isActieveRonde([{ tableNumber: 1, streaming: false }], ['c1']), true);
+});
+
+test('isActieveRonde: niets streamt en niets verwerkt → niet actief (mag traag pollen)', () => {
+  assert.strictEqual(isActieveRonde([{ tableNumber: 1, streaming: false }], []), false);
+  assert.strictEqual(isActieveRonde([], []), false);
+});
+
+test('isActieveRonde: ontbrekende/undefined invoer valt veilig terug op niet-actief', () => {
+  assert.strictEqual(isActieveRonde(undefined, undefined), false);
+  assert.strictEqual(isActieveRonde(null, null), false);
 });
 
 test('runOnce zet een rotatie-overlay aan wanneer die zichtbaar hoort te zijn', async () => {

@@ -222,7 +222,7 @@ async function runOnce(config, pool, backend, logger = console, nowMs = Date.now
     tables,
   });
 
-  return { tables };
+  return { tables, verwerkteCommandoIds };
 }
 
 // Trager pollen mag alleen als het ZOWEL buiten bedrijfstijd is ALS er nergens gestreamd
@@ -230,18 +230,31 @@ async function runOnce(config, pool, backend, logger = console, nowMs = Date.now
 // ook als die stream tegen de verwachting in buiten de venstertijden doorloopt.
 const POLL_MS_RUSTIG_FACTOR = 20; // 3s config -> 60s in de nacht; blijft evenredig bij een andere basisinstelling
 
+// Telt deze ronde als "actief" voor de polling-snelheid? Niet alleen "streamt er al
+// iets?", ook "hebben we net iets gedaan?" (28-08): een vers startStream-commando toont
+// zichzelf niet meteen als streaming=true — dat duurt soms 1-3 min. (YouTube-
+// opwarmtijd, zie #114). Zonder deze uitbreiding kon de agent vlak ná het verwerken van
+// zo'n commando alsnog terugvallen op het trage 60s-ritme, precies terwijl hij juist
+// snel moest blijven controleren of de start alsnog aansloeg. Lost niet de eerste-
+// detectie-vertraging op (die zit inherent in pollen i.p.v. pushen), maar wel het
+// stapelen van vertraging ná de eerste hit. Pure functie → apart testbaar van de
+// setTimeout-lus eromheen.
+function isActieveRonde(tables, verwerkteCommandoIds) {
+  return (tables || []).some((t) => t.streaming) || (verwerkteCommandoIds || []).length > 0;
+}
+
 function startLoop(config, pool, backend, logger = console) {
   let volgende = config.pollIntervalMs;
   const tick = async () => {
-    let iemandLive = false;
+    let actief = false;
     try {
-      const { tables } = await runOnce(config, pool, backend, logger);
-      iemandLive = (tables || []).some((t) => t.streaming);
+      const { tables, verwerkteCommandoIds } = await runOnce(config, pool, backend, logger);
+      actief = isActieveRonde(tables, verwerkteCommandoIds);
     } catch (e) {
       logger.log(`[LOOP] ${e.message}`);
-      iemandLive = true; // onbekende status → veilige kant, niet vertragen
+      actief = true; // onbekende status → veilige kant, niet vertragen
     }
-    volgende = (isDrukkeTijd() || iemandLive)
+    volgende = (isDrukkeTijd() || actief)
       ? config.pollIntervalMs
       : config.pollIntervalMs * POLL_MS_RUSTIG_FACTOR;
     timer = setTimeout(tick, volgende);
@@ -250,4 +263,4 @@ function startLoop(config, pool, backend, logger = console) {
   return { stop: () => clearTimeout(timer) };
 }
 
-module.exports = { voerCommandoUit, runOnce, startLoop, rotatieZichtbaar, cameraBronVoor, isDrukkeTijd };
+module.exports = { voerCommandoUit, runOnce, startLoop, rotatieZichtbaar, cameraBronVoor, isDrukkeTijd, isActieveRonde };
