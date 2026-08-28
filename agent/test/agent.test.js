@@ -109,6 +109,36 @@ test('runOnce rapporteert een tafel als offline als de status faalt', async () =
   ]);
 });
 
+// 26-08: een OBS-instantie die druk is met een verse RTMP-verbinding kan traag reageren
+// op status-calls. Bij een sequentiële loop trekt dát ALLE tafels met zich mee stil —
+// precies wat er die avond gebeurde. Tafels moeten dus parallel verwerkt worden: de
+// totale doorlooptijd hoort bij de traagste tafel te liggen, niet bij de SOM van alle
+// tafels (wat een sequentiële loop zou opleveren).
+test('runOnce verwerkt tafels parallel — een trage tafel vertraagt de andere niet', async () => {
+  const pool = fakePool();
+  const VERTRAGING_MS = 150;
+  pool.status = async (t) => {
+    if (t === 1) await new Promise((r) => setTimeout(r, VERTRAGING_MS));
+    return { obsConnected: true, streaming: true, bitrateKbps: 5000 };
+  };
+  let posted = null;
+  const backend = {
+    async fetchCommands() { return []; },
+    async postStatus(_cfg, body) { posted = body; },
+  };
+  const config = { tables: [{ tableNumber: 1 }, { tableNumber: 2 }, { tableNumber: 3 }] };
+
+  const start = Date.now();
+  await runOnce(config, pool, backend, { log() {} });
+  const duur = Date.now() - start;
+
+  // Sequentieel zou dit ruim over VERTRAGING_MS uitkomen (3x zoveel calls, de trage zit
+  // er middenin); parallel blijft de totale duur in de buurt van de ENE trage aanroep.
+  assert.ok(duur < VERTRAGING_MS * 2, `duurde ${duur}ms, verwacht ruim onder ${VERTRAGING_MS * 2}ms`);
+  assert.strictEqual(posted.tables.length, 3);
+  assert.deepStrictEqual(posted.tables.map((t) => t.tableNumber), [1, 2, 3]); // volgorde blijft behouden
+});
+
 test('rotatieZichtbaar: aan tijdens de eerste forSec, daarna uit tot de volgende cyclus', () => {
   const r = { key: 'scoresOtherTables', everySec: 180, forSec: 20 };
   assert.strictEqual(rotatieZichtbaar(r, 0), true);        // begin cyclus

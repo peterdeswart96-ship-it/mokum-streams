@@ -136,8 +136,14 @@ async function runOnce(config, pool, backend, logger = console, nowMs = Date.now
 
   const overlaySources = config.overlaySources || DEFAULT_OVERLAY_SOURCES;
   const rotations = config.rotations || [];
-  const tables = [];
-  for (const t of config.tables) {
+  // Per tafel parallel i.p.v. een sequentiële for-loop (26-08): een OBS-instantie die
+  // druk is met het opzetten van een verse RTMP-verbinding kan een paar minuten traag
+  // reageren op websocket-calls (GetStreamStatus e.d.). In een sequentiële loop trekt
+  // dát de hele statusronde — en dus ook de andere, probleemloze tafels — met zich mee
+  // stil: precies wat er 26-08 gebeurde toen tafel 3 een verse teststream opzette en
+  // status.json voor ALLE VIER de tafels tegelijk >2 minuten niet bijwerkte. Elke tafel
+  // heeft z'n eigen OBS-verbinding, dus er is niets dat sequentieel hóeft te zijn.
+  const tables = await Promise.all(config.tables.map(async (t) => {
     try {
       const base = await pool.status(t.tableNumber);
       // Overlay-standen alleen uitlezen als er gezonden wordt (anders irrelevant + extra calls).
@@ -191,24 +197,24 @@ async function runOnce(config, pool, backend, logger = console, nowMs = Date.now
         }
       }
       const pf = preflightFails.get(Number(t.tableNumber));
-      tables.push({
+      return {
         tableNumber: t.tableNumber,
         ...base,
         ...(overlays ? { overlays } : {}),
         ...(pf ? { preflightFailed: true, preflightReason: pf } : {}),
         ...(camAlarm || {}),
-      });
+      };
     } catch (e) {
       const pf = preflightFails.get(Number(t.tableNumber));
-      tables.push({
+      return {
         tableNumber: t.tableNumber,
         obsConnected: false,
         streaming: false,
         bitrateKbps: 0,
         ...(pf ? { preflightFailed: true, preflightReason: pf } : {}),
-      });
+      };
     }
-  }
+  }));
 
   await backend.postStatus(config, {
     agentTime: new Date().toISOString(),
