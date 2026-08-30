@@ -10,7 +10,7 @@ const yt = require('../youtube/videos');
 const { wedstrijdenVoorVideo, mergeWedstrijden } = require('./archief');
 const { getTournament } = require('../cuescore');
 const { bouwHoofdstukken, datumNL, MOKUM_LIVE } = require('./hoofdstukken');
-const { spelsoortVanDiscipline, sponsorVanNaam, schoneTitel, templateVoorToernooi, TEMPLATE_TEKST, datumThumb } = require('./detectie');
+const { spelsoortVanDiscipline, sponsorVanNaam, schoneTitel, templateVoorToernooi, TEMPLATE_TEKST, datumThumb, isFinaleToernooi } = require('./detectie');
 const { genereerThumbnail } = require('./thumbnail');            // fallback (canvas)
 const { renderThumbnail, heeftTemplate } = require('./thumbnailHtml'); // per-toernooi HTML-ontwerp
 
@@ -42,7 +42,10 @@ async function maakToernooiThumbnail({ naamRaw, sponsor, spelers, tableNumber, s
     const extra = TEMPLATE_TEKST[templateKey] || {};
     // Vaste nette titel per template; anders de (van sponsor ontdane) Cuescore-naam.
     const titel = extra.titel || (sponsor ? schoneTitel(naamRaw) : naamRaw);
-    return renderThumbnail({ templateKey, toernooinaam: titel, datum: datumThumb(streamStart), sponsor: extra.sponsor || '' });
+    return renderThumbnail({
+      templateKey, toernooinaam: titel, datum: datumThumb(streamStart), sponsor: extra.sponsor || '',
+      finale: isFinaleToernooi(naamRaw),
+    });
   }
   return genereerThumbnail({
     type: 'toernooi',
@@ -182,7 +185,10 @@ async function finaliseerAlleenThumbnail({ videoId, tournamentName, templateKey,
   const datum = datumISO || opts.streamStartISO || video.actualStartTime || video.scheduledStartTime;
   const extra = TEMPLATE_TEKST[key] || {};
   const titel = extra.titel || (sponsorVanNaam(tournamentName) ? schoneTitel(tournamentName) : tournamentName);
-  const png = await renderThumbnail({ templateKey: key, toernooinaam: titel, datum: datumThumb(datum), sponsor: extra.sponsor || '' });
+  const png = await renderThumbnail({
+    templateKey: key, toernooinaam: titel, datum: datumThumb(datum), sponsor: extra.sponsor || '',
+    finale: isFinaleToernooi(tournamentName),
+  });
 
   await yt.setThumbnail(videoId, png, 'image/png');
   return { videoId, type: 'thumbnail', template: key, thumbnailBytes: png.length };

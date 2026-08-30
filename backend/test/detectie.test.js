@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { spelsoortVanDiscipline, sponsorVanNaam, schoneTitel, templateVoorToernooi, datumThumb } = require('../src/video/detectie');
+const { spelsoortVanDiscipline, sponsorVanNaam, schoneTitel, templateVoorToernooi, datumThumb, isFinaleToernooi } = require('../src/video/detectie');
 
 test('spelsoortVanDiscipline: standaard disciplines', () => {
   assert.strictEqual(spelsoortVanDiscipline('9-Ball'), '9');
@@ -113,6 +113,23 @@ test('templateVoorToernooi: Mokum 8-ball Ranking (#95), niet te verwarren met 8&
 test('templateVoorToernooi: onbekend toernooi → null (canvas-fallback)', () => {
   assert.strictEqual(templateVoorToernooi('Willekeurig Open Toernooi #1'), null);
   assert.strictEqual(templateVoorToernooi(''), null);
+});
+
+test('isFinaleToernooi: "final"/"finale" als los woord in de toernooinaam → finale (#118)', () => {
+  assert.strictEqual(isFinaleToernooi('Mega Summer ranking Finale'), true);
+  assert.strictEqual(isFinaleToernooi('Flukes Finale Seizoen 3'), true);
+  assert.strictEqual(isFinaleToernooi('Mokum Grand Final'), true);
+});
+
+test('isFinaleToernooi: gewone (niet-finale) toernooien en ronde-fases → geen finale', () => {
+  assert.strictEqual(isFinaleToernooi('Mokum MEGA Summer Ranking #34'), false);
+  assert.strictEqual(isFinaleToernooi('Fluke ranking 9ball Seizoen 3  #29'), false);
+  // Semi/halve finale is een FASE binnen een lopend toernooi, geen naam voor de laatste
+  // aflevering van een reeks — die krijgt geen "FINAL"-lint.
+  assert.strictEqual(isFinaleToernooi('Halve finale ronde'), false);
+  assert.strictEqual(isFinaleToernooi('Semi Final Qualifier'), false);
+  assert.strictEqual(isFinaleToernooi(''), false);
+  assert.strictEqual(isFinaleToernooi(null), false);
 });
 
 test('datumThumb: korte hoofdletter-datum voor de datumpil', () => {

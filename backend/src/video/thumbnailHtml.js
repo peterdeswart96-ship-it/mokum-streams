@@ -82,6 +82,28 @@ function vulPlaceholders(html, velden) {
     .replace(/\{\{SPONSOR\}\}/g, escapeHtml(velden.sponsor));
 }
 
+// Rood "FINAL"-lint rechtsboven (#118), voor de finale van een toernooireeks — herbruikbaar
+// bovenop ELK bestaand sjabloon i.p.v. een aparte finale-versie per toernooi te moeten
+// maken. Puur CSS (geen los plaatje). Moet als LAATSTE kind van .canvas ingevoegd worden
+// (niet ergens los in <body>): de screenshot pakt alleen dat element, en .canvas' eigen
+// overflow:hidden knipt een lint daarbuiten gewoon weg.
+// Font-size 34px→51px (+50%, op Peters verzoek) en het font exact gelijk aan .title
+// elders op de thumbnail ('Anton'/'Arial Black', geen extra sans-serif-fallback).
+const FINALE_LINT = '<style>.finalelint{position:absolute;top:0;right:0;width:300px;height:300px;overflow:hidden;z-index:20;pointer-events:none}'
+  + '.finalelint span{position:absolute;display:block;width:420px;padding:10px 0;background:#cc0000;'
+  + "box-shadow:0 4px 14px rgba(0,0,0,.5);color:#fff;font-family:'Anton','Arial Black';"
+  + 'font-size:51px;text-align:center;letter-spacing:6px;text-transform:uppercase;transform:rotate(45deg);'
+  + 'top:44px;right:-110px}</style><div class="finalelint"><span>FINAL</span></div>';
+
+// Plakt het lint vlak vóór de sluitende tags van .canvas/body/html (altijd de allerlaatste
+// regel van elk sjabloon, zie bouw-thumbnail-templates.js). Geen match (onverwachte
+// sjabloonvorm) → HTML ongewijzigd terug, liever geen lint dan een kapotte render.
+function voegFinaleLintToe(html) {
+  return /<\/div>\s*<\/body>\s*<\/html>\s*$/.test(html)
+    ? html.replace(/<\/div>\s*<\/body>\s*<\/html>\s*$/, `${FINALE_LINT}</div></body></html>`)
+    : html;
+}
+
 function templatePad(key) {
   return path.join(TEMPLATE_DIR, `${path.basename(String(key))}.html`);
 }
@@ -93,16 +115,17 @@ function heeftTemplate(key) {
 }
 
 // Rendert een template naar een 1280×720 PNG-buffer.
-// velden: { templateKey, toernooinaam, datum, spelers, sponsor }
+// velden: { templateKey, toernooinaam, datum, spelers, sponsor, finale }
 async function renderThumbnail(velden = {}) {
   const bestand = templatePad(velden.templateKey);
   const raw = fs.readFileSync(bestand, 'utf8');
-  const html = vulPlaceholders(raw, {
+  let html = vulPlaceholders(raw, {
     toernooinaam: velden.toernooinaam || '',
     datum: velden.datum || '',
     spelers: velden.spelers || '',
     sponsor: velden.sponsor || '',
   });
+  if (velden.finale) html = voegFinaleLintToe(html);
 
   const browser = await getBrowser();
   const page = await browser.newPage();
@@ -143,4 +166,4 @@ async function sluitBrowser() {
   browserPromise = null;
 }
 
-module.exports = { renderThumbnail, heeftTemplate, sluitBrowser };
+module.exports = { renderThumbnail, heeftTemplate, sluitBrowser, voegFinaleLintToe };

@@ -112,6 +112,17 @@ const TEMPLATE_TEKST = {
   'onepocket-monthly':         { titel: 'One Pocket Monthly' },
 };
 
+// Is dit de finale van een toernooireeks (voor het rode "FINAL"-lint rechtsboven op de
+// thumbnail, #118)? Als los woord ("Final"/"Finale" in de toernooinaam zelf, bijv. "Mega
+// Summer ranking Finale" of "Flukes Finale Seizoen 3") — niet "Halve finale"/"Semi final",
+// dat is een fase binnen een lopend toernooi, geen naam voor de laatste aflevering van een
+// reeks. Werkt op de TOERNOOINAAM, niet op een ronde-naam.
+function isFinaleToernooi(naam) {
+  const n = String(naam || '');
+  if (/halve[\s-]?finale|semi[\s-]?final/i.test(n)) return false;
+  return /\bfinale?\b/i.test(n);
+}
+
 // Korte, hoofdletter-datum voor de datumpil op de thumbnail, bv. "DI 22 JULI".
 // (De lange datumNL uit hoofdstukken.js past niet in de pil.)
 function datumThumb(iso, tz = 'Europe/Amsterdam') {
@@ -124,5 +135,5 @@ function datumThumb(iso, tz = 'Europe/Amsterdam') {
 
 module.exports = {
   spelsoortVanDiscipline, sponsorVanNaam, schoneTitel, SPONSORS,
-  templateVoorToernooi, TEMPLATE_TEKST, datumThumb,
+  templateVoorToernooi, TEMPLATE_TEKST, datumThumb, isFinaleToernooi,
 };
