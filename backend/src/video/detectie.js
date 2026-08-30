@@ -79,6 +79,10 @@ function templateVoorToernooi(naam) {
   // check zou komen te staan.
   if (n.includes('koppel') || n.includes('doubles')) return 'doubles-tournament';
   if (n.includes('king of the table')) return 'king-of-the-table';
+  // "#12 Mokum OnePocket monthly" — los/aan-elkaar geschreven ("one pocket"/"onepocket")
+  // en "monthly" beide vereist, zodat een willekeurig ander toernooi met "pocket" erin
+  // (komt verder nergens voor) dit sjabloon niet per ongeluk pakt.
+  if (/one[\s-]?pocket/.test(n) && n.includes('monthly')) return 'onepocket-monthly';
   if (n.includes('best of one') || n.includes('best-of-one')) return 'best-of-one';
   if (n.includes('amsterdam open') || n.includes('go customs') || n.includes('customs')) return 'go-customs-amsterdam-open';
   return null;
@@ -105,6 +109,7 @@ const TEMPLATE_TEKST = {
   'go-customs-amsterdam-open': { titel: 'Amsterdam Open', sponsor: 'GO CUSTOMS' },
   'nk-10ball':                 { titel: 'NK 10-Ball Kwalificatie' },
   '10ball-summer-break':       { titel: '10-Ball Summer Break' },
+  'onepocket-monthly':         { titel: 'One Pocket Monthly' },
 };
 
 // Korte, hoofdletter-datum voor de datumpil op de thumbnail, bv. "DI 22 JULI".

@@ -69,6 +69,12 @@ test('templateVoorToernooi: kiest de juiste template per (Cuescore-)naam', () =>
   // gekoppeld, wachtte op dit ontwerp).
   assert.strictEqual(templateVoorToernooi('Tafel 16 King of the table'), 'king-of-the-table');
   assert.strictEqual(templateVoorToernooi('KING OF THE TABLE #4'), 'king-of-the-table');
+
+  // OnePocket monthly — echt voorbeeld: "#12 Mokum OnePocket monthly" (29-08).
+  assert.strictEqual(templateVoorToernooi('#12 Mokum OnePocket monthly'), 'onepocket-monthly');
+  assert.strictEqual(templateVoorToernooi('Mokum One Pocket Monthly #3'), 'onepocket-monthly');
+  // "Best of One" bevat ook los "one", maar hoort zijn eigen sjabloon te houden.
+  assert.strictEqual(templateVoorToernooi('Best of One — alles of niets'), 'best-of-one');
 });
 
 test('templateVoorToernooi: 9-ball Sunday in al zijn schrijfwijzen (#95)', () => {
