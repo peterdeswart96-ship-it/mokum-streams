@@ -128,6 +128,10 @@ test('isFinaleToernooi: gewone (niet-finale) toernooien en ronde-fases → geen 
   // aflevering van een reeks — die krijgt geen "FINAL"-lint.
   assert.strictEqual(isFinaleToernooi('Halve finale ronde'), false);
   assert.strictEqual(isFinaleToernooi('Semi Final Qualifier'), false);
+  // Een kwalificatietoernooi VOOR de grote finale is niet zelf de finale — echt
+  // Cuescore-voorbeeld, ontdekt bij het nalopen van bestaande video's (02-05).
+  assert.strictEqual(isFinaleToernooi('Mega Ranking Grand Finale Qualifier'), false);
+  assert.strictEqual(isFinaleToernooi('Finale kwalificatie ronde 2'), false);
   assert.strictEqual(isFinaleToernooi(''), false);
   assert.strictEqual(isFinaleToernooi(null), false);
 });

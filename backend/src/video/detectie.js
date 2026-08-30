@@ -116,10 +116,14 @@ const TEMPLATE_TEKST = {
 // thumbnail, #118)? Als los woord ("Final"/"Finale" in de toernooinaam zelf, bijv. "Mega
 // Summer ranking Finale" of "Flukes Finale Seizoen 3") — niet "Halve finale"/"Semi final",
 // dat is een fase binnen een lopend toernooi, geen naam voor de laatste aflevering van een
-// reeks. Werkt op de TOERNOOINAAM, niet op een ronde-naam.
+// reeks. Ook niet "Finale Qualifier"/"Finale kwalificatie" — dat is een toernooi dat TOEGANG
+// geeft tot de grote finale, niet de finale zelf (gevonden bij "Mega Ranking Grand Finale
+// Qualifier", een echt Cuescore-toernooi uit mei). Werkt op de TOERNOOINAAM, niet op een
+// ronde-naam.
 function isFinaleToernooi(naam) {
   const n = String(naam || '');
   if (/halve[\s-]?finale|semi[\s-]?final/i.test(n)) return false;
+  if (/finale?\s*[-–]?\s*(qualifier|kwalificatie)/i.test(n)) return false;
   return /\bfinale?\b/i.test(n);
 }
 
