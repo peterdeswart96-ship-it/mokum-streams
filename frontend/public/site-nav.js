@@ -17,6 +17,7 @@
   // Externe links (eigen tab, ander domein) — apart van de interne pagina's hierboven,
   // die zijn wél client-side onderdeel van dit project.
   var EXTERN = [
+    { href: 'https://mokum-competitie.pdscloud.nl/', label: 'Competitie Agenda', omschrijving: 'Wedstrijdschema in je eigen agenda' },
     { href: 'https://poolen-amsterdam.nl/', label: 'Mokum-website', omschrijving: 'poolen-amsterdam.nl' },
     { href: 'https://www.youtube.com/@MokumPoolDarts', label: 'YouTube-kanaal', omschrijving: '@MokumPoolDarts' },
   ];
