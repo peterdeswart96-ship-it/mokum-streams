@@ -4,15 +4,16 @@ const { zaalDelen, zaalDag } = require('../schedule/schedule');
 const { enqueue } = require('../agent/commandQueue');
 const { isNachtVenster, teStoppenNachts } = require('../planning/nachtstop');
 
-// Timer-Function: nachtelijke veiligheids-stop. Na sluitingstijd (default 02:00
-// Amsterdam) stopt 'ie ALLE nog-lopende streams — óók handmatig gestarte — zodat er
+// Timer-Function: nachtelijke veiligheids-stop. Na sluitingstijd (default 03:00
+// Amsterdam, was 02:00 tot 31-08 — verruimd nadat een finale op 30-08 net vóór 02:00
+// nog liep) stopt 'ie ALLE nog-lopende streams — óók handmatig gestarte — zodat er
 // nooit iets 's nachts blijft doorzenden (het bevroren-beeld-probleem van 14-07).
 // Bewust NIET achter AUTOMATION_ARMED: stoppen is altijd veilig en dít is juist het
 // vangnet. Idempotent: gestopte entries worden overgeslagen. Aanpasbaar via de
-// app-settings NACHT_STOP_SLUITING_MIN (default 120=02:00) en _OCHTEND_MIN (default 480=08:00).
+// app-settings NACHT_STOP_SLUITING_MIN (default 180=03:00) en _OCHTEND_MIN (default 480=08:00).
 
 const CRON_ELKE_30_MIN = '0 */30 * * * *';
-const SLUITING = Number(process.env.NACHT_STOP_SLUITING_MIN) || 120; // 02:00
+const SLUITING = Number(process.env.NACHT_STOP_SLUITING_MIN) || 180; // 03:00
 const OCHTEND = Number(process.env.NACHT_STOP_OCHTEND_MIN) || 480; // 08:00
 
 async function verwerk(now, context) {

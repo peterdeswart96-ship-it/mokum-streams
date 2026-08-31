@@ -22,8 +22,10 @@ const DEBOUNCE_MS = 20000; // 20s 'geen wedstrijd' vóór we naar pauze gaan (an
 // En andersom: nadat Cuescore weer een wedstrijd meldt, blijft het pauzescherm nog even
 // staan. Een tafeltoewijzing komt uit de loting, maar daarna moeten de spelers er nog
 // heen lopen, racken en inspelen. Zonder deze wachttijd kijk je een paar minuten naar
-// een lege tafel. Instelbaar via app-setting PAUZE_UIT_VERTRAGING_SEC.
-const SPELEN_DEBOUNCE_MS = (Number(process.env.PAUZE_UIT_VERTRAGING_SEC) || 60) * 1000;
+// een lege tafel. Stond op 60s; op 31-08 naar 20s verkort (Peter) — 60s bleek te lang:
+// een gemaakte run-out werd niet getoond omdat het pauzescherm nog in beeld stond.
+// Instelbaar via app-setting PAUZE_UIT_VERTRAGING_SEC.
+const SPELEN_DEBOUNCE_MS = (Number(process.env.PAUZE_UIT_VERTRAGING_SEC) || 20) * 1000;
 // Per zaal-dag (net als broadcasts/<datum>.json), niet één eeuwigdurend bestand (26-08):
 // de oude, ongedateerde pauze-state.json bleef de staat van de VORIGE keer dat een tafel
 // streamde meedragen naar een volgende, compleet andere avond — een tafel die de vorige

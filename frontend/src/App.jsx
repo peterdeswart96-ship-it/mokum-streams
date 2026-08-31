@@ -895,9 +895,10 @@ const VIS_LABELS = { public: 'Openbaar', unlisted: 'Verborgen', private: 'Privé
 
 // Uiterste eindtijd die de planner voorstelt. Alleen een vangnet: normaal sluit een
 // uitzending vanzelf zodra de finale gespeeld is (podium-grace). Stond op 01:00; sinds 05-08
-// op 01:30 omdat avondtoernooien geregeld uitlopen. De harde grens blijft de nachtstop van
-// 02:00, die kijkt niet naar Cuescore en stopt altijd.
-const STANDAARD_EINDTIJD = '01:30';
+// op 01:30, en sinds 31-08 op 02:30 (Peter, na een finale op 30-08 die nog liep toen deze
+// eindtijd toesloeg). De harde grens is de nachtstop, die kijkt niet naar Cuescore en stopt
+// altijd — nu ook opgeschoven, van 02:00 naar 03:00 (zie nachtStop.js).
+const STANDAARD_EINDTIJD = '02:30';
 // Overlays per stuk aan of uit, in plaats van drie vaste combinaties (#93). Met de oude
 // keuzelijst ("Alle / Alleen scorebord / Geen") was de jumbotron niet aan te zetten, terwijl
 // je een avond juist graag begint met het pauzescherm en de highlights erop.
