@@ -51,6 +51,9 @@ function templateVoorToernooi(naam) {
   if (n.includes('mega') && n.includes('buffalo')) return 'mega-ranking-buffalo';
   if (n.includes('mega') && n.includes('summer')) return 'mega-summer-ranking';
   if (n.includes('summer') && n.includes('ranking')) return 'mega-summer-ranking'; // ook zonder "MEGA" in de naam (typefout)
+  // Mokum MEGA Winter Ranking — nieuwe reeks sinds 01-09, zelfde opzet als de summer-versie.
+  if (n.includes('mega') && n.includes('winter')) return 'winter-ranking';
+  if (n.includes('winter') && n.includes('ranking')) return 'winter-ranking'; // ook zonder "MEGA" in de naam
   // NK 10-ball kwalificatie (#73). "nk" als LOS woord (\bnk\b), anders matcht 'ie ook
   // "raNKing"/"baNK". Vóór de 8&10-regel voor de duidelijkheid (botst niet: geen 8).
   if (/\bnk\b/.test(n) && /10[.\-\s]?ball/.test(n)) return 'nk-10ball';
@@ -96,6 +99,7 @@ const TEMPLATE_TEKST = {
   'last-minute-9ball':         { titel: 'Last Minute 9-Ball' },
   '9-ball-sunday':             { titel: '9-Ball Sunday' },
   'mega-summer-ranking':       { titel: 'MEGA Summer Ranking' },
+  'winter-ranking':            { titel: 'MEGA Winter Ranking' },
   'mega-ranking-buffalo':      { titel: 'MEGA Ranking' },              // Buffalo staat al als logo in de template
   '8-10-ball-ranking':         { titel: '8 & 10ball Ranking' },
   '8-ball-ranking':            { titel: '8-Ball Ranking' },

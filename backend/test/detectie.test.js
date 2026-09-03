@@ -38,6 +38,8 @@ test('schoneTitel: laat een naam zonder i.s.m. ongemoeid', () => {
 test('templateVoorToernooi: kiest de juiste template per (Cuescore-)naam', () => {
   assert.strictEqual(templateVoorToernooi('MEGA Ranking i.s.m. Buffalo #22'), 'mega-ranking-buffalo');
   assert.strictEqual(templateVoorToernooi('MEGA Summer Ranking #7'), 'mega-summer-ranking');
+  assert.strictEqual(templateVoorToernooi('Mokum MEGA Winter Ranking #1'), 'winter-ranking');
+  assert.strictEqual(templateVoorToernooi('Mokum Winter ranking #2'), 'winter-ranking'); // ook zonder "MEGA"
   assert.strictEqual(templateVoorToernooi('Mokum 8 & 10ball Ranking (10ball) #19'), '8-10-ball-ranking');
   assert.strictEqual(templateVoorToernooi('Mokum 8/10 ball #3'), '8-10-ball-ranking');
   assert.strictEqual(templateVoorToernooi('14.1 Summer League #4'), '14-1-summer-league');
