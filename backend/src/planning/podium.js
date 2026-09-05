@@ -98,14 +98,16 @@ function podiumVoorZaal(tournaments, cameraTables) {
 // (verouderde) podium het van de daadwerkelijk lopende finale op diezelfde tafels, puur omdat
 // het later in de toernooienlijst stond.
 //
-// Eerste fix (alleen 'playing' blokkeren) dekte niet dat een tafel ook even stilligt
-// tússen twee wedstrijden door (bijv. wachten op de volgende tafeltoewijzing) zónder dat
-// het toernooi van vandaag daarmee klaar is. Brede(re) regel: een tafel telt als "nog in
-// gebruik door vandaag" zodra ÉÉN VAN ALLE toernooien van vandaag er een NIET-afgeronde
-// wedstrijd op heeft — ongeacht of die nu exact 'playing' staat. Bewust niet op
-// `t.finished` (het toernooi als geheel): dat kan `false` blijven terwijl de finale allang
-// gespeeld is (zie toernooiKlaar() in planning/stop.js, dat om dezelfde reden ook los naar
-// isFinalFinished() kijkt) — anders zou een net-klaar toernooi zijn EIGEN podium blokkeren.
+// Tweede fix (05-09, zelfde middag): "tafelNogInGebruik" keek naar NIET-afgeronde
+// wedstrijden per tafel, maar bij een bracket-toernooi wordt de tafel voor de volgende ronde
+// vaak pas vlak van tevoren geloot — de nieuwe kwartfinale stond nog nergens aan tafel 1
+// gekoppeld, dus zag die check geen "nog niet afgeronde wedstrijd op tafel 1" en liet het
+// oude, afgeronde toernooi zijn podium alsnog winnen op tafel 1. Nu grover maar robuuster:
+// zodra een NIET-afgerond toernooi van vandaag ÜBERHAUPT een cameratafel gebruikt (nu of
+// eerder), telt dat toernooi als "nog actief op de camera's" en mag een ANDER (al afgerond)
+// toernooi GEEN ENKELE cameratafel meer claimen — ook niet eentje die het zelf ooit
+// gebruikte. Het actieve toernooi zelf kan intussen gewoon zijn EIGEN podium tonen op zijn
+// eigen tafels zodra dat relevant wordt (zie de #104-test hieronder).
 function podiumPerTafel(tournaments, cameraTables) {
   const lijst = tournaments || [];
   const cams = (cameraTables || []).map(Number);
@@ -114,21 +116,22 @@ function podiumPerTafel(tournaments, cameraTables) {
   const resultaat = {};
   for (const cam of cams) resultaat[cam] = null;
 
-  const tafelNogInGebruik = new Set();
-  for (const t of lijst) {
-    for (const m of (t && t.matches) || []) {
-      if (opCamera(m) && !isFinished(m)) tafelNogInGebruik.add(Number(m.table));
-    }
-  }
+  const heeftNogActiefToernooi = lijst.some(
+    (t) => t && t.finished !== true && ((t.matches) || []).some(opCamera)
+  );
 
   for (const t of lijst) {
     const matches = (t && t.matches) || [];
     const eigenTafels = [...new Set(matches.filter(opCamera).map((m) => Number(m.table)))];
     if (!eigenTafels.length) continue; // dit toernooi raakt geen enkele cameratafel
 
+    // Dit toernooi is zelf klaar, terwijl een ANDER toernooi vandaag nog op de camera's
+    // bezig is → met rust laten, geen (verouderd) podium tonen.
+    if (t && t.finished === true && heeftNogActiefToernooi) continue;
+
     const p = podiumVan(t);
     const waarde = p ? { tournamentName: (t && t.name) || '', podium: p } : null;
-    for (const tafel of eigenTafels) resultaat[tafel] = tafelNogInGebruik.has(tafel) ? null : waarde;
+    for (const tafel of eigenTafels) resultaat[tafel] = waarde;
   }
   return resultaat;
 }

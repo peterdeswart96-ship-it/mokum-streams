@@ -138,8 +138,8 @@ test('podiumPerTafel: latere toernooi op dezelfde tafel wint (zelfde tafel, ande
 // "laatste wint" liet zijn (verouderde) podium dus winnen, ook al speelde er op dat moment
 // gewoon een wedstrijd van een ANDER toernooi op diezelfde tafel.
 test('podiumPerTafel: een oud, afgerond toernooi mag een tafel niet claimen als er NU een wedstrijd van een ANDER toernooi op speelt', () => {
-  const oudAfgerond = { name: 'Mokum MEGA Winter Ranking #1', matches: [opTafel(match('Final', 'finished', 'Anna', 5, 'Bob', 2), 1)] };
-  const lopendeFinale = { name: 'Finale 8 & 10Ball Ranking', matches: [opTafel(match('Losers qualification', 'playing', 'X', 0, 'Y', 0), 1)] };
+  const oudAfgerond = { name: 'Mokum MEGA Winter Ranking #1', finished: true, matches: [opTafel(match('Final', 'finished', 'Anna', 5, 'Bob', 2), 1)] };
+  const lopendeFinale = { name: 'Finale 8 & 10Ball Ranking', finished: false, matches: [opTafel(match('Losers qualification', 'playing', 'X', 0, 'Y', 0), 1)] };
   // Bewust in DEZE volgorde (het oude toernooi ná de lopende finale) — dat is precies de
   // volgorde die het incident veroorzaakte.
   const uit = podiumPerTafel([lopendeFinale, oudAfgerond], CAMS);
@@ -150,15 +150,24 @@ test('podiumPerTafel: een oud, afgerond toernooi mag een tafel niet claimen als 
 // tafel 15 lag op het moment van de meting even stil tussen twee wedstrijden door (nog geen
 // enkele match 'playing'), terwijl de lopende finale er straks nog een wedstrijd op heeft
 // staan. Ook dan mag het oude, afgeronde toernooi zijn podium niet claimen.
-test('podiumPerTafel: tafel ligt even stil tussen twee wedstrijden (niets \'playing\') maar toernooi is nog niet klaar → toch geen oud podium', () => {
-  const oudAfgerond = { name: 'Mokum MEGA Winter Ranking #1', matches: [opTafel(match('Final', 'finished', 'Anna', 5, 'Bob', 2), 15)] };
+// Derde ronde van hetzelfde incident, dezelfde middag: bij een bracket-toernooi wordt de
+// tafel voor de volgende ronde vaak pas vlak van tevoren geloot. De nieuwe kwartfinale stond
+// daardoor nog NERGENS aan tafel 1 gekoppeld in de data (geen match met table=1 en status
+// anders dan 'finished') — een fix die alleen naar "niet-afgeronde wedstrijd op déze tafel"
+// keek, zag dus niets en liet het oude podium alsnog winnen. Nu telt: zodra een
+// niet-afgerond toernooi ÜBERHAUPT de camera's gebruikt, claimt geen ander (afgerond)
+// toernooi nog een cameratafel — ook niet eentje waar op dit moment niets aan gekoppeld is.
+test('podiumPerTafel: nieuwe ronde nog niet aan een tafel geloot (bracket-toernooi) → oud toernooi claimt tafel alsnog niet', () => {
+  const oudAfgerond = { name: 'Mokum MEGA Winter Ranking #1', finished: true, matches: [opTafel(match('Final', 'finished', 'Anna', 5, 'Bob', 2), 1)] };
   const lopendeFinale = {
     name: 'Finale 8 & 10Ball Ranking',
     finished: false,
-    matches: [opTafel(match('Round 2', '', 'X', null, 'Y', null), 15)], // nog niet begonnen, niet 'playing'
+    // Gebruikt vandaag WEL de camera's (tafel 15), maar niets is nu aan tafel 1 gekoppeld —
+    // precies zoals een nog niet geloten kwartfinale.
+    matches: [opTafel(match('Losers qualification', 'finished', 'X', 2, 'Y', 0), 15)],
   };
   const uit = podiumPerTafel([lopendeFinale, oudAfgerond], CAMS);
-  assert.strictEqual(uit[15], null);
+  assert.strictEqual(uit[1], null);
 });
 
 test('podiumPerTafel: toernooi zonder cameratafel-wedstrijd raakt geen enkele tafel', () => {
