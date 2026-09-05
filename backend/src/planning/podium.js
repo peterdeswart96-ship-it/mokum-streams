@@ -96,22 +96,28 @@ function podiumVoorZaal(tournaments, cameraTables) {
 // "Mokum MEGA Winter Ranking #1" (afgerond, 3 dagen terug) soms nog mee als een toernooi van
 // vandaag; dat toernooi heeft zelf uiteraard geen lopende wedstrijd meer, dus won zijn
 // (verouderde) podium het van de daadwerkelijk lopende finale op diezelfde tafels, puur omdat
-// het later in de toernooienlijst stond. Nu een tafel-brede check, ÓÓK over andere
-// toernooien heen — zelfde soort fix als `cameraSpeelt` hierboven in podiumVoorZaal(), die dit
-// al wél correct zaalbreed deed.
+// het later in de toernooienlijst stond.
+//
+// Eerste fix (alleen 'playing' blokkeren) dekte niet dat een tafel ook even stilligt
+// tússen twee wedstrijden door (bijv. wachten op de volgende tafeltoewijzing) zónder dat
+// het toernooi van vandaag daarmee klaar is. Brede(re) regel: een tafel telt als "nog in
+// gebruik door vandaag" zodra ÉÉN VAN ALLE toernooien van vandaag er een NIET-afgeronde
+// wedstrijd op heeft — ongeacht of die nu exact 'playing' staat. Bewust niet op
+// `t.finished` (het toernooi als geheel): dat kan `false` blijven terwijl de finale allang
+// gespeeld is (zie toernooiKlaar() in planning/stop.js, dat om dezelfde reden ook los naar
+// isFinalFinished() kijkt) — anders zou een net-klaar toernooi zijn EIGEN podium blokkeren.
 function podiumPerTafel(tournaments, cameraTables) {
   const lijst = tournaments || [];
   const cams = (cameraTables || []).map(Number);
   const opCamera = (m) => cams.includes(Number(m && m.table));
-  const speelt = (m) => String((m && m.status) || '').toLowerCase() === 'playing';
 
   const resultaat = {};
   for (const cam of cams) resultaat[cam] = null;
 
-  const tafelSpeeltNu = new Set();
+  const tafelNogInGebruik = new Set();
   for (const t of lijst) {
     for (const m of (t && t.matches) || []) {
-      if (speelt(m) && opCamera(m)) tafelSpeeltNu.add(Number(m.table));
+      if (opCamera(m) && !isFinished(m)) tafelNogInGebruik.add(Number(m.table));
     }
   }
 
@@ -122,7 +128,7 @@ function podiumPerTafel(tournaments, cameraTables) {
 
     const p = podiumVan(t);
     const waarde = p ? { tournamentName: (t && t.name) || '', podium: p } : null;
-    for (const tafel of eigenTafels) resultaat[tafel] = tafelSpeeltNu.has(tafel) ? null : waarde;
+    for (const tafel of eigenTafels) resultaat[tafel] = tafelNogInGebruik.has(tafel) ? null : waarde;
   }
   return resultaat;
 }

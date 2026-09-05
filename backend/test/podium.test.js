@@ -146,6 +146,21 @@ test('podiumPerTafel: een oud, afgerond toernooi mag een tafel niet claimen als 
   assert.strictEqual(uit[1], null);
 });
 
+// Zelfde incident, maar dan het deel dat de eerste (te smalle) versie van de fix nog miste:
+// tafel 15 lag op het moment van de meting even stil tussen twee wedstrijden door (nog geen
+// enkele match 'playing'), terwijl de lopende finale er straks nog een wedstrijd op heeft
+// staan. Ook dan mag het oude, afgeronde toernooi zijn podium niet claimen.
+test('podiumPerTafel: tafel ligt even stil tussen twee wedstrijden (niets \'playing\') maar toernooi is nog niet klaar → toch geen oud podium', () => {
+  const oudAfgerond = { name: 'Mokum MEGA Winter Ranking #1', matches: [opTafel(match('Final', 'finished', 'Anna', 5, 'Bob', 2), 15)] };
+  const lopendeFinale = {
+    name: 'Finale 8 & 10Ball Ranking',
+    finished: false,
+    matches: [opTafel(match('Round 2', '', 'X', null, 'Y', null), 15)], // nog niet begonnen, niet 'playing'
+  };
+  const uit = podiumPerTafel([lopendeFinale, oudAfgerond], CAMS);
+  assert.strictEqual(uit[15], null);
+});
+
 test('podiumPerTafel: toernooi zonder cameratafel-wedstrijd raakt geen enkele tafel', () => {
   const t = { name: 'A', matches: [opTafel(match('Final', 'finished', 'Anna', 5, 'Bob', 3), 8)] };
   const uit = podiumPerTafel([t], CAMS);
