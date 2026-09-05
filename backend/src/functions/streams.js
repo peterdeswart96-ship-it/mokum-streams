@@ -110,7 +110,10 @@ app.http('adminStreamStart', {
     // De TITEL staat er bewust in: het ochtendrapport leest 'm hieruit, en zonder titel
     // heet elke handmatige uitzending daar "losse uitzending" en weet je niet welke (#91).
     const koppeling = tournamentId ? `gekoppeld aan toernooi ${tournamentId}` : 'ad-hoc (geen toernooi)';
-    context.log(`[streams/start] tafel ${tafelNr} HANDMATIG gestart via het dashboard — "${title}" — ${koppeling}, ${privacyStatus}, video ${broadcast.id}`);
+    // Warning-niveau (05-09, #117-vervolg): logLevel.default staat op Warning (#110), dus
+    // deze regel — die #80 juist bedoelde als audit-spoor voor handmatige acties — haalde
+    // de log-omgeving zelf niet meer. Precies dít soort regel moet altijd zichtbaar blijven.
+    context.warn(`[streams/start] tafel ${tafelNr} HANDMATIG gestart via het dashboard — "${title}" — ${koppeling}, ${privacyStatus}, video ${broadcast.id}`);
 
     return json(200, { table: store[String(tafelNr)], commands: nieuwe });
   },
@@ -175,10 +178,13 @@ app.http('adminStreamStop', {
     }
 
     // Zie de start-kant: handmatige acties horen zichtbaar te zijn in het avondrapport.
+    // Warning-niveau (05-09, #117-vervolg) — zelfde reden als bij streams/start hierboven:
+    // zonder dit was op 05-09 achteraf niet te bevestigen dat tafel 15 handmatig (i.p.v.
+    // automatisch) gestopt was.
     const wat = entry
       ? `"${entry.title || entry.tournamentName || 'zonder titel'}" — video ${entry.videoId}`
       : 'geen dag-entry gevonden (stond die stream wel in dit systeem?)';
-    context.log(`[streams/stop] tafel ${tafelNr} HANDMATIG gestopt via het dashboard — ${wat}`);
+    context.warn(`[streams/stop] tafel ${tafelNr} HANDMATIG gestopt via het dashboard — ${wat}`);
 
     return json(200, { command: cmd });
   },
