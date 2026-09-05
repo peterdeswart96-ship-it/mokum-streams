@@ -132,6 +132,20 @@ test('podiumPerTafel: latere toernooi op dezelfde tafel wint (zelfde tafel, ande
   assert.strictEqual(uit[1], null); // avondtoernooi speelt nog op diezelfde tafel → overschrijft
 });
 
+// Incident 05-09: tijdens een live finale toonde tafel 1/3/15 het podium van "Mokum MEGA
+// Winter Ranking #1" — een toernooi van 3 dagen terug dat Cuescore toch nog als "vandaag"
+// meegaf. Het stond LATER in de toernooienlijst dan de daadwerkelijk lopende finale, en
+// "laatste wint" liet zijn (verouderde) podium dus winnen, ook al speelde er op dat moment
+// gewoon een wedstrijd van een ANDER toernooi op diezelfde tafel.
+test('podiumPerTafel: een oud, afgerond toernooi mag een tafel niet claimen als er NU een wedstrijd van een ANDER toernooi op speelt', () => {
+  const oudAfgerond = { name: 'Mokum MEGA Winter Ranking #1', matches: [opTafel(match('Final', 'finished', 'Anna', 5, 'Bob', 2), 1)] };
+  const lopendeFinale = { name: 'Finale 8 & 10Ball Ranking', matches: [opTafel(match('Losers qualification', 'playing', 'X', 0, 'Y', 0), 1)] };
+  // Bewust in DEZE volgorde (het oude toernooi ná de lopende finale) — dat is precies de
+  // volgorde die het incident veroorzaakte.
+  const uit = podiumPerTafel([lopendeFinale, oudAfgerond], CAMS);
+  assert.strictEqual(uit[1], null);
+});
+
 test('podiumPerTafel: toernooi zonder cameratafel-wedstrijd raakt geen enkele tafel', () => {
   const t = { name: 'A', matches: [opTafel(match('Final', 'finished', 'Anna', 5, 'Bob', 3), 8)] };
   const uit = podiumPerTafel([t], CAMS);

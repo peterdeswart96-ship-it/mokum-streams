@@ -84,11 +84,21 @@ function podiumVoorZaal(tournaments, cameraTables) {
 // dat klopte toen er meestal maar één toernooi tegelijk op de cameratafels stond, maar een
 // avond met bijvoorbeeld een koppeltoernooi op tafel 1&3 én een los toernooi op 15&16 is
 // inmiddels normaal. Tafel 1 hoort dan gewoon zijn podium te tonen ook al speelt tafel 15
-// nog. Regels per tafel, in volgorde van de toernooienlijst (laatste wint):
-//   - Speelt er nog een wedstrijd van DIT toernooi op een van ZIJN EIGEN cameratafels?
-//     → die tafels tonen (nog) geen podium.
-//   - Anders, als dit toernooi een gespeelde finale heeft → zijn podium op zijn eigen tafels.
+// nog. Regels per tafel, in volgorde van de toernooienlijst (laatste wint bij een gelijke
+// stand — zie hieronder voor de uitzondering):
+//   - Speelt er NU, van WELK toernooi dan ook, een wedstrijd op deze tafel? → geen podium.
+//   - Anders, als (het laatste toernooi met deze tafel in de lijst) een gespeelde finale
+//     heeft → zijn podium op zijn eigen tafels.
 // Toernooien die geen enkele cameratafel raken doen niet mee.
+//
+// LET OP (05-09, incident tijdens de live finale): de "speelt er nog iets"-check keek eerst
+// alleen naar de EIGEN wedstrijden van het toernooi dat zijn podium wilde tonen. Cuescore telt
+// "Mokum MEGA Winter Ranking #1" (afgerond, 3 dagen terug) soms nog mee als een toernooi van
+// vandaag; dat toernooi heeft zelf uiteraard geen lopende wedstrijd meer, dus won zijn
+// (verouderde) podium het van de daadwerkelijk lopende finale op diezelfde tafels, puur omdat
+// het later in de toernooienlijst stond. Nu een tafel-brede check, ÓÓK over andere
+// toernooien heen — zelfde soort fix als `cameraSpeelt` hierboven in podiumVoorZaal(), die dit
+// al wél correct zaalbreed deed.
 function podiumPerTafel(tournaments, cameraTables) {
   const lijst = tournaments || [];
   const cams = (cameraTables || []).map(Number);
@@ -98,15 +108,21 @@ function podiumPerTafel(tournaments, cameraTables) {
   const resultaat = {};
   for (const cam of cams) resultaat[cam] = null;
 
+  const tafelSpeeltNu = new Set();
+  for (const t of lijst) {
+    for (const m of (t && t.matches) || []) {
+      if (speelt(m) && opCamera(m)) tafelSpeeltNu.add(Number(m.table));
+    }
+  }
+
   for (const t of lijst) {
     const matches = (t && t.matches) || [];
     const eigenTafels = [...new Set(matches.filter(opCamera).map((m) => Number(m.table)))];
     if (!eigenTafels.length) continue; // dit toernooi raakt geen enkele cameratafel
 
-    const bezigOpEigenTafel = matches.some((m) => speelt(m) && eigenTafels.includes(Number(m.table)));
-    const p = bezigOpEigenTafel ? null : podiumVan(t);
+    const p = podiumVan(t);
     const waarde = p ? { tournamentName: (t && t.name) || '', podium: p } : null;
-    for (const tafel of eigenTafels) resultaat[tafel] = waarde;
+    for (const tafel of eigenTafels) resultaat[tafel] = tafelSpeeltNu.has(tafel) ? null : waarde;
   }
   return resultaat;
 }
