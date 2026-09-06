@@ -18,6 +18,7 @@
   // die zijn wél client-side onderdeel van dit project.
   var EXTERN = [
     { href: 'https://mokum-competitie.pdscloud.nl/', label: 'Competitie Agenda', omschrijving: 'Wedstrijdschema in je eigen agenda' },
+    { href: 'https://mokum-wachtlijst.pdscloud.nl/', label: 'Mokum Wachtlijst 🔒', omschrijving: 'Afmeldingen & wachtlijst (intern, wachtwoord)' },
     { href: 'https://poolen-amsterdam.nl/', label: 'Mokum-website', omschrijving: 'poolen-amsterdam.nl' },
     { href: 'https://www.youtube.com/@MokumPoolDarts', label: 'YouTube-kanaal', omschrijving: '@MokumPoolDarts' },
   ];
