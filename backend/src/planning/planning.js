@@ -118,18 +118,37 @@ function defaultRecord(tournament, defaults = STANDAARD_DEFAULTS) {
 // - Bestaand record → behoud gebruikerskeuzes (enabled, overrides, tafels,
 //   overlays, preRoll); ververs alleen de Cuescore-velden (name/plannedStart/stop).
 // - Records die niet in de import zitten (ad-hoc, of buiten het venster) blijven.
+// - Uitzondering op dat laatste (10-09, incident 09-09): staat er zo'n "niet meer
+//   gezien" record, én levert Cuescore een NIEUW ID met dezelfde naam+datum, dan is dat
+//   vrijwel zeker hetzelfde toernooi dat Cuescore een ander ID heeft gegeven (bijv. omdat
+//   de hele terugkerende reeks opnieuw is aangemaakt — zo ontstonden bij "Mokum MEGA Winter
+//   Ranking" #2 t/m #7 zes van dit soort paren, allemaal met exact hetzelfde ID-verschil).
+//   Zonder deze check bleef het oude ID voor altijd als een onopvallende dubbelganger in de
+//   planner staan — en erger, tafel 1 & 3 raakten op 09-09 zelfs aan zo'n dood ID gekoppeld
+//   (geen podium, geen auto-stop, generieke thumbnail). We DRAGEN de handmatige keuzes van
+//   het oude record over naar het nieuwe ID, in plaats van het oude record te laten
+//   verweesd rondslingeren.
 function mergePlanning(existing, imported, defaults = STANDAARD_DEFAULTS) {
-  const byId = new Map((existing || []).map((r) => [String(r.tournamentId), r]));
-  const resultaat = [];
-  const geziene = new Set();
+  const lijst = existing || [];
+  const nieuweLijst = imported || [];
+  const byId = new Map(lijst.map((r) => [String(r.tournamentId), r]));
+  const geziene = new Set(nieuweLijst.map((t) => String(t.id)));
 
-  for (const t of imported || []) {
+  // Bestaande records wier ID niet meer in déze import voorkomt, geïndexeerd op
+  // naam+datum — kandidaten om te "vervangen" door een nieuw Cuescore-ID hieronder.
+  const wezen = new Map();
+  for (const r of lijst) {
+    if (!geziene.has(String(r.tournamentId)) && r.name && r.date) {
+      wezen.set(`${r.name}|${r.date}`, r);
+    }
+  }
+  const vervangenIds = new Set();
+
+  const resultaat = [];
+  for (const t of nieuweLijst) {
     const key = String(t.id);
-    geziene.add(key);
     const oud = byId.get(key);
-    if (!oud) {
-      resultaat.push(defaultRecord(t, defaults));
-    } else {
+    if (oud) {
       const nieuweStart = t.start != null ? t.start : oud.plannedStart;
       const nieuweStop = t.stop != null ? t.stop : oud.plannedStop;
       resultaat.push({
@@ -141,11 +160,33 @@ function mergePlanning(existing, imported, defaults = STANDAARD_DEFAULTS) {
         date: oud.date || afgeleideDatum(t.start),
         source: 'cuescore',
       });
+      continue;
     }
+
+    const datumNieuw = afgeleideDatum(t.start);
+    const wees = t.name && datumNieuw ? wezen.get(`${t.name}|${datumNieuw}`) : null;
+    if (wees) {
+      vervangenIds.add(String(wees.tournamentId));
+      resultaat.push({
+        ...wees,
+        tournamentId: t.id,
+        name: t.name || wees.name,
+        type: bepaalType(t.start, t.stop),
+        plannedStart: t.start || null,
+        plannedStop: t.stop || null,
+        date: datumNieuw || wees.date,
+        source: 'cuescore',
+      });
+      continue;
+    }
+
+    resultaat.push(defaultRecord(t, defaults));
   }
 
-  for (const r of existing || []) {
-    if (!geziene.has(String(r.tournamentId))) resultaat.push(r);
+  for (const r of lijst) {
+    const id = String(r.tournamentId);
+    if (geziene.has(id) || vervangenIds.has(id)) continue; // al verwerkt, of vervangen door een nieuw ID
+    resultaat.push(r);
   }
   return resultaat;
 }
