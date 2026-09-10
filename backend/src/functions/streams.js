@@ -104,14 +104,14 @@ app.http('adminStreamStart', {
     }));
     await writeJson('commands.json', enqueue(commands, nieuwe));
 
-    // Handmatige acties horen in de log (#80). Zonder deze regel is achteraf niet te zien
+    // Handmatige acties horen in de log (#125). Zonder deze regel is achteraf niet te zien
     // dat iemand een tafel bijzette: op 29-07 verscheen tafel 16 om 20:39 in de uitzending
     // en was alleen uit de bijeffecten af te leiden dat een mens dat had gedaan.
     // De TITEL staat er bewust in: het ochtendrapport leest 'm hieruit, en zonder titel
     // heet elke handmatige uitzending daar "losse uitzending" en weet je niet welke (#91).
     const koppeling = tournamentId ? `gekoppeld aan toernooi ${tournamentId}` : 'ad-hoc (geen toernooi)';
     // Warning-niveau (05-09, #117-vervolg): logLevel.default staat op Warning (#110), dus
-    // deze regel — die #80 juist bedoelde als audit-spoor voor handmatige acties — haalde
+    // deze regel — die #125 juist bedoelde als audit-spoor voor handmatige acties — haalde
     // de log-omgeving zelf niet meer. Precies dít soort regel moet altijd zichtbaar blijven.
     context.warn(`[streams/start] tafel ${tafelNr} HANDMATIG gestart via het dashboard — "${title}" — ${koppeling}, ${privacyStatus}, video ${broadcast.id}`);
 

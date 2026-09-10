@@ -9,7 +9,7 @@
 
 const PROBLEEM_RE = /WAARSCHUWING|Exception|niet bereikbaar|FOUT|mislukt|nog niet gelukt|niet gevonden|threshold exceeded/i;
 
-// Een herhaalde poging (#80's retry-teller, "poging N/M") is dezelfde storing die zich
+// Een herhaalde poging (#124's retry-teller, "poging N/M") is dezelfde storing die zich
 // opnieuw meldt, niet een nieuw probleem — het pogingnummer in de tekst zorgde er eerder voor
 // dat elke poging apart meetelde. Op 23-08 stond zo één hardnekkige finalize (steeds dezelfde
 // video, geen streamstart) negen keer als "9 technische waarschuwingen" in het rapport, terwijl

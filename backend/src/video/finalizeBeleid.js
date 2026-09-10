@@ -1,4 +1,4 @@
-// Wanneer geven we het afronden van een video op? (#80) Pure logica → unit-testbaar.
+// Wanneer geven we het afronden van een video op? (#124) Pure logica → unit-testbaar.
 //
 // Aanleiding: op 29-07 probeerde finalizeVideos 423 keer op één dag dezelfde video af
 // te ronden — een broadcast die nooit live is geweest en later was verwijderd. Elke

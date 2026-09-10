@@ -90,9 +90,9 @@ app.http('adminVideoDetails', {
 //
 // Challenges (#102): geen tournamentId, dus geen hoofdstukken — maar wél een thumbnail
 // + beschrijving als de wizard spelersnamen heeft opgeslagen (streamType: 'challenge').
-// Erven zo gratis dezelfde retry-/opgeeflogica (#80) als toernooien, via dezelfde timer
+// Erven zo gratis dezelfde retry-/opgeeflogica (#124) als toernooien, via dezelfde timer
 // (geen aparte cronjob die apart kan achterlopen). Start pas zodra `stopped: true` op de
-// entry staat — voor een challenge gebeurt dat via de 2-uurslimiet (#108) of het
+// entry staat — voor een challenge gebeurt dat via de tijdslimiet (#108, inmiddels 3 uur) of het
 // inactiviteits-vangnet (#100), of gewoon een handmatige stop.
 app.timer('finalizeVideos', {
   // Elke 5 minuten (was elke minuut, #101). Er valt hooguit een paar keer per dag iets af
@@ -129,7 +129,7 @@ app.timer('finalizeVideos', {
           // echt iets deed moet zichtbaar blijven.
           context.warn(`[finalizeVideos] tafel ${e.tableNumber} gefinaliseerd (${e.videoId}) — ${detail}`);
         } catch (err) {
-          // Teller ophogen en WEGSCHRIJVEN (#80). Stond dit niet in de opslag, dan telde
+          // Teller ophogen en WEGSCHRIJVEN (#124). Stond dit niet in de opslag, dan telde
           // niets door en bleef 'ie eeuwig opnieuw proberen — 423 keer op 29-07.
           const v = finalizeVervolg(e, err.message);
           e.finalizePogingen = v.pogingen;
