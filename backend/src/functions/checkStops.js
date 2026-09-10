@@ -38,11 +38,13 @@ const { isArmed } = require('../config/automation');
 // gebeurd? Zo ja, dan stoppen we alsnog. Dat is dezelfde tafelgebaseerde blik die op 16-08
 // de live-scores en het podium wél liet kloppen, terwijl de toernooi-specifieke logica vastliep.
 //
-// Challenge-tijdslimiet (besluit Peter i.o.m. Nick, 18-08): een challenge-stream stopt
-// bovendien hoe dan ook na 2 uur, ONGEACHT of er nog gespeeld wordt — anders dan alle
-// regels hierboven, die een lopende partij juist nooit afkappen. Legt de verantwoordelijk-
-// heid bij de spelers: duurt de partij langer, dan vragen ze zelf om een nieuwe stream
-// (deel 2, 3...). De wizard waarschuwt hier bij het aanmaken al voor. Zie
+// Challenge-tijdslimiet (besluit Peter i.o.m. Nick, 18-08; verruimd naar 3 uur op 10-09):
+// een challenge-stream stopt bovendien hoe dan ook na 3 uur, ONGEACHT of er nog gespeeld
+// wordt — anders dan alle regels hierboven, die een lopende partij juist nooit afkappen.
+// Legt de verantwoordelijkheid bij de spelers: duurt de partij langer, dan vragen ze zelf
+// om een nieuwe stream (deel 2, 3...). De wizard waarschuwt hier bij het aanmaken al voor.
+// Een challenge draait bewust NOOIT mee in de generieke inactiviteitscheck (#100) hieronder
+// — zie de toelichting bij `entry.streamType === 'challenge'` verderop in dit bestand. Zie
 // `planning/challengeLimiet.js`.
 //
 // Herstart-vangnet (#114, 26-08): een vers aangemaakte YouTube-broadcast bleek in een
@@ -136,23 +138,35 @@ async function verwerk(now, context) {
           streamType: entry.streamType, titel: entry.title,
         });
         if (!gevonden) {
-          // Koppelen lukt niet (bijv. een challenge — geen toernooi) → blijft ad-hoc.
+          // Een CHALLENGE (#121, incident 08-09): geen Cuescore-koppeling betekent dat
+          // `venueTables` deze tafel NOOIT als "playing" ziet, ook niet terwijl er
+          // gewoon gespeeld wordt — er is immers geen toernooi dat de wedstrijd bijhoudt.
+          // Zou je hier ook de generieke inactiviteitscheck (#100) laten meedraaien, dan
+          // stopt ELKE challenge na precies 1 uur, midden in de partij. Precies dat
+          // gebeurde op 08-09 met "Gurps vs Dylan" (gestart 19:11, afgekapt 20:11). Een
+          // challenge heeft daarom zijn EIGEN, bewuste tijdslimiet (challengeLimiet.js) —
+          // die is hier leidend, de tafelbrede inactiviteitscheck slaan we voor challenges
+          // helemaal over.
+          if (entry.streamType === 'challenge') {
+            if (challengeMoetStoppen(entry, now)) {
+              context.warn(`[checkStops] tafel ${entry.tableNumber}: stoppen — challenge: tijdslimiet bereikt`);
+              teStoppen.push(entry.tableNumber);
+              store[key] = { ...entry, stopped: true };
+              storeGewijzigd = true;
+            }
+            continue;
+          }
+          // Koppelen lukt niet en het is geen challenge (blijft dus gewoon ad-hoc).
           // Vangnet #100: na een uur stilte op deze tafel toch stoppen, anders loopt
-          // zo'n stream door tot de nachtstop van 02:00.
+          // zo'n stream door tot de nachtstop van 03:00.
           const ic = inactiviteitsCheck(entry, venueTables, now);
           if (ic.laatsteActiviteit !== entry.laatsteActiviteit) {
             entry = { ...entry, laatsteActiviteit: ic.laatsteActiviteit };
             store[key] = entry;
             storeGewijzigd = true;
           }
-          // Challenge-tijdslimiet: na 2 uur sowieso stoppen, ook als er nog gespeeld
-          // wordt (besluit Peter i.o.m. Nick, 18-08 — zie planning/challengeLimiet.js).
-          const limietBereikt = challengeMoetStoppen(entry, now);
-          if (ic.moetStoppen || limietBereikt) {
-            const reden = limietBereikt
-              ? 'challenge: 2 uur-tijdslimiet bereikt'
-              : 'losse uitzending, al een uur geen wedstrijd op deze tafel (#100)';
-            context.warn(`[checkStops] tafel ${entry.tableNumber}: stoppen — ${reden}`);
+          if (ic.moetStoppen) {
+            context.warn(`[checkStops] tafel ${entry.tableNumber}: stoppen — losse uitzending, al een uur geen wedstrijd op deze tafel (#100)`);
             teStoppen.push(entry.tableNumber);
             store[key] = { ...entry, stopped: true };
             storeGewijzigd = true;
@@ -183,6 +197,30 @@ async function verwerk(now, context) {
             context.warn(`[WAARSCHUWING] stop-check ${id}: ${e.message}`);
           }
           cache.set(id, tournament);
+        }
+      }
+
+      // Zelfherstel (09-09-incident): Cuescore blijkt af en toe TWEE toernooi-ID's onder
+      // dezelfde naam/datum te hebben (bijv. een verouderd/dubbel record) — de planner koos
+      // toen zonder enig signaal het ID dat Cuescore inmiddels "ongeldig" vindt (leeg antwoord
+      // sinds de fix hierboven in cuescore/index.js). Tafel 1 & 3 stonden zo een hele avond
+      // gekoppeld aan een dood ID: geen podium, geen auto-stop, finalize viel terug op de
+      // generieke thumbnail met 0 hoofdstukken — terwijl er via een ANDER, geldig ID gewoon
+      // live gespeeld werd op diezelfde tafels. Faalt de koppeling, probeer dan hetzelfde
+      // (bewust voorzichtige) hertoernooi-zoekmechanisme als bij een ad-hoc stream: alleen
+      // hangen als er ondubbelzinnig één toernooi op deze tafel vandaag speelt.
+      if (!tournament && entry.tournamentId != null) {
+        const lijst = await toernooienVanDag(ref);
+        const kandidaat = lijst && kiesToernooiVoorTafel(lijst, entry.tableNumber, ref, {
+          streamType: entry.streamType, titel: entry.title,
+        });
+        if (kandidaat && String(kandidaat.id) !== String(entry.tournamentId)) {
+          context.warn(`[checkStops] tafel ${entry.tableNumber}: toernooi ${entry.tournamentId} ongeldig/onbereikbaar bij Cuescore → hergekoppeld aan "${kandidaat.name}" (${kandidaat.id})`);
+          tournament = kandidaat;
+          entry = { ...entry, tournamentId: kandidaat.id, tournamentName: kandidaat.name || entry.tournamentName || '' };
+          store[key] = entry;
+          storeGewijzigd = true;
+          cache.set(String(kandidaat.id), tournament);
         }
       }
 

@@ -5,18 +5,18 @@ const { challengeMoetStoppen } = require('../src/planning/challengeLimiet');
 const NU = new Date('2026-08-18T20:00:00Z');
 const uurGeleden = (u) => new Date(NU.getTime() - u * 3600 * 1000).toISOString();
 
-test('challengeMoetStoppen: precies 2 uur bereikt → stoppen', () => {
-  const entry = { streamType: 'challenge', scheduledStart: uurGeleden(2) };
+test('challengeMoetStoppen: precies 3 uur bereikt → stoppen', () => {
+  const entry = { streamType: 'challenge', scheduledStart: uurGeleden(3) };
   assert.strictEqual(challengeMoetStoppen(entry, NU), true);
 });
 
-test('challengeMoetStoppen: ruim over 2 uur → stoppen', () => {
-  const entry = { streamType: 'challenge', scheduledStart: uurGeleden(3.5) };
+test('challengeMoetStoppen: ruim over 3 uur → stoppen', () => {
+  const entry = { streamType: 'challenge', scheduledStart: uurGeleden(4.5) };
   assert.strictEqual(challengeMoetStoppen(entry, NU), true);
 });
 
-test('challengeMoetStoppen: nog geen 2 uur → nog niet stoppen', () => {
-  const entry = { streamType: 'challenge', scheduledStart: uurGeleden(1.9) };
+test('challengeMoetStoppen: nog geen 3 uur → nog niet stoppen', () => {
+  const entry = { streamType: 'challenge', scheduledStart: uurGeleden(2.9) };
   assert.strictEqual(challengeMoetStoppen(entry, NU), false);
 });
 
@@ -45,8 +45,8 @@ test('challengeMoetStoppen: limiet is instelbaar', () => {
 
 test('challengeMoetStoppen: negeert of er nog gespeeld wordt — dat is precies het punt', () => {
   // Deze functie kijkt bewust NIET naar wedstrijdstatus (in tegenstelling tot stopReden()
-  // in planning/stop.js) — de hele bedoeling is dat een nog lopende partij na 2 uur toch
+  // in planning/stop.js) — de hele bedoeling is dat een nog lopende partij na 3 uur toch
   // stopt, zodat de spelers zelf om een nieuwe stream vragen.
-  const entry = { streamType: 'challenge', scheduledStart: uurGeleden(2.5) };
+  const entry = { streamType: 'challenge', scheduledStart: uurGeleden(3.5) };
   assert.strictEqual(challengeMoetStoppen(entry, NU), true);
 });

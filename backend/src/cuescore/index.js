@@ -96,6 +96,14 @@ async function getTournament(id) {
   const res = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
   if (!res.ok) throw new Error(`Cuescore toernooi ${id} gaf ${res.status}`);
   const data = await res.json();
+  // Cuescore geeft voor een ongeldig/verwijderd ID gewoon HTTP 200 terug, met als body
+  // { error: "Invalid or unavailable tournament requested." } — géén foutstatus. Zonder
+  // deze check normaliseerde dat stilzwijgend tot een "leeg maar geldig" toernooi (0
+  // wedstrijden, finished:false, naam ''), en daar liep de hele keten dan zwijgend op vast:
+  // geen podium, geen auto-stop, en finalize viel terug op de generieke thumbnail met 0
+  // hoofdstukken. Gebeurde op 09-09 met tournamentId 88433578 (een dubbel/verouderd
+  // Cuescore-ID voor "Mokum MEGA Winter Ranking #3" — de echte data stond op een ANDER ID).
+  if (data && data.error) throw new Error(`Cuescore toernooi ${id}: ${data.error}`);
   return normalizeTournament(data);
 }
 
