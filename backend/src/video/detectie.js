@@ -117,7 +117,7 @@ const TEMPLATE_TEKST = {
 };
 
 // Is dit de finale van een toernooireeks (voor het rode "FINAL"-lint rechtsboven op de
-// thumbnail, #118)? Als los woord ("Final"/"Finale" in de toernooinaam zelf, bijv. "Mega
+// thumbnail, #123)? Als los woord ("Final"/"Finale" in de toernooinaam zelf, bijv. "Mega
 // Summer ranking Finale" of "Flukes Finale Seizoen 3") — niet "Halve finale"/"Semi final",
 // dat is een fase binnen een lopend toernooi, geen naam voor de laatste aflevering van een
 // reeks. Ook niet "Finale Qualifier"/"Finale kwalificatie" — dat is een toernooi dat TOEGANG

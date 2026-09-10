@@ -82,7 +82,7 @@ function vulPlaceholders(html, velden) {
     .replace(/\{\{SPONSOR\}\}/g, escapeHtml(velden.sponsor));
 }
 
-// Rood "FINAL"-lint rechtsboven (#118), voor de finale van een toernooireeks — herbruikbaar
+// Rood "FINAL"-lint rechtsboven (#123), voor de finale van een toernooireeks — herbruikbaar
 // bovenop ELK bestaand sjabloon i.p.v. een aparte finale-versie per toernooi te moeten
 // maken. Puur CSS (geen los plaatje). Moet als LAATSTE kind van .canvas ingevoegd worden
 // (niet ergens los in <body>): de screenshot pakt alleen dat element, en .canvas' eigen
