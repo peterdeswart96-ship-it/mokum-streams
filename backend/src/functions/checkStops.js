@@ -8,7 +8,9 @@ const { kiesToernooiVoorTafel, anderToernooiNogOpTafel } = require('../planning/
 const { vrijTeMaken } = require('../planning/vrijmaken');
 const { inactiviteitsCheck } = require('../planning/inactiviteit');
 const { challengeMoetStoppen } = require('../planning/challengeLimiet');
-const { moetOpnieuwStarten, MAX_POGINGEN } = require('../planning/herstart');
+const { moetOpnieuwStarten, moetAlarmeren, MAX_POGINGEN } = require('../planning/herstart');
+const { bouwStreamFalenAlert } = require('../notify/alertBericht');
+const { stuurAlert } = require('../notify/verzenden');
 const { isArmed } = require('../config/automation');
 
 // Timer-Function: bewaakt lopende broadcasts en stopt ze automatisch wanneer het
@@ -87,6 +89,7 @@ async function verwerk(now, context) {
 
   const teStoppen = [];
   const teHerstarten = [];
+  const teAlarmeren = [];
   const cache = new Map();
 
   // Toernooien van een zaal-dag: lazy ophalen (alleen als een ad-hoc/gekoppelde stream
@@ -126,6 +129,22 @@ async function verwerk(now, context) {
         context.warn(`[checkStops] tafel ${entry.tableNumber}: nog geen data van de agent sinds de geplande start → opnieuw starten (poging ${pogingen}/${MAX_POGINGEN})`);
         teHerstarten.push(entry.tableNumber);
         store[key] = { ...entry, startPogingen: pogingen, laatsteStartPoging: now.toISOString() };
+        storeGewijzigd = true;
+        continue;
+      }
+
+      // Alarm-vangnet (12-09-incident): alle herstart-pogingen zijn op en er wordt nog
+      // steeds niets ontvangen — waarschijnlijk iets dat de automatisering niet zelf kan
+      // oplossen (op 12-09 een vastgelopen OBS-pc). Eenmalig alarmeren (mail + ntfy),
+      // niet elke minuut opnieuw — vandaar `alertVerstuurd` op de entry.
+      if (moetAlarmeren(entry, streamtTafel.get(Number(entry.tableNumber)), now.getTime())) {
+        teAlarmeren.push({
+          tableNumber: entry.tableNumber,
+          tournamentName: entry.tournamentName,
+          videoId: entry.videoId,
+          pogingen: Number(entry.startPogingen) || 0,
+        });
+        store[key] = { ...entry, alertVerstuurd: true };
         storeGewijzigd = true;
         continue;
       }
@@ -310,6 +329,21 @@ async function verwerk(now, context) {
     await writeJson('commands.json', enqueue(commands, nieuw));
     if (teStoppen.length) context.warn(`[OK] ${teStoppen.length} stopStream-commando(s): tafels ${teStoppen.join(', ')}`);
     if (teHerstarten.length) context.warn(`[OK] ${teHerstarten.length} herstart-commando(s) (#114): tafels ${teHerstarten.join(', ')}`);
+  }
+
+  // Alarm versturen (mail + ntfy) buiten de dag-loop, ná het wegschrijven van de store:
+  // een mislukte verzending mag de rest van checkStops niet ophouden of de store-schrijf
+  // blokkeren (entry.alertVerstuurd staat al vast, dus bij een mislukte verzending komt
+  // er geen tweede poging — beter een gemiste melding dan een spervuur aan mails).
+  for (const a of teAlarmeren) {
+    const bericht = bouwStreamFalenAlert(a);
+    context.warn(`[ALARM] tafel ${a.tableNumber}: niet live na ${a.pogingen} pogingen — alarm wordt verstuurd.`);
+    try {
+      const res = await stuurAlert(bericht);
+      context.warn(`[ALARM] tafel ${a.tableNumber}: mail ${res.mail.verstuurd ? 'verstuurd' : `overgeslagen (${res.mail.reden})`}, ntfy ${res.ntfy.verstuurd ? 'verstuurd' : `overgeslagen (${res.ntfy.reden})`}.`);
+    } catch (e) {
+      context.warn(`[WAARSCHUWING] [ALARM] tafel ${a.tableNumber}: versturen mislukt: ${e.message}`);
+    }
   }
 }
 

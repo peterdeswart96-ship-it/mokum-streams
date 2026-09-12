@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { moetOpnieuwStarten, MARGE_MS, HERPOGING_MS, MAX_POGINGEN } = require('../src/planning/herstart');
+const { moetOpnieuwStarten, moetAlarmeren, MARGE_MS, HERPOGING_MS, MAX_POGINGEN } = require('../src/planning/herstart');
 
 const NU_MS = Date.parse('2026-08-26T19:30:00Z');
 const minGeleden = (m) => new Date(NU_MS - m * 60 * 1000).toISOString();
@@ -69,4 +69,39 @@ test('MARGE_MS/HERPOGING_MS zijn positieve, redelijke standaardwaarden', () => {
   assert.ok(MARGE_MS > 0);
   assert.ok(HERPOGING_MS > 0);
   assert.ok(MAX_POGINGEN > 0);
+});
+
+test('moetAlarmeren: pogingen nog niet op → nog niet alarmeren', () => {
+  const entry = { scheduledStart: minGeleden(30), startPogingen: MAX_POGINGEN - 1 };
+  assert.strictEqual(moetAlarmeren(entry, false, NU_MS), false);
+});
+
+test('moetAlarmeren: maximum pogingen bereikt en nog geen data → alarmeren (12-09-incident)', () => {
+  const entry = { scheduledStart: minGeleden(30), startPogingen: MAX_POGINGEN };
+  assert.strictEqual(moetAlarmeren(entry, false, NU_MS), true);
+});
+
+test('moetAlarmeren: streamt inmiddels gewoon → geen alarm (zelf hersteld)', () => {
+  const entry = { scheduledStart: minGeleden(30), startPogingen: MAX_POGINGEN };
+  assert.strictEqual(moetAlarmeren(entry, true, NU_MS), false);
+});
+
+test('moetAlarmeren: al gealarmeerd voor deze uitzending → niet nog een keer', () => {
+  const entry = { scheduledStart: minGeleden(30), startPogingen: MAX_POGINGEN, alertVerstuurd: true };
+  assert.strictEqual(moetAlarmeren(entry, false, NU_MS), false);
+});
+
+test('moetAlarmeren: al gestopte entry → nooit alarmeren', () => {
+  const entry = { scheduledStart: minGeleden(30), startPogingen: MAX_POGINGEN, stopped: true };
+  assert.strictEqual(moetAlarmeren(entry, false, NU_MS), false);
+});
+
+test('moetAlarmeren: geen bruikbare scheduledStart → nooit (veilige kant)', () => {
+  assert.strictEqual(moetAlarmeren({ startPogingen: MAX_POGINGEN }, false, NU_MS), false);
+  assert.strictEqual(moetAlarmeren(null, false, NU_MS), false);
+});
+
+test('moetAlarmeren: nog binnen de marge sinds de geplande start → nog niet alarmeren', () => {
+  const entry = { scheduledStart: minGeleden(1), startPogingen: MAX_POGINGEN };
+  assert.strictEqual(moetAlarmeren(entry, false, NU_MS), false);
 });

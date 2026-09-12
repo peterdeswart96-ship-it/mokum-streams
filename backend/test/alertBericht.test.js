@@ -1,0 +1,23 @@
+const test = require('node:test');
+const assert = require('node:assert');
+const { bouwStreamFalenAlert } = require('../src/notify/alertBericht');
+
+test('bouwStreamFalenAlert: bevat tafel, toernooinaam, pogingen en een Studio-link', () => {
+  const { onderwerp, tekst } = bouwStreamFalenAlert({
+    tableNumber: 1, tournamentName: 'Mokum 8ball Ranking Seizoen 4 #1', videoId: 'abc123', pogingen: 3,
+  });
+  assert.match(onderwerp, /Tafel 1/);
+  assert.match(onderwerp, /Mokum 8ball Ranking Seizoen 4 #1/);
+  assert.match(tekst, /3 automatische pogingen/);
+  assert.match(tekst, /https:\/\/studio\.youtube\.com\/video\/abc123\/livestreaming/);
+});
+
+test('bouwStreamFalenAlert: zonder videoId geen kapotte link', () => {
+  const { tekst } = bouwStreamFalenAlert({ tableNumber: 3, tournamentName: 'Fluke ranking', videoId: null, pogingen: 3 });
+  assert.doesNotMatch(tekst, /studio\.youtube\.com/);
+});
+
+test('bouwStreamFalenAlert: zonder toernooinaam valt terug op een leesbare tekst', () => {
+  const { onderwerp } = bouwStreamFalenAlert({ tableNumber: 15, tournamentName: '', videoId: null, pogingen: 3 });
+  assert.match(onderwerp, /onbekend toernooi/);
+});

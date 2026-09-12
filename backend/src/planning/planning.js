@@ -3,10 +3,12 @@
 // planning-records: nieuwe krijgen de standaard-instellingen, bestaande behouden
 // hun handmatige keuzes. Géén netwerk → unit-testbaar.
 
-// Hoeveel minuten vóór de eerste wedstrijd de uitzending begint. Stond op 10; sinds 05-08
-// op 5 (besluit Peter) — tien minuten pauzescherm voor er iets gebeurt is aan de lange kant.
+// Hoeveel minuten vóór de eerste wedstrijd de uitzending begint. Stond op 10, ging op
+// 05-08 naar 5 (tien minuten pauzescherm voor er iets gebeurt was aan de lange kant),
+// en weer terug naar 10 op 12-09 na een incident waarbij de OBS-pc was vastgelopen —
+// met meer marge is er tijd om een storing op te lossen vóórdat de eerste bal valt.
 // Per toernooi aan te passen in de Toernooi planner; dit is alleen de startwaarde.
-const STANDAARD_PREROLL = 5;
+const STANDAARD_PREROLL = 10;
 
 // Eén set standaard-instellingen (alles aan). Wordt ook opgeslagen in
 // config/defaults.json en is via het dashboard aan te passen.

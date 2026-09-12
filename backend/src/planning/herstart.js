@@ -34,4 +34,23 @@ function moetOpnieuwStarten(entry, streamt, nowMs, {
   return true;
 }
 
-module.exports = { moetOpnieuwStarten, MAX_POGINGEN, MARGE_MS, HERPOGING_MS };
+// Alarm-vangnet (12-09-incident): moetOpnieuwStarten() hierboven stopt vanzelf zodra
+// maxPogingen is bereikt — maar dat betekende tot nu toe alleen STILLE opgave, niemand
+// werd gewaarschuwd. Op 12-09 stond tafel 1 & 3 zo een tijd zonder dat iemand het meteen
+// zag (een vastgelopen OBS-pc gaf geen enkele foutmelding, alleen "geen data"). Deze
+// functie herkent het moment waarop verder automatisch proberen geen zin meer heeft: alle
+// pogingen zijn op, er wordt nog steeds niet gezonden, en er is nog niet gealarmeerd voor
+// déze uitzending (entry.alertVerstuurd voorkomt dat elke minuut opnieuw een mail/ntfy
+// verstuurd wordt zodra dit punt eenmaal bereikt is).
+function moetAlarmeren(entry, streamt, nowMs, {
+  margeMs = MARGE_MS, maxPogingen = MAX_POGINGEN,
+} = {}) {
+  if (!entry || entry.stopped || streamt || entry.alertVerstuurd) return false;
+  const start = Date.parse(entry.scheduledStart || '');
+  if (Number.isNaN(start)) return false;
+  if (nowMs - start < margeMs) return false;
+  const pogingen = Number(entry.startPogingen) || 0;
+  return pogingen >= maxPogingen;
+}
+
+module.exports = { moetOpnieuwStarten, moetAlarmeren, MAX_POGINGEN, MARGE_MS, HERPOGING_MS };

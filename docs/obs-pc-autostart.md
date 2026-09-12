@@ -195,6 +195,32 @@ BIOS-standaard (veilig, maar mogelijk luidruchtiger). Lage prioriteit.
 > **nooit** `Get-CimInstance Win32_Product`: die zet elk MSI-pakket op de pc aan het
 > "repareren".
 
+## Wekelijkse herstart (voorkomt vastlopers, sinds 12-09)
+Op **12-09** liep de pc zelf vast (niet de camera of de stream-software specifiek) —
+tafel 1 en 3 gaven een bevroren, overbelicht camerabeeld en de agent viel korte tijd
+helemaal stil. Pas na **twee** herstarts werkte alles weer. Om dit te voorkomen herstart
+de pc voortaan **2x per week automatisch, ma + do 06:00** — ruim binnen het bestaande
+update-venster (`12:00–06:00` hierboven) en ver van elke stream vandaan.
+
+Dit werkt automatisch samen met de auto-login + `MokumOBS-Autostart`-taak hierboven: na
+de herstart logt `MokumStream` vanzelf in en start OBS 30s later vanzelf mee. Er is dus
+geen aparte "OBS weer aanzetten"-stap nodig.
+
+```powershell
+$action = New-ScheduledTaskAction -Execute 'shutdown.exe' `
+  -Argument '/r /t 60 /c "Geplande wekelijkse herstart (Mokum Streams, voorkomt vastlopers)"'
+$trigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday,Thursday -At 06:00
+$principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
+Register-ScheduledTask -TaskName 'MokumWeeklyRestart' -Action $action -Trigger $trigger `
+  -Principal $principal -Description 'Herstart de pc 2x per week (ma/do 06:00) tegen vastlopers (incident 12-09-2026)' -Force
+```
+
+`/t 60` geeft een minuut respijt (voor het geval iemand toevallig toch aan de pc zit).
+Controle:
+```powershell
+Get-ScheduledTask -TaskName 'MokumWeeklyRestart' | Get-ScheduledTaskInfo | Select NextRunTime,LastTaskResult
+```
+
 ## Nog open (#43)
 - [ ] Bekabeld netwerk verifiëren (geen wifi) + packet loss meten
 - [ ] Fast Startup uit (schone boot bij herstart)
