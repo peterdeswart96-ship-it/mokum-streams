@@ -41,14 +41,16 @@ async function stuurAlertNtfy({ onderwerp, tekst }) {
   const topic = process.env.NTFY_TOPIC;
   if (!topic) return { verstuurd: false, reden: 'geen NTFY_TOPIC ingesteld' };
   const server = process.env.NTFY_SERVER || 'https://ntfy.sh';
-  const res = await fetch(`${server.replace(/\/$/, '')}/${encodeURIComponent(topic)}`, {
+  // HTTP-headers mogen alleen ISO-8859-1 bevatten; onze onderwerpregel begint met ⚠ en
+  // kan een "—" bevatten (gevonden bij het testen op 13-09) — dat brak de header-variant
+  // hieronder altijd. ntfy's JSON-publish-API stuurt titel/tekst in de BODY, die gewoon
+  // volledig UTF-8 aankan, dus geen encodeertrucs nodig.
+  const res = await fetch(`${server.replace(/\/$/, '')}/`, {
     method: 'POST',
-    headers: {
-      Title: onderwerp,
-      Priority: 'high',
-      Tags: 'warning',
-    },
-    body: tekst,
+    headers: { 'Content-Type': 'application/json; charset=utf-8' },
+    body: JSON.stringify({
+      topic, title: onderwerp, message: tekst, priority: 4, tags: ['warning'],
+    }),
   });
   if (!res.ok) throw new Error(`ntfy gaf ${res.status}`);
   return { verstuurd: true };
