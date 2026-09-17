@@ -106,3 +106,34 @@ test('#103: meerdere kandidaten + titel matcht geen van beide even goed → nog 
   ];
   assert.strictEqual(kiesToernooiVoorTafel(lijst, 1, NU, { titel: 'Tafel 1 Toernooi vanavond' }), null);
 });
+
+// #129 (16-09): de vangrail "titel moet minstens één woord delen met de toernooinaam"
+// liet praktisch alles door, omdat vrijwel elke toernooinaam van deze zaal met "Mokum"
+// begint. Zo werd tafel 1 gekoppeld aan de 14.1-league en meteen daarna gestopt.
+test('#129 alleen het woord "Mokum" gemeen is niet genoeg om te koppelen', () => {
+  const league = {
+    id: 83049058,
+    name: 'Mokum 14.1 Summer league',
+    matches: [{ table: 1, start: '2026-09-16T19:00:00Z', status: 'playing' }],
+  };
+
+  const gekozen = kiesToernooiVoorTafel([league], 1, new Date('2026-09-16T19:16:00Z'), {
+    titel: 'Tafel 1 Mokum MEGA Winter Ranking #4',
+  });
+
+  assert.strictEqual(gekozen, null, 'zaalnaam telt niet mee als overlap');
+});
+
+test('#129 een echte naamovereenkomst koppelt nog gewoon', () => {
+  const toernooi = {
+    id: 88435585,
+    name: 'Mokum MEGA Winter Ranking #4',
+    matches: [{ table: 1, start: '2026-09-16T19:00:00Z', status: 'playing' }],
+  };
+
+  const gekozen = kiesToernooiVoorTafel([toernooi], 1, new Date('2026-09-16T19:16:00Z'), {
+    titel: 'Tafel 1 Mokum MEGA Winter Ranking #4',
+  });
+
+  assert.strictEqual(gekozen && gekozen.id, 88435585);
+});

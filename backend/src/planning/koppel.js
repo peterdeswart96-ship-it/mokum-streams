@@ -36,9 +36,15 @@ function wedstrijdenOpTafel(tournament, tableNumber, now) {
   );
 }
 
-// Nederlandse stopwoorden + "tafel": tellen niet mee bij het vergelijken van een
-// ingetypte titel met een toernooinaam, anders "matcht" alles een beetje met alles.
-const NEGEER_WOORDEN = new Set(['de', 'het', 'een', 'in', 'op', 'van', 'voor', 'en', 'of', 'aan', 'met', 'tafel']);
+// Nederlandse stopwoorden + "tafel" + de zaalnaam: tellen niet mee bij het vergelijken van
+// een ingetypte titel met een toernooinaam, anders "matcht" alles een beetje met alles.
+//
+// 'mokum' staat erbij sinds 16-09 (#129). De vangrail hieronder eist dat de titel minstens
+// één betekenisvol woord deelt met de toernooinaam — maar vrijwel élk toernooi van deze
+// zaal heeft "Mokum" in de naam, dus dat ene woord liet praktisch alles door. Zo werd de
+// uitzending "Tafel 1 Mokum MEGA Winter Ranking #4" gekoppeld aan "Mokum 14.1 Summer
+// league" en meteen daarna gestopt, want een competitie heeft een andere stopregel.
+const NEGEER_WOORDEN = new Set(['de', 'het', 'een', 'in', 'op', 'van', 'voor', 'en', 'of', 'aan', 'met', 'tafel', 'mokum']);
 
 // "Tafel 1 Very last minute 9 ball" -> ['very','last','minute','9','ball']. Haalt het
 // tafel-nummer eraf (dat zegt niets over WELK toernooi het is) en normaliseert de rest.

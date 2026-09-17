@@ -238,7 +238,16 @@ async function verwerk(now, context) {
         const kandidaat = lijst && kiesToernooiVoorTafel(lijst, entry.tableNumber, ref, {
           streamType: entry.streamType, titel: entry.title,
         });
-        if (kandidaat && String(kandidaat.id) !== String(entry.tournamentId)) {
+        // Alleen herkoppelen binnen dezelfde SOORT (#129, 16-09). Op die avond werd de
+        // uitzending van een enkeldaags toernooi gekoppeld aan "Mokum 14.1 Summer league",
+        // een doorlopende competitie. Die heeft een heel andere stopregel ("laatste
+        // wedstrijd van de avond op deze tafel gespeeld"), dus de stream stopte meteen.
+        // Een vervangend ID hoort bij hetzelfde evenement; dan hoort de soort te kloppen.
+        const soortVan = (id) => ((recById.get(String(id)) || {}).type) || 'tournament';
+        if (kandidaat && String(kandidaat.id) !== String(entry.tournamentId) &&
+            soortVan(kandidaat.id) !== soortVan(entry.tournamentId)) {
+          context.warn(`[checkStops] tafel ${entry.tableNumber}: "${kandidaat.name}" (${kandidaat.id}) is een ${soortVan(kandidaat.id)} en het oorspronkelijke toernooi een ${soortVan(entry.tournamentId)} — NIET herkoppeld (#129).`);
+        } else if (kandidaat && String(kandidaat.id) !== String(entry.tournamentId)) {
           context.warn(`[checkStops] tafel ${entry.tableNumber}: toernooi ${entry.tournamentId} ongeldig/onbereikbaar bij Cuescore → hergekoppeld aan "${kandidaat.name}" (${kandidaat.id})`);
           tournament = kandidaat;
           entry = { ...entry, tournamentId: kandidaat.id, tournamentName: kandidaat.name || entry.tournamentName || '' };

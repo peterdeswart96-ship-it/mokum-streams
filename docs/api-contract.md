@@ -834,3 +834,30 @@ Regels:
   **`toernooiOnbekend`**, zodat `createBroadcasts` "dit ID bestaat niet" kan onderscheiden van
   "Cuescore is even onbereikbaar". Bij het eerste wordt er géén broadcast meer aangemaakt
   (voorheen viel hij terug op de geplande tafels — precies wat de lus van 16-09 voedde).
+- 2026-09-17: v0.57 — **noodrem op het aanmaken van broadcasts + scherpere koppel-vangrails**
+  (#128, #129). Vervolg op v0.56: dat haalt de oorzaak weg (dubbele planning-records), dit
+  zorgt dat dezelfde klap nooit meer zó hard aankomt.
+  Drie dingen, alle drie naar aanleiding van 16-09:
+  1. **Noodrem (#128).** Een tafel krijgt op één zaal-dag maximaal `MAX_BROADCASTS_PER_TAFEL`
+     broadcasts (standaard **4**, app-setting). Daarboven maakt `createBroadcasts` niets meer
+     aan, logt hij op `[FOUT]`-niveau, en gaat er éénmalig een alarm uit (mail + ntfy) via
+     `bouwBroadcastLimietAlert()`. Op 16-09 waren het er vier in een kwartier en hield niets
+     dat tegen. Twee nieuwe velden op een broadcast-entry: **`gemaaktVandaag`** (teller, telt
+     door over opeenvolgende entries van dezelfde tafel) en **`limietGemeld`** (voorkomt dat
+     het alarm elke vijf minuten opnieuw afgaat).
+  2. **`vrijTeMaken()` laat verse uitzendingen met rust (#128).** Nieuw veld
+     **`aangemaaktOp`** (ISO-tijd) op een door `createBroadcasts` gemaakte entry. Is die
+     later dan het moment waarop het vrijmaak-venster openging (een half uur vóór de start),
+     dan is het géén vergeten uitzending van eerder op de dag en blijft hij staan. Precies
+     dat maakte de lus van 16-09: record A maakte om 19:05 een uitzending aan, record B
+     sloot 'm om 19:06 als "van een ander toernooi". Een entry zónder `aangemaaktOp`
+     (handmatig gestart, of van vóór deze versie) telt als oud en wordt gewoon opgeruimd —
+     dat is het gedrag waar #93 voor gemaakt is.
+  3. **Herkoppelen alleen binnen dezelfde soort (#129).** Het zelfherstel in `checkStops`
+     koppelt een uitzending met een dood toernooi-ID niet langer aan een record van een
+     ander `type`. Op 16-09 belandde een enkeldaags toernooi zo bij "Mokum 14.1 Summer
+     league" (een `competition`), die een andere stopregel heeft — de stream stopte meteen.
+     Daarnaast telt het woord **"mokum"** niet meer mee bij het vergelijken van een
+     ingetypte titel met een toernooinaam (`NEGEER_WOORDEN` in `planning/koppel.js`): het
+     staat in vrijwel élke toernooinaam van deze zaal, waardoor de vangrail van #103
+     praktisch alles doorliet.

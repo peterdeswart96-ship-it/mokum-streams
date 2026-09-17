@@ -42,6 +42,23 @@ function vrijTeMaken(planning, store, now, { minutenVoor = STANDAARD_MINUTEN_VOO
     for (const tafel of rec.tafels || []) {
       const entry = (store || {})[String(tafel)];
       if (!entry || entry.stopped || !entry.videoId) continue;
+      // Niet vrijmaken wat ná het openen van dit venster is aangemaakt (#128).
+      //
+      // Op 16-09 stonden er twee planning-records voor hetzelfde toernooi (#127). De
+      // uitzending die record A om 19:05 aanmaakte, was volgens record B "van een ander
+      // toernooi" en werd om 19:06 gesloten — waarna createBroadcasts 'm opnieuw maakte,
+      // en zo verder. Vier broadcasts in een kwartier, video's van 51 seconden.
+      //
+      // De grens die dat uitsluit zonder #93 te breken: een uitzending die is aangemaakt
+      // nadat dit venster openging (een half uur voor de start) is per definitie geen
+      // vergeten uitzending van eerder op de dag — dat is waar deze regel voor bedoeld is.
+      // Een echte vergeten challenge (het geval van 03-08, begonnen om 16:40) dateert
+      // ruim van vóór dat moment en wordt dus gewoon nog opgeruimd.
+      //
+      // Geen `aangemaaktOp` (oudere entries, en handmatig via het dashboard gestarte
+      // streams) telt als "oud" — precies de gevallen die #93 juist moet opruimen.
+      const aangemaakt = Date.parse(entry.aangemaaktOp || '');
+      if (!Number.isNaN(aangemaakt) && aangemaakt >= vanaf) continue;
       // Hoort deze uitzending al bij dit toernooi? Dan met rust laten — MAAR alleen als hij
       // ook echt VOOR dit toernooi is gestart.
       //

@@ -14,4 +14,20 @@ function bouwStreamFalenAlert({ tableNumber, tournamentName, videoId, pogingen }
   return { onderwerp, tekst: regels.join('\n') };
 }
 
-module.exports = { bouwStreamFalenAlert };
+// Alarm bij de noodrem op het aanmaken van broadcasts (#128). Gaat af als één tafel op
+// één dag onverwacht vaak opnieuw geclaimd wordt — het patroon van 16-09, toen twee
+// planning-records voor hetzelfde toernooi elkaar de tafel afhandig maakten en er vier
+// broadcasts in een kwartier ontstonden. Dat is niets wat de automatisering zelf kan
+// oplossen, dus er moet iemand naar kijken.
+function bouwBroadcastLimietAlert({ tableNumber, naam, gemaakt }) {
+  const toernooi = naam || 'onbekend toernooi';
+  const onderwerp = `⚠ Tafel ${tableNumber} maakt steeds nieuwe uitzendingen aan`;
+  const regels = [
+    `Voor tafel ${tableNumber} zijn vandaag al ${gemaakt} uitzendingen aangemaakt (laatste poging: "${toernooi}").`,
+    'De noodrem staat nu aan: er worden voor deze tafel geen nieuwe uitzendingen meer gemaakt.',
+    'Meestal staan er twee planning-records voor hetzelfde toernooi in de Toernooi planner. Controleer die en gooi de dubbele weg.',
+  ];
+  return { onderwerp, tekst: regels.join('\n') };
+}
+
+module.exports = { bouwStreamFalenAlert, bouwBroadcastLimietAlert };

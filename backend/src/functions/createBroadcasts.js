@@ -6,6 +6,8 @@ const { leagueDueTables, herresolveerTafels } = require('../planning/league');
 const { getTournament } = require('../cuescore');
 const { enqueue, startCommandsFor } = require('../agent/commandQueue');
 const { buildBroadcastTitle, buildBroadcastDescription, createBroadcast, bindBroadcast, ruimStreamKeyOp } = require('../youtube/broadcasts');
+const { bouwBroadcastLimietAlert } = require('../notify/alertBericht');
+const { stuurAlert } = require('../notify/verzenden');
 const { isArmed } = require('../config/automation');
 
 // Timer-Function (#9 + optie 2 + start-automatisering): maakt vooruit de
@@ -17,6 +19,11 @@ const { isArmed } = require('../config/automation');
 // een NIEUW aangemaakte broadcast in de wachtrij gezet (niet nogmaals bij herhaling).
 
 const CRON_ELKE_5_MIN = '0 */5 * * * *';
+// Noodrem (#128): hoeveel broadcasts één tafel op één zaal-dag maximaal mag krijgen.
+// Een normale avond heeft er één, hooguit een paar (vrijgemaakte tafel, tweede toernooi).
+// Vier in een kwartier, zoals op 16-09, is altijd een storing. Instelbaar via app-setting
+// MAX_BROADCASTS_PER_TAFEL voor het geval een avond ooit echt meer nodig heeft.
+const MAX_PER_TAFEL_PER_DAG = Number(process.env.MAX_BROADCASTS_PER_TAFEL) || 4;
 
 async function verwerk(now, context) {
   if (!isArmed()) {
@@ -32,6 +39,8 @@ async function verwerk(now, context) {
   const store = (await readJson(broadcastsPad, {})) || {};
 
   const nieuweCommandos = [];
+  // Tafels waarvoor de noodrem zojuist is aangeslagen (#128) — eenmalig alarmeren.
+  const teMeldenLimiet = [];
 
   // Maakt (idempotent) een broadcast voor een tafel en zet de start-commando's klaar.
   async function maakBroadcast(rec, tafelNr, startIso) {
@@ -39,6 +48,21 @@ async function verwerk(now, context) {
     // ad-hoc/ander-toernooi-entry telt níet als bezet, zodat een geplande start de tafel
     // alsnog claimt (#74).
     if (!tafelVrijVoor(store, tafelNr, rec.tournamentId)) return;
+    // Noodrem (#128): hoeveel broadcasts hebben we vandaag al voor deze tafel gemaakt?
+    // Op 16-09 waren dat er vier in een kwartier, doordat twee planning-records voor
+    // hetzelfde toernooi elkaar de tafel afhandig maakten (#127). Er was toen niets dat
+    // dat tegenhield — het resultaat was een reeks video's van 51 seconden op het kanaal.
+    // De teller telt door over opeenvolgende entries van dezelfde tafel heen.
+    const vorige = store[String(tafelNr)];
+    const gemaakt = (Number(vorige && vorige.gemaaktVandaag) || 0) + 1;
+    if (gemaakt > MAX_PER_TAFEL_PER_DAG) {
+      if (!vorige.limietGemeld) {
+        store[String(tafelNr)] = { ...vorige, limietGemeld: true };
+        teMeldenLimiet.push({ tableNumber: Number(tafelNr), naam: rec.name || '', gemaakt: gemaakt - 1 });
+      }
+      context.warn(`[FOUT] [createBroadcasts] tafel ${tafelNr}: al ${gemaakt - 1} broadcasts vandaag — noodrem (#128), er wordt niets meer aangemaakt voor "${rec.name || '?'}". Zoek uit waarom deze tafel steeds opnieuw geclaimd wordt.`);
+      return;
+    }
     const table = tableById.get(Number(tafelNr));
     if (!table || !table.streamId) {
       context.warn(`[FOUT] Tafel ${tafelNr} heeft geen streamId in config/tables.json — overslaan.`);
@@ -67,6 +91,10 @@ async function verwerk(now, context) {
         broadcastId: broadcast.id,
         title,
         scheduledStart: startIso,
+        // Voor de noodrem (#128) en voor vrijmaken, dat een vers aangemaakte uitzending
+        // met rust moet laten (anders sluit het de broadcast die er net voor is gemaakt).
+        gemaaktVandaag: gemaakt,
+        aangemaaktOp: now.toISOString(),
       };
       // Agent: OBS starten + overlays op de gewenste stand. preflight:true → de agent
       // controleert eerst of de camera live beeld geeft (geen bevroren/dode cam de lucht in, #43).
@@ -140,6 +168,19 @@ async function verwerk(now, context) {
     const metId = nieuweCommandos.map((c) => ({ id: crypto.randomUUID(), createdAt: now.toISOString(), ...c }));
     await writeJson('commands.json', enqueue(bestaand, metId));
     context.warn(`[OK] ${metId.length} commando's toegevoegd aan de wachtrij.`);
+  }
+
+  // Noodrem aangeslagen (#128) → eenmalig alarmeren. Ná het wegschrijven van de store, en
+  // in een eigen try: een mislukte verzending mag de rest van de run niet omver halen.
+  // `limietGemeld` op de entry voorkomt dat dit elke vijf minuten opnieuw afgaat.
+  for (const m of teMeldenLimiet) {
+    context.warn(`[ALARM] tafel ${m.tableNumber}: noodrem op het aanmaken van uitzendingen (${m.gemaakt} vandaag) — alarm wordt verstuurd.`);
+    try {
+      const res = await stuurAlert(bouwBroadcastLimietAlert(m));
+      context.warn(`[ALARM] tafel ${m.tableNumber}: mail ${res.mail.verstuurd ? 'verstuurd' : `overgeslagen (${res.mail.reden})`}, ntfy ${res.ntfy.verstuurd ? 'verstuurd' : `overgeslagen (${res.ntfy.reden})`}.`);
+    } catch (e) {
+      context.warn(`[WAARSCHUWING] [ALARM] tafel ${m.tableNumber}: versturen mislukt: ${e.message}`);
+    }
   }
 }
 

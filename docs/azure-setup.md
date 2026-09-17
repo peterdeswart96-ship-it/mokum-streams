@@ -87,6 +87,12 @@ az functionapp config appsettings set -n $app -g $rg --settings `
 > az functionapp config appsettings set -n $app -g $rg --settings INACTIVITEIT_STOP=true
 > az functionapp config appsettings set -n $app -g $rg --settings CHALLENGE_LIMIET=true
 > ```
+>
+> **`MAX_BROADCASTS_PER_TAFEL` (noodrem):** standaard **4**. Zoveel uitzendingen mag één
+> tafel op één zaal-dag maximaal krijgen. Daarboven maakt `createBroadcasts` niets meer aan
+> en gaat er een alarm uit. Bedoeld tegen het patroon van 16-09, toen twee planning-records
+> voor hetzelfde toernooi elkaar de tafel afhandig maakten en er vier broadcasts in een
+> kwartier ontstonden (#128). Een normale avond komt niet in de buurt van deze grens.
 
 ## 4. Backend deployen
 ```powershell
