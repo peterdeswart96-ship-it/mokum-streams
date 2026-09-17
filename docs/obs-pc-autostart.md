@@ -222,7 +222,39 @@ Get-ScheduledTask -TaskName 'MokumWeeklyRestart' | Get-ScheduledTaskInfo | Selec
 ```
 
 ## Nog open (#43)
-- [ ] Bekabeld netwerk verifiëren (geen wifi) + packet loss meten
-- [ ] Fast Startup uit (schone boot bij herstart)
-- [ ] BIOS: restore on power loss = on (na stroomuitval vanzelf opstarten)
+- [x] Bekabeld netwerk verifiëren (geen wifi) — bevestigd 18-07 (#43)
+- [x] Fast Startup uit (schone boot bij herstart) — `HiberbootEnabled = 0`, bevestigd 18-07 (#43)
+- [ ] BIOS: restore on power loss = on (na stroomuitval vanzelf opstarten) — zie checklist hieronder
 - [ ] RTSP-bronnen automatisch laten herverbinden (camera-freeze, zie #43)
+
+## BIOS-checklist voor op locatie (opgesteld 17-09, n.a.v. #133)
+Aanleiding: de pc viel **hard** uit op 24-08 12:38, 15-09 11:21 en 17-09 ±01:41–02:16. Geen
+blauw scherm (`BugcheckCode` 0, geen minidumps), geen aan/uit-knop (`PowerButtonTimestamp` 0),
+geen WHEA-/NVIDIA-/schijffouten. Dus: stroom weg, óf een bevriezing zonder logregel. Details in #133.
+
+Pc: **Lenovo Legion T5 30AGB10** (nageplaatst: Corsair-geheugen, Patriot-SSD, Gigabyte-GPU).
+BIOS in: aanzetten en herhaald **F1** tijdens het Lenovo-logo (of Enter → F1). Menunamen
+kunnen per BIOS-versie iets afwijken. Niet tijdens een stream.
+
+**Aanpassen**
+| Instelling | Waar (meestal) | Zetten op | Waarom |
+|---|---|---|---|
+| After Power Loss | Power | **Power On** | Na stroomuitval vanzelf opstarten (#43) |
+| Wake on LAN | Power → Automatic Power On | **Enabled** / Primary | Op afstand aanzetten (#60) |
+| ErP / EuP / Enhanced Power Saving Mode | Power | **Disabled** | Anders geen standby-stroom naar de netwerkkaart en werkt WoL niet (#60) |
+
+Opslaan met **F10**. BIOS **niet** bijwerken.
+
+**Alleen bekijken en fotograferen (niet wijzigen)**
+- Geheugenprofiel (XMP / Memory Profile). Een overgeklokt geheugenprofiel op nageplaatst geheugen kan
+  bevriezingen zonder logregel geven. Eventueel later als losse proef uitzetten, één wijziging tegelijk.
+- CPU-temperatuur in rust (boven ±60 °C is verdacht).
+- BIOS-versie.
+
+**Ter plekke, buiten de BIOS**
+- Vragen wie de pc op 17-09 om 15:10 aanzette: stond hij **helemaal uit**, of **aan met een bevroren scherm**?
+- Waar zit de stekker in (geschakelde stekkerdoos? groep die bij sluiten uitgaat?) en wat hangt er nog meer aan?
+- Eindtest: stekker eruit terwijl Windows draait → 10 s → erin. Verwacht: pc start zonder knop,
+  auto-login, 4× `obs64`, agent "online" in het dashboard.
+
+De WoL-instellingen in Windows (netwerkkaart, MAC-adres) kunnen op afstand; zie #60.
