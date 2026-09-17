@@ -3,7 +3,7 @@
 Enige waarheid voor de koppelvlakken tussen frontend/widget, backend en (later) de
 agent. Wijzigen? Eerst dit bestand bijwerken (met datum + reden onderaan), dan code.
 
-Status: CONCEPT v0.55 — velden worden definitief in fase 2.
+Status: CONCEPT v0.58 — velden worden definitief in fase 2.
 
 ## Conventies
 - Alle velden camelCase. Tijden in ISO 8601 met tijdzone (Europe/Amsterdam
@@ -79,7 +79,8 @@ POST /api/manage/planning/{id}       -> instellingen van één toernooi wijzigen
 POST /api/manage/planning-refresh    -> draait de Cuescore-import nu meteen (i.p.v. wachten op de uurlijkse timer) en werkt planning.json bij; antwoord: { imported, total, items } waarbij items = dezelfde vorm als GET /api/schedule. NB: route bewust NIET `manage/planning/refresh` — dat botst met `manage/planning/{id}`
 GET  /api/manage/defaults            -> standaard-instellingen (één set, zie hieronder)
 POST /api/manage/defaults            -> standaard-instellingen wijzigen
-POST /api/manage/streams/start       -> body: { "tableNumber": 15, "title"?: "...", "privacy"?: "public|unlisted|private", "overlays"?: { "sponsors": true, "scoreboard": true, "jumbotron": false, "pauzemelding": false }, "tournamentId"?: 83049058, "streamType"?: "challenge", "spelerA"?: "...", "spelerB"?: "..." } (vrije camera; enqueuet startStream + setOverlay per overlay. Mét tournamentId = beheerd, zonder = ad-hoc)
+POST /api/manage/streams/start       -> body: { "tableNumber": 15, "title"?: "...", "privacy"?: "public|unlisted|private", "overlays"?: { "sponsors": true, "scoreboard": true, "jumbotron": false, "pauzemelding": false }, "tournamentId"?: 83049058, "streamType"?: "challenge|competitie", "spelerA"?: "...", "spelerB"?: "...", "matchId"?: 88259371 } (vrije camera; enqueuet startStream + setOverlay per overlay. Mét tournamentId = beheerd, zonder = ad-hoc)
+GET  /api/manage/competitie/wedstrijden -> aankomende teamwedstrijden die BIJ MOKUM gespeeld worden (bron: mokum-competitie-API), voor de competitie-wizard; vorm zie v0.58 in de wijzigingslog
 POST /api/manage/streams/stop        -> body: { "tableNumber": 15 }
 POST /api/manage/streams/overlay     -> body: { "tableNumber": 15, "sponsors"?: bool, "scoreboard"?: bool, "jumbotron"?: bool, "pauzemelding"?: bool } (overlay(s) live aan/uit op een lopende stream; enqueuet setOverlay per opgegeven sleutel)
    NB: content-overlays (sponsors/scoreboard) staan standaard AAN;
@@ -861,3 +862,30 @@ Regels:
      ingetypte titel met een toernooinaam (`NEGEER_WOORDEN` in `planning/koppel.js`): het
      staat in vrijwel élke toernooinaam van deze zaal, waardoor de vangrail van #103
      praktisch alles doorliet.
+- 2026-09-17: v0.58 — **competitie-wizard: nu starten** (#120). Een vijfde soort stream in de
+  wizard, voor een Mokum-teamwedstrijd. Inplannen volgt apart in #145.
+  1. **Nieuw: `GET /api/manage/competitie/wedstrijden`** (beheer-auth). Leest de
+     mokum-competitie-API (`backend/src/mokumCompetitie/`) en geeft alleen wedstrijden terug
+     waarvan `venueName` "Mokum Pool" bevat en `starttime` op de huidige zaal-dag of later valt
+     (een wedstrijd die in Cuescore nooit is afgesloten, blijft anders dagen op `playing` staan).
+     Er wordt bewust niet op `isHome` gefilterd:
+     bij een wedstrijd tussen twee Mokum-teams heeft één van beide `isHome: false`. Zo'n
+     onderlinge wedstrijd staat er één keer in (op `matchId`), met beide teams in `teams`.
+     Antwoord:
+     `{ "wedstrijden": [{ "matchId", "matchUrl", "starttime", "roundName", "matchStatus",
+     "niveauCategorie", "niveau", "thuisteam", "uitteam", "teams": [{ "teamSlug", "teamName" }] }],
+     "mislukt": ["teamSlug", ...] }`, gesorteerd op `starttime`. `thuisteam` volgt uit
+     `isHome` van het Mokum-team (in Cuescore is `playerA` altijd het thuisteam). `mislukt` =
+     teams waarvan het ophalen faalde, zodat de wizard kan melden dat de lijst onvolledig is.
+     Is `/teams` zelf onbereikbaar, dan komt er een 502.
+  2. **`POST /api/manage/streams/start`**: `streamType` mag nu ook `"competitie"` zijn, met een
+     nieuw optioneel veld **`matchId`** (Cuescore-teamwedstrijd, geheel getal). Beide worden
+     opgeslagen op de broadcast-entry. De wizard stuurt als titel `{niveau} {thuisteam} vs. {uitteam}`
+     mee, dus de YouTube-titel wordt `Tafel {nr} {niveau} {thuisteam} vs. {uitteam}`.
+     Meerdere tafels = één aanroep per tafel. De wizard controleert vooraf of álle gekozen
+     tafels vrij zijn, en start anders niets.
+  3. **Gedrag van een entry met `streamType: "competitie"`:** wordt nooit aan een
+     Cuescore-toernooi gekoppeld (`kiesToernooiVoorTafel`), valt nooit onder de
+     inactiviteitsstop (ook niet met `INACTIVITEIT_STOP=true`), en krijgt geen automatische
+     finalize (een thumbnail met de wedstrijdnaam is #82). Stoppen gaat handmatig of via de
+     nachtstop van 02:00.

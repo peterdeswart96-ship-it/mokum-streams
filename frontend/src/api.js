@@ -46,6 +46,9 @@ export const startStream = (body) =>
   req('/api/manage/streams/start', { method: 'POST', body: JSON.stringify(body) });
 export const stopStream = (tableNumber) =>
   req('/api/manage/streams/stop', { method: 'POST', body: JSON.stringify({ tableNumber }) });
+// Competitie-wizard (#120): teamwedstrijden die bij Mokum gespeeld worden.
+// Antwoord { wedstrijden: [...], mislukt: [teamSlug] } — zie api-contract v0.58.
+export const getCompetitieWedstrijden = () => req('/api/manage/competitie/wedstrijden');
 export const setOverlay = (body) =>
   req('/api/manage/streams/overlay', { method: 'POST', body: JSON.stringify(body) });
 

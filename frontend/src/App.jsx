@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  getLive, startStream, stopStream, setOverlay, refreshPlanning, getPlanning, updatePlanning,
+  getLive, startStream, stopStream, setOverlay, refreshPlanning, getPlanning, updatePlanning, getCompetitieWedstrijden,
   getToken, setToken as saveToken, clearToken,
 } from './api.js';
 
@@ -404,6 +404,18 @@ const STREAM_TYPES = {
       { ok: false, tekst: 'Vergeet je te stoppen, dan sluit de nachtstop hem om 02:00.' },
     ],
   },
+  competitie: {
+    label: 'Competitiewedstrijd',
+    uitleg: 'Een teamwedstrijd van een Mokum-team die hier in de zaal gespeeld wordt.',
+    overlays: ['sponsors', 'scoreboard', 'jumbotron'],
+    gevolgen: [
+      { ok: true, tekst: 'Eén stream per gekozen tafel, allemaal met de wedstrijdnaam in de titel.' },
+      { ok: false, tekst: 'De stream sluit NIET vanzelf. Stop hem zelf als de wedstrijd klaar is.' },
+      { ok: false, tekst: 'Scorebord bij een teamwedstrijd is nog niet getest — kijk even of de juiste partij in beeld staat.' },
+      { ok: false, tekst: 'Geen automatische thumbnail of hoofdstukken (volgt later, #82).' },
+      { ok: false, tekst: 'Vergeet je te stoppen, dan sluit de nachtstop hem om 02:00.' },
+    ],
+  },
   custom: {
     label: 'Custom stream',
     uitleg: 'Alles wat niet in Cuescore staat. Bijvoorbeeld een demo of een test.',
@@ -577,6 +589,15 @@ function Wizard({ onClose, onStarted, tables = [] }) {
       setFout(e.message);
       setBezig(false);
     }
+  }
+
+  // Een competitiewedstrijd heeft een eigen reeks stappen (categorie → niveau → team →
+  // wedstrijd → tafels), dus die krijgt vanaf stap 2 een eigen scherm (#120).
+  if (type === 'competitie' && stap > 1) {
+    return (
+      <CompetitieWizard bezet={bezet} gereserveerd={gereserveerd} spec={spec}
+                        onTerug={() => setStap(1)} onStarted={onStarted} />
+    );
   }
 
   const lbl = 'flex items-center gap-2 text-sm font-medium mb-1';
@@ -768,6 +789,269 @@ function Wizard({ onClose, onStarted, tables = [] }) {
             </button>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Competitie-wizard (#120) ─────────────────────────────────────────────────
+// Stream(s) starten voor een teamwedstrijd van een Mokum-team die hier gespeeld wordt.
+// Je klikt je naar de wedstrijd toe (categorie → niveau → team → wedstrijd), kiest één of
+// meer cameratafels en start. Elke tafel krijgt een eigen stream met dezelfde wedstrijdnaam.
+// Inplannen voor later komt in #145; dit is alleen "nu starten".
+
+// Volgorde zoals Mark en Nick de competitie zien: eerst de klassen, dan de top.
+const CATEGORIE_VOLGORDE = ['Klasse', 'Eredivisie', 'Divisie'];
+const NIVEAU_RANG = { eerste: 1, tweede: 2, derde: 3, vierde: 4 };
+const niveauRang = (n) => NIVEAU_RANG[String(n).split(' ')[0].toLowerCase()] || 99;
+
+// "Derde Klasse Moko Loco vs. MRE" — "Tafel {nr}" zet de backend er zelf voor.
+const competitieTitel = (w) => `${w.niveau} ${w.thuisteam} vs. ${w.uitteam}`;
+
+const wedstrijdTijd = (iso) => new Date(iso).toLocaleString('nl-NL', {
+  weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Amsterdam',
+});
+
+function CompetitieWizard({ bezet, gereserveerd, spec, onTerug, onStarted }) {
+  const [data, setData] = useState(null);      // { wedstrijden, mislukt } zodra geladen
+  const [laadFout, setLaadFout] = useState('');
+  const [stap, setStap] = useState(0);         // index in `stappen` hieronder
+  const [categorie, setCategorie] = useState('');
+  const [niveau, setNiveau] = useState('');
+  const [teamSlug, setTeamSlug] = useState('');
+  const [matchId, setMatchId] = useState(null);
+  const [tafels, setTafels] = useState([]);
+  // Alleen het scorebord standaard aan (besluit 17-09). De rest kun je zelf aanvinken.
+  const [ov, setOv] = useState({ sponsors: false, scoreboard: true, jumbotron: false });
+  const [privacy, setPrivacy] = useState('public');
+  const [bezig, setBezig] = useState(false);
+  const [fout, setFout] = useState('');
+  const [gestart, setGestart] = useState([]);  // tafels die al gelukt zijn (bij een halve mislukking)
+
+  useEffect(() => {
+    getCompetitieWedstrijden().then(setData).catch((e) => setLaadFout(e.message));
+  }, []);
+
+  const alle = data?.wedstrijden || [];
+  const categorieen = [...new Set(alle.map((w) => w.niveauCategorie))]
+    .sort((a, b) => (CATEGORIE_VOLGORDE.indexOf(a) + 1 || 99) - (CATEGORIE_VOLGORDE.indexOf(b) + 1 || 99));
+  const inCategorie = alle.filter((w) => w.niveauCategorie === categorie);
+  const niveaus = [...new Set(inCategorie.map((w) => w.niveau))]
+    .sort((a, b) => niveauRang(a) - niveauRang(b) || a.localeCompare(b));
+  const inNiveau = inCategorie.filter((w) => w.niveau === niveau);
+  // Alleen teams die echt een wedstrijd bij Mokum hebben, en elk team één keer.
+  const teams = [...new Map(inNiveau.flatMap((w) => w.teams).map((t) => [t.teamSlug, t])).values()]
+    .sort((a, b) => a.teamName.localeCompare(b.teamName));
+  const vanTeam = inNiveau.filter((w) => w.teams.some((t) => t.teamSlug === teamSlug));
+  const wedstrijd = alle.find((w) => w.matchId === matchId) || null;
+
+  // Eén niveau binnen de categorie (nu: Eredivisie)? Dan slaan we die stap over.
+  const stappen = ['Categorie', ...(niveaus.length > 1 || !categorie ? ['Niveau'] : []), 'Team', 'Wedstrijd', 'Tafels', 'Bevestigen'];
+  const huidig = stappen[stap];
+
+  const tafelVrij = (n) => !bezet.has(n) && !gereserveerd[n];
+
+  function kiesCategorie(c) {
+    setCategorie(c); setTeamSlug(''); setMatchId(null);
+    const ns = [...new Set(alle.filter((w) => w.niveauCategorie === c).map((w) => w.niveau))];
+    setNiveau(ns.length === 1 ? ns[0] : '');
+  }
+
+  const magVerder = (() => {
+    if (huidig === 'Categorie') return !!categorie;
+    if (huidig === 'Niveau') return !!niveau;
+    if (huidig === 'Team') return !!teamSlug;
+    if (huidig === 'Wedstrijd') return matchId != null;
+    if (huidig === 'Tafels') return tafels.length > 0 && tafels.every(tafelVrij);
+    return true;
+  })();
+
+  async function start() {
+    // Tafel bezet → weigeren, en dan NIETS starten (besluit 17-09). Geen stille overname.
+    const nietVrij = tafels.filter((n) => !gestart.includes(n) && !tafelVrij(n));
+    if (nietVrij.length) {
+      setFout(`Tafel ${nietVrij.join(' en ')} is bezet. Stop die uitzending eerst; er is niets gestart.`);
+      return;
+    }
+    setBezig(true); setFout('');
+    const klaar = [...gestart];
+    for (const n of tafels.filter((t) => !gestart.includes(t))) {
+      try {
+        await startStream({
+          tableNumber: n, title: competitieTitel(wedstrijd), privacy, overlays: ov,
+          streamType: 'competitie', matchId: wedstrijd.matchId,
+        });
+        klaar.push(n);
+      } catch (e) {
+        // Halverwege mislukt: zeg precies wat er wél draait, zodat niemand dubbel start.
+        setGestart(klaar);
+        setFout(`Tafel ${n} mislukt: ${e.message}.${klaar.length ? ` Tafel ${klaar.join(' en ')} is wél gestart.` : ''} Probeer opnieuw voor de rest.`);
+        setBezig(false);
+        return;
+      }
+    }
+    onStarted();
+  }
+
+  const knop = (actief) => `w-full text-left rounded border px-3 py-2.5 ${actief ? 'border-brand bg-brand/10' : 'border-line hover:border-ink-muted'}`;
+  const lbl = 'flex items-center gap-2 text-sm font-medium mb-1';
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-10">
+      <div className="bg-surface text-ink border border-line rounded-lg shadow-2xl w-full max-w-md p-6 max-h-[92vh] overflow-y-auto">
+        <h2 className="text-lg font-display mb-1">Competitiewedstrijd starten</h2>
+        <div className="flex gap-1.5 mb-5">
+          {stappen.map((s, i) => (
+            <div key={s} className="flex-1">
+              <div className={`h-1 rounded ${i <= stap ? 'bg-brand' : 'bg-line'}`} />
+              <span className={`text-[10px] ${i === stap ? 'text-ink' : 'text-ink-muted'}`}>{s}</span>
+            </div>
+          ))}
+        </div>
+
+        {!data && !laadFout && <p className="text-sm text-ink-muted">Wedstrijden ophalen…</p>}
+        {laadFout && (
+          <p className="text-sm text-brand-light bg-brand/10 border border-brand/40 rounded p-2">
+            De competitiegegevens zijn niet op te halen: {laadFout}
+          </p>
+        )}
+        {data?.mislukt?.length > 0 && (
+          <p className="text-xs mb-3 rounded border px-3 py-2" style={{ borderColor: '#a16207', background: '#a1620722', color: '#fcd34d' }}>
+            Van {data.mislukt.length} team(s) kon het schema niet worden opgehaald. Mis je een wedstrijd, probeer het dan zo opnieuw.
+          </p>
+        )}
+        {data && !alle.length && (
+          <p className="text-sm text-ink-muted">Er staan geen teamwedstrijden bij Mokum op het programma.</p>
+        )}
+
+        {data && alle.length > 0 && huidig === 'Categorie' && (
+          <div className="space-y-2">
+            {categorieen.map((c) => (
+              <button key={c} onClick={() => kiesCategorie(c)} className={knop(categorie === c)}>
+                <span className="block font-medium">{c}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {huidig === 'Niveau' && (
+          <div className="space-y-2">
+            {niveaus.map((n) => (
+              <button key={n} onClick={() => { setNiveau(n); setTeamSlug(''); setMatchId(null); }} className={knop(niveau === n)}>
+                <span className="block font-medium">{n}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {huidig === 'Team' && (
+          <div className="space-y-2">
+            <p className="text-sm text-ink-muted mb-3">Alleen teams met een wedstrijd hier in de zaal.</p>
+            {teams.map((t) => (
+              <button key={t.teamSlug} onClick={() => { setTeamSlug(t.teamSlug); setMatchId(null); }} className={knop(teamSlug === t.teamSlug)}>
+                <span className="block font-medium">{t.teamName}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {huidig === 'Wedstrijd' && (
+          <div className="space-y-2">
+            {vanTeam.map((w) => (
+              <button key={w.matchId} onClick={() => setMatchId(w.matchId)} className={knop(matchId === w.matchId)}>
+                <span className="block font-medium">{w.thuisteam} vs. {w.uitteam}</span>
+                <span className="block text-xs text-ink-muted">
+                  {wedstrijdTijd(w.starttime)} · {w.roundName}{w.matchStatus === 'playing' ? ' · bezig' : ''}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {huidig === 'Tafels' && (
+          <div>
+            <label className={lbl}>Tafels</label>
+            <div className="space-y-1.5 mb-4">
+              {CAMERAS.map((n) => {
+                const reden = bezet.has(n)
+                  ? (bezet.get(n) === 'live' ? 'bezet (live) — stop die eerst' : 'bezet (klaargezet) — stop die eerst')
+                  : gereserveerd[n] ? `gereserveerd voor ${gereserveerd[n].naam}` : '';
+                return (
+                  <label key={n} className={`flex items-center gap-2 text-sm ${reden ? 'text-ink-muted' : ''}`}>
+                    <input type="checkbox" disabled={!!reden} checked={tafels.includes(n)}
+                           onChange={(e) => setTafels((s) => (e.target.checked ? [...s, n].sort((a, b) => a - b) : s.filter((x) => x !== n)))} />
+                    Tafel {n}{reden ? ` — ${reden}` : ''}
+                  </label>
+                );
+              })}
+            </div>
+
+            <label className={lbl}>Overlays</label>
+            <div className="flex flex-wrap gap-2 mb-4">
+              {OVERLAYS.filter((o) => spec.overlays.includes(o.key)).map((o) => (
+                <Toggle key={o.key} on={!!ov[o.key]} label={o.label} title={`${o.desc} — ${o.pos}`}
+                        onChange={(v) => setOv((s) => ({ ...s, [o.key]: v }))} />
+              ))}
+            </div>
+
+            <label className={lbl}>Zichtbaarheid</label>
+            <div className="flex gap-2">
+              {['unlisted', 'public', 'private'].map((p) => (
+                <button key={p} onClick={() => setPrivacy(p)}
+                  className={`flex-1 rounded px-2 py-1.5 text-sm border ${
+                    privacy === p ? 'bg-brand text-white border-brand' : 'bg-canvas border-line text-ink-muted'
+                  }`}>
+                  {{ unlisted: 'Verborgen', public: 'Openbaar', private: 'Privé' }[p]}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {huidig === 'Bevestigen' && wedstrijd && (
+          <div>
+            <p className="text-sm text-ink-muted mb-2">{wedstrijdTijd(wedstrijd.starttime)} · {wedstrijd.roundName}</p>
+            {tafels.map((n) => (
+              <p key={n} className="text-sm font-mono">
+                Tafel {n} {competitieTitel(wedstrijd)}{gestart.includes(n) ? ' ✓ gestart' : ''}
+              </p>
+            ))}
+            <p className="text-sm font-medium mt-4 mb-2">Wat er hierna gebeurt</p>
+            <ul className="space-y-1.5 mb-4">
+              {spec.gevolgen.map((g, i) => (
+                <li key={i} className="flex gap-2 text-sm">
+                  <span className="shrink-0" style={{ color: g.ok ? '#4ade80' : '#fcd34d' }}>{g.ok ? '✓' : '!'}</span>
+                  <span className={g.ok ? '' : 'text-ink-muted'}>{g.tekst}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {fout && <p className="text-sm text-brand-light bg-brand/10 border border-brand/40 rounded p-2 mt-4">{fout}</p>}
+
+        <div className="flex items-center gap-2 mt-5">
+          <button disabled={bezig} onClick={() => (stap === 0 ? onTerug() : setStap(stap - 1))}
+                  className="flex-1 border border-line text-ink rounded px-4 py-2 disabled:opacity-40">
+            Terug
+          </button>
+          {huidig !== 'Bevestigen' ? (
+            <button disabled={!magVerder} onClick={() => setStap(stap + 1)}
+                    className="flex-1 bg-brand hover:bg-brand-dark text-white rounded px-4 py-2 font-medium disabled:opacity-40">
+              Volgende
+            </button>
+          ) : (
+            <button disabled={bezig} onClick={start}
+                    className="flex-1 bg-brand hover:bg-brand-dark text-white rounded px-4 py-2 font-medium disabled:opacity-40">
+              {bezig ? 'Starten…' : tafels.length > 1 ? `Start ${tafels.length} streams` : 'Start stream'}
+            </button>
+          )}
+        </div>
+        {gestart.length > 0 && (
+          <button onClick={onStarted} className="mt-2 w-full border border-line text-ink rounded px-4 py-2 text-sm">
+            Sluiten — de gestarte streams laten lopen
+          </button>
+        )}
       </div>
     </div>
   );

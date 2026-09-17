@@ -70,6 +70,13 @@ test('#103: een challenge wordt NOOIT gekoppeld, ook niet bij precies één kand
   assert.strictEqual(kiesToernooiVoorTafel(lijst, 16, NU, ctx), null);
 });
 
+test('#120: een competitiewedstrijd wordt NOOIT gekoppeld, ook niet als de titel een woord deelt', () => {
+  // "Klasse" in beide namen zou de titel-vangrail anders laten passeren.
+  const lijst = [toernooi(1, 'Derde Klasse 9ball', [m(16, '2026-07-22T17:00:00Z', 'playing')])];
+  const ctx = { streamType: 'competitie', titel: 'Tafel 16 Derde Klasse Moko Loco vs. MRE' };
+  assert.strictEqual(kiesToernooiVoorTafel(lijst, 16, NU, ctx), null);
+});
+
 test('#103: het echte incident — enige kandidaat deelt geen woord met de ingetypte titel → niet koppelen', () => {
   // 15-08-2026: tafel 1 & 3 kregen "Mokum 8 & 10ball Ranking" terwijl de titel duidelijk
   // over iets anders ging. Op dat moment was het toevallig de ENIGE kandidaat.
