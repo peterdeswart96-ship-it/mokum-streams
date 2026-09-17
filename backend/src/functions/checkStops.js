@@ -8,6 +8,8 @@ const { kiesToernooiVoorTafel, anderToernooiNogOpTafel } = require('../planning/
 const { vrijTeMaken } = require('../planning/vrijmaken');
 const { inactiviteitsCheck } = require('../planning/inactiviteit');
 const { challengeMoetStoppen } = require('../planning/challengeLimiet');
+const { competitieStopBesluit, moetCompetitieChecken } = require('../planning/competitieStop');
+const { toernooiVoorNiveau } = require('../mokumCompetitie/toernooien');
 const { moetOpnieuwStarten, moetAlarmeren, MAX_POGINGEN } = require('../planning/herstart');
 const { bouwStreamFalenAlert } = require('../notify/alertBericht');
 const { stuurAlert } = require('../notify/verzenden');
@@ -61,6 +63,8 @@ const CRON_ELKE_MIN = '0 * * * * *';
 // keten (liveMatches → pauzescherm → overlay) 'm echt op de uitzending krijgt.
 // Instelbaar via app-setting PODIUM_GRACE_SEC.
 const STOP_GRACE_MS = (Number(process.env.PODIUM_GRACE_SEC) || 180) * 1000;
+// Wachttijd tussen "competitiewedstrijd klaar" en stoppen (#145, besluit 17-09: 5 minuten).
+const COMPETITIE_WACHT_MS = (Number(process.env.COMPETITIE_STOP_WACHT_MIN) || 5) * 60 * 1000;
 
 async function verwerk(now, context) {
   if (!isArmed()) {
@@ -152,11 +156,51 @@ async function verwerk(now, context) {
       // Handmatig gestart zonder toernooi? Probeer alsnog te koppelen (#69). Lukt dat
       // niet (niets gevonden of te onzeker), dan blijft de stream handmatig.
       if (entry.adhoc || entry.tournamentId == null) {
-        // Een COMPETITIEWEDSTRIJD die je nu start (#120) stopt alleen handmatig of bij de
-        // nachtstop: niet koppelen aan een toernooi, en geen inactiviteitsstop, ook niet als
-        // INACTIVITEIT_STOP aan staat. Een teamwedstrijd heeft geen Cuescore-toernooi op de
-        // tafel, dus die regel zou 'm midden in de wedstrijd afkappen (zoals #130 op 16-09).
-        if (entry.streamType === 'competitie') continue;
+        // Een COMPETITIEWEDSTRIJD (#120): niet koppelen aan een toernooi, en geen
+        // inactiviteitsstop, ook niet als INACTIVITEIT_STOP aan staat. Een teamwedstrijd heeft
+        // geen Cuescore-toernooi op de tafel, dus die regel zou 'm midden in de wedstrijd
+        // afkappen (zoals #130 op 16-09). Wél een eigen stop (#145): 5 minuten nadat de
+        // teamwedstrijd klaar is — zie planning/competitieStop.js.
+        if (entry.streamType === 'competitie') {
+          const toernooiId = toernooiVoorNiveau(entry.niveau);
+          if (entry.matchId == null || !toernooiId) continue; // vangnet = nachtstop
+
+          // Staat de wachttijd al te lopen, dan hoeft Cuescore niet meer bevraagd te worden.
+          let match = null;
+          if (!entry.competitieKlaarSinds) {
+            if (!moetCompetitieChecken(entry, now)) continue;
+            entry = { ...entry, competitieLaatsteCheck: now.toISOString() };
+            store[key] = entry;
+            storeGewijzigd = true;
+            const id = String(toernooiId);
+            if (!cache.has(id)) {
+              try {
+                cache.set(id, await getTournament(toernooiId));
+              } catch (e) {
+                context.warn(`[WAARSCHUWING] competitie-check tafel ${entry.tableNumber} (toernooi ${id}): ${e.message}`);
+                cache.set(id, null);
+              }
+            }
+            const t = cache.get(id);
+            match = t && (t.matches || []).find((m) => String(m.matchId) === String(entry.matchId));
+            if (!match) continue;
+          }
+
+          const besluit = competitieStopBesluit(entry, match, now, { wachtMs: COMPETITIE_WACHT_MS });
+          if (besluit.klaarSinds && !entry.competitieKlaarSinds) {
+            entry = { ...entry, competitieKlaarSinds: besluit.klaarSinds, competitieKlaarReden: besluit.reden };
+            store[key] = entry;
+            storeGewijzigd = true;
+            context.warn(`[checkStops] tafel ${entry.tableNumber}: competitiewedstrijd klaar (${besluit.reden}) → stopt over ${COMPETITIE_WACHT_MS / 60000} min.`);
+          }
+          if (besluit.stoppen) {
+            context.warn(`[checkStops] tafel ${entry.tableNumber}: stoppen — competitiewedstrijd klaar (${besluit.reden})`);
+            teStoppen.push(entry.tableNumber);
+            store[key] = { ...entry, stopped: true };
+            storeGewijzigd = true;
+          }
+          continue;
+        }
         const lijst = await toernooienVanDag(ref);
         const gevonden = lijst && kiesToernooiVoorTafel(lijst, entry.tableNumber, ref, {
           streamType: entry.streamType, titel: entry.title,

@@ -3,7 +3,7 @@
 Enige waarheid voor de koppelvlakken tussen frontend/widget, backend en (later) de
 agent. Wijzigen? Eerst dit bestand bijwerken (met datum + reden onderaan), dan code.
 
-Status: CONCEPT v0.59 — velden worden definitief in fase 2.
+Status: CONCEPT v0.60 — velden worden definitief in fase 2.
 
 ## Conventies
 - Alle velden camelCase. Tijden in ISO 8601 met tijdzone (Europe/Amsterdam
@@ -902,3 +902,20 @@ Regels:
      deze versie) blijft het zoals het was: geen finalize.
   3. Handmatig: `POST /api/manage/finalize` accepteert ook
      `{ videoId, type: "competitie", niveau, thuisteam, uitteam, tableNumber? }`.
+- 2026-09-17: v0.60 — **automatische stop van een competitiestream** (#145, besluit Peter 17-09).
+  Reden: een vergeten stream liep tot de nachtstop door, met uren beeld van een lege tafel.
+  Geen wijziging aan een endpoint; alleen het gedrag van `checkStops` voor een entry met
+  `streamType: "competitie"`. Vervangt de regel "stoppen handmatig" uit punt 3 van v0.58, en
+  geldt zowel voor "nu starten" als straks voor ingeplande wedstrijden.
+  1. **Bron:** het Cuescore-toernooi van de competitie (per `niveau` een vast id, zie
+     `backend/src/mokumCompetitie/toernooien.js`; elk seizoen bijwerken). Daarin de wedstrijd
+     met `matchId`. Hooguit eens per 2 minuten opgehaald.
+  2. **Klaar** als Cuescore `matchstatus: "finished"` meldt, **óf** als `scoreA + scoreB` het
+     aantal partijen bereikt (Klasse 6, Divisies en Eredivisie 7, volgens de KNBB-
+     wedstrijdformulieren 2026-2027). De stand-regel telt pas vanaf 90 minuten na de start van
+     de stream, als extra rem tegen afkappen. Nooit op tijd of inactiviteit (#134).
+  3. **Wachttijd:** 5 minuten na het eerste "klaar"-signaal (`competitieKlaarSinds` op de entry),
+     instelbaar met app-setting `COMPETITIE_STOP_WACHT_MIN`. Daarna stopStream + `stopped: true`,
+     waarna finalize (v0.59) de thumbnail zet.
+  4. **Vangnet ongewijzigd:** niveau onbekend, Cuescore onbereikbaar of wedstrijd nooit afgerond →
+     de nachtstop.
