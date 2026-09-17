@@ -914,6 +914,8 @@ function CompetitieWizard({ bezet, gereserveerd, straks = {}, spec, onTerug, onS
         await startStream({
           tableNumber: n, title: competitieTitel(wedstrijd), privacy, overlays: ov,
           streamType: 'competitie', matchId: wedstrijd.matchId,
+          // Voor de automatische thumbnail na afloop (#82).
+          niveau: wedstrijd.niveau, thuisteam: wedstrijd.thuisteam, uitteam: wedstrijd.uitteam,
         });
         klaar.push(n);
       } catch (e) {

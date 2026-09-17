@@ -4,7 +4,7 @@
 // van beide (nog niet klaar, of een ad-hoc stream zonder genoeg gegevens). Puur/testbaar
 // — de netwerklaag (finalizeVideos.js) voert de gekozen actie zelf uit.
 
-// Retour: 'toernooi' | 'challenge' | null.
+// Retour: 'toernooi' | 'challenge' | 'competitie' | null.
 function finaliseerActie(entry) {
   if (!entry || !entry.stopped || entry.finalized || entry.finalizeOpgegeven || !entry.videoId) return null;
   if (entry.tournamentId != null) return 'toernooi';
@@ -13,6 +13,9 @@ function finaliseerActie(entry) {
   // net als voorheen) dan zo'n thumbnail zetten.
   const heeftSpelers = !!(entry.spelerA || entry.spelerB);
   if (entry.streamType === 'challenge' && heeftSpelers) return 'challenge';
+  // Competitiewedstrijd (#82): alleen met beide teams. Entries van vóór v0.59 hebben die
+  // niet (alleen matchId) en blijven dus zoals ze waren.
+  if (entry.streamType === 'competitie' && entry.thuisteam && entry.uitteam) return 'competitie';
   return null;
 }
 

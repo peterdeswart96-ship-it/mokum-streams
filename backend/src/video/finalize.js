@@ -172,6 +172,33 @@ async function finaliseerChallenge({ videoId, spelerA, spelerB, tableNumber, spe
   return { videoId, type: 'challenge', thumbnailBytes: png.length };
 }
 
+// Finaliseert een competitiewedstrijd (#82): thumbnail uit de template 'competitie' (niveau +
+// beide teams + datum) en een korte beschrijving. Geen hoofdstukken — een teamwedstrijd is
+// geen Cuescore-toernooi, dus daar is geen partij-indeling voor.
+async function finaliseerCompetitie({ videoId, niveau, thuisteam, uitteam, tableNumber, datumISO }, opts = {}) {
+  if (!thuisteam || !uitteam) throw new Error('thuisteam en uitteam zijn verplicht');
+  if (!heeftTemplate('competitie')) throw new Error('template competitie ontbreekt');
+  const video = await yt.getVideoDetails(videoId);
+  if (!video) throw new Error(`video ${videoId} niet gevonden`);
+  await maakBackup(video);
+  const datum = datumISO || opts.streamStartISO || video.actualStartTime || video.scheduledStartTime;
+
+  const png = await renderThumbnail({
+    templateKey: 'competitie', niveau: niveau || '', thuisteam, uitteam, datum: datumThumb(datum),
+  });
+  const tafelDeel = tableNumber ? ` — Tafel ${tableNumber}` : '';
+  const beschrijving = [
+    MOKUM_LIVE,
+    '',
+    `${niveau ? `${niveau}: ` : ''}${thuisteam} vs ${uitteam}${tafelDeel} — ${datumNL(datum)}`,
+    '', 'Mokum Pool & Darts',
+  ].join('\n');
+
+  await yt.updateSnippetDescription(video, beschrijving);
+  await yt.setThumbnail(videoId, png, 'image/png');
+  return { videoId, type: 'competitie', thumbnailBytes: png.length };
+}
+
 // Zet ALLEEN onze thumbnail op een video (geen hoofdstukken/beschrijving), op basis van de
 // toernooinaam — voor video's zonder Cuescore-tournamentId (#62). Maakt eerst een backup, dus
 // herstelVideo() zet 'm terug. Kies expliciet een templateKey, of laat 'm uit de naam afleiden.
@@ -205,4 +232,4 @@ async function herstelVideo(videoId) {
   return { videoId, restored: true, thumbnailHersteld: !!b.thumbnailBase64 };
 }
 
-module.exports = { finaliseerToernooi, finaliseerChallenge, finaliseerAlleenThumbnail, herstelVideo, uniekeSpelersOpTafel };
+module.exports = { finaliseerToernooi, finaliseerChallenge, finaliseerCompetitie,finaliseerAlleenThumbnail, herstelVideo, uniekeSpelersOpTafel };

@@ -34,3 +34,12 @@ test('niet gestopt, geen videoId, al gefinaliseerd, of opgegeven → nooit een a
   assert.strictEqual(finaliseerActie({ ...basis, tournamentId: 1, finalizeOpgegeven: true }), null);
   assert.strictEqual(finaliseerActie(null), null);
 });
+
+test('#82: competitie met beide teams → competitie', () => {
+  assert.strictEqual(finaliseerActie({ ...basis, streamType: 'competitie', matchId: 1, niveau: 'Eerste Klasse', thuisteam: 'Mokum Mayhem', uitteam: 'Restless' }), 'competitie');
+});
+
+test('#82: competitie zonder (beide) teams → niets (entries van vóór v0.59)', () => {
+  assert.strictEqual(finaliseerActie({ ...basis, streamType: 'competitie', matchId: 1 }), null);
+  assert.strictEqual(finaliseerActie({ ...basis, streamType: 'competitie', thuisteam: 'Mokum Mayhem' }), null);
+});
