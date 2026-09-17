@@ -1175,7 +1175,18 @@ function ToernooiPlanner({ onGepland }) {
                                    onChange={(e) => wijzig(r, { startTijd: e.target.value })} />
                           )}
                         </td>
-                        <td className={`${cell} max-w-[16rem]`}><span className="block truncate" title={r.name}>{r.name}</span></td>
+                        <td className={`${cell} max-w-[16rem]`}>
+                          <span className="block truncate" title={r.name}>{r.name}</span>
+                          {(r.cuescoreWeg || r.cuescoreWegSinds) && (
+                            <span className="inline-block mt-0.5 text-[10px] px-1.5 py-0.5 rounded border"
+                                  style={{ borderColor: '#a16207', background: '#a1620722', color: '#fcd34d' }}
+                                  title={r.cuescoreWeg
+                                    ? 'Cuescore kent dit toernooi-ID niet meer. Het record is uitgezet en maakt geen uitzendingen meer aan. Meestal staat hetzelfde toernooi onder een nieuw ID al in de lijst — dit record kun je weggooien.'
+                                    : 'Dit toernooi-ID ontbrak in de laatste Cuescore-import. Blijft dat zo, dan wordt het record vanzelf uitgezet. Mogelijk was Cuescore alleen even onbereikbaar.'}>
+                              {r.cuescoreWeg ? '⚠ niet meer bij Cuescore' : '⚠ even niet gezien'}
+                            </span>
+                          )}
+                        </td>
                         <td className={cell}>
                           {competitie ? (
                             <span className="text-ink-muted text-xs" title="En stopt per avond, zodra er op die tafel geen wedstrijd meer staat">per avond</span>

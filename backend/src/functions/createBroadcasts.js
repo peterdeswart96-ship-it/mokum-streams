@@ -96,6 +96,15 @@ async function verwerk(now, context) {
         tafels = herresolveerTafels(tournament, rec.tafels || [], now);
         context.log(`[createBroadcasts] tafel-herresolutie toernooi ${rec.tournamentId}: [${(rec.tafels || []).join(',')}] → [${tafels.join(',')}]`);
       } catch (e) {
+        // Cuescore zegt expliciet dat dit toernooi niet bestaat (#127). Dan is er niets om
+        // uit te zenden: doorgaan levert een broadcast op die aan een dood ID hangt — geen
+        // podium, geen auto-stop, en op 16-09 een create/stop-lus met vier broadcasts in
+        // een kwartier (#128). Overslaan, en luid loggen zodat het opvalt.
+        if (e.toernooiOnbekend) {
+          context.warn(`[FOUT] [createBroadcasts] toernooi ${rec.tournamentId} ("${rec.name || '?'}") bestaat niet meer bij Cuescore — géén broadcast aangemaakt voor tafels [${tafels.join(',')}]. Ruim dit record op in de Toernooi planner.`);
+          continue;
+        }
+        // Cuescore onbereikbaar of loting nog niet gemaakt → val terug op de geplande tafels.
         context.warn(`[createBroadcasts] herresolutie mislukt (${e.message}) → geplande tafels [${tafels.join(',')}]`);
       }
     }
