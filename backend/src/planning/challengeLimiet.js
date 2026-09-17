@@ -1,3 +1,8 @@
+// LET OP (#134, 17-09): deze regel staat STANDAARD UIT. checkStops roept 'm alleen aan
+// als de app-setting CHALLENGE_LIMIET=true staat (zie config/automation.js). Reden: het
+// kapte lopende partijen af. De logica hieronder blijft staan zodat 'ie zonder deploy
+// terug kan; het vangnet is nu de nachtstop van 02:00.
+//
 // Harde tijdslimiet voor challenge-streams: na 3 uur stoppen, ONGEACHT of er nog gespeeld
 // wordt. Besluit Peter i.o.m. Nick (18-08, oorspronkelijk 2 uur; verruimd naar 3 uur op
 // 10-09): een challenge is een losse partij zonder Cuescore-toernooikoppeling (#88 lost dat
