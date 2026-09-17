@@ -12,6 +12,9 @@ const { isAdmin } = require('../admin/auth');
 // Dezelfde `verwerk` wordt hergebruikt door de handmatige refresh-endpoint (v0.19).
 
 const CRON_ELK_UUR = '0 0 * * * *';
+// Hoe ver vooruit de import kijkt. Ook doorgegeven aan mergePlanning: alleen records
+// BINNEN dit venster kunnen als "door Cuescore vergeten" gelden (#127).
+const IMPORT_DAGEN = 35;
 
 // Draait de import één keer. Geeft een resultaat-object terug zodat zowel de timer
 // als het HTTP-endpoint de uitkomst (of de fout) kunnen rapporteren.
@@ -24,7 +27,7 @@ async function verwerk(now, context) {
     // Vijf weken vooruit in plaats van twee: Peter wil een hele maand in één keer kunnen
     // inplannen (05-08). De Toernooi planner toont niet meer dan er is, dus dit is de plek
     // die het venster bepaalt.
-    imported = await getUpcomingTournaments({ now, days: 35 });
+    imported = await getUpcomingTournaments({ now, days: IMPORT_DAGEN });
   } catch (e) {
     // Warning-niveau (28-08, #117-vervolg): logLevel.default staat op Warning (#110), dus
     // draait deze uurlijkse import stil mis, dan blijft planning.json onopgemerkt verouderd.
@@ -32,7 +35,7 @@ async function verwerk(now, context) {
     return { ok: false, error: e.message };
   }
 
-  const samengevoegd = mergePlanning(bestaand, imported, defaults);
+  const samengevoegd = mergePlanning(bestaand, imported, defaults, { now, vensterDagen: IMPORT_DAGEN });
   await writeJson('planning.json', samengevoegd);
   context.warn(`[OK] Planning bijgewerkt: ${imported.length} geïmporteerd, ${samengevoegd.length} records totaal.`);
   return { ok: true, imported: imported.length, total: samengevoegd.length };

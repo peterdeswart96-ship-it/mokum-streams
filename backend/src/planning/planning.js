@@ -130,7 +130,82 @@ function defaultRecord(tournament, defaults = STANDAARD_DEFAULTS) {
 //   (geen podium, geen auto-stop, generieke thumbnail). We DRAGEN de handmatige keuzes van
 //   het oude record over naar het nieuwe ID, in plaats van het oude record te laten
 //   verweesd rondslingeren.
-function mergePlanning(existing, imported, defaults = STANDAARD_DEFAULTS) {
+// 'YYYY-MM-DD' in Amsterdam. Bewust geen import uit schedule/: dit bestand is
+// dependency-vrij en dat houden we zo. Een uur verschil rond middernacht maakt voor een
+// venster van vijf weken niets uit.
+function datumInAmsterdam(now) {
+  return new Date(now).toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' });
+}
+
+// Hoelang een record met een verdwenen Cuescore-ID het voordeel van de twijfel krijgt
+// vóór we 'm ontwapenen. De import draait elk uur, dus dit zijn ~3 pogingen.
+const WEG_GRACE_MS = 3 * 60 * 60 * 1000;
+
+// Haalt de "verdwenen"-markering van een record af — gebruikt zodra het ID wéér in een
+// import opduikt (Cuescore was blijkbaar even onbereikbaar, niet echt weg).
+function zonderWegMarkering(rec) {
+  if (!rec || (rec.cuescoreWeg === undefined && rec.cuescoreWegSinds === undefined)) return rec;
+  const { cuescoreWeg, cuescoreWegSinds, ...rest } = rec;
+  return rest;
+}
+
+// Ruimt records op waarvan Cuescore het toernooi-ID niet meer kent (#127).
+//
+// Aanleiding (16-09): de MEGA Winter Ranking-serie is bij Cuescore opnieuw aangemaakt
+// onder nieuwe ID's. Het oude ID 88433581 werd ongeldig, maar het record bleef met
+// `planned: true` in de planner staan, náást het nieuwe record voor hetzelfde toernooi.
+// Die twee vochten om dezelfde tafel: vier broadcasts in een kwartier, video's van 51
+// seconden (#128), en een herkoppeling aan de verkeerde competitie (#129).
+//
+// De bestaande wees-migratie hierboven ving dit niet, omdat die alleen werkt als het oude
+// ID verdwijnt in dezelfde import waarin het nieuwe verschijnt. Bij deze serie stonden
+// beide toernooien een tijd tegelijk bij Cuescore, dus was het oude ID géén wees.
+//
+// Twee gevallen, bewust verschillend behandeld:
+//   - Er is een LEVEND record met dezelfde naam+datum → dit is de achtergebleven
+//     dubbelganger. Meteen weggooien; het levende record heeft de handmatige keuzes al.
+//   - Geen dubbelganger → het toernooi is echt weg (afgelast, hernoemd). Niet meteen
+//     ontwapenen: een half-mislukte Cuescore-ophaal (één van de twee weergaven faalt,
+//     zie cuescore/index.js) zou anders in één klap de hele agenda uitzetten. Eerst
+//     stempelen, en pas na WEG_GRACE_MS ontwapenen.
+//
+// Alleen records BINNEN het importvenster (vandaag t/m +vensterDagen) doen mee: een
+// toernooi van vorige maand ontbreekt in de import omdat er niet zo ver terug gekeken
+// wordt, niet omdat het weg is.
+function opschonenVerdwenen(records, geziene, now, vensterDagen) {
+  const vandaagISO = datumInAmsterdam(now);
+  const grens = new Date(`${vandaagISO}T00:00:00Z`);
+  grens.setUTCDate(grens.getUTCDate() + vensterDagen);
+  const grensISO = grens.toISOString().slice(0, 10);
+
+  // naam|datum van de records die Cuescore in DEZE import wél kende.
+  const levend = new Set();
+  for (const r of records) {
+    const datum = r.date || afgeleideDatum(r.plannedStart);
+    if (geziene.has(String(r.tournamentId)) && r.name && datum) levend.add(`${r.name}|${datum}`);
+  }
+
+  const uit = [];
+  for (const r of records) {
+    if (geziene.has(String(r.tournamentId))) { uit.push(r); continue; }
+
+    const datum = r.date || afgeleideDatum(r.plannedStart);
+    const inVenster = !!datum && datum >= vandaagISO && datum <= grensISO;
+    if (!inVenster) { uit.push(r); continue; }
+
+    // Achtergebleven dubbelganger van een toernooi dat onder een nieuw ID verder leeft.
+    if (r.name && levend.has(`${r.name}|${datum}`)) continue;
+
+    const sinds = r.cuescoreWegSinds || now.toISOString();
+    const langGenoegWeg = now.getTime() - Date.parse(sinds) >= WEG_GRACE_MS;
+    uit.push(langGenoegWeg
+      ? { ...r, cuescoreWegSinds: sinds, cuescoreWeg: true, planned: false }
+      : { ...r, cuescoreWegSinds: sinds });
+  }
+  return uit;
+}
+
+function mergePlanning(existing, imported, defaults = STANDAARD_DEFAULTS, { now = null, vensterDagen = 35 } = {}) {
   const lijst = existing || [];
   const nieuweLijst = imported || [];
   const byId = new Map(lijst.map((r) => [String(r.tournamentId), r]));
@@ -154,7 +229,7 @@ function mergePlanning(existing, imported, defaults = STANDAARD_DEFAULTS) {
       const nieuweStart = t.start != null ? t.start : oud.plannedStart;
       const nieuweStop = t.stop != null ? t.stop : oud.plannedStop;
       resultaat.push({
-        ...oud,
+        ...zonderWegMarkering(oud),
         name: t.name || oud.name,
         type: bepaalType(nieuweStart, nieuweStop), // afgeleid, altijd verversen
         plannedStart: nieuweStart,
@@ -190,7 +265,8 @@ function mergePlanning(existing, imported, defaults = STANDAARD_DEFAULTS) {
     if (geziene.has(id) || vervangenIds.has(id)) continue; // al verwerkt, of vervangen door een nieuw ID
     resultaat.push(r);
   }
-  return resultaat;
+  // Zonder `now` (oude aanroepen/tests) slaan we het opruimen over — dan verandert er niets.
+  return now ? opschonenVerdwenen(resultaat, geziene, now, vensterDagen) : resultaat;
 }
 
 module.exports = {

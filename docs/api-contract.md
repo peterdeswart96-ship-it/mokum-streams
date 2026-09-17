@@ -807,3 +807,30 @@ Regels:
   `...02-jumbotron.html?tafel=1`); zonder die parameter blijft het oude gedeelde `podium`-
   gedrag gelden. Bewust zo gebouwd — de vier OBS-instanties tegelijk aanpassen terwijl er
   wordt uitgezonden is te riskant (#104), dus dat doet Peter op een rustig moment per tafel.
+- 2026-09-17: v0.56 — **planning-records met een verdwenen Cuescore-ID worden opgeruimd** (#127).
+  Aanleiding: op 16-09 gingen de streams van tafel 1 en 3 vier keer aan en uit. Cuescore had de
+  MEGA Winter Ranking-serie opnieuw aangemaakt onder nieuwe ID's; het oude ID `88433581` werd
+  ongeldig, maar het record bleef met `planned: true` naast het nieuwe record voor hetzelfde
+  toernooi staan. Die twee vochten om dezelfde tafel (#128) en leverden video's van 51 seconden
+  op. De bestaande wees-migratie (v0.53) ving dit niet: die werkt alleen als het oude ID
+  verdwijnt in dezelfde import waarin het nieuwe verschijnt, en bij deze serie stonden beide
+  toernooien een tijd tegelijk bij Cuescore.
+  Twee nieuwe, optionele velden op een planning-record:
+  - **`cuescoreWegSinds`** (ISO-tijd) — sinds wanneer dit toernooi-ID niet meer in de
+    Cuescore-import voorkomt, terwijl de datum wél binnen het importvenster (vandaag t/m
+    +35 dagen) valt. Puur een stempel; het record doet gewoon nog mee.
+  - **`cuescoreWeg`** (bool) — gezet zodra dat stempel ouder is dan drie uur (~3 imports).
+    Het record wordt dan óók op `planned: false` gezet: een toernooi dat niet bestaat mag geen
+    broadcasts meer maken.
+  Waarom die vertraging: `haalToernooienPaginas()` tolereert één mislukte weergave, dus een
+  half-mislukte ophaal kan tijdelijk alle aankomende toernooien missen. Meteen ontwapenen zou
+  in één klap de hele agenda uitzetten. Komt het ID terug, dan verdwijnen beide velden weer.
+  Een record dat een **levende naamgenoot op dezelfde datum** heeft (precies het geval van
+  16-09) is een achtergebleven dubbelganger en wordt direct verwijderd — dat is veilig, want
+  het vereist per definitie een geslaagde import.
+  Records buiten het importvenster blijven ongemoeid: het verleden zit nooit in de import.
+  Zie `mergePlanning()`/`opschonenVerdwenen()` in `backend/src/planning/planning.js`.
+  Daarnaast krijgt de fout uit `getTournament()` bij een onbekend ID een vlag
+  **`toernooiOnbekend`**, zodat `createBroadcasts` "dit ID bestaat niet" kan onderscheiden van
+  "Cuescore is even onbereikbaar". Bij het eerste wordt er géén broadcast meer aangemaakt
+  (voorheen viel hij terug op de geplande tafels — precies wat de lus van 16-09 voedde).
