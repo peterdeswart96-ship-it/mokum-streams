@@ -92,6 +92,10 @@ app.http('adminStreamStart', {
       ...(body.streamType ? { streamType: String(body.streamType).slice(0, 20) } : {}),
       ...(body.spelerA ? { spelerA: String(body.spelerA).slice(0, 60) } : {}),
       ...(body.spelerB ? { spelerB: String(body.spelerB).slice(0, 60) } : {}),
+      // Competitiewedstrijd (#120): de Cuescore-teamwedstrijd. Nu alleen bewaard; nodig voor
+      // het inplannen met automatische stop (#145) en de thumbnail (#82).
+      ...(Number.isInteger(Number(body.matchId)) && body.matchId != null && body.matchId !== ''
+        ? { matchId: Number(body.matchId) } : {}),
     };
     await writeJson(broadcastsPad, store);
 

@@ -152,6 +152,11 @@ async function verwerk(now, context) {
       // Handmatig gestart zonder toernooi? Probeer alsnog te koppelen (#69). Lukt dat
       // niet (niets gevonden of te onzeker), dan blijft de stream handmatig.
       if (entry.adhoc || entry.tournamentId == null) {
+        // Een COMPETITIEWEDSTRIJD die je nu start (#120) stopt alleen handmatig of bij de
+        // nachtstop: niet koppelen aan een toernooi, en geen inactiviteitsstop, ook niet als
+        // INACTIVITEIT_STOP aan staat. Een teamwedstrijd heeft geen Cuescore-toernooi op de
+        // tafel, dus die regel zou 'm midden in de wedstrijd afkappen (zoals #130 op 16-09).
+        if (entry.streamType === 'competitie') continue;
         const lijst = await toernooienVanDag(ref);
         const gevonden = lijst && kiesToernooiVoorTafel(lijst, entry.tableNumber, ref, {
           streamType: entry.streamType, titel: entry.title,
