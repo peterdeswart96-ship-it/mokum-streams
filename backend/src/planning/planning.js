@@ -145,8 +145,12 @@ const WEG_GRACE_MS = 3 * 60 * 60 * 1000;
 // import opduikt (Cuescore was blijkbaar even onbereikbaar, niet echt weg).
 function zonderWegMarkering(rec) {
   if (!rec || (rec.cuescoreWeg === undefined && rec.cuescoreWegSinds === undefined)) return rec;
-  const { cuescoreWeg, cuescoreWegSinds, ...rest } = rec;
-  return rest;
+  // Bewust `delete` op een kopie i.p.v. destructuring met rest: die schrijfwijze laat twee
+  // ongebruikte variabelen achter en de lint-regel staat op --max-warnings 0.
+  const kopie = { ...rec };
+  delete kopie.cuescoreWeg;
+  delete kopie.cuescoreWegSinds;
+  return kopie;
 }
 
 // Ruimt records op waarvan Cuescore het toernooi-ID niet meer kent (#127).
