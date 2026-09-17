@@ -7,6 +7,7 @@ const { finaliseerToernooi, finaliseerChallenge, finaliseerCompetitie, finalisee
 const { finalizeVervolg } = require('../video/finalizeBeleid');
 const { finaliseerActie } = require('../video/finalizeKeuze');
 const { getVideoDetails } = require('../youtube/videos');
+const { zoekCompetitieWedstrijd, heeftTeams } = require('../mokumCompetitie/zoekWedstrijd');
 
 // Handmatige finalize-endpoints (#56, bouwsteen 3b). Admin-beveiligd (Bearer ADMIN_TOKEN).
 // Bedoeld om de keten op ÉÉN video te testen vóór we het automatisch aanzetten. Elke
@@ -122,6 +123,14 @@ app.timer('finalizeVideos', {
         const actie = finaliseerActie(e);
         if (!actie) continue;
         try {
+          // Competitie zonder niveau/teams (v0.61): eerst zelf opzoeken via de matchId. Niet
+          // gevonden → gewone mislukte poging, dus dezelfde retry/opgeef-regels (#124).
+          if (actie === 'competitie' && !heeftTeams(e)) {
+            const gevonden = await zoekCompetitieWedstrijd(e.matchId, { niveau: e.niveau });
+            if (!gevonden) throw new Error(`teamwedstrijd ${e.matchId} niet gevonden in de Cuescore-competities`);
+            Object.assign(e, { niveau: gevonden.niveau, thuisteam: gevonden.thuisteam, uitteam: gevonden.uitteam, teamsOpgezocht: true });
+            gewijzigd = true;
+          }
           const res = actie === 'toernooi'
             ? await finaliseerToernooi({ videoId: e.videoId, tournamentId: e.tournamentId, tableNumber: e.tableNumber })
             : actie === 'competitie'

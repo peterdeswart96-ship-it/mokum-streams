@@ -39,7 +39,11 @@ test('#82: competitie met beide teams → competitie', () => {
   assert.strictEqual(finaliseerActie({ ...basis, streamType: 'competitie', matchId: 1, niveau: 'Eerste Klasse', thuisteam: 'Mokum Mayhem', uitteam: 'Restless' }), 'competitie');
 });
 
-test('#82: competitie zonder (beide) teams → niets (entries van vóór v0.59)', () => {
-  assert.strictEqual(finaliseerActie({ ...basis, streamType: 'competitie', matchId: 1 }), null);
+test('#82 v0.61: competitie zonder teams maar met matchId → competitie (teams worden opgezocht)', () => {
+  assert.strictEqual(finaliseerActie({ ...basis, streamType: 'competitie', matchId: 1 }), 'competitie');
+});
+
+test('#82: competitie zonder teams én zonder matchId → niets', () => {
+  assert.strictEqual(finaliseerActie({ ...basis, streamType: 'competitie' }), null);
   assert.strictEqual(finaliseerActie({ ...basis, streamType: 'competitie', thuisteam: 'Mokum Mayhem' }), null);
 });
