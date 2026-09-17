@@ -675,9 +675,8 @@ function Wizard({ onClose, onStarted, tables = [] }) {
                   Maak de challenge eerst aan in Cuescore (scorebord → Aanmaken), dan werkt het scorebord op de stream.
                 </p>
                 <p className="text-xs mt-2 rounded border px-3 py-2" style={{ borderColor: '#a16207', background: '#a1620722', color: '#fcd34d' }}>
-                  <strong>Stopt automatisch na 3 uur</strong> — ook als de partij nog bezig is. Geef dit
-                  door aan de spelers: duurt het langer, dan moet er een nieuwe stream (deel 2, 3...)
-                  gestart worden.
+                  <strong>Stopt niet vanzelf</strong> — deze stream blijft lopen tot je 'm zelf stopt,
+                  en anders tot de nachtstop van 02:00. Denk er dus aan 'm na afloop te stoppen.
                 </p>
               </>
             )}
@@ -1175,7 +1174,18 @@ function ToernooiPlanner({ onGepland }) {
                                    onChange={(e) => wijzig(r, { startTijd: e.target.value })} />
                           )}
                         </td>
-                        <td className={`${cell} max-w-[16rem]`}><span className="block truncate" title={r.name}>{r.name}</span></td>
+                        <td className={`${cell} max-w-[16rem]`}>
+                          <span className="block truncate" title={r.name}>{r.name}</span>
+                          {(r.cuescoreWeg || r.cuescoreWegSinds) && (
+                            <span className="inline-block mt-0.5 text-[10px] px-1.5 py-0.5 rounded border"
+                                  style={{ borderColor: '#a16207', background: '#a1620722', color: '#fcd34d' }}
+                                  title={r.cuescoreWeg
+                                    ? 'Cuescore kent dit toernooi-ID niet meer. Het record is uitgezet en maakt geen uitzendingen meer aan. Meestal staat hetzelfde toernooi onder een nieuw ID al in de lijst — dit record kun je weggooien.'
+                                    : 'Dit toernooi-ID ontbrak in de laatste Cuescore-import. Blijft dat zo, dan wordt het record vanzelf uitgezet. Mogelijk was Cuescore alleen even onbereikbaar.'}>
+                              {r.cuescoreWeg ? '⚠ niet meer bij Cuescore' : '⚠ even niet gezien'}
+                            </span>
+                          )}
+                        </td>
                         <td className={cell}>
                           {competitie ? (
                             <span className="text-ink-muted text-xs" title="En stopt per avond, zodra er op die tafel geen wedstrijd meer staat">per avond</span>

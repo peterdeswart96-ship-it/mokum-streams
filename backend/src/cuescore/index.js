@@ -103,7 +103,14 @@ async function getTournament(id) {
   // geen podium, geen auto-stop, en finalize viel terug op de generieke thumbnail met 0
   // hoofdstukken. Gebeurde op 09-09 met tournamentId 88433578 (een dubbel/verouderd
   // Cuescore-ID voor "Mokum MEGA Winter Ranking #3" — de echte data stond op een ANDER ID).
-  if (data && data.error) throw new Error(`Cuescore toernooi ${id}: ${data.error}`);
+  if (data && data.error) {
+    // Aparte vlag i.p.v. alleen een tekst (#127): de aanroeper moet "dit ID bestaat niet"
+    // kunnen onderscheiden van "Cuescore is even onbereikbaar". Bij het eerste mag je géén
+    // broadcast aanmaken, bij het tweede juist wél (dan val je terug op de planning).
+    const fout = new Error(`Cuescore toernooi ${id}: ${data.error}`);
+    fout.toernooiOnbekend = true;
+    throw fout;
+  }
   return normalizeTournament(data);
 }
 

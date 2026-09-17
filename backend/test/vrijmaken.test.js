@@ -138,3 +138,52 @@ test('#93: een uitzending die MET het toernooi is gestart blijft met rust', () =
   const eigen = { tableNumber: 1, videoId: 'abc', tournamentId: 75880936, stopped: false };
   assert.deepStrictEqual(vrijTeMaken([toernooi()], { 1: eigen }, OM(17, 5)), []);
 });
+
+// #128 (16-09): twee planning-records voor hetzelfde toernooi lieten vrijmaken de
+// uitzending sluiten die createBroadcasts er één minuut eerder voor had gemaakt, waarna
+// die 'm opnieuw maakte. Vier broadcasts in een kwartier.
+test('#128 een uitzending die ná het openen van het venster is aangemaakt wordt niet vrijgemaakt', () => {
+  const planning = [{
+    tournamentId: 88435585, name: 'Mokum MEGA Winter Ranking #4', planned: true,
+    tafels: [1], plannedStart: '2026-09-16T19:15:00Z',
+  }];
+  // Venster opent 18:45; deze uitzending is om 19:05 aangemaakt, dus erbinnen.
+  const store = {
+    1: { tableNumber: 1, tournamentId: 88433581, videoId: 'ByGNc8enVSI',
+         aangemaaktOp: '2026-09-16T19:05:03Z' },
+  };
+
+  const uit = vrijTeMaken(planning, store, new Date('2026-09-16T19:06:00Z'));
+
+  assert.deepStrictEqual(uit, [], 'wat net is aangemaakt hoort met rust gelaten te worden');
+});
+
+test('#128 een écht vergeten uitzending van eerder op de dag wordt nog gewoon gesloten', () => {
+  const planning = [{
+    tournamentId: 88435585, name: 'Mokum MEGA Winter Ranking #4', planned: true,
+    tafels: [1], plannedStart: '2026-09-16T19:15:00Z',
+  }];
+  // Challenge van 16:40 — ruim vóór het venster van 18:45. Dit is het geval van 03-08
+  // waar #93 voor gemaakt is; dat gedrag moet blijven werken.
+  const store = {
+    1: { tableNumber: 1, adhoc: true, videoId: 'oud123', aangemaaktOp: '2026-09-16T16:40:00Z' },
+  };
+
+  const uit = vrijTeMaken(planning, store, new Date('2026-09-16T19:06:00Z'));
+
+  assert.strictEqual(uit.length, 1);
+  assert.strictEqual(uit[0].tableNumber, 1);
+  assert.strictEqual(uit[0].videoId, 'oud123');
+});
+
+test('#128 zonder aangemaaktOp (oudere entries, handmatig gestart) verandert er niets', () => {
+  const planning = [{
+    tournamentId: 88435585, name: 'Mokum MEGA Winter Ranking #4', planned: true,
+    tafels: [1], plannedStart: '2026-09-16T19:15:00Z',
+  }];
+  const store = { 1: { tableNumber: 1, adhoc: true, videoId: 'geenstempel' } };
+
+  const uit = vrijTeMaken(planning, store, new Date('2026-09-16T19:06:00Z'));
+
+  assert.strictEqual(uit.length, 1, 'geen stempel = oud = gewoon opruimen');
+});

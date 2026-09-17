@@ -131,3 +131,100 @@ test('planningStatus: concept / gepland / live / klaar / geannuleerd', () => {
   // broadcast van een ánder toernooi telt niet mee
   assert.strictEqual(planningStatus(rec({}), { 1: { tournamentId: 'anders', stopped: false } }, vandaag), 'gepland');
 });
+
+// ---------------------------------------------------------------------------
+// #127 — records opruimen waarvan Cuescore het toernooi-ID niet meer kent.
+//
+// Aanleiding 16-09: de MEGA Winter Ranking-serie kreeg bij Cuescore nieuwe ID's. Het oude
+// ID 88433581 werd ongeldig maar bleef als tweede, ingepland record naast het nieuwe staan.
+// Die twee vochten om dezelfde tafel (#128) en leverden video's van 51 seconden op.
+// ---------------------------------------------------------------------------
+
+const NU = new Date('2026-09-17T09:00:00Z');
+
+test('#127 achtergebleven dubbelganger (dood ID, zelfde naam+datum als een levend record) verdwijnt', () => {
+  const bestaand = [
+    { tournamentId: 88433581, name: 'Mokum MEGA Winter Ranking #5', date: '2026-09-23',
+      plannedStart: '2026-09-23T17:15:00Z', planned: true, tafels: [1, 3] },
+    { tournamentId: 88435588, name: 'Mokum MEGA Winter Ranking #5', date: '2026-09-23',
+      plannedStart: '2026-09-23T17:15:00Z', planned: true, tafels: [1, 3] },
+  ];
+  const imported = [
+    { id: 88435588, name: 'Mokum MEGA Winter Ranking #5', start: '2026-09-23T17:15:00Z', stop: null },
+  ];
+
+  const merged = mergePlanning(bestaand, imported, undefined, { now: NU });
+
+  assert.strictEqual(merged.length, 1, 'de dubbelganger hoort weg te zijn');
+  assert.strictEqual(String(merged[0].tournamentId), '88435588');
+  assert.strictEqual(merged[0].planned, true, 'het levende record blijft gewoon ingepland');
+});
+
+test('#127 een toernooi dat écht weg is wordt niet meteen ontwapend (Cuescore kan even haperen)', () => {
+  const bestaand = [
+    { tournamentId: 99, name: 'Afgelast toernooi', date: '2026-09-23',
+      plannedStart: '2026-09-23T17:15:00Z', planned: true, tafels: [1] },
+  ];
+
+  const merged = mergePlanning(bestaand, [], undefined, { now: NU });
+
+  assert.strictEqual(merged.length, 1);
+  assert.strictEqual(merged[0].planned, true, 'eerste keer missen mag nog niets uitzetten');
+  assert.strictEqual(merged[0].cuescoreWegSinds, NU.toISOString(), 'wel gestempeld');
+  assert.strictEqual(merged[0].cuescoreWeg, undefined);
+});
+
+test('#127 pas na de respijtperiode wordt het record ontwapend en gemarkeerd', () => {
+  const bestaand = [
+    { tournamentId: 99, name: 'Afgelast toernooi', date: '2026-09-23',
+      plannedStart: '2026-09-23T17:15:00Z', planned: true, tafels: [1],
+      cuescoreWegSinds: '2026-09-17T05:00:00Z' }, // 4 uur geleden
+  ];
+
+  const merged = mergePlanning(bestaand, [], undefined, { now: NU });
+
+  assert.strictEqual(merged[0].cuescoreWeg, true);
+  assert.strictEqual(merged[0].planned, false, 'een toernooi dat niet bestaat mag niet meer draaien');
+});
+
+test('#127 komt het ID terug, dan verdwijnt de markering weer', () => {
+  const bestaand = [
+    { tournamentId: 42, name: 'Fluke ranking', date: '2026-09-22',
+      plannedStart: '2026-09-22T17:30:00Z', planned: true, tafels: [1],
+      cuescoreWeg: true, cuescoreWegSinds: '2026-09-17T05:00:00Z' },
+  ];
+  const imported = [{ id: 42, name: 'Fluke ranking', start: '2026-09-22T17:30:00Z', stop: null }];
+
+  const merged = mergePlanning(bestaand, imported, undefined, { now: NU });
+
+  assert.strictEqual(merged[0].cuescoreWeg, undefined, 'markering hoort weg');
+  assert.strictEqual(merged[0].cuescoreWegSinds, undefined);
+});
+
+test('#127 records buiten het importvenster blijven ongemoeid (het verleden zit nooit in de import)', () => {
+  const bestaand = [
+    { tournamentId: 7, name: 'Toernooi van vorige maand', date: '2026-08-12',
+      plannedStart: '2026-08-12T17:30:00Z', planned: true, tafels: [1] },
+    { tournamentId: 8, name: 'Toernooi over een half jaar', date: '2027-03-01',
+      plannedStart: '2027-03-01T17:30:00Z', planned: true, tafels: [1] },
+  ];
+
+  const merged = mergePlanning(bestaand, [], undefined, { now: NU });
+
+  assert.strictEqual(merged.length, 2);
+  for (const r of merged) {
+    assert.strictEqual(r.planned, true);
+    assert.strictEqual(r.cuescoreWegSinds, undefined, 'buiten het venster niets stempelen');
+  }
+});
+
+test('#127 zonder `now` verandert er niets (oude aanroepen blijven werken)', () => {
+  const bestaand = [
+    { tournamentId: 99, name: 'Afgelast toernooi', date: '2026-09-23',
+      plannedStart: '2026-09-23T17:15:00Z', planned: true, tafels: [1] },
+  ];
+
+  const merged = mergePlanning(bestaand, []);
+
+  assert.deepStrictEqual(merged, bestaand);
+});

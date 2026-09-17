@@ -807,3 +807,57 @@ Regels:
   `...02-jumbotron.html?tafel=1`); zonder die parameter blijft het oude gedeelde `podium`-
   gedrag gelden. Bewust zo gebouwd — de vier OBS-instanties tegelijk aanpassen terwijl er
   wordt uitgezonden is te riskant (#104), dus dat doet Peter op een rustig moment per tafel.
+- 2026-09-17: v0.56 — **planning-records met een verdwenen Cuescore-ID worden opgeruimd** (#127).
+  Aanleiding: op 16-09 gingen de streams van tafel 1 en 3 vier keer aan en uit. Cuescore had de
+  MEGA Winter Ranking-serie opnieuw aangemaakt onder nieuwe ID's; het oude ID `88433581` werd
+  ongeldig, maar het record bleef met `planned: true` naast het nieuwe record voor hetzelfde
+  toernooi staan. Die twee vochten om dezelfde tafel (#128) en leverden video's van 51 seconden
+  op. De bestaande wees-migratie (v0.53) ving dit niet: die werkt alleen als het oude ID
+  verdwijnt in dezelfde import waarin het nieuwe verschijnt, en bij deze serie stonden beide
+  toernooien een tijd tegelijk bij Cuescore.
+  Twee nieuwe, optionele velden op een planning-record:
+  - **`cuescoreWegSinds`** (ISO-tijd) — sinds wanneer dit toernooi-ID niet meer in de
+    Cuescore-import voorkomt, terwijl de datum wél binnen het importvenster (vandaag t/m
+    +35 dagen) valt. Puur een stempel; het record doet gewoon nog mee.
+  - **`cuescoreWeg`** (bool) — gezet zodra dat stempel ouder is dan drie uur (~3 imports).
+    Het record wordt dan óók op `planned: false` gezet: een toernooi dat niet bestaat mag geen
+    broadcasts meer maken.
+  Waarom die vertraging: `haalToernooienPaginas()` tolereert één mislukte weergave, dus een
+  half-mislukte ophaal kan tijdelijk alle aankomende toernooien missen. Meteen ontwapenen zou
+  in één klap de hele agenda uitzetten. Komt het ID terug, dan verdwijnen beide velden weer.
+  Een record dat een **levende naamgenoot op dezelfde datum** heeft (precies het geval van
+  16-09) is een achtergebleven dubbelganger en wordt direct verwijderd — dat is veilig, want
+  het vereist per definitie een geslaagde import.
+  Records buiten het importvenster blijven ongemoeid: het verleden zit nooit in de import.
+  Zie `mergePlanning()`/`opschonenVerdwenen()` in `backend/src/planning/planning.js`.
+  Daarnaast krijgt de fout uit `getTournament()` bij een onbekend ID een vlag
+  **`toernooiOnbekend`**, zodat `createBroadcasts` "dit ID bestaat niet" kan onderscheiden van
+  "Cuescore is even onbereikbaar". Bij het eerste wordt er géén broadcast meer aangemaakt
+  (voorheen viel hij terug op de geplande tafels — precies wat de lus van 16-09 voedde).
+- 2026-09-17: v0.57 — **noodrem op het aanmaken van broadcasts + scherpere koppel-vangrails**
+  (#128, #129). Vervolg op v0.56: dat haalt de oorzaak weg (dubbele planning-records), dit
+  zorgt dat dezelfde klap nooit meer zó hard aankomt.
+  Drie dingen, alle drie naar aanleiding van 16-09:
+  1. **Noodrem (#128).** Een tafel krijgt op één zaal-dag maximaal `MAX_BROADCASTS_PER_TAFEL`
+     broadcasts (standaard **4**, app-setting). Daarboven maakt `createBroadcasts` niets meer
+     aan, logt hij op `[FOUT]`-niveau, en gaat er éénmalig een alarm uit (mail + ntfy) via
+     `bouwBroadcastLimietAlert()`. Op 16-09 waren het er vier in een kwartier en hield niets
+     dat tegen. Twee nieuwe velden op een broadcast-entry: **`gemaaktVandaag`** (teller, telt
+     door over opeenvolgende entries van dezelfde tafel) en **`limietGemeld`** (voorkomt dat
+     het alarm elke vijf minuten opnieuw afgaat).
+  2. **`vrijTeMaken()` laat verse uitzendingen met rust (#128).** Nieuw veld
+     **`aangemaaktOp`** (ISO-tijd) op een door `createBroadcasts` gemaakte entry. Is die
+     later dan het moment waarop het vrijmaak-venster openging (een half uur vóór de start),
+     dan is het géén vergeten uitzending van eerder op de dag en blijft hij staan. Precies
+     dat maakte de lus van 16-09: record A maakte om 19:05 een uitzending aan, record B
+     sloot 'm om 19:06 als "van een ander toernooi". Een entry zónder `aangemaaktOp`
+     (handmatig gestart, of van vóór deze versie) telt als oud en wordt gewoon opgeruimd —
+     dat is het gedrag waar #93 voor gemaakt is.
+  3. **Herkoppelen alleen binnen dezelfde soort (#129).** Het zelfherstel in `checkStops`
+     koppelt een uitzending met een dood toernooi-ID niet langer aan een record van een
+     ander `type`. Op 16-09 belandde een enkeldaags toernooi zo bij "Mokum 14.1 Summer
+     league" (een `competition`), die een andere stopregel heeft — de stream stopte meteen.
+     Daarnaast telt het woord **"mokum"** niet meer mee bij het vergelijken van een
+     ingetypte titel met een toernooinaam (`NEGEER_WOORDEN` in `planning/koppel.js`): het
+     staat in vrijwel élke toernooinaam van deze zaal, waardoor de vangrail van #103
+     praktisch alles doorliet.
