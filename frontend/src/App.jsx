@@ -410,10 +410,11 @@ const STREAM_TYPES = {
     overlays: ['sponsors', 'scoreboard', 'jumbotron'],
     gevolgen: [
       { ok: true, tekst: 'Eén stream per gekozen tafel, allemaal met de wedstrijdnaam in de titel.' },
-      { ok: false, tekst: 'De stream sluit NIET vanzelf. Stop hem zelf als de wedstrijd klaar is.' },
+      // #145: automatische stop; #82: thumbnail na afloop.
+      { ok: true, tekst: 'De stream stopt vanzelf 5 minuten nadat de wedstrijd klaar is (Cuescore afgerond, of alle partijen gespeeld).' },
+      { ok: true, tekst: 'Na het stoppen komt er automatisch een thumbnail met niveau, teams en datum op (geen hoofdstukken).' },
       { ok: false, tekst: 'Scorebord bij een teamwedstrijd is nog niet getest — kijk even of de juiste partij in beeld staat.' },
-      { ok: false, tekst: 'Geen automatische thumbnail of hoofdstukken (volgt later, #82).' },
-      { ok: false, tekst: 'Vergeet je te stoppen, dan sluit de nachtstop hem om 02:00.' },
+      { ok: false, tekst: 'Wordt de stand in Cuescore niet bijgehouden, dan stopt hij pas bij de nachtstop om 03:00. Stoppen met de hand kan altijd.' },
     ],
   },
   custom: {
