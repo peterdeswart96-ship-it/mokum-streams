@@ -10,6 +10,7 @@ const { inactiviteitsCheck } = require('../planning/inactiviteit');
 const { challengeMoetStoppen } = require('../planning/challengeLimiet');
 const { competitieStopBesluit, moetCompetitieChecken } = require('../planning/competitieStop');
 const { toernooiVoorNiveau } = require('../mokumCompetitie/toernooien');
+const { zoekCompetitieWedstrijd, heeftTeams } = require('../mokumCompetitie/zoekWedstrijd');
 const { moetOpnieuwStarten, moetAlarmeren, MAX_POGINGEN } = require('../planning/herstart');
 const { bouwStreamFalenAlert } = require('../notify/alertBericht');
 const { stuurAlert } = require('../notify/verzenden');
@@ -162,6 +163,22 @@ async function verwerk(now, context) {
         // afkappen (zoals #130 op 16-09). Wél een eigen stop (#145): 5 minuten nadat de
         // teamwedstrijd klaar is — zie planning/competitieStop.js.
         if (entry.streamType === 'competitie') {
+          // Niveau/teams ontbreken (v0.61, oude wizard in de browser)? Zelf opzoeken via de
+          // matchId, hooguit eens per 2 minuten, en bewaren zodat dit maar één keer hoeft.
+          if (entry.matchId != null && !heeftTeams(entry)) {
+            if (!moetCompetitieChecken(entry, now)) continue;
+            entry = { ...entry, competitieLaatsteCheck: now.toISOString() };
+            store[key] = entry;
+            storeGewijzigd = true;
+            const gevonden = await zoekCompetitieWedstrijd(entry.matchId, { niveau: entry.niveau });
+            if (!gevonden) continue; // volgende keer opnieuw; vangnet = nachtstop
+            entry = { ...entry, niveau: gevonden.niveau, thuisteam: gevonden.thuisteam, uitteam: gevonden.uitteam, teamsOpgezocht: true };
+            store[key] = entry;
+            context.warn(`[checkStops] tafel ${entry.tableNumber}: teams ontbraken → opgezocht via matchId ${entry.matchId}: ${gevonden.niveau}, ${gevonden.thuisteam} vs ${gevonden.uitteam}`);
+            // Wedstrijd is al opgehaald: de check hieronder mag meteen, zonder 2 minuten te wachten.
+            entry = { ...entry, competitieLaatsteCheck: undefined };
+            store[key] = entry;
+          }
           const toernooiId = toernooiVoorNiveau(entry.niveau);
           if (entry.matchId == null || !toernooiId) continue; // vangnet = nachtstop
 

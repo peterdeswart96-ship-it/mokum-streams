@@ -3,7 +3,7 @@
 Enige waarheid voor de koppelvlakken tussen frontend/widget, backend en (later) de
 agent. Wijzigen? Eerst dit bestand bijwerken (met datum + reden onderaan), dan code.
 
-Status: CONCEPT v0.60 — velden worden definitief in fase 2.
+Status: CONCEPT v0.61 — velden worden definitief in fase 2.
 
 ## Conventies
 - Alle velden camelCase. Tijden in ISO 8601 met tijdzone (Europe/Amsterdam
@@ -919,3 +919,15 @@ Regels:
      waarna finalize (v0.59) de thumbnail zet.
   4. **Vangnet ongewijzigd:** niveau onbekend, Cuescore onbereikbaar of wedstrijd nooit afgerond →
      de nachtstop.
+- 2026-09-17: v0.61 — **competitiestream zonder teamnamen: backend zoekt ze zelf op** (#82, #145).
+  Reden: bij de test van 17-09 draaide de browser nog de oude wizard (dashboard geopend vóór de
+  deploy), waardoor `niveau`/`thuisteam`/`uitteam` ontbraken en er stil geen thumbnail en geen
+  automatische stop kwam. Geen wijziging aan een endpoint.
+  1. Mist een entry met `streamType: "competitie"` en een `matchId` het niveau of de teams, dan
+     zoekt de backend de wedstrijd op in de Cuescore-competitietoernooien
+     (`mokumCompetitie/toernooien.js`): niveau = het niveau van dat toernooi, teams = `playerA`
+     (thuis) en `playerB` (uit). Het resultaat wordt op de entry bewaard (`teamsOpgezocht`).
+  2. `checkStops` doet dit hooguit eens per 2 minuten; finalize doet het vlak vóór de thumbnail.
+     Niet gevonden → bij finalize een gewone mislukte poging (retry/opgeven, #124), bij de stop
+     het vangnet van de nachtstop.
+  3. Finalize kiest nu `competitie` voor elke gestopte entry met `matchId`, ook zonder teams.

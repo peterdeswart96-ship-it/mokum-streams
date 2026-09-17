@@ -13,9 +13,9 @@ function finaliseerActie(entry) {
   // net als voorheen) dan zo'n thumbnail zetten.
   const heeftSpelers = !!(entry.spelerA || entry.spelerB);
   if (entry.streamType === 'challenge' && heeftSpelers) return 'challenge';
-  // Competitiewedstrijd (#82): alleen met beide teams. Entries van vóór v0.59 hebben die
-  // niet (alleen matchId) en blijven dus zoals ze waren.
-  if (entry.streamType === 'competitie' && entry.thuisteam && entry.uitteam) return 'competitie';
+  // Competitiewedstrijd (#82): met beide teams, óf met een matchId — dan zoekt finalize de
+  // teams zelf op in Cuescore (v0.61; de wizard stuurde ze niet mee bij een oude browserversie).
+  if (entry.streamType === 'competitie' && ((entry.thuisteam && entry.uitteam) || entry.matchId != null)) return 'competitie';
   return null;
 }
 
