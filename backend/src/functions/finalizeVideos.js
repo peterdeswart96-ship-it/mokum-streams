@@ -3,7 +3,7 @@ const { isAdmin } = require('../admin/auth');
 const { readJson, writeJson } = require('../storage/blob');
 const { zaalDag } = require('../schedule/schedule');
 const { isArmed } = require('../config/automation');
-const { finaliseerToernooi, finaliseerChallenge, finaliseerAlleenThumbnail, herstelVideo } = require('../video/finalize');
+const { finaliseerToernooi, finaliseerChallenge, finaliseerCompetitie, finaliseerAlleenThumbnail, herstelVideo } = require('../video/finalize');
 const { finalizeVervolg } = require('../video/finalizeBeleid');
 const { finaliseerActie } = require('../video/finalizeKeuze');
 const { getVideoDetails } = require('../youtube/videos');
@@ -14,6 +14,7 @@ const { getVideoDetails } = require('../youtube/videos');
 //
 //  POST /api/manage/finalize        body: { videoId, tournamentId, tableNumber }        (toernooi)
 //                                     of  { videoId, spelerA, spelerB, tableNumber, spelsoort, type:'challenge' }
+//                                     of  { videoId, niveau, thuisteam, uitteam, tableNumber, type:'competitie' } (#82)
 //                                     of  { videoId, tournamentName, templateKey? }      (alleen thumbnail, geen id)
 //  POST /api/manage/finalize/undo   body: { videoId }
 
@@ -35,7 +36,9 @@ app.http('adminFinalize', {
       const heeftTid = body.tournamentId != null && body.tournamentId !== '';
       const res = body.type === 'challenge'
         ? await finaliseerChallenge(body)
-        : heeftTid
+        : body.type === 'competitie'
+          ? await finaliseerCompetitie(body)
+          : heeftTid
           ? await finaliseerToernooi(body)
           : await finaliseerAlleenThumbnail(body); // geen id → alleen thumbnail op naam
       return json(200, { ok: true, ...res });
@@ -114,16 +117,18 @@ app.timer('finalizeVideos', {
       let gewijzigd = false;
       for (const key of Object.keys(store)) {
         const e = store[key];
-        // Welke actie (#102)? 'toernooi' | 'challenge' | null (nog niet klaar, of een
-        // ad-hoc stream zonder genoeg gegevens — blijft dan ongewijzigd ad-hoc).
+        // Welke actie (#102, #82)? 'toernooi' | 'challenge' | 'competitie' | null (nog niet
+        // klaar, of een ad-hoc stream zonder genoeg gegevens — blijft dan ongewijzigd ad-hoc).
         const actie = finaliseerActie(e);
         if (!actie) continue;
         try {
           const res = actie === 'toernooi'
             ? await finaliseerToernooi({ videoId: e.videoId, tournamentId: e.tournamentId, tableNumber: e.tableNumber })
-            : await finaliseerChallenge({ videoId: e.videoId, spelerA: e.spelerA, spelerB: e.spelerB, tableNumber: e.tableNumber });
+            : actie === 'competitie'
+              ? await finaliseerCompetitie({ videoId: e.videoId, niveau: e.niveau, thuisteam: e.thuisteam, uitteam: e.uitteam, tableNumber: e.tableNumber })
+              : await finaliseerChallenge({ videoId: e.videoId, spelerA: e.spelerA, spelerB: e.spelerB, tableNumber: e.tableNumber });
           e.finalized = true; gewijzigd = true;
-          const detail = res.type === 'challenge' ? 'challenge-thumbnail' : `${res.aantalHoofdstukken} hoofdstukken`;
+          const detail = res.type === 'toernooi' ? `${res.aantalHoofdstukken} hoofdstukken` : `${res.type}-thumbnail`;
           // Warning-niveau (22-08): logLevel.default staat op Warning (#110), dus een gewone
           // .log() haalt de log-omgeving niet meer — deze bevestiging dat de automatisering
           // echt iets deed moet zichtbaar blijven.

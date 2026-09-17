@@ -441,6 +441,37 @@ function ijkVoorPlanning(record) {
   return Date.parse(record.plannedStart || `${record.date}T23:59:59Z`);
 }
 
+// Welke tafels eist een ingepland toernooi op (#93, #146)? Zelfde regels als het vrijmaken in
+// de backend (planning/vrijmaken.js): alleen ingeplande, niet-uitgezette toernooien, en het
+// venster begint een half uur vóór de (eventueel handmatig verschoven) aanvang.
+//   nu     — het venster is al open: de tafel is geblokkeerd
+//   straks — het venster opent vóór de eerstvolgende nachtstop (02:00): starten mag, maar
+//            de stream stopt dan. Na de nachtstop telt het niet, want dan stopt hij toch al.
+function tafelClaims(items, nu) {
+  const nachtstop = new Date(nu);
+  nachtstop.setHours(2, 0, 0, 0);
+  if (nachtstop.getTime() <= nu) nachtstop.setDate(nachtstop.getDate() + 1);
+
+  const claims = { nu: {}, straks: {} };
+  for (const r of items || []) {
+    if (r.planned !== true || r.enabled === false || r.geannuleerd) continue;
+    if ((r.type || 'tournament') === 'competition') continue;
+    const start = Date.parse(r.startOverride || r.plannedStart || '');
+    if (Number.isNaN(start)) continue;
+    const vanaf = start - 30 * 60000;
+    const claim = { naam: r.name, vanaf, tournamentId: r.tournamentId };
+    for (const t of r.tafels || []) {
+      const n = Number(t);
+      if (nu >= vanaf && nu <= start) claims.nu[n] = claim;
+      // Bij meerdere toernooien op één tafel telt het eerste: dáár stopt je stream.
+      else if (vanaf > nu && vanaf < nachtstop.getTime() && !(claims.straks[n]?.vanaf < vanaf)) claims.straks[n] = claim;
+    }
+  }
+  return claims;
+}
+
+const klok = (ms) => new Date(ms).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+
 function Wizard({ onClose, onStarted, tables = [] }) {
   // Welke tafels zijn al bezet? Zonder dit kies je een tafel die al live is, klik je
   // drie stappen door en krijg je pas bij "Start stream" een 409 van de backend.
@@ -462,6 +493,9 @@ function Wizard({ onClose, onStarted, tables = [] }) {
   // uur voor de aanvang maakt de backend die tafels vrij — een losse uitzending die je dan
   // start, wordt binnen een minuut weer gestopt. Dat is verwarrender dan 'm hier weigeren.
   const [gereserveerd, setGereserveerd] = useState({}); // tafelnr → { naam, vanaf }
+  // Tafels die LATER vandaag worden opgeëist (#146). Starten mag nog, maar de stream stopt
+  // dan zodra het vrijmaken begint — dat moet je vóór het starten weten.
+  const [straks, setStraks] = useState({});             // tafelnr → { naam, vanaf, tournamentId }
 
   // Aankomende toernooien uit de planning (Cuescore-import) — zelfde bron als de planner.
   useEffect(() => {
@@ -486,17 +520,9 @@ function Wizard({ onClose, onStarted, tables = [] }) {
       // Welke tafels worden nu opgeëist? Het venster loopt gelijk met dat van de backend:
       // vanaf een half uur vóór de aanvang tot de aanvang zelf. Daarna is de tafel toch al
       // bezet door de uitzending van het toernooi, en vangt de bezet-controle het af.
-      const nu = Date.now();
-      const res = {};
-      for (const r of d.items || []) {
-        if (r.planned !== true || (r.type || 'tournament') === 'competition') continue;
-        const start = Date.parse(r.startOverride || r.plannedStart || '');
-        if (Number.isNaN(start)) continue;
-        const vanaf = start - 30 * 60000;
-        if (nu < vanaf || nu > start) continue;
-        for (const t of r.tafels || []) res[Number(t)] = { naam: r.name, vanaf, tournamentId: r.tournamentId };
-      }
+      const { nu: res, straks: later } = tafelClaims(d.items, Date.now());
       setGereserveerd(res);
+      setStraks(later);
     }).catch(() => setToernooien([]));
   }, []);
 
@@ -595,7 +621,7 @@ function Wizard({ onClose, onStarted, tables = [] }) {
   // wedstrijd → tafels), dus die krijgt vanaf stap 2 een eigen scherm (#120).
   if (type === 'competitie' && stap > 1) {
     return (
-      <CompetitieWizard bezet={bezet} gereserveerd={gereserveerd} spec={spec}
+      <CompetitieWizard bezet={bezet} gereserveerd={gereserveerd} straks={straks} spec={spec}
                         onTerug={() => setStap(1)} onStarted={onStarted} />
     );
   }
@@ -656,6 +682,14 @@ function Wizard({ onClose, onStarted, tables = [] }) {
                 Deze tafel is sinds {new Date(gereserveerd[tafel].vanaf).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}{' '}
                 gereserveerd voor <strong>{gereserveerd[tafel].naam}</strong>. Wat je hier start wordt binnen een
                 minuut weer gestopt om de tafel vrij te maken voor het toernooi.
+              </p>
+            )}
+            {/* Niet blokkeren, wel waarschuwen (#146). Start je juist dát toernooi voor, dan
+                laat het vrijmaken je stream met rust en is de waarschuwing onterecht. */}
+            {!bezet.has(tafel) && !blokkeert(tafel) && straks[tafel] && String(straks[tafel].tournamentId) !== String(gekozen) && (
+              <p className="text-xs mb-4 text-amber-400">
+                ⚠️ Let op: om {klok(straks[tafel].vanaf)} wordt deze tafel vrijgemaakt voor{' '}
+                <strong>{straks[tafel].naam}</strong>. Je stream stopt dan, ook als er nog gespeeld wordt.
               </p>
             )}
 
@@ -812,7 +846,7 @@ const wedstrijdTijd = (iso) => new Date(iso).toLocaleString('nl-NL', {
   weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Amsterdam',
 });
 
-function CompetitieWizard({ bezet, gereserveerd, spec, onTerug, onStarted }) {
+function CompetitieWizard({ bezet, gereserveerd, straks = {}, spec, onTerug, onStarted }) {
   const [data, setData] = useState(null);      // { wedstrijden, mislukt } zodra geladen
   const [laadFout, setLaadFout] = useState('');
   const [stap, setStap] = useState(0);         // index in `stappen` hieronder
@@ -880,6 +914,8 @@ function CompetitieWizard({ bezet, gereserveerd, spec, onTerug, onStarted }) {
         await startStream({
           tableNumber: n, title: competitieTitel(wedstrijd), privacy, overlays: ov,
           streamType: 'competitie', matchId: wedstrijd.matchId,
+          // Voor de automatische thumbnail na afloop (#82).
+          niveau: wedstrijd.niveau, thuisteam: wedstrijd.thuisteam, uitteam: wedstrijd.uitteam,
         });
         klaar.push(n);
       } catch (e) {
@@ -981,10 +1017,20 @@ function CompetitieWizard({ bezet, gereserveerd, spec, onTerug, onStarted }) {
                     <input type="checkbox" disabled={!!reden} checked={tafels.includes(n)}
                            onChange={(e) => setTafels((s) => (e.target.checked ? [...s, n].sort((a, b) => a - b) : s.filter((x) => x !== n)))} />
                     Tafel {n}{reden ? ` — ${reden}` : ''}
+                    {!reden && straks[n] && (
+                      <span className="text-xs text-amber-400">— stopt om {klok(straks[n].vanaf)} voor {straks[n].naam}</span>
+                    )}
                   </label>
                 );
               })}
             </div>
+            {/* Een competitiewedstrijd duurt uren: een tafel die straks wordt opgeëist kapt hem af (#146). */}
+            {tafels.some((n) => straks[n]) && (
+              <p className="text-xs mb-4 text-amber-400">
+                ⚠️ Let op: {tafels.filter((n) => straks[n]).map((n) => `tafel ${n} wordt om ${klok(straks[n].vanaf)} vrijgemaakt voor ${straks[n].naam}`).join('; ')}.
+                {' '}De stream stopt dan, ook als de wedstrijd nog bezig is. Kies liever een andere tafel.
+              </p>
+            )}
 
             <label className={lbl}>Overlays</label>
             <div className="flex flex-wrap gap-2 mb-4">

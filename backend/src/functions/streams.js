@@ -96,6 +96,10 @@ app.http('adminStreamStart', {
       // het inplannen met automatische stop (#145) en de thumbnail (#82).
       ...(Number.isInteger(Number(body.matchId)) && body.matchId != null && body.matchId !== ''
         ? { matchId: Number(body.matchId) } : {}),
+      // Niveau en teams (#82): de finalize zet ze na afloop op de competitie-thumbnail.
+      ...(body.niveau ? { niveau: String(body.niveau).slice(0, 60) } : {}),
+      ...(body.thuisteam ? { thuisteam: String(body.thuisteam).slice(0, 60) } : {}),
+      ...(body.uitteam ? { uitteam: String(body.uitteam).slice(0, 60) } : {}),
     };
     await writeJson(broadcastsPad, store);
 

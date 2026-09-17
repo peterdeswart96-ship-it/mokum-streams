@@ -79,7 +79,11 @@ function vulPlaceholders(html, velden) {
     .replace(/\{\{TOERNOOINAAM\}\}/g, escapeHtml(velden.toernooinaam))
     .replace(/\{\{DATUM\}\}/g, escapeHtml(velden.datum))
     .replace(/\{\{SPELERS\}\}/g, escapeHtml(velden.spelers))
-    .replace(/\{\{SPONSOR\}\}/g, escapeHtml(velden.sponsor));
+    .replace(/\{\{SPONSOR\}\}/g, escapeHtml(velden.sponsor))
+    // Competitie-template (#82)
+    .replace(/\{\{NIVEAU\}\}/g, escapeHtml(velden.niveau))
+    .replace(/\{\{THUISTEAM\}\}/g, escapeHtml(velden.thuisteam))
+    .replace(/\{\{UITTEAM\}\}/g, escapeHtml(velden.uitteam));
 }
 
 // Rood "FINAL"-lint rechtsboven (#123), voor de finale van een toernooireeks — herbruikbaar
@@ -115,7 +119,7 @@ function heeftTemplate(key) {
 }
 
 // Rendert een template naar een 1280×720 PNG-buffer.
-// velden: { templateKey, toernooinaam, datum, spelers, sponsor, finale }
+// velden: { templateKey, toernooinaam, datum, spelers, sponsor, finale, niveau, thuisteam, uitteam }
 async function renderThumbnail(velden = {}) {
   const bestand = templatePad(velden.templateKey);
   const raw = fs.readFileSync(bestand, 'utf8');
@@ -124,6 +128,9 @@ async function renderThumbnail(velden = {}) {
     datum: velden.datum || '',
     spelers: velden.spelers || '',
     sponsor: velden.sponsor || '',
+    niveau: velden.niveau || '',
+    thuisteam: velden.thuisteam || '',
+    uitteam: velden.uitteam || '',
   });
   if (velden.finale) html = voegFinaleLintToe(html);
 
@@ -149,6 +156,26 @@ async function renderThumbnail(velden = {}) {
       let guard = 60;
       while (guard-- > 0 && s > 56 && (t.scrollHeight > maxH + 2 || t.scrollWidth > t.clientWidth + 2)) {
         s -= 4; t.style.fontSize = `${s}px`;
+      }
+    });
+    // Competitie (#82): beide teamnamen even groot houden en samen verkleinen tot ze in het
+    // tekstvak passen. Een lange naam mag naar twee regels, maar niet uit het vak lopen.
+    await page.evaluate(() => {
+      // Het niveau blijft op één regel ("Derde Divisie Noord-West" brak anders op het streepje).
+      const niv = document.querySelector('.niveau');
+      if (niv) {
+        let n = parseFloat(getComputedStyle(niv).fontSize) || 40;
+        while (n > 20 && niv.scrollWidth > niv.clientWidth + 2) { n -= 2; niv.style.fontSize = `${n}px`; }
+      }
+      const vak = document.querySelector('.info');
+      const teams = [...document.querySelectorAll('.team')];
+      if (!vak || !teams.length) return;
+      let s = parseFloat(getComputedStyle(teams[0]).fontSize) || 88;
+      const pastNiet = () => vak.scrollHeight > vak.clientHeight + 2
+        || teams.some((t) => t.scrollWidth > t.clientWidth + 2);
+      let guard = 40;
+      while (guard-- > 0 && s > 40 && pastNiet()) {
+        s -= 4; teams.forEach((t) => { t.style.fontSize = `${s}px`; });
       }
     });
     const el = await page.$('.canvas');

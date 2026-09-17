@@ -3,7 +3,7 @@
 Enige waarheid voor de koppelvlakken tussen frontend/widget, backend en (later) de
 agent. Wijzigen? Eerst dit bestand bijwerken (met datum + reden onderaan), dan code.
 
-Status: CONCEPT v0.58 — velden worden definitief in fase 2.
+Status: CONCEPT v0.60 — velden worden definitief in fase 2.
 
 ## Conventies
 - Alle velden camelCase. Tijden in ISO 8601 met tijdzone (Europe/Amsterdam
@@ -79,7 +79,7 @@ POST /api/manage/planning/{id}       -> instellingen van één toernooi wijzigen
 POST /api/manage/planning-refresh    -> draait de Cuescore-import nu meteen (i.p.v. wachten op de uurlijkse timer) en werkt planning.json bij; antwoord: { imported, total, items } waarbij items = dezelfde vorm als GET /api/schedule. NB: route bewust NIET `manage/planning/refresh` — dat botst met `manage/planning/{id}`
 GET  /api/manage/defaults            -> standaard-instellingen (één set, zie hieronder)
 POST /api/manage/defaults            -> standaard-instellingen wijzigen
-POST /api/manage/streams/start       -> body: { "tableNumber": 15, "title"?: "...", "privacy"?: "public|unlisted|private", "overlays"?: { "sponsors": true, "scoreboard": true, "jumbotron": false, "pauzemelding": false }, "tournamentId"?: 83049058, "streamType"?: "challenge|competitie", "spelerA"?: "...", "spelerB"?: "...", "matchId"?: 88259371 } (vrije camera; enqueuet startStream + setOverlay per overlay. Mét tournamentId = beheerd, zonder = ad-hoc)
+POST /api/manage/streams/start       -> body: { "tableNumber": 15, "title"?: "...", "privacy"?: "public|unlisted|private", "overlays"?: { "sponsors": true, "scoreboard": true, "jumbotron": false, "pauzemelding": false }, "tournamentId"?: 83049058, "streamType"?: "challenge|competitie", "spelerA"?: "...", "spelerB"?: "...", "matchId"?: 88259371, "niveau"?: "Eerste Klasse", "thuisteam"?: "...", "uitteam"?: "..." } (vrije camera; enqueuet startStream + setOverlay per overlay. Mét tournamentId = beheerd, zonder = ad-hoc)
 GET  /api/manage/competitie/wedstrijden -> aankomende teamwedstrijden die BIJ MOKUM gespeeld worden (bron: mokum-competitie-API), voor de competitie-wizard; vorm zie v0.58 in de wijzigingslog
 POST /api/manage/streams/stop        -> body: { "tableNumber": 15 }
 POST /api/manage/streams/overlay     -> body: { "tableNumber": 15, "sponsors"?: bool, "scoreboard"?: bool, "jumbotron"?: bool, "pauzemelding"?: bool } (overlay(s) live aan/uit op een lopende stream; enqueuet setOverlay per opgegeven sleutel)
@@ -889,3 +889,33 @@ Regels:
      inactiviteitsstop (ook niet met `INACTIVITEIT_STOP=true`), en krijgt geen automatische
      finalize (een thumbnail met de wedstrijdnaam is #82). Stoppen gaat handmatig of via de
      nachtstop van 02:00.
+- 2026-09-17: v0.59 — **automatische thumbnail voor een competitiewedstrijd** (#82). Reden:
+  video's van teamwedstrijden kregen tot nu toe geen eigen thumbnail, alleen de YouTube-still.
+  1. **`POST /api/manage/streams/start`**: drie nieuwe optionele velden bij
+     `streamType: "competitie"`: **`niveau`**, **`thuisteam`** en **`uitteam`** (tekst, elk
+     max. 60 tekens). De wizard kent ze al uit `GET /api/manage/competitie/wedstrijden`. Ze
+     worden op de broadcast-entry bewaard; de titel blijft ongewijzigd.
+  2. **Finalize:** een gestopte entry met `streamType: "competitie"` en beide teams krijgt nu
+     wél een automatische finalize (vervangt punt 3 van v0.58 op dit onderdeel): thumbnail uit
+     de template `competitie` (AI-achtergrond, KNBB-logo, niveau, `thuisteam VS uitteam`,
+     datumpil) plus een korte beschrijving. Geen hoofdstukken. Zonder teams (entries van vóór
+     deze versie) blijft het zoals het was: geen finalize.
+  3. Handmatig: `POST /api/manage/finalize` accepteert ook
+     `{ videoId, type: "competitie", niveau, thuisteam, uitteam, tableNumber? }`.
+- 2026-09-17: v0.60 — **automatische stop van een competitiestream** (#145, besluit Peter 17-09).
+  Reden: een vergeten stream liep tot de nachtstop door, met uren beeld van een lege tafel.
+  Geen wijziging aan een endpoint; alleen het gedrag van `checkStops` voor een entry met
+  `streamType: "competitie"`. Vervangt de regel "stoppen handmatig" uit punt 3 van v0.58, en
+  geldt zowel voor "nu starten" als straks voor ingeplande wedstrijden.
+  1. **Bron:** het Cuescore-toernooi van de competitie (per `niveau` een vast id, zie
+     `backend/src/mokumCompetitie/toernooien.js`; elk seizoen bijwerken). Daarin de wedstrijd
+     met `matchId`. Hooguit eens per 2 minuten opgehaald.
+  2. **Klaar** als Cuescore `matchstatus: "finished"` meldt, **óf** als `scoreA + scoreB` het
+     aantal partijen bereikt (Klasse 6, Divisies en Eredivisie 7, volgens de KNBB-
+     wedstrijdformulieren 2026-2027). De stand-regel telt pas vanaf 90 minuten na de start van
+     de stream, als extra rem tegen afkappen. Nooit op tijd of inactiviteit (#134).
+  3. **Wachttijd:** 5 minuten na het eerste "klaar"-signaal (`competitieKlaarSinds` op de entry),
+     instelbaar met app-setting `COMPETITIE_STOP_WACHT_MIN`. Daarna stopStream + `stopped: true`,
+     waarna finalize (v0.59) de thumbnail zet.
+  4. **Vangnet ongewijzigd:** niveau onbekend, Cuescore onbereikbaar of wedstrijd nooit afgerond →
+     de nachtstop.
