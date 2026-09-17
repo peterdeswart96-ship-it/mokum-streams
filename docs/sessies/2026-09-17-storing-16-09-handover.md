@@ -76,11 +76,7 @@ en staat Winter Ranking #5 nog één keer in `/api/schedule`. Gesloten.
 ## Nog open
 
 **Direct actie nodig:**
-- **Archief herstellen.** De rebuild van vandaag liet het archief krimpen van 1823 naar 1755
-  wedstrijden: 85 wedstrijden van spelers die hun Cuescore-naam wijzigden (Mostafa 29, Luuk 20, …).
-  Herstelbestand met 1840 regels: `C:\Users\Admin\Downloads\archief-herstel-2026-09-17.json`.
-  Peter moet dit via de Portal uploaden naar `mokumstreams2945` → `mokum-streams` → `archief.json`.
-  **Geen nieuwe rebuild draaien tot #140 is opgelost.**
+- ~~Archief herstellen~~ **✅ gedaan (17-09):** herstelbestand door Peter geüpload, gecontroleerd via de API: 1755 → 1840 wedstrijden, run-outs 305 → 316. De rebuild van vandaag had 85 wedstrijden laten vallen van spelers die hun Cuescore-naam wijzigden (Mostafa 29, Luuk 20, …). **Geen nieuwe rebuild draaien tot #140 is opgelost.**
 - **OBS-pc (#133)** — sinds 02:16 offline. Níét de wekelijkse herstart (die is ma/do 06:00).
   Diagnosecommando's staan in het issue. Zonder pc geen stream.
 
