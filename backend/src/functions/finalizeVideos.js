@@ -92,7 +92,7 @@ app.http('adminVideoDetails', {
 // + beschrijving als de wizard spelersnamen heeft opgeslagen (streamType: 'challenge').
 // Erven zo gratis dezelfde retry-/opgeeflogica (#124) als toernooien, via dezelfde timer
 // (geen aparte cronjob die apart kan achterlopen). Start pas zodra `stopped: true` op de
-// entry staat — voor een challenge gebeurt dat via de tijdslimiet (#108, inmiddels 3 uur) of het
+// entry staat — voor een challenge gebeurt dat via de tijdslimiet (#108; staat sinds #134 uit) of het
 // inactiviteits-vangnet (#100), of gewoon een handmatige stop.
 app.timer('finalizeVideos', {
   // Elke 5 minuten (was elke minuut, #101). Er valt hooguit een paar keer per dag iets af

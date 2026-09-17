@@ -53,7 +53,7 @@ dat zijn losse partijen die je per stuk handmatig start, wél gekoppeld aan de l
 - Video-id's komen uit eigen backend; kanaal-embed alleen als fallback
 - Handmatige controle + noodstop gewenst → dashboardknoppen + **Stream Deck** (budget akkoord)
 - Remote beheer OBS-pc: **Tailscale** (veilige netwerklaag, geen poorten open) + RustDesk/Chrome Remote Desktop voor het scherm. NB: klassieke Windows-RDP vergrendelt de console-sessie en kan OBS-capture/NVENC verstoren — kies een tool die de console spiegelt.
-- **Challenge-streams stoppen hard na 2 uur** (besluit Peter i.o.m. Nick, 18-08), ongeacht of de partij nog bezig is — legt de verantwoordelijkheid bij de spelers om zelf een nieuwe stream (deel 2, 3...) te vragen als het langer duurt. De wizard waarschuwt hier bij het aanmaken al voor. Zie `backend/src/planning/challengeLimiet.js`.
+- **Automatische stop op tijd/inactiviteit staat UIT** (besluit Peter, 17-09, #134). Zowel de inactiviteitsregel van 1 uur (#100/#105) als de harde challenge-limiet (was 2 uur per 18-08, daarna 3 uur per 10-09) zijn uitgeschakeld: ze kapten lopende wedstrijden af op tafels zonder Cuescore-koppeling (#121 op 08-09, tafel 15 én 16 op 16-09). Het vangnet is nu de **nachtstop van 02:00**, die alles stopt wat nog openstaat, plus de eigen eindtijd uit de planner. Terug aan te zetten zonder deploy via de app-settings `INACTIVITEIT_STOP=true` / `CHALLENGE_LIMIET=true`. Zie `backend/src/config/automation.js`.
 
 ## Openstaand (na intake 2026-07-08)
 - ~~Kanaalverificatie + livestreamen~~ ✅ bevestigd (2026-07-08): Feature eligibility niveau 1/2/3 allemaal "Enabled" — livestreamen mag, geen wachttijd. "Insluiten toestaan" per broadcast programmatisch zetten bij #9.

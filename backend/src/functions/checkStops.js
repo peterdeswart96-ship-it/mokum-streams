@@ -11,7 +11,7 @@ const { challengeMoetStoppen } = require('../planning/challengeLimiet');
 const { moetOpnieuwStarten, moetAlarmeren, MAX_POGINGEN } = require('../planning/herstart');
 const { bouwStreamFalenAlert } = require('../notify/alertBericht');
 const { stuurAlert } = require('../notify/verzenden');
-const { isArmed } = require('../config/automation');
+const { isArmed, isInactiviteitsStopAan, isChallengeLimietAan } = require('../config/automation');
 
 // Timer-Function: bewaakt lopende broadcasts en stopt ze automatisch wanneer het
 // toernooi klaar is (Cuescore `Finished`), de league-avond op die tafel voorbij is,
@@ -28,26 +28,26 @@ const { isArmed } = require('../config/automation');
 // Cuescore-toernooi op die tafel te koppelen; daarna loopt de normale keten
 // (podium-grace → stop → finalize met thumbnail + hoofdstukken) gewoon door.
 //
-// Inactiviteits-vangnet (#100, #105): twee situaties waarin de normale toernooi-logica
-// een uitzending nooit vanzelf laat stoppen —
-//   - koppelen lukt niet (het is bijv. een challenge, geen toernooi) → blijft voor altijd
-//     ad-hoc. Vier vergeten streams van 8-11 uur op 09-08 kwamen hierdoor.
-//   - wél gekoppeld, maar Cuescore geeft voor dat toernooi-ID 0 wedstrijden terug. Op
-//     16-08 had Cuescore de wedstrijddata van hetzelfde toernooi op een ANDER ID staan —
-//     de gekoppelde ID bleef voor altijd leeg, dus `toernooiKlaar()` werd nooit `true`.
-// Beide gevallen vallen terug op `inactiviteitsCheck()`: is er op deze tafel, over ALLE
-// toernooien van vandaag heen (venueTables uit live-matches.json), al een uur niets meer
-// gebeurd? Zo ja, dan stoppen we alsnog. Dat is dezelfde tafelgebaseerde blik die op 16-08
-// de live-scores en het podium wél liet kloppen, terwijl de toernooi-specifieke logica vastliep.
+// Inactiviteits-vangnet (#100, #105) — STAAT SINDS 17-09 STANDAARD UIT (#134).
+// Het ving twee situaties op waarin de normale toernooi-logica een uitzending nooit
+// vanzelf laat stoppen: een stream die niet aan een toernooi te koppelen was, en een
+// stream waarvan het gekoppelde toernooi bij Cuescore leeg terugkomt. Beide vielen terug
+// op `inactiviteitsCheck()`: al een uur geen wedstrijd op deze tafel? Dan stoppen.
 //
-// Challenge-tijdslimiet (besluit Peter i.o.m. Nick, 18-08; verruimd naar 3 uur op 10-09):
-// een challenge-stream stopt bovendien hoe dan ook na 3 uur, ONGEACHT of er nog gespeeld
-// wordt — anders dan alle regels hierboven, die een lopende partij juist nooit afkappen.
-// Legt de verantwoordelijkheid bij de spelers: duurt de partij langer, dan vragen ze zelf
-// om een nieuwe stream (deel 2, 3...). De wizard waarschuwt hier bij het aanmaken al voor.
-// Een challenge draait bewust NOOIT mee in de generieke inactiviteitscheck (#100) hieronder
-// — zie de toelichting bij `entry.streamType === 'challenge'` verderop in dit bestand. Zie
+// Waarom het uit staat: die check leest `venueTables` (Cuescore). Een stream zonder
+// koppeling staat daar NOOIT als 'playing' in, ook niet terwijl er gespeeld wordt — dus
+// kapte de regel lopende wedstrijden af (#121 op 08-09, tafel 15 én 16 op 16-09, #130).
+// Aanzetten kan zonder deploy met app-setting INACTIVITEIT_STOP=true.
+//
+// Challenge-tijdslimiet — STAAT SINDS 17-09 OOK STANDAARD UIT (#134).
+// Was 2 uur (besluit 18-08), daarna 3 uur (10-09): een challenge-stream stopte hoe dan
+// ook na die tijd, ook midden in de partij. Aanzetten met CHALLENGE_LIMIET=true. Zie
 // `planning/challengeLimiet.js`.
+//
+// Wat het vangnet nu is voor allebei: de nachtstop van 02:00 (`functions/nachtStop.js`),
+// die ALLES stopt wat nog open staat — ook ad-hoc — en niet van Cuescore afhangt. Plus de
+// eigen eindtijd uit de planner (stopOverride). Een vergeten stream loopt dus tot uiterlijk
+// 02:00 in plaats van eindeloos; dat is de bewuste ruil (zie #134).
 //
 // Herstart-vangnet (#114, 26-08): een vers aangemaakte YouTube-broadcast bleek in een
 // gecontroleerde test soms een korte tijd nodig te hebben vóór 'ie echt data accepteert —
@@ -165,9 +165,10 @@ async function verwerk(now, context) {
           // gebeurde op 08-09 met "Gurps vs Dylan" (gestart 19:11, afgekapt 20:11). Een
           // challenge heeft daarom zijn EIGEN, bewuste tijdslimiet (challengeLimiet.js) —
           // die is hier leidend, de tafelbrede inactiviteitscheck slaan we voor challenges
-          // helemaal over.
+          // helemaal over. Die tijdslimiet staat sinds 17-09 zelf ook uit (#134) — een
+          // challenge loopt dus tot de nachtstop, tenzij CHALLENGE_LIMIET=true.
           if (entry.streamType === 'challenge') {
-            if (challengeMoetStoppen(entry, now)) {
+            if (isChallengeLimietAan() && challengeMoetStoppen(entry, now)) {
               context.warn(`[checkStops] tafel ${entry.tableNumber}: stoppen — challenge: tijdslimiet bereikt`);
               teStoppen.push(entry.tableNumber);
               store[key] = { ...entry, stopped: true };
@@ -177,7 +178,11 @@ async function verwerk(now, context) {
           }
           // Koppelen lukt niet en het is geen challenge (blijft dus gewoon ad-hoc).
           // Vangnet #100: na een uur stilte op deze tafel toch stoppen, anders loopt
-          // zo'n stream door tot de nachtstop van 03:00.
+          // zo'n stream door tot de nachtstop van 02:00.
+          // Staat standaard UIT sinds 17-09 (#134): deze regel kapte lopende wedstrijden
+          // af op tafels zonder Cuescore-koppeling (#121, #130). Uit betekent: de stream
+          // loopt door tot de nachtstop van 02:00. Terug aan met INACTIVITEIT_STOP=true.
+          if (!isInactiviteitsStopAan()) continue;
           const ic = inactiviteitsCheck(entry, venueTables, now);
           if (ic.laatsteActiviteit !== entry.laatsteActiviteit) {
             entry = { ...entry, laatsteActiviteit: ic.laatsteActiviteit };
@@ -261,7 +266,7 @@ async function verwerk(now, context) {
       // inactiviteitscheck als #100, met hetzelfde uur als grens.
       const toernooiIsLeeg = !!tournament && (tournament.matches || []).length === 0;
       let inactiviteitReden = null;
-      if (toernooiIsLeeg) {
+      if (toernooiIsLeeg && isInactiviteitsStopAan()) {
         const ic = inactiviteitsCheck(entry, venueTables, now);
         if (ic.laatsteActiviteit !== entry.laatsteActiviteit) {
           entry = { ...entry, laatsteActiviteit: ic.laatsteActiviteit };
