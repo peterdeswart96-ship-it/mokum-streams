@@ -9,7 +9,9 @@
 // cuescore-toernooi erbij hoort — iets wat ../cuescore niet bijhoudt, omdat het
 // op toernooi- en tafelniveau werkt, niet op team-niveau.
 
-const API_BASE = process.env.MOKUM_COMPETITIE_API_URL || 'https://func-mokum-competitie.azurewebsites.net/api';
+const { wedstrijdenBijMokum } = require('./bijMokum');
+
+const API_BASE =process.env.MOKUM_COMPETITIE_API_URL || 'https://func-mokum-competitie.azurewebsites.net/api';
 const TIMEOUT_MS = 10000;
 
 // Alle Mokum-teams (elk team komt uit teams.json in het mokum-competitie-project,
@@ -53,4 +55,24 @@ async function getAllUpcomingMokumMatches() {
   return [...gezien.values()].sort((a, b) => new Date(a.starttime) - new Date(b.starttime));
 }
 
-module.exports = { getMokumTeams, getUpcomingMatchesForTeam, getAllUpcomingMokumMatches };
+// Voor de competitie-wizard (#120): alleen de wedstrijden die bij Mokum gespeeld worden,
+// met niveau en thuis-/uitteam erbij. Faalt één team, dan gaat de rest gewoon door en staat
+// dat team in `mislukt` — zodat de wizard kan zeggen dat de lijst onvolledig is, in plaats
+// van stil een wedstrijd te missen. Faalt /teams zelf, dan gooit dit een fout.
+async function getWedstrijdenBijMokum() {
+  const teams = await getMokumTeams();
+  const mislukt = [];
+  const perTeam = await Promise.all(
+    teams.map((team) =>
+      getUpcomingMatchesForTeam(team.teamSlug)
+        .then((matches) => ({ team, matches }))
+        .catch(() => {
+          mislukt.push(team.teamSlug);
+          return { team, matches: [] };
+        })
+    )
+  );
+  return { wedstrijden: wedstrijdenBijMokum(perTeam), mislukt };
+}
+
+module.exports = { getMokumTeams, getUpcomingMatchesForTeam, getAllUpcomingMokumMatches, getWedstrijdenBijMokum };

@@ -83,13 +83,15 @@ function kiesOpTitel(kandidaten, titel) {
 // er precies één toernooi vandaag wedstrijden op die tafel heeft. Anders null.
 //
 // `context.streamType`: bij 'challenge' wordt nooit gekoppeld — een challenge is geen
-// toernooi, en die fout is nooit "bij twijfel toch maar wel" waard (#103).
+// toernooi, en die fout is nooit "bij twijfel toch maar wel" waard (#103). Hetzelfde geldt
+// voor 'competitie' (#120): een teamwedstrijd hoort nooit bij een los toernooi, ook niet als
+// dat toevallig vandaag op dezelfde tafel staat.
 // `context.titel`: de titel die de beheerder heeft ingetypt bij het starten. Weegt mee
 // zodra er meer dan één kandidaat is, én als vangrail bij precies één kandidaat: een
 // titel die er totaal niets mee te maken heeft ("Very last minute 9 ball" bij "Mokum 8 &
 // 10ball Ranking") is een teken dat de ENIGE kandidaat toevallig de verkeerde is.
 function kiesToernooiVoorTafel(tournaments, tableNumber, now, context = {}) {
-  if (context.streamType === 'challenge') return null;
+  if (context.streamType === 'challenge' || context.streamType === 'competitie') return null;
 
   const kandidaten = [];
   for (const t of tournaments || []) {
