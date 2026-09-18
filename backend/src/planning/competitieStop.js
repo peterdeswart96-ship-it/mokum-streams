@@ -39,6 +39,13 @@ function competitieKlaarReden(entry, match, now) {
   return `stand ${a}-${b}: alle ${partijen} partijen gespeeld`;
 }
 
+// Speling op de wachttijd (#147). checkStops tikt eens per minuut en `klaarSinds` is het
+// moment van zo'n tik. De tik 5 minuten later valt door timer-jitter soms net ná en soms
+// net vóór klaarSinds + 5:00; zonder speling stopte de stream dan pas een minuut later (na
+// 6 minuten). Het competitiescherm telt af naar dat stopmoment (bedankscherm = laatste
+// minuut), dus het moet voorspelbaar op de 5-minutentik vallen.
+const TIK_SPELING_MS = 30 * 1000;
+
 // Wat moet checkStops nu doen? Retour:
 //   { klaarSinds: iso|null, stoppen: bool, reden: tekst|null }
 // `klaarSinds` blijft staan zodra het eerste signaal er is. Een stand die daarna even
@@ -52,7 +59,7 @@ function competitieStopBesluit(entry, match, now, { wachtMs = 5 * 60 * 1000 } = 
   const verstreken = now.getTime() - new Date(klaarSinds).getTime();
   return {
     klaarSinds,
-    stoppen: verstreken >= wachtMs,
+    stoppen: verstreken >= wachtMs - TIK_SPELING_MS,
     reden: reden || (entry && entry.competitieKlaarReden) || 'wedstrijd klaar',
   };
 }

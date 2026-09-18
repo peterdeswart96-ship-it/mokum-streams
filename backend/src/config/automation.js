@@ -82,7 +82,14 @@ function isChallengeLimietAan() {
   return String(process.env.CHALLENGE_LIMIET || '').toLowerCase() === 'true';
 }
 
+// Wachttijd tussen "competitiewedstrijd klaar" en stoppen (#145, besluit 17-09: 5 minuten),
+// in ms. Op één plek, omdat checkStops er de stop op baseert en /api/live er het
+// stoptijdstip voor het bedankscherm (#147) uit berekent — die twee moeten gelijk lopen.
+function competitieWachtMs() {
+  return (Number(process.env.COMPETITIE_STOP_WACHT_MIN) || 5) * 60 * 1000;
+}
+
 module.exports = {
   isArmed, isPauzeAutoOn, pauzeSchermKeys, pauzeSchermUitKeys, pauzeSchermRefreshKeys,
-  isInactiviteitsStopAan, isChallengeLimietAan,
+  isInactiviteitsStopAan, isChallengeLimietAan, competitieWachtMs,
 };

@@ -2,7 +2,7 @@ const { app } = require('@azure/functions');
 const { readJson, writeJson } = require('../storage/blob');
 const { zaalDag } = require('../schedule/schedule');
 const { getTournament, getTodaysTournaments } = require('../cuescore');
-const { enqueue } = require('../agent/commandQueue');
+const { enqueue, competitieSchermCommando } = require('../agent/commandQueue');
 const { stopReden, toernooiKlaar } = require('../planning/stop');
 const { kiesToernooiVoorTafel, anderToernooiNogOpTafel } = require('../planning/koppel');
 const { vrijTeMaken } = require('../planning/vrijmaken');
@@ -14,7 +14,7 @@ const { zoekCompetitieWedstrijd, heeftTeams } = require('../mokumCompetitie/zoek
 const { moetOpnieuwStarten, moetAlarmeren, MAX_POGINGEN } = require('../planning/herstart');
 const { bouwStreamFalenAlert } = require('../notify/alertBericht');
 const { stuurAlert } = require('../notify/verzenden');
-const { isArmed, isInactiviteitsStopAan, isChallengeLimietAan } = require('../config/automation');
+const { isArmed, isInactiviteitsStopAan, isChallengeLimietAan, competitieWachtMs } = require('../config/automation');
 
 // Timer-Function: bewaakt lopende broadcasts en stopt ze automatisch wanneer het
 // toernooi klaar is (Cuescore `Finished`), de league-avond op die tafel voorbij is,
@@ -65,7 +65,8 @@ const CRON_ELKE_MIN = '0 * * * * *';
 // Instelbaar via app-setting PODIUM_GRACE_SEC.
 const STOP_GRACE_MS = (Number(process.env.PODIUM_GRACE_SEC) || 180) * 1000;
 // Wachttijd tussen "competitiewedstrijd klaar" en stoppen (#145, besluit 17-09: 5 minuten).
-const COMPETITIE_WACHT_MS = (Number(process.env.COMPETITIE_STOP_WACHT_MIN) || 5) * 60 * 1000;
+// Staat in config/automation.js omdat /api/live er ook het stoptijdstip uit haalt (#147).
+const COMPETITIE_WACHT_MS = competitieWachtMs();
 
 async function verwerk(now, context) {
   if (!isArmed()) {
@@ -94,6 +95,8 @@ async function verwerk(now, context) {
 
   const teStoppen = [];
   const teHerstarten = [];
+  // Tafels waar het competitiescherm (#147) aan moet: de teamwedstrijd is net klaar.
+  const competitieSchermAan = [];
   const teAlarmeren = [];
   const cache = new Map();
 
@@ -209,6 +212,9 @@ async function verwerk(now, context) {
             store[key] = entry;
             storeGewijzigd = true;
             context.warn(`[checkStops] tafel ${entry.tableNumber}: competitiewedstrijd klaar (${besluit.reden}) → stopt over ${COMPETITIE_WACHT_MS / 60000} min.`);
+            // Tot die stop: stand en uitslagen in beeld in plaats van een lege tafel (#147).
+            // Eén keer, op het moment dat klaarSinds gezet wordt — niet elke tik opnieuw.
+            competitieSchermAan.push(entry.tableNumber);
           }
           if (besluit.stoppen) {
             context.warn(`[checkStops] tafel ${entry.tableNumber}: stoppen — competitiewedstrijd klaar (${besluit.reden})`);
@@ -394,9 +400,13 @@ async function verwerk(now, context) {
     if (storeGewijzigd) await writeJson(pad, store);
   }
 
-  if (teStoppen.length > 0 || teHerstarten.length > 0) {
+  if (teStoppen.length > 0 || teHerstarten.length > 0 || competitieSchermAan.length > 0) {
     const commands = (await readJson('commands.json', [])) || [];
     const nieuw = [
+      // Vóór een eventuele stop in dezelfde tik, zodat de volgorde in de wachtrij klopt.
+      ...competitieSchermAan.map((tn) => ({
+        id: crypto.randomUUID(), createdAt: now.toISOString(), ...competitieSchermCommando(tn),
+      })),
       ...teStoppen.map((tn) => ({
         id: crypto.randomUUID(), createdAt: now.toISOString(), type: 'stopStream', tableNumber: Number(tn),
       })),
@@ -409,6 +419,7 @@ async function verwerk(now, context) {
     await writeJson('commands.json', enqueue(commands, nieuw));
     if (teStoppen.length) context.warn(`[OK] ${teStoppen.length} stopStream-commando(s): tafels ${teStoppen.join(', ')}`);
     if (teHerstarten.length) context.warn(`[OK] ${teHerstarten.length} herstart-commando(s) (#114): tafels ${teHerstarten.join(', ')}`);
+    if (competitieSchermAan.length) context.warn(`[OK] competitiescherm aan (#147): tafels ${competitieSchermAan.join(', ')}`);
   }
 
   // Alarm versturen (mail + ntfy) buiten de dag-loop, ná het wegschrijven van de store:

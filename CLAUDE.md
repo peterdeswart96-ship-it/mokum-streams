@@ -42,7 +42,13 @@ Plan een toernooi in de Toernooi planner en de rest gaat vanzelf:
 3. **Tijdens** — pauzescherm schakelt mee per tafel; bij de finale sluiten de overige
    cameratafels (#72).
 4. **Na de finale** — medaillescherm 3 min, dan stop, dan automatisch thumbnail + hoofdstukken.
-5. **Vangnetten** — eigen eindtijd 01:30, en de nachtstop van 02:00 die altijd stopt.
+5. **Vangnetten** — eigen eindtijd 01:30, en de nachtstop van 03:00 die altijd stopt.
+
+**Competitiewedstrijden** (via de competitie-wizard, #120) stoppen sinds 17-09 wél automatisch:
+5 minuten nadat Cuescore de teamwedstrijd afgerond meldt, of nadat de stand compleet is
+(Klasse 6, Divisies/Eredivisie 7 partijen; die stand-regel geldt pas 90 min na de start).
+Daarna volgt automatisch de thumbnail met niveau + teams (#82) — géén hoofdstukken en niet
+in het wedstrijd-archief, want Cuescore houdt bij een teamwedstrijd geen partijen per tafel bij.
 
 Een lopende wedstrijd wordt nooit afgekapt (#76). De 14.1-league hoort NIET in de planner:
 dat zijn losse partijen die je per stuk handmatig start, wél gekoppeld aan de league.
@@ -53,7 +59,7 @@ dat zijn losse partijen die je per stuk handmatig start, wél gekoppeld aan de l
 - Video-id's komen uit eigen backend; kanaal-embed alleen als fallback
 - Handmatige controle + noodstop gewenst → dashboardknoppen + **Stream Deck** (budget akkoord)
 - Remote beheer OBS-pc: **Tailscale** (veilige netwerklaag, geen poorten open) + RustDesk/Chrome Remote Desktop voor het scherm. NB: klassieke Windows-RDP vergrendelt de console-sessie en kan OBS-capture/NVENC verstoren — kies een tool die de console spiegelt.
-- **Automatische stop op tijd/inactiviteit staat UIT** (besluit Peter, 17-09, #134). Zowel de inactiviteitsregel van 1 uur (#100/#105) als de harde challenge-limiet (was 2 uur per 18-08, daarna 3 uur per 10-09) zijn uitgeschakeld: ze kapten lopende wedstrijden af op tafels zonder Cuescore-koppeling (#121 op 08-09, tafel 15 én 16 op 16-09). Het vangnet is nu de **nachtstop van 02:00**, die alles stopt wat nog openstaat, plus de eigen eindtijd uit de planner. Terug aan te zetten zonder deploy via de app-settings `INACTIVITEIT_STOP=true` / `CHALLENGE_LIMIET=true`. Zie `backend/src/config/automation.js`.
+- **Automatische stop op tijd/inactiviteit staat UIT** (besluit Peter, 17-09, #134). Zowel de inactiviteitsregel van 1 uur (#100/#105) als de harde challenge-limiet (was 2 uur per 18-08, daarna 3 uur per 10-09) zijn uitgeschakeld: ze kapten lopende wedstrijden af op tafels zonder Cuescore-koppeling (#121 op 08-09, tafel 15 én 16 op 16-09). Het vangnet is nu de **nachtstop van 03:00**, die alles stopt wat nog openstaat, plus de eigen eindtijd uit de planner. Terug aan te zetten zonder deploy via de app-settings `INACTIVITEIT_STOP=true` / `CHALLENGE_LIMIET=true`. Zie `backend/src/config/automation.js`.
 
 ## Openstaand (na intake 2026-07-08)
 - ~~Kanaalverificatie + livestreamen~~ ✅ bevestigd (2026-07-08): Feature eligibility niveau 1/2/3 allemaal "Enabled" — livestreamen mag, geen wachttijd. "Insluiten toestaan" per broadcast programmatisch zetten bij #9.

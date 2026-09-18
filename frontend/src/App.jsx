@@ -16,6 +16,9 @@ const OVERLAYS = [
   { key: 'sponsors', label: 'Sponsors', desc: 'Roterende sponsorlogo’s (slideshow)', pos: 'rechtsboven', groep: 'content', defaultOn: true },
   { key: 'scoreboard', label: 'Scorebord', desc: 'Officiële Cuescore-overlay: toernooikop (linksboven) + stand van déze tafel (onderin)', pos: 'onderin + linksboven', groep: 'content', defaultOn: true },
   { key: 'jumbotron', label: 'Jumbotron', desc: 'Alle tafels live (Cuescore) — voor tijdens pauzes', pos: 'volledig beeld', groep: 'pauze', defaultOn: false },
+  // #147: gaat vanzelf aan als een teamwedstrijd klaar is (5 min vóór de automatische stop);
+  // de schakelaar is er om het handmatig te tonen of te testen.
+  { key: 'competitie', label: 'Competitiestand', desc: 'Stand + uitslagen van de afgelopen maand — gaat vanzelf aan als de teamwedstrijd klaar is', pos: 'volledig beeld', groep: 'pauze', defaultOn: false },
   // 'pauzemelding' verwijderd uit het dashboard (#75) — de jumbotron dekt de pauze al af.
   // De backend-overlay/agent-bron blijft bestaan; hier staat alleen geen dashboardknop meer.
 ];

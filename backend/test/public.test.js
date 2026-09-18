@@ -1,6 +1,42 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { buildLiveTables, buildSchedule } = require('../src/public/live');
+const { buildLiveTables, buildSchedule, competitieVan } = require('../src/public/live');
+
+// ── Competitiescherm (#147) ─────────────────────────────────────────────────
+const competitieEntry = {
+  videoId: 'v15', streamType: 'competitie', matchId: '88251085', niveau: 'Eerste Klasse',
+  thuisteam: 'Restless', uitteam: 'Mokum Remastered',
+};
+
+test('competitieVan: actieve competitiestream → niveau, toernooi-id, wedstrijd en teams', () => {
+  assert.deepStrictEqual(competitieVan(competitieEntry), {
+    niveau: 'Eerste Klasse', toernooiId: 83574424, matchId: 88251085,
+    thuisteam: 'Restless', uitteam: 'Mokum Remastered', klaarSinds: null, stopOm: null,
+  });
+});
+
+test('competitieVan: klaarSinds + stopOm (klaar + wachttijd) zodra de wedstrijd klaar is', () => {
+  const entry = { ...competitieEntry, competitieKlaarSinds: '2026-09-17T21:40:00.000Z' };
+  const c = competitieVan(entry, 5 * 60 * 1000);
+  assert.strictEqual(c.klaarSinds, '2026-09-17T21:40:00.000Z');
+  assert.strictEqual(c.stopOm, '2026-09-17T21:45:00.000Z');
+  // Zonder opgegeven wachttijd: de standaard uit config (5 minuten, COMPETITIE_STOP_WACHT_MIN).
+  assert.strictEqual(competitieVan(entry).stopOm, '2026-09-17T21:45:00.000Z');
+});
+
+test('competitieVan: null bij toernooi/challenge, gestopte stream of onbekend niveau', () => {
+  assert.strictEqual(competitieVan(null), null);
+  assert.strictEqual(competitieVan({ videoId: 'v', tournamentId: 1 }), null);
+  assert.strictEqual(competitieVan({ ...competitieEntry, streamType: 'challenge' }), null);
+  assert.strictEqual(competitieVan({ ...competitieEntry, stopped: true }), null);
+  assert.strictEqual(competitieVan({ ...competitieEntry, niveau: 'Vierde Klasse' }), null);
+});
+
+test('buildLiveTables: veld competitie per tafel', () => {
+  const tables = buildLiveTables([1, 15], { '15': competitieEntry }, {}, {}, {});
+  assert.strictEqual(tables[0].competitie, null);
+  assert.strictEqual(tables[1].competitie.toernooiId, 83574424);
+});
 
 test('buildLiveTables geeft live/scheduled/offline per cameratafel', () => {
   const store = {
