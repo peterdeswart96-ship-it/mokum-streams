@@ -956,6 +956,11 @@ Regels:
      is aan het begin van de maand bijna leeg).
   5. Bestaat de bron niet in OBS, dan dropt de agent het commando (`SOURCE_NOT_FOUND`). Uitrollen
      kan dus al voordat de OBS-bron er staat.
-  6. **Bedankscherm** (wens Peter 18-09): de laatste 45 seconden vóór `stopOm` toont de pagina
-     alleen nog "Thanks for watching" met een bedankje aan de KNBB, CueScore en de
-     teamcaptains die de uitslagen invoeren. Puur de pagina; geen extra endpoint.
+  6. **Volgorde en bedankscherm** (wens Peter 18-09): de pagina telt af naar `stopOm`:
+     stand 2 min → uitslagen 2 min → de laatste minuut "Thanks for watching!" met de eindstand
+     en een bedankje aan de KNBB, CueScore en alle vrijwilligers en teamcaptains. Puur de
+     pagina; geen extra endpoint.
+  7. **Speling van 30 s in de stopregel** (`competitieStop.js`, `TIK_SPELING_MS`): checkStops
+     tikt eens per minuut, en de tik na 5 minuten viel door timer-jitter soms nét vóór
+     `klaarSinds + 5:00`, waardoor de stop pas na 6 minuten kwam. Nu valt de stop voorspelbaar
+     op de 5-minutentik, zodat het aftellen van de pagina klopt.

@@ -77,6 +77,15 @@ test('besluit: niets klaar → niets doen', () => {
   assert.deepStrictEqual(competitieStopBesluit(entry(), match('playing', 2, 2), na(200)), { klaarSinds: null, stoppen: false, reden: null });
 });
 
+test('besluit: tik die door jitter net vóór de 5 minuten valt stopt tóch (speling 30 s, #147)', () => {
+  const klaar = na(200);
+  const e = entry({ competitieKlaarSinds: klaar.toISOString() });
+  const plus = (ms) => new Date(klaar.getTime() + ms);
+  assert.strictEqual(competitieStopBesluit(e, null, plus(5 * 60000 - 800)).stoppen, true);  // 4:59.2
+  assert.strictEqual(competitieStopBesluit(e, null, plus(4 * 60000 + 40000)).stoppen, true); // 4:40
+  assert.strictEqual(competitieStopBesluit(e, null, plus(4 * 60000 + 20000)).stoppen, false); // 4:20
+});
+
 test('wachttijd instelbaar', () => {
   const e = entry({ competitieKlaarSinds: na(200).toISOString() });
   assert.strictEqual(competitieStopBesluit(e, null, na(203), { wachtMs: 3 * 60000 }).stoppen, true);

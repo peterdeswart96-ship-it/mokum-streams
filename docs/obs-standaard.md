@@ -51,8 +51,8 @@ met Nick.
 >
 > **Update (2026-09-18): competitiescherm (#147).** Nieuwe browserbron **`Competitiestand`**
 > (precies deze naam, de backend zet hem op naam aan). Nodig in de scènes van alle 4 de
-> tafels. Toont stand + uitslagen van de afgelopen maand, en de laatste 45 seconden vóór de
-> stop een bedankscherm. `checkStops` zet hem vanzelf aan zodra een teamwedstrijd klaar is;
+> tafels. Toont 2 min de stand, 2 min de uitslagen van de afgelopen maand, en de laatste
+> minuut vóór de stop een bedankscherm. `checkStops` zet hem vanzelf aan zodra een teamwedstrijd klaar is;
 > elke nieuwe start zet hem weer uit.
 > - URL **per tafel**: `https://mokum-streams.pdscloud.nl/competitie/?tafel=<N>` (`1|3|15|16`)
 > - Breedte **1920** × hoogte **1080**, positie 0,0, **helemaal bovenaan** in de Sources-lijst

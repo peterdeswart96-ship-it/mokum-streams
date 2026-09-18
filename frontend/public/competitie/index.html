@@ -22,7 +22,9 @@
        ?match=88251085         (handmatig) wedstrijd van vanavond: beide teams uitgelicht
        ?maand=2026-09          een kalendermaand i.p.v. de afgelopen 31 dagen
        ?scherm=stand|uitslagen één vast scherm (geen wissel)
-       ?seconden=20            hoe lang elk scherm blijft staan bij wisselen */
+       ?scherm=bedankt         alleen het bedankscherm
+       ?demo                   hele volgorde afspelen alsof de wedstrijd net klaar is
+       ?seconden=20            (bij ?demo) stand en uitslagen elk N s, bedankt N/2 s */
   html, body {
     margin: 0; padding: 0; width: 1920px; height: 1080px; overflow: hidden;
     background: #000; color: #fff; font-family: 'Arial Black', Arial, sans-serif;
@@ -109,29 +111,35 @@
   .melding[hidden] { display: none; }
 
   /* Bedankscherm (wens Peter 18-09): de laatste seconden vóór de stop. */
-  .bedankt { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; }
-  .bedankt .niveau { font-size: 26px; color: #ff3b3b; letter-spacing: 3px; text-transform: uppercase; margin-top: 30px; }
-  .bedankt h1 { font-size: 104px; line-height: 1; margin: 14px 0 0; letter-spacing: 2px; text-transform: uppercase; }
-  .bedankt .streep { width: 220px; height: 6px; background: #cc0000; margin: 30px 0 26px; border-radius: 3px; }
-  .bedankt .uitslag { font-size: 40px; display: flex; align-items: center; gap: 22px; }
-  .bedankt .uitslag .logo { width: 56px; height: 56px; }
-  .bedankt .uitslag .pil { background: rgba(255,255,255,0.10); border-radius: 12px; padding: 4px 22px; }
-  .bedankt .dank { margin-top: 56px; font-size: 22px; color: rgba(255,255,255,0.55); letter-spacing: 3px; text-transform: uppercase; }
-  .bedankt .partners { display: flex; gap: 40px; margin-top: 26px; }
-  .bedankt .partner { width: 380px; padding: 28px 24px 26px; box-sizing: border-box;
+  /* Geen voettekst en geen uitleg per partner (Peter 18-09): alles verticaal gecentreerd. */
+  .bedankt { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+             text-align: center; }
+  .bedankt .niveau { font-size: 28px; color: #ff3b3b; letter-spacing: 3px; text-transform: uppercase; }
+  .bedankt h1 { font-size: 110px; line-height: 1; margin: 14px 0 0; letter-spacing: 2px; text-transform: uppercase; }
+  .bedankt .streep { width: 220px; height: 6px; background: #cc0000; margin: 34px 0 34px; border-radius: 3px; }
+  /* Eindstand: de score precies in het midden, links het thuisteam (naam + logo, rechts
+     uitgelijnd tegen de score), rechts het uitteam (logo + naam). Twee gelijke kolommen,
+     dus de score staat altijd in het midden, hoe lang de teamnamen ook zijn. */
+  .bedankt .uitslag { width: 100%; display: grid; grid-template-columns: 1fr auto 1fr;
+                      align-items: center; gap: 48px; font-size: 44px; }
+  .bedankt .uitslag .team { display: flex; align-items: center; gap: 24px; white-space: nowrap;
+                            min-width: 0; overflow: hidden; }
+  .bedankt .uitslag .team.thuis { justify-content: flex-end; }
+  .bedankt .uitslag .team.uit { justify-content: flex-start; }
+  .bedankt .uitslag .logo, .bedankt .uitslag .leeg-logo { width: 64px; height: 64px; flex: none; }
+  .bedankt .uitslag .pil { background: rgba(255,255,255,0.10); border-radius: 14px; padding: 6px 30px; font-size: 52px; }
+  .bedankt .dank { margin-top: 70px; font-size: 22px; color: rgba(255,255,255,0.55); letter-spacing: 3px; text-transform: uppercase; }
+  .bedankt .partners { display: flex; gap: 40px; margin-top: 28px; }
+  .bedankt .partner { width: 400px; min-height: 230px; padding: 32px 24px; box-sizing: border-box;
                       background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.10); border-radius: 16px;
-                      display: flex; flex-direction: column; align-items: center; gap: 14px; }
-  .bedankt .partner .beeld { height: 96px; display: flex; align-items: center; justify-content: center; }
-  .bedankt .partner img { max-height: 96px; max-width: 300px; }
-  .bedankt .partner .cs img { width: 260px; }
-  .bedankt .partner .band { width: 96px; height: 96px; border-radius: 50%; background: #cc0000;
-                            display: flex; align-items: center; justify-content: center; font-size: 58px; }
-  .bedankt .partner .naam { font-size: 30px; }
-  .bedankt .partner .wat { font-family: Arial, sans-serif; font-weight: bold; font-size: 21px;
-                           color: rgba(255,255,255,0.65); line-height: 1.35; }
-  .bedankt .volg { margin-top: auto; font-family: Arial, sans-serif; font-weight: bold; font-size: 24px;
-                   color: rgba(255,255,255,0.7); }
-  .bedankt .volg b { color: #fff; }
+                      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; }
+  .bedankt .partner .beeld { height: 110px; display: flex; align-items: center; justify-content: center; }
+  .bedankt .partner img { max-height: 110px; max-width: 300px; }
+  .bedankt .partner .cs img { width: 270px; }
+  .bedankt .partner .hart { width: 110px; height: 110px; border-radius: 50%; background: #cc0000;
+                            display: flex; align-items: center; justify-content: center; }
+  .bedankt .partner .hart svg { width: 58px; height: 58px; margin-top: 4px; }
+  .bedankt .partner .naam { font-size: 30px; line-height: 1.2; }
 </style>
 </head>
 <body>
@@ -163,15 +171,19 @@ const APP_API = /^(localhost|127\.0\.0\.1)$/.test(location.hostname)
 const q = new URLSearchParams(location.search);
 const tafel = Number(q.get('tafel')) || null;
 const vastScherm = q.get('scherm');                 // 'stand' | 'uitslagen' | 'bedankt' | null
-const seconden = Math.max(8, Number(q.get('seconden')) || 20);
 // Welke competitie en wedstrijd: bij ?tafel= uit /api/live (zie laadTafel), anders uit de URL.
 let niveau = q.get('niveau');
 let toernooiId = Number(q.get('toernooi')) || TOERNOOI_PER_NIVEAU[niveau] || null;
 let matchId = Number(q.get('match')) || null;
-// Wanneer checkStops de stream stopt (uit /api/live). De laatste BEDANKT_MS daarvoor staat
-// alleen nog het bedankscherm in beeld.
+// Wanneer checkStops de stream stopt (uit /api/live, klaarSinds + 5 min). De pagina telt
+// daarnaar af (besluit Peter 18-09): stand 2 min → uitslagen 2 min → bedankscherm 1 min.
+// Het scherm gaat aan bij klaarSinds, dus die drie vullen samen precies de wachttijd.
 let stopOm = null;
-const BEDANKT_MS = 45000;
+const demo = q.has('demo');
+const demoSec = Number(q.get('seconden')) || 0;
+const STAND_MS = (demo && demoSec ? demoSec : 120) * 1000;
+const UITSLAGEN_MS = (demo && demoSec ? demoSec : 120) * 1000;   // verdeeld over de uitslag-pagina's
+const BEDANKT_MS = (demo && demoSec ? demoSec / 2 : 60) * 1000;
 
 // Welke uitslagen: standaard de afgelopen 31 dagen (besluit Peter 18-09 — een kalendermaand
 // is aan het begin van de maand bijna leeg). Met ?maand=2026-09 één kalendermaand.
@@ -311,27 +323,28 @@ function schermenUitslagen(t, niveauNaam) {
 
 // Bedankscherm (wens Peter 18-09): vlak voor de stop een bedankje aan wie deze uitzending
 // mogelijk maakt — de KNBB (organiseert de competitie), CueScore (houdt uitslagen en standen
-// bij) en de teamcaptains (voeren elke uitslag in). Met de eindstand van vanavond erbij.
+// bij) en alle vrijwilligers en teamcaptains. Met de eindstand van vanavond erbij.
+const HART_SVG = '<svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>';
 function schermBedankt(niveauNaam, vanavond) {
   const a = vanavond && vanavond.playerA, b = vanavond && vanavond.playerB;
   const uitslag = vanavond
-    ? `<div class="uitslag">${esc(a.name)} ${logo(a)}<span class="pil">${vanavond.scoreA} – ${vanavond.scoreB}</span>${logo(b)} ${esc(b.name)}</div>`
+    ? `<div class="uitslag">
+        <div class="team thuis">${esc(a.name)}${logo(a)}</div>
+        <span class="pil">${vanavond.scoreA} – ${vanavond.scoreB}</span>
+        <div class="team uit">${logo(b)}${esc(b.name)}</div>
+      </div>`
     : '';
   return `<div class="bedankt">
     <div class="niveau">${esc(niveauNaam)}</div>
-    <h1>Thanks for watching</h1>
+    <h1>Thanks for watching!</h1>
     <div class="streep"></div>
     ${uitslag}
     <div class="dank">Deze uitzending is mogelijk dankzij</div>
     <div class="partners">
-      <div class="partner"><div class="beeld"><img src="knbb-logo.png" alt=""></div>
-        <div class="naam">KNBB</div><div class="wat">De Koninklijke Nederlandse Biljartbond, die de competitie organiseert</div></div>
-      <div class="partner"><div class="beeld cs"><img src="https://cuescore.com/img/cuescore-logo-white.svg" alt=""></div>
-        <div class="naam">CueScore</div><div class="wat">Voor het live bijhouden van alle uitslagen en standen</div></div>
-      <div class="partner"><div class="beeld"><div class="band">C</div></div>
-        <div class="naam">De teamcaptains</div><div class="wat">Die na elke partij de uitslag invoeren</div></div>
+      <div class="partner"><div class="beeld"><img src="knbb-logo.png" alt=""></div><div class="naam">KNBB</div></div>
+      <div class="partner"><div class="beeld cs"><img src="https://cuescore.com/img/cuescore-logo-white.svg" alt=""></div><div class="naam">CueScore</div></div>
+      <div class="partner"><div class="beeld"><div class="hart">${HART_SVG}</div></div><div class="naam">Alle vrijwilligers<br>en teamcaptains</div></div>
     </div>
-    <div class="volg">Tot de volgende keer! &nbsp;·&nbsp; YouTube <b>@MokumPoolDarts</b></div>
   </div>`;
 }
 
@@ -339,10 +352,12 @@ function schermBedankt(niveauNaam, vanavond) {
 
 const kaart = document.getElementById('kaart');
 const melding = document.getElementById('melding');
-let schermen = [];
-let huidig = 0;
-let bedankt = null;          // het bedankscherm (functie), gezet door laad()
-let bedanktActief = false;   // vanaf BEDANKT_MS vóór stopOm: niets anders meer tonen
+let stand = [];              // [scherm-functie]
+let uitslagen = [];          // [scherm-functie, ...] één per pagina
+let bedankt = null;          // scherm-functie
+let geenCompetitie = false;  // ?tafel= zonder competitiestream
+let huidigeSleutel = null;   // wat er nu in beeld staat ('stand', 'u0', 'u1', 'bedankt')
+const paginaStart = Date.now();
 
 // ?tafel=N: welke competitiewedstrijd loopt er op deze tafel? Uit /api/live (v0.62).
 // Geeft false als er op die tafel geen competitiestream loopt.
@@ -361,26 +376,48 @@ async function laadTafel() {
 }
 
 async function laad() {
-  if (tafel && !(await laadTafel())) {
-    schermen = [];
-    return;
-  }
+  geenCompetitie = !!tafel && !(await laadTafel());
+  if (geenCompetitie) return;
   const r = await fetch(`https://api.cuescore.com/tournament/?lang=nl&id=${toernooiId}`, { cache: 'no-store' });
   if (!r.ok) throw new Error(`Cuescore gaf ${r.status}`);
   const t = await r.json();
   const niveauNaam = niveau || Object.keys(TOERNOOI_PER_NIVEAU).find(n => TOERNOOI_PER_NIVEAU[n] === toernooiId) || t.name;
   const vanavond = (t.matches || []).find(m => m.matchId === matchId);
   const teamsVanavond = new Set(vanavond ? [vanavond.playerA?.teamId, vanavond.playerB?.teamId] : []);
-  const stand = [() => schermStand(t, niveauNaam, teamsVanavond)];
-  const uitslagen = schermenUitslagen(t, niveauNaam);
+  stand = [() => schermStand(t, niveauNaam, teamsVanavond)];
+  uitslagen = schermenUitslagen(t, niveauNaam);
   bedankt = () => schermBedankt(niveauNaam, vanavond);
-  if (bedanktActief || vastScherm === 'bedankt') schermen = [bedankt];
-  else schermen = vastScherm === 'stand' ? stand : vastScherm === 'uitslagen' ? uitslagen : [...stand, ...uitslagen];
-  huidig = huidig % schermen.length;
 }
 
-function toon() {
-  if (!schermen.length) {
+// Welk scherm hoort er nu in beeld? Retour een sleutel: 'stand', 'u<pagina>' of 'bedankt'.
+function welkScherm(nuMs) {
+  if (vastScherm === 'bedankt') return 'bedankt';
+  if (vastScherm === 'stand') return 'stand';
+  const uPagina = (verstreken) =>
+    'u' + Math.min(uitslagen.length - 1, Math.floor(verstreken / (UITSLAGEN_MS / uitslagen.length)));
+  if (vastScherm === 'uitslagen') return uPagina((nuMs - paginaStart) % UITSLAGEN_MS);
+
+  // Terugtellen naar de stop. ?demo speelt de volgorde in een lus af vanaf het laden.
+  let stop = stopOm ? Date.parse(stopOm) : null;
+  if (demo) {
+    const cyclus = STAND_MS + UITSLAGEN_MS + BEDANKT_MS;
+    stop = paginaStart + cyclus * (Math.floor((nuMs - paginaStart) / cyclus) + 1);
+  }
+  if (stop) {
+    const rest = stop - nuMs;
+    if (rest <= BEDANKT_MS) return 'bedankt';
+    if (rest <= BEDANKT_MS + UITSLAGEN_MS) return uPagina(BEDANKT_MS + UITSLAGEN_MS - rest);
+    return 'stand';
+  }
+  // Geen stoptijd (met de hand aangezet vóór de wedstrijd klaar is): stand en uitslagen om
+  // en om, elk 2 minuten, zonder bedankscherm.
+  const inCyclus = (nuMs - paginaStart) % (STAND_MS + UITSLAGEN_MS);
+  return inCyclus < STAND_MS ? 'stand' : uPagina(inCyclus - STAND_MS);
+}
+
+function toon(sleutel, vervagen = true) {
+  huidigeSleutel = sleutel;
+  if (geenCompetitie) {
     // Alleen te zien als iemand de bron met de hand aanzet op een tafel zonder competitie.
     kaart.classList.remove('zichtbaar');
     melding.textContent = `Geen competitiewedstrijd op tafel ${tafel}`;
@@ -388,41 +425,55 @@ function toon() {
     return;
   }
   melding.hidden = true;
-  const n = schermen.length;
-  const stippen = n > 1 ? `<div class="stippen">${schermen.map((_, i) => `<span class="${i === huidig ? 'aan' : ''}"></span>`).join('')}</div>` : '<div></div>';
+  const volgorde = vastScherm ? [] : ['stand', ...uitslagen.map((_, i) => 'u' + i)];
+  const stippen = volgorde.length > 1 && sleutel !== 'bedankt'
+    ? `<div class="stippen">${volgorde.map(k => `<span class="${k === sleutel ? 'aan' : ''}"></span>`).join('')}</div>`
+    : '<div></div>';
+  const scherm = sleutel === 'bedankt' ? bedankt : sleutel === 'stand' ? stand[0] : uitslagen[Number(sleutel.slice(1))];
   kaart.classList.remove('zichtbaar');
   setTimeout(() => {
-    kaart.innerHTML = schermen[huidig]() +
-      `<div class="voet"><div>MOKUM POOL &amp; DARTS · bron: cuescore.com</div>${stippen}</div>`;
+    // Het bedankscherm heeft geen voettekst (Peter 18-09); de andere schermen wel.
+    const voet = sleutel === 'bedankt' ? ''
+      : `<div class="voet"><div>MOKUM POOL &amp; DARTS · bron: cuescore.com</div>${stippen}</div>`;
+    kaart.innerHTML = scherm() + voet;
+    pasTeamnamenAan();
     kaart.classList.add('zichtbaar');
-  }, n > 1 || bedanktActief ? 600 : 0);
+  }, vervagen ? 600 : 0);
 }
 
-// Tijd voor het bedankscherm? Eén keer omschakelen en daarna blijft het staan tot de stop.
-function checkBedankt() {
-  if (bedanktActief || !bedankt || !stopOm) return;
-  if (Date.now() < Date.parse(stopOm) - BEDANKT_MS) return;
-  bedanktActief = true;
-  schermen = [bedankt];
-  huidig = 0;
-  toon();
+// Een lange teamnaam op het bedankscherm (bijv. "Mokum's Running English") past niet altijd
+// op één regel naast het logo: dan de letter stapje voor stapje kleiner tot hij past.
+function pasTeamnamenAan() {
+  for (const el of kaart.querySelectorAll('.bedankt .uitslag .team')) {
+    let px = 44;
+    el.style.fontSize = px + 'px';
+    while (el.scrollWidth > el.clientWidth && px > 24) { px -= 2; el.style.fontSize = px + 'px'; }
+  }
 }
 
 async function start() {
   if (!tafel && !toernooiId) { melding.textContent = 'Geef ?tafel=, ?niveau= of ?toernooi= mee'; return; }
   try {
     await laad();
-    toon();
   } catch (e) {
     melding.textContent = 'Kan de competitie niet laden (' + e.message + ')';
     return;
   }
-  checkBedankt();
-  // Wisselen tussen de schermen; data elke 2 minuten verversen (een lopende stand kan
-  // tijdens de laatste minuten nog veranderen). Mislukt verversen: oude data blijven tonen.
-  setInterval(() => { if (schermen.length > 1) { huidig = (huidig + 1) % schermen.length; toon(); } }, seconden * 1000);
-  setInterval(async () => { try { await laad(); if (schermen.length <= 1) toon(); } catch (e) { /* oude data houden */ } }, 120000);
-  setInterval(checkBedankt, 1000);
+  toon(welkScherm(Date.now()), false);
+  // Elke seconde kijken of er een ander scherm aan de beurt is.
+  setInterval(() => {
+    if (geenCompetitie) return;
+    const sleutel = welkScherm(Date.now());
+    if (sleutel !== huidigeSleutel) toon(sleutel);
+  }, 1000);
+  // Data elke 2 minuten verversen (een lopende stand kan tijdens de laatste minuten nog
+  // veranderen). Het bedankscherm laten we staan. Mislukt verversen: oude data houden.
+  setInterval(async () => {
+    try {
+      await laad();
+      if (huidigeSleutel !== 'bedankt') toon(welkScherm(Date.now()), false);
+    } catch (e) { /* oude data houden */ }
+  }, 120000);
 }
 start();
 </script>
