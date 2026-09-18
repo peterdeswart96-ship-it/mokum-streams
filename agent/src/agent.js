@@ -46,6 +46,7 @@ const DEFAULT_OVERLAY_SOURCES = {
   cuescoreLogo: 'Cuescore logo',
   jumbotron: 'Jumbotron',
   pauzemelding: 'Pauzemelding',
+  competitie: 'Competitiestand', // #147
 };
 
 // Is een periodieke ("rotatie") overlay nu zichtbaar? true gedurende de eerste

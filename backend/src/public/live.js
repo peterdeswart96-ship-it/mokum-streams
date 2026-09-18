@@ -1,4 +1,28 @@
 const { zaalDelen } = require('../schedule/schedule');
+const { toernooiVoorNiveau } = require('../mokumCompetitie/toernooien');
+const { competitieWachtMs } = require('../config/automation');
+
+// Competitie-info van een actieve competitiestream (#147), voor het competitiescherm: welke
+// competitie (Cuescore-toernooi) en welke wedstrijd die tafel toont. null bij elke andere
+// stream, of als het niveau niet in toernooien.js staat (dan valt er niets te tonen).
+// stopOm = wanneer checkStops de stream stopt (klaarSinds + wachttijd); de pagina toont het
+// bedankscherm vlak daarvoor. checkStops tikt eens per minuut, dus de echte stop valt
+// tussen stopOm en een minuut later.
+function competitieVan(entry, wachtMs = competitieWachtMs()) {
+  if (!entry || entry.stopped || entry.streamType !== 'competitie') return null;
+  const toernooiId = toernooiVoorNiveau(entry.niveau);
+  if (!toernooiId) return null;
+  const klaarMs = Date.parse(entry.competitieKlaarSinds || '');
+  return {
+    stopOm: Number.isNaN(klaarMs) ? null : new Date(klaarMs + wachtMs).toISOString(),
+    niveau: entry.niveau,
+    toernooiId,
+    matchId: entry.matchId != null ? Number(entry.matchId) : null,
+    thuisteam: entry.thuisteam || null,
+    uitteam: entry.uitteam || null,
+    klaarSinds: entry.competitieKlaarSinds || null,
+  };
+}
 
 // Camera-alarm uit de agent-status (A3 pre-flight + A2 freeze-watchdog): geeft het
 // dashboard een waarschuwing als een automatische start werd uitgesteld omdat de camera
@@ -68,6 +92,7 @@ function buildLiveTables(cameraTables, store, status, liveMatches, liveVideos) {
       liveVideoId,
       liveVisibility,
       cameraAlarm: cameraAlarmVan(s),
+      competitie: competitieVan(b),
     };
   });
 }
@@ -102,4 +127,4 @@ function buildSchedule(planning, now, days = 7) {
   return items;
 }
 
-module.exports = { buildLiveTables, buildSchedule };
+module.exports = { buildLiveTables, buildSchedule, competitieVan };

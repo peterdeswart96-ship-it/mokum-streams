@@ -3,7 +3,7 @@
 Enige waarheid voor de koppelvlakken tussen frontend/widget, backend en (later) de
 agent. Wijzigen? Eerst dit bestand bijwerken (met datum + reden onderaan), dan code.
 
-Status: CONCEPT v0.61 — velden worden definitief in fase 2.
+Status: CONCEPT v0.62 — velden worden definitief in fase 2.
 
 ## Conventies
 - Alle velden camelCase. Tijden in ISO 8601 met tijdzone (Europe/Amsterdam
@@ -30,7 +30,8 @@ Antwoord:
       "quality": { "resolution": "1920x1080", "fps": 60, "bitrateKbps": 9000 } | null,
       "overlays": { "sponsors": true, "scoreboard": true } | null,
       "match": { "playerA": "Kevin Jansen", "playerB": "Johan Palé", "scoreA": 4, "scoreB": 1, "status": "playing", "round": "Winners qualification" } | null,
-      "liveVideoId": "yX9SYqMXYrM" | null
+      "liveVideoId": "yX9SYqMXYrM" | null,
+      "competitie": { "niveau": "Eerste Klasse", "toernooiId": 83574424, "matchId": 88251085, "thuisteam": "Restless", "uitteam": "Mokum Remastered", "klaarSinds": "2026-09-17T21:40:00Z" | null, "stopOm": "2026-09-17T21:45:00Z" | null } | null   // v0.62: alleen bij een actieve competitiestream met bekend niveau
     }
   ]
 }
@@ -82,9 +83,10 @@ POST /api/manage/defaults            -> standaard-instellingen wijzigen
 POST /api/manage/streams/start       -> body: { "tableNumber": 15, "title"?: "...", "privacy"?: "public|unlisted|private", "overlays"?: { "sponsors": true, "scoreboard": true, "jumbotron": false, "pauzemelding": false }, "tournamentId"?: 83049058, "streamType"?: "challenge|competitie", "spelerA"?: "...", "spelerB"?: "...", "matchId"?: 88259371, "niveau"?: "Eerste Klasse", "thuisteam"?: "...", "uitteam"?: "..." } (vrije camera; enqueuet startStream + setOverlay per overlay. Mét tournamentId = beheerd, zonder = ad-hoc)
 GET  /api/manage/competitie/wedstrijden -> aankomende teamwedstrijden die BIJ MOKUM gespeeld worden (bron: mokum-competitie-API), voor de competitie-wizard; vorm zie v0.58 in de wijzigingslog
 POST /api/manage/streams/stop        -> body: { "tableNumber": 15 }
-POST /api/manage/streams/overlay     -> body: { "tableNumber": 15, "sponsors"?: bool, "scoreboard"?: bool, "jumbotron"?: bool, "pauzemelding"?: bool } (overlay(s) live aan/uit op een lopende stream; enqueuet setOverlay per opgegeven sleutel)
+POST /api/manage/streams/overlay     -> body: { "tableNumber": 15, "sponsors"?: bool, "scoreboard"?: bool, "jumbotron"?: bool, "pauzemelding"?: bool, "competitie"?: bool } (overlay(s) live aan/uit op een lopende stream; enqueuet setOverlay per opgegeven sleutel)
    NB: content-overlays (sponsors/scoreboard) staan standaard AAN;
    break-overlays (jumbotron/pauzemelding) staan standaard UIT (alleen tijdens pauzes tonen).
+   Ook `competitie` (OBS-bron `Competitiestand`, v0.62) staat standaard UIT.
 POST /api/manage/setup/streams       -> eenmalig: herbruikbare liveStream per tafel (idempotent) → schrijft config/tables.json; body (optioneel) { "cameras": [1,3,15,16] }
 GET  /api/manage/stats               -> opgetelde bezoek-/QR-teller: { "totaal", "perBron": {..}, "perPagina": {..}, "perDag": { "YYYY-MM-DD": { "totaal", "perBron": {..} } } } (voedt later het centrale mokum-bot-dashboard, #18 fase 4)
 
@@ -931,3 +933,29 @@ Regels:
      Niet gevonden → bij finalize een gewone mislukte poging (retry/opgeven, #124), bij de stop
      het vangnet van de nachtstop.
   3. Finalize kiest nu `competitie` voor elke gestopte entry met `matchId`, ook zonder teams.
+- 2026-09-18: v0.62 — **competitiescherm in de laatste minuten van een competitiestream** (#147,
+  besluit Peter 18-09: automatisch, "optie B"). Reden: na de laatste partij keek de kijker tot
+  de automatische stop (v0.60) 5 minuten naar een lege tafel.
+  1. **Nieuwe overlay-sleutel `competitie`** → OBS-bron `Competitiestand` (browserbron, URL
+     `https://mokum-streams.pdscloud.nl/competitie/?tafel=N`). Standaard UIT, net als de
+     break-overlays, dus bij elke start uitgezet. Ook te schakelen via
+     `POST /api/manage/streams/overlay` (`"competitie": true`) en het dashboard.
+  2. **Automatisch aan:** `checkStops` enqueuet `setOverlay Competitiestand aan` op het moment dat
+     een competitiestream `competitieKlaarSinds` krijgt, dus aan het begin van de wachttijd van
+     5 minuten. De stop sluit daarna de hele stream; de volgende start zet de bron weer uit.
+  3. **`/api/live` → `tables[].competitie`**: bij een actieve entry met `streamType: "competitie"`
+     en een niveau dat in `mokumCompetitie/toernooien.js` staat
+     `{ niveau, toernooiId, matchId, thuisteam, uitteam, klaarSinds, stopOm }`, anders `null`.
+     Daaruit weet de pagina welke competitie en welke wedstrijd hij moet tonen. `stopOm` =
+     `klaarSinds` + wachttijd (`COMPETITIE_STOP_WACHT_MIN`, nu op één plek:
+     `competitieWachtMs()` in `config/automation.js`); `null` zolang de wedstrijd niet klaar is.
+     checkStops tikt eens per minuut, dus de echte stop valt tussen `stopOm` en een minuut later.
+  4. **De pagina haalt stand en uitslagen zelf uit Cuescore** (`api.cuescore.com/tournament/?id=`,
+     CORS `*`). Geen extra endpoint, geen Azure- of YouTube-kosten. Uitslagen = gespeelde
+     wedstrijden van de afgelopen 31 dagen (besluit Peter 18-09; niet de kalendermaand, want die
+     is aan het begin van de maand bijna leeg).
+  5. Bestaat de bron niet in OBS, dan dropt de agent het commando (`SOURCE_NOT_FOUND`). Uitrollen
+     kan dus al voordat de OBS-bron er staat.
+  6. **Bedankscherm** (wens Peter 18-09): de laatste 45 seconden vóór `stopOm` toont de pagina
+     alleen nog "Thanks for watching" met een bedankje aan de KNBB, CueScore en de
+     teamcaptains die de uitslagen invoeren. Puur de pagina; geen extra endpoint.

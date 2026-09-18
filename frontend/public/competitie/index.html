@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>Competitie — stand en uitslagen</title>
+<meta name="robots" content="noindex">
+<style>
+  /* Competitiescherm (#147): stand + uitslagen van de afgelopen maand, in de laatste
+     minuten van een competitiestream. Zelfde huisstijl als de jumbotron-slide: zaalfoto,
+     donkere kaart, zwart/rood, Arial Black. Vast 1920×1080 zoals alle OBS-bronnen.
+
+     In OBS: browserbron "Competitiestand" per tafelscène, URL /competitie/?tafel=N.
+     checkStops zet die bron aan zodra de teamwedstrijd klaar is (api-contract v0.62).
+
+     Stand en uitslagen komen RECHTSTREEKS uit de Cuescore-API (die staat browsers dat toe);
+     alleen "welke wedstrijd staat op deze tafel" komt uit onze eigen /api/live. Geen
+     extra Azure-kosten en geen YouTube-quota.
+
+     Parameters:
+       ?tafel=15               normaal gebruik: competitie + wedstrijd uit /api/live
+       ?niveau=Eerste Klasse   of   ?toernooi=83574424   handmatig een competitie kiezen
+       ?match=88251085         (handmatig) wedstrijd van vanavond: beide teams uitgelicht
+       ?maand=2026-09          een kalendermaand i.p.v. de afgelopen 31 dagen
+       ?scherm=stand|uitslagen één vast scherm (geen wissel)
+       ?seconden=20            hoe lang elk scherm blijft staan bij wisselen */
+  html, body {
+    margin: 0; padding: 0; width: 1920px; height: 1080px; overflow: hidden;
+    background: #000; color: #fff; font-family: 'Arial Black', Arial, sans-serif;
+  }
+  .bg {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(180deg, rgba(0,0,0,0.70) 0%, rgba(0,0,0,0.55) 40%, rgba(0,0,0,0.80) 100%),
+      url('../pauze/img/jumbotron-bg.jpg'),
+      linear-gradient(160deg, #12161d, #0a0d11);
+    background-size: 100% 100%, 100% 100%, cover;
+  }
+  .card {
+    position: absolute; left: 50%; top: 36px; width: 1500px; margin-left: -750px;
+    height: 1008px; box-sizing: border-box; padding: 34px 56px 26px;
+    background: rgba(8,8,8,0.84); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 22px; box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+    display: flex; flex-direction: column;
+    opacity: 0; transition: opacity 0.6s ease;
+  }
+  .card.zichtbaar { opacity: 1; }
+
+  /* Kop: niveau in rood (zoals de competitie-thumbnail), daaronder wat je ziet. */
+  .kop { display: flex; align-items: flex-end; justify-content: space-between;
+         border-bottom: 4px solid #cc0000; padding-bottom: 18px; margin-bottom: 14px; }
+  .kop .niveau { font-size: 26px; color: #ff3b3b; letter-spacing: 3px; text-transform: uppercase; }
+  .kop h1 { margin: 6px 0 0; font-size: 60px; line-height: 1; letter-spacing: 1px; text-transform: uppercase; }
+  .kop .rechts { text-align: right; font-family: Arial, sans-serif; font-weight: bold;
+                 color: rgba(255,255,255,0.6); font-size: 22px; line-height: 1.4; }
+
+  table { width: 100%; border-collapse: collapse; }
+  td, th { padding: 0 10px; white-space: nowrap; }
+  th { font-family: Arial, sans-serif; font-size: 19px; color: rgba(255,255,255,0.5);
+       font-weight: bold; text-align: center; height: 44px; letter-spacing: 1px; }
+  th.links { text-align: left; }
+  .logo { width: 42px; height: 42px; border-radius: 8px; object-fit: cover; vertical-align: middle;
+          background: rgba(255,255,255,0.08); }
+  .leeg-logo { display: inline-block; width: 42px; height: 42px; border-radius: 8px;
+               background: rgba(255,255,255,0.08); vertical-align: middle; }
+
+  /* Stand */
+  .stand tr.rij td { height: var(--rij, 58px); font-size: var(--letter, 30px); text-align: center;
+                     border-top: 1px solid rgba(255,255,255,0.07); }
+  .stand td.pos { width: 60px; color: rgba(255,255,255,0.55); }
+  .stand tr.rij td.team { text-align: left; }
+  .stand td.team span { margin-left: 16px; vertical-align: middle; }
+  .stand td.pnt { font-size: 34px; color: #fff; width: 110px; }
+  .stand td.klein { font-family: Arial, sans-serif; font-weight: bold; font-size: 28px;
+                    color: rgba(255,255,255,0.75); width: 88px; }
+  .stand tr.mokum td.team span { color: #fff; }
+  .stand tr:not(.mokum) td.team span { color: rgba(255,255,255,0.78); }
+
+  /* Uitlichten: de teams van vanavond — rode balk links + lichte rode gloed. */
+  tr.vanavond td { background: rgba(204,0,0,0.22); }
+  tr.vanavond td:first-child { box-shadow: inset 6px 0 0 #cc0000; }
+
+  /* Uitslagen */
+  .ronde { font-size: 22px; color: #ff3b3b; letter-spacing: 2px; text-transform: uppercase;
+           padding: 12px 0 4px; }
+  .uitslagen td { height: var(--rij, 49px); font-size: var(--letter, 27px); border-top: 1px solid rgba(255,255,255,0.07); }
+  .uitslagen td.datum { font-family: Arial, sans-serif; font-weight: bold; font-size: 21px;
+                        color: rgba(255,255,255,0.55); width: 130px; }
+  .uitslagen td.thuis { text-align: right; width: 520px; }
+  .uitslagen td.uit { text-align: left; width: 520px; }
+  .uitslagen td.thuis .logo, .uitslagen td.thuis .leeg-logo { margin-left: 14px; }
+  .uitslagen td.uit .logo, .uitslagen td.uit .leeg-logo { margin-right: 14px; }
+  .uitslagen td.score { text-align: center; width: 150px; font-size: 32px; }
+  .score .pil { display: inline-block; min-width: 110px; padding: 4px 0; border-radius: 10px;
+                background: rgba(255,255,255,0.10); }
+  .score .pil.nog { background: transparent; color: rgba(255,255,255,0.4);
+                    font-family: Arial, sans-serif; font-weight: bold; font-size: 22px; }
+  .score .pil.live { background: #cc0000; }
+  .winnaar { color: #fff; }
+  .verliezer { color: rgba(255,255,255,0.55); }
+
+  .voet { margin-top: auto; display: flex; justify-content: space-between; align-items: center;
+          font-family: Arial, sans-serif; font-weight: bold; font-size: 20px;
+          color: rgba(255,255,255,0.45); padding-top: 14px; }
+  .stippen span { display: inline-block; width: 12px; height: 12px; border-radius: 50%;
+                  background: rgba(255,255,255,0.25); margin-left: 10px; }
+  .stippen span.aan { background: #cc0000; }
+  .melding { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+             font-size: 36px; color: rgba(255,255,255,0.7); }
+  .melding[hidden] { display: none; }
+
+  /* Bedankscherm (wens Peter 18-09): de laatste seconden vóór de stop. */
+  .bedankt { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .bedankt .niveau { font-size: 26px; color: #ff3b3b; letter-spacing: 3px; text-transform: uppercase; margin-top: 30px; }
+  .bedankt h1 { font-size: 104px; line-height: 1; margin: 14px 0 0; letter-spacing: 2px; text-transform: uppercase; }
+  .bedankt .streep { width: 220px; height: 6px; background: #cc0000; margin: 30px 0 26px; border-radius: 3px; }
+  .bedankt .uitslag { font-size: 40px; display: flex; align-items: center; gap: 22px; }
+  .bedankt .uitslag .logo { width: 56px; height: 56px; }
+  .bedankt .uitslag .pil { background: rgba(255,255,255,0.10); border-radius: 12px; padding: 4px 22px; }
+  .bedankt .dank { margin-top: 56px; font-size: 22px; color: rgba(255,255,255,0.55); letter-spacing: 3px; text-transform: uppercase; }
+  .bedankt .partners { display: flex; gap: 40px; margin-top: 26px; }
+  .bedankt .partner { width: 380px; padding: 28px 24px 26px; box-sizing: border-box;
+                      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.10); border-radius: 16px;
+                      display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .bedankt .partner .beeld { height: 96px; display: flex; align-items: center; justify-content: center; }
+  .bedankt .partner img { max-height: 96px; max-width: 300px; }
+  .bedankt .partner .cs img { width: 260px; }
+  .bedankt .partner .band { width: 96px; height: 96px; border-radius: 50%; background: #cc0000;
+                            display: flex; align-items: center; justify-content: center; font-size: 58px; }
+  .bedankt .partner .naam { font-size: 30px; }
+  .bedankt .partner .wat { font-family: Arial, sans-serif; font-weight: bold; font-size: 21px;
+                           color: rgba(255,255,255,0.65); line-height: 1.35; }
+  .bedankt .volg { margin-top: auto; font-family: Arial, sans-serif; font-weight: bold; font-size: 24px;
+                   color: rgba(255,255,255,0.7); }
+  .bedankt .volg b { color: #fff; }
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="card" id="kaart"></div>
+<div class="melding" id="melding">Competitie laden…</div>
+
+<script>
+// Cuescore-toernooi per niveau, seizoen 2026/2027. Kopie van
+// backend/src/mokumCompetitie/toernooien.js — ELK SEIZOEN BIJWERKEN (daar én hier).
+const TOERNOOI_PER_NIVEAU = {
+  'Eerste Klasse': 83574424,
+  'Tweede Klasse': 83574427,
+  'Derde Klasse': 83574403,
+  'Eredivisie': 83574874,
+  'Eerste Divisie': 83574886,
+  'Derde Divisie Noord-West': 83574898,
+};
+const MOKUM_VENUE_ID = 60451687;
+const TZ = 'Europe/Amsterdam';
+const MAANDEN = ['januari','februari','maart','april','mei','juni','juli','augustus',
+                 'september','oktober','november','december'];
+
+// Zelfde keuze als de jumbotron: lokaal testen tegen de lokale Functions-host, anders productie.
+const APP_API = /^(localhost|127\.0\.0\.1)$/.test(location.hostname)
+  ? 'http://localhost:7071'
+  : 'https://mokum-streams-func.azurewebsites.net';
+
+const q = new URLSearchParams(location.search);
+const tafel = Number(q.get('tafel')) || null;
+const vastScherm = q.get('scherm');                 // 'stand' | 'uitslagen' | 'bedankt' | null
+const seconden = Math.max(8, Number(q.get('seconden')) || 20);
+// Welke competitie en wedstrijd: bij ?tafel= uit /api/live (zie laadTafel), anders uit de URL.
+let niveau = q.get('niveau');
+let toernooiId = Number(q.get('toernooi')) || TOERNOOI_PER_NIVEAU[niveau] || null;
+let matchId = Number(q.get('match')) || null;
+// Wanneer checkStops de stream stopt (uit /api/live). De laatste BEDANKT_MS daarvoor staat
+// alleen nog het bedankscherm in beeld.
+let stopOm = null;
+const BEDANKT_MS = 45000;
+
+// Welke uitslagen: standaard de afgelopen 31 dagen (besluit Peter 18-09 — een kalendermaand
+// is aan het begin van de maand bijna leeg). Met ?maand=2026-09 één kalendermaand.
+const MAAND = (() => {
+  const m = /^(\d{4})-(\d{1,2})$/.exec(q.get('maand') || '');
+  return m ? { jaar: Number(m[1]), maand: Number(m[2]) } : null;
+})();
+const VENSTER_MS = 31 * 24 * 3600 * 1000;
+
+function maandVan(iso) {
+  const d = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit' })
+    .formatToParts(new Date(iso));
+  return { jaar: Number(d.find(p => p.type === 'year').value), maand: Number(d.find(p => p.type === 'month').value) };
+}
+// Hoort deze wedstrijd bij de uitslagen?
+function inUitslagen(m, nuMs) {
+  if (!m.starttime) return false;
+  if (MAAND) { const x = maandVan(m.starttime); return x.jaar === MAAND.jaar && x.maand === MAAND.maand; }
+  // Afgelopen 31 dagen: alleen wat gespeeld is of nu loopt (de wedstrijd van vanavond
+  // staat er dus altijd bij), geen wedstrijden die nog moeten komen.
+  const t = Date.parse(m.starttime);
+  return (m.matchstatus === 'finished' || m.matchstatus === 'playing' || m.matchId === matchId)
+    && t <= nuMs && t >= nuMs - VENSTER_MS;
+}
+function uitslagenTitel() {
+  return MAAND ? `Uitslagen ${MAANDEN[MAAND.maand - 1]}` : 'Uitslagen afgelopen maand';
+}
+function korteDatum(iso) {
+  return new Intl.DateTimeFormat('nl-NL', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short' })
+    .format(new Date(iso)).replace('.', '');
+}
+// Tekst veilig in HTML zetten (teamnamen komen van buiten).
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]); }
+function logo(team) {
+  return team && team.image ? `<img class="logo" src="${esc(team.image)}" alt="">` : '<span class="leeg-logo"></span>';
+}
+function isMokum(team) { return team && team.venueId === MOKUM_VENUE_ID; }
+
+// ---- Opbouw van de twee schermen ------------------------------------------------------
+
+function kop(niveau, titel, rechts) {
+  return `<div class="kop"><div><div class="niveau">${esc(niveau)}</div><h1>${esc(titel)}</h1></div>
+          <div class="rechts">${rechts}</div></div>`;
+}
+
+function schermStand(t, niveau, teamsVanavond) {
+  // standings is een object per groep ({"1": [...]}); een competitie heeft er één.
+  const rijen = Object.values(t.standings || {})[0] || [];
+  const gespeeld = Math.max(0, ...rijen.map(r => r.played || 0));
+  const html = rijen.map(r => {
+    const team = r.player || {};
+    const klassen = ['rij', isMokum(team) ? 'mokum' : '', teamsVanavond.has(team.teamId) ? 'vanavond' : ''].join(' ');
+    const saldo = (r.frameWins || 0) - (r.frameLosses || 0);
+    return `<tr class="${klassen}">
+      <td class="pos">${esc(r.position)}</td>
+      <td class="team">${logo(team)}<span>${esc(team.name)}</span></td>
+      <td class="klein">${r.played || 0}</td>
+      <td class="klein">${r.wins || 0}</td>
+      <td class="klein">${r.ties || 0}</td>
+      <td class="klein">${r.losses || 0}</td>
+      <td class="klein">${r.frameWins || 0}–${r.frameLosses || 0}</td>
+      <td class="klein">${saldo > 0 ? '+' : ''}${saldo}</td>
+      <td class="pnt">${r.points || 0}</td>
+    </tr>`;
+  }).join('');
+  const rij = Math.min(58, Math.floor(700 / Math.max(1, rijen.length)));
+  const stijl = `--rij:${rij}px;--letter:${Math.min(30, Math.round(rij * 0.52))}px`;
+  return kop(niveau, 'Stand', `Seizoen 2026/2027<br>na ${gespeeld} ${gespeeld === 1 ? 'wedstrijd' : 'wedstrijden'}`) +
+    `<table class="stand" style="${stijl}"><thead><tr>
+       <th></th><th class="links">TEAM</th><th>GS</th><th>W</th><th>G</th><th>V</th>
+       <th>PARTIJEN</th><th>+/−</th><th>PNT</th>
+     </tr></thead><tbody>${html}</tbody></table>`;
+}
+
+// Eén uitslagregel.
+function uitslagRij(m) {
+  const a = m.playerA || {}, b = m.playerB || {};
+  const klaar = m.matchstatus === 'finished';
+  const bezig = m.matchstatus === 'playing';
+  let score, kA = '', kB = '';
+  if (klaar || bezig) {
+    score = `<span class="pil ${bezig ? 'live' : ''}">${m.scoreA} – ${m.scoreB}</span>`;
+    if (klaar && m.scoreA !== m.scoreB) {
+      kA = m.scoreA > m.scoreB ? 'winnaar' : 'verliezer';
+      kB = m.scoreB > m.scoreA ? 'winnaar' : 'verliezer';
+    }
+  } else {
+    score = '<span class="pil nog">nog te spelen</span>';
+  }
+  return `<tr class="${m.matchId === matchId ? 'vanavond' : ''}">
+    <td class="datum">${esc(korteDatum(m.starttime))}</td>
+    <td class="thuis ${kA}">${esc(a.name)}${logo(a)}</td>
+    <td class="score">${score}</td>
+    <td class="uit ${kB}">${logo(b)}${esc(b.name)}</td>
+  </tr>`;
+}
+
+// Uitslagen als één of meer schermen. In 31 dagen kunnen 3-4 rondes vallen (in de Derde
+// Klasse 8 wedstrijden per ronde), dat past niet op één scherm. Daarom per ronde verdelen:
+// een ronde wordt nooit over twee schermen geknipt.
+const MAX_REGELS = 16;   // wedstrijden + ronde-koppen per scherm
+function schermenUitslagen(t, niveauNaam) {
+  const nuMs = Date.now();
+  const wedstrijden = (t.matches || [])
+    .filter(m => inUitslagen(m, nuMs))
+    .sort((a, b) => (a.round - b.round) || (new Date(a.starttime) - new Date(b.starttime)));
+  const gespeeld = wedstrijden.filter(m => m.matchstatus === 'finished').length;
+
+  const rondes = [];
+  for (const m of wedstrijden) {
+    const laatste = rondes[rondes.length - 1];
+    if (laatste && laatste.naam === m.roundName) laatste.lijst.push(m);
+    else rondes.push({ naam: m.roundName, lijst: [m] });
+  }
+  const paginas = [];
+  for (const r of rondes) {
+    const huidige = paginas[paginas.length - 1];
+    const regels = r.lijst.length + 1;
+    if (huidige && huidige.regels + regels <= MAX_REGELS) { huidige.rondes.push(r); huidige.regels += regels; }
+    else paginas.push({ rondes: [r], regels });
+  }
+  if (paginas.length === 0) paginas.push({ rondes: [], regels: 1 });
+
+  const rechts = MAAND ? `Seizoen 2026/2027<br>${gespeeld} van ${wedstrijden.length} gespeeld`
+                       : `Seizoen 2026/2027<br>${gespeeld} ${gespeeld === 1 ? 'wedstrijd' : 'wedstrijden'} gespeeld`;
+  return paginas.map((p, i) => () => {
+    const rij = Math.min(49, Math.floor(680 / Math.max(1, p.regels)));
+    const stijl = `--rij:${rij}px;--letter:${Math.min(27, Math.round(rij * 0.56))}px`;
+    let html = p.rondes.map(r =>
+      `<tr><td colspan="4" class="ronde">${esc(r.naam)}</td></tr>` + r.lijst.map(uitslagRij).join('')).join('');
+    if (!html) html = '<tr><td class="ronde">Nog geen uitslagen</td></tr>';
+    const deel = paginas.length > 1 ? ` (${i + 1}/${paginas.length})` : '';
+    return kop(niveauNaam, uitslagenTitel() + deel, rechts) +
+      `<table class="uitslagen" style="${stijl}"><tbody>${html}</tbody></table>`;
+  });
+}
+
+// Bedankscherm (wens Peter 18-09): vlak voor de stop een bedankje aan wie deze uitzending
+// mogelijk maakt — de KNBB (organiseert de competitie), CueScore (houdt uitslagen en standen
+// bij) en de teamcaptains (voeren elke uitslag in). Met de eindstand van vanavond erbij.
+function schermBedankt(niveauNaam, vanavond) {
+  const a = vanavond && vanavond.playerA, b = vanavond && vanavond.playerB;
+  const uitslag = vanavond
+    ? `<div class="uitslag">${esc(a.name)} ${logo(a)}<span class="pil">${vanavond.scoreA} – ${vanavond.scoreB}</span>${logo(b)} ${esc(b.name)}</div>`
+    : '';
+  return `<div class="bedankt">
+    <div class="niveau">${esc(niveauNaam)}</div>
+    <h1>Thanks for watching</h1>
+    <div class="streep"></div>
+    ${uitslag}
+    <div class="dank">Deze uitzending is mogelijk dankzij</div>
+    <div class="partners">
+      <div class="partner"><div class="beeld"><img src="knbb-logo.png" alt=""></div>
+        <div class="naam">KNBB</div><div class="wat">De Koninklijke Nederlandse Biljartbond, die de competitie organiseert</div></div>
+      <div class="partner"><div class="beeld cs"><img src="https://cuescore.com/img/cuescore-logo-white.svg" alt=""></div>
+        <div class="naam">CueScore</div><div class="wat">Voor het live bijhouden van alle uitslagen en standen</div></div>
+      <div class="partner"><div class="beeld"><div class="band">C</div></div>
+        <div class="naam">De teamcaptains</div><div class="wat">Die na elke partij de uitslag invoeren</div></div>
+    </div>
+    <div class="volg">Tot de volgende keer! &nbsp;·&nbsp; YouTube <b>@MokumPoolDarts</b></div>
+  </div>`;
+}
+
+// ---- Laden en wisselen ----------------------------------------------------------------
+
+const kaart = document.getElementById('kaart');
+const melding = document.getElementById('melding');
+let schermen = [];
+let huidig = 0;
+let bedankt = null;          // het bedankscherm (functie), gezet door laad()
+let bedanktActief = false;   // vanaf BEDANKT_MS vóór stopOm: niets anders meer tonen
+
+// ?tafel=N: welke competitiewedstrijd loopt er op deze tafel? Uit /api/live (v0.62).
+// Geeft false als er op die tafel geen competitiestream loopt.
+async function laadTafel() {
+  const r = await fetch(`${APP_API}/api/live`, { cache: 'no-store' });
+  if (!r.ok) throw new Error(`/api/live gaf ${r.status}`);
+  const live = await r.json();
+  const t = (live.tables || []).find(x => Number(x.tableNumber) === tafel);
+  const c = t && t.competitie;
+  if (!c || !c.toernooiId) return false;
+  niveau = c.niveau;
+  toernooiId = c.toernooiId;
+  matchId = c.matchId || null;
+  stopOm = c.stopOm || null;
+  return true;
+}
+
+async function laad() {
+  if (tafel && !(await laadTafel())) {
+    schermen = [];
+    return;
+  }
+  const r = await fetch(`https://api.cuescore.com/tournament/?lang=nl&id=${toernooiId}`, { cache: 'no-store' });
+  if (!r.ok) throw new Error(`Cuescore gaf ${r.status}`);
+  const t = await r.json();
+  const niveauNaam = niveau || Object.keys(TOERNOOI_PER_NIVEAU).find(n => TOERNOOI_PER_NIVEAU[n] === toernooiId) || t.name;
+  const vanavond = (t.matches || []).find(m => m.matchId === matchId);
+  const teamsVanavond = new Set(vanavond ? [vanavond.playerA?.teamId, vanavond.playerB?.teamId] : []);
+  const stand = [() => schermStand(t, niveauNaam, teamsVanavond)];
+  const uitslagen = schermenUitslagen(t, niveauNaam);
+  bedankt = () => schermBedankt(niveauNaam, vanavond);
+  if (bedanktActief || vastScherm === 'bedankt') schermen = [bedankt];
+  else schermen = vastScherm === 'stand' ? stand : vastScherm === 'uitslagen' ? uitslagen : [...stand, ...uitslagen];
+  huidig = huidig % schermen.length;
+}
+
+function toon() {
+  if (!schermen.length) {
+    // Alleen te zien als iemand de bron met de hand aanzet op een tafel zonder competitie.
+    kaart.classList.remove('zichtbaar');
+    melding.textContent = `Geen competitiewedstrijd op tafel ${tafel}`;
+    melding.hidden = false;
+    return;
+  }
+  melding.hidden = true;
+  const n = schermen.length;
+  const stippen = n > 1 ? `<div class="stippen">${schermen.map((_, i) => `<span class="${i === huidig ? 'aan' : ''}"></span>`).join('')}</div>` : '<div></div>';
+  kaart.classList.remove('zichtbaar');
+  setTimeout(() => {
+    kaart.innerHTML = schermen[huidig]() +
+      `<div class="voet"><div>MOKUM POOL &amp; DARTS · bron: cuescore.com</div>${stippen}</div>`;
+    kaart.classList.add('zichtbaar');
+  }, n > 1 || bedanktActief ? 600 : 0);
+}
+
+// Tijd voor het bedankscherm? Eén keer omschakelen en daarna blijft het staan tot de stop.
+function checkBedankt() {
+  if (bedanktActief || !bedankt || !stopOm) return;
+  if (Date.now() < Date.parse(stopOm) - BEDANKT_MS) return;
+  bedanktActief = true;
+  schermen = [bedankt];
+  huidig = 0;
+  toon();
+}
+
+async function start() {
+  if (!tafel && !toernooiId) { melding.textContent = 'Geef ?tafel=, ?niveau= of ?toernooi= mee'; return; }
+  try {
+    await laad();
+    toon();
+  } catch (e) {
+    melding.textContent = 'Kan de competitie niet laden (' + e.message + ')';
+    return;
+  }
+  checkBedankt();
+  // Wisselen tussen de schermen; data elke 2 minuten verversen (een lopende stand kan
+  // tijdens de laatste minuten nog veranderen). Mislukt verversen: oude data blijven tonen.
+  setInterval(() => { if (schermen.length > 1) { huidig = (huidig + 1) % schermen.length; toon(); } }, seconden * 1000);
+  setInterval(async () => { try { await laad(); if (schermen.length <= 1) toon(); } catch (e) { /* oude data houden */ } }, 120000);
+  setInterval(checkBedankt, 1000);
+}
+start();
+</script>
+</body>
+</html>

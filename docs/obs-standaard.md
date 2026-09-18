@@ -49,6 +49,20 @@ met Nick.
 > wordt" **uit** (voorkomt herhalen bij een scènewissel). Preview/plaatsing checken kan met
 > `?demo` i.p.v. `?table=<N>` (speelt in een lus af).
 >
+> **Update (2026-09-18): competitiescherm (#147).** Nieuwe browserbron **`Competitiestand`**
+> (precies deze naam, de backend zet hem op naam aan). Nodig in de scènes van alle 4 de
+> tafels. Toont stand + uitslagen van de afgelopen maand, en de laatste 45 seconden vóór de
+> stop een bedankscherm. `checkStops` zet hem vanzelf aan zodra een teamwedstrijd klaar is;
+> elke nieuwe start zet hem weer uit.
+> - URL **per tafel**: `https://mokum-streams.pdscloud.nl/competitie/?tafel=<N>` (`1|3|15|16`)
+> - Breedte **1920** × hoogte **1080**, positie 0,0, **helemaal bovenaan** in de Sources-lijst
+>   (dekt het hele beeld)
+> - ✅ **"Bron uitschakelen wanneer niet zichtbaar"** AAN: dan laadt hij vers bij het aanzetten
+>   en vraagt hij niets op zolang hij verborgen is
+> - Oogje **uit** laten (verborgen) na het toevoegen
+> - Testen kan met de dashboardschakelaar "Competitiestand" op een lopende stream, of in een
+>   browser met `?niveau=Eerste Klasse` (handmatig) / `?scherm=bedankt`.
+>
 > ⚠️ De sponsorafbeeldingen staan in **`C:\Mokum-Sponsors`** (machine-pad), niet in
 > een gebruikersprofiel. Dat is bewust: sinds 16-07 draait OBS onder het account
 > `MokumStream` (zie `docs/obs-pc-autostart.md`) en een pad in Nick's profiel zou
