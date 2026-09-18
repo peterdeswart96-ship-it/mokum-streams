@@ -116,18 +116,22 @@
              text-align: center; }
   .bedankt .niveau { font-size: 28px; color: #ff3b3b; letter-spacing: 3px; text-transform: uppercase; }
   .bedankt h1 { font-size: 110px; line-height: 1; margin: 14px 0 0; letter-spacing: 2px; text-transform: uppercase; }
-  .bedankt .streep { width: 220px; height: 6px; background: #cc0000; margin: 34px 0 34px; border-radius: 3px; }
-  /* Eindstand: de score precies in het midden, links het thuisteam (naam + logo, rechts
-     uitgelijnd tegen de score), rechts het uitteam (logo + naam). Twee gelijke kolommen,
-     dus de score staat altijd in het midden, hoe lang de teamnamen ook zijn. */
-  .bedankt .uitslag { width: 100%; display: grid; grid-template-columns: 1fr auto 1fr;
-                      align-items: center; gap: 48px; font-size: 44px; }
-  .bedankt .uitslag .team { display: flex; align-items: center; gap: 24px; white-space: nowrap;
-                            min-width: 0; overflow: hidden; }
-  .bedankt .uitslag .team.thuis { justify-content: flex-end; }
-  .bedankt .uitslag .team.uit { justify-content: flex-start; }
-  .bedankt .uitslag .logo, .bedankt .uitslag .leeg-logo { width: 64px; height: 64px; flex: none; }
-  .bedankt .uitslag .pil { background: rgba(255,255,255,0.10); border-radius: 14px; padding: 6px 30px; font-size: 52px; }
+  /* Eindstand (Peter 18-09): score groot in het midden, links en rechts een even groot kader
+     met logo + teamnaam, gespiegeld (logo's aan de kant van de score) zodat het geheel
+     symmetrisch is. Een lange naam mag over twee regels; past dat nog niet, dan krimpt de
+     letter (pasTeamnamenAan). */
+  .bedankt .uitslag { width: 100%; margin-top: 44px; display: grid; grid-template-columns: 1fr auto 1fr;
+                      align-items: center; gap: 36px; }
+  .bedankt .uitslag .team { height: 150px; box-sizing: border-box; padding: 0 28px;
+                            display: flex; align-items: center; gap: 24px; min-width: 0;
+                            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.10);
+                            border-radius: 16px; }
+  .bedankt .uitslag .team.thuis { flex-direction: row-reverse; text-align: right; }
+  .bedankt .uitslag .team.uit { text-align: left; }
+  .bedankt .uitslag .teamnaam { flex: 1; min-width: 0; font-size: 42px; line-height: 1.15; }
+  .bedankt .uitslag .logo, .bedankt .uitslag .leeg-logo { width: 84px; height: 84px; flex: none; }
+  .bedankt .uitslag .pil { background: rgba(255,255,255,0.10); border-radius: 20px; padding: 8px 40px;
+                           font-size: 104px; line-height: 1.1; white-space: nowrap; }
   .bedankt .dank { margin-top: 70px; font-size: 22px; color: rgba(255,255,255,0.55); letter-spacing: 3px; text-transform: uppercase; }
   .bedankt .partners { display: flex; gap: 40px; margin-top: 28px; }
   .bedankt .partner { width: 400px; min-height: 230px; padding: 32px 24px; box-sizing: border-box;
@@ -329,15 +333,14 @@ function schermBedankt(niveauNaam, vanavond) {
   const a = vanavond && vanavond.playerA, b = vanavond && vanavond.playerB;
   const uitslag = vanavond
     ? `<div class="uitslag">
-        <div class="team thuis">${esc(a.name)}${logo(a)}</div>
+        <div class="team thuis">${logo(a)}<div class="teamnaam">${esc(a.name)}</div></div>
         <span class="pil">${vanavond.scoreA} – ${vanavond.scoreB}</span>
-        <div class="team uit">${logo(b)}${esc(b.name)}</div>
+        <div class="team uit">${logo(b)}<div class="teamnaam">${esc(b.name)}</div></div>
       </div>`
     : '';
   return `<div class="bedankt">
     <div class="niveau">${esc(niveauNaam)}</div>
     <h1>Thanks for watching!</h1>
-    <div class="streep"></div>
     ${uitslag}
     <div class="dank">Deze uitzending is mogelijk dankzij</div>
     <div class="partners">
@@ -441,14 +444,18 @@ function toon(sleutel, vervagen = true) {
   }, vervagen ? 600 : 0);
 }
 
-// Een lange teamnaam op het bedankscherm (bijv. "Mokum's Running English") past niet altijd
-// op één regel naast het logo: dan de letter stapje voor stapje kleiner tot hij past.
+// Teamnamen op het bedankscherm mogen over twee regels. Past een naam ook dan niet in zijn
+// kader, dan de letter stapje voor stapje kleiner — voor BEIDE namen tegelijk, zodat de
+// twee kaders symmetrisch blijven.
 function pasTeamnamenAan() {
-  for (const el of kaart.querySelectorAll('.bedankt .uitslag .team')) {
-    let px = 44;
-    el.style.fontSize = px + 'px';
-    while (el.scrollWidth > el.clientWidth && px > 24) { px -= 2; el.style.fontSize = px + 'px'; }
-  }
+  const namen = [...kaart.querySelectorAll('.bedankt .uitslag .teamnaam')];
+  // Niet passen = meer dan twee regels, of één woord dat breder is dan het kader. (Niet op
+  // scrollHeight meten: Arial Black steekt boven de regelhoogte uit, dan "past" nooit iets.)
+  const pastNiet = (el) => el.offsetHeight > px * 1.15 * 2 + 4 || el.scrollWidth > el.clientWidth + 4;
+  let px = 42;
+  const zet = () => namen.forEach((el) => { el.style.fontSize = px + 'px'; });
+  zet();
+  while (namen.some(pastNiet) && px > 22) { px -= 2; zet(); }
 }
 
 async function start() {
