@@ -104,11 +104,10 @@ groen (de frontend heeft geen `lint`-script).
   tests/lint). De derde moet nog: één start in de zaal waarbij `agent.log` geen
   `[DROP] … 'Pauzemelding'` meer toont en het pauzescherm nog gewoon schakelt. Zet het bewijs in
   de afsluitende comment en sluit 'm dan.
-- **De agent op de OBS-pc is nog niet bijgewerkt.** Nodig voor de `cuescoreLogo`-opruiming (niet
-  voor de `[DROP]` — die is al weg via de backend). Zie
-  `reference_agent_uitrollen_obs_pc` / de vorige overdracht:
-  `git -C C:\mokum-streams pull origin main` + de taak `MokumAgent` herstarten. `npm ci` niet
-  nodig, er zijn geen packages bijgekomen.
+- ~~De agent op de OBS-pc is nog niet bijgewerkt.~~ **Gedaan op 21-09 ~11:09.** De pc stond op
+  `b728156` en is doorgetrokken naar `3e072e5` — daarmee kwamen ook de jackpot-thumbnail-commits
+  van eerder die dag mee, die daar nog niet stonden. Taak `MokumAgent` herstart; `/api/live` geeft
+  `agent.online: true` (laatst gezien 20 s eerder), dus de agent draait op de nieuwe code.
 - **Nog geen issue voor: de rotatie-tak in de agent is dood.** `config.rotations` haalt
   `normalizeConfig()` net zomin als `overlaySources`, dus `rotations.length` is altijd 0 en de
   hele `[ROTATIE]`-tak in `agent/src/agent.js` (rond regel 168) draait nooit. Dat is code
