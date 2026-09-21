@@ -25,21 +25,21 @@ test('isArmed: UIT bij andere waarden (yes/1/leeg)', () => {
   delete process.env.AUTOMATION_ARMED;
 });
 
-test('pauzeSchermKeys: standaard alléén pauzemelding (geen jumbotron; zie #54)', () => {
+test('pauzeSchermKeys: standaard alléén jumbotron (#151)', () => {
   delete process.env.PAUZESCHERM_KEYS;
-  assert.deepStrictEqual(pauzeSchermKeys(), ['pauzemelding']);
+  assert.deepStrictEqual(pauzeSchermKeys(), ['jumbotron']);
 });
 
 test('pauzeSchermKeys: komma-lijst wordt geparsed en getrimd', () => {
-  process.env.PAUZESCHERM_KEYS = 'jumbotron, pauzemelding';
-  assert.deepStrictEqual(pauzeSchermKeys(), ['jumbotron', 'pauzemelding']);
+  process.env.PAUZESCHERM_KEYS = 'jumbotron, competitie';
+  assert.deepStrictEqual(pauzeSchermKeys(), ['jumbotron', 'competitie']);
   delete process.env.PAUZESCHERM_KEYS;
 });
 
 test('pauzeSchermKeys: leeg/whitespace valt terug op de standaard', () => {
   for (const v of ['', '   ', ',', ' , ']) {
     process.env.PAUZESCHERM_KEYS = v;
-    assert.deepStrictEqual(pauzeSchermKeys(), ['pauzemelding'], `verwacht default bij "${v}"`);
+    assert.deepStrictEqual(pauzeSchermKeys(), ['jumbotron'], `verwacht default bij "${v}"`);
   }
   delete process.env.PAUZESCHERM_KEYS;
 });

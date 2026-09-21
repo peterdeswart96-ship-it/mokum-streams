@@ -5,27 +5,27 @@ const GELDIGE_TYPES = new Set(['startStream', 'stopStream', 'setOverlay', 'refre
 
 // Standaard OBS-bronnamen voor de schakelbare overlays (zie docs/obs-standaard.md +
 // api-contract v0.9/v0.11). Content-overlays staan standaard aan; break-overlays
-// (Jumbotron/Pauzemelding, zie OVERLAY_DEFAULT_OFF) standaard uit. Per broadcast/live
+// (Jumbotron, zie OVERLAY_DEFAULT_OFF) standaard uit. Per broadcast/live
 // te toggelen vanuit het dashboard. 'Camera Tafel N' staat altijd aan (geen schakelaar).
 const OVERLAY_BRON = {
   sponsors: 'Sponsor slideshow',
   scoreboard: 'Scoreboard',
   jumbotron: 'Jumbotron',
-  pauzemelding: 'Pauzemelding',
   // Competitiescherm (#147): stand + uitslagen van de afgelopen maand, in de laatste
   // minuten van een competitiestream. checkStops zet 'm aan; zie competitieSchermCommando.
   competitie: 'Competitiestand',
 };
 // NB: 'scoresOtherTables' ('Scores other tables') én 'cuescoreLogo' ('Cuescore logo') zijn
-// per 2026-07-13 verwijderd — de officiële Cuescore-scoreboard-overlay dekt beide. Terug te
+// per 2026-07-13 verwijderd, 'pauzemelding' ('Pauzemelding') per 2026-09-21 (#151: de bron bestond
+// in geen enkele OBS-instantie meer; de pauze-slides zitten nu in de Jumbotron-bron) — de officiële Cuescore-scoreboard-overlay dekt beide. Terug te
 // zetten door de sleutel hier + in agent DEFAULT_OVERLAY_SOURCES + frontend OVERLAYS weer toe
 // te voegen én de OBS-bron.
 
 // Break-overlays staan standaard UIT: ze horen alleen tijdens een pauze in beeld
-// (Jumbotron = alle scores, Pauzemelding = "we wachten op de volgende wedstrijd").
+// (de Jumbotron toont de pauze-slides: alle tafels live + "we wachten op de volgende wedstrijd").
 // Het competitiescherm hoort daar ook bij: het gaat alleen aan als de teamwedstrijd klaar is,
 // en elke nieuwe start zet het dus weer uit.
-const OVERLAY_DEFAULT_OFF = new Set(['jumbotron', 'pauzemelding', 'competitie']);
+const OVERLAY_DEFAULT_OFF = new Set(['jumbotron', 'competitie']);
 
 // Bouwt de commando's om een tafel te starten: OBS laten zenden + elke overlay op de
 // gewenste stand zetten. Standaard aan, behalve break-overlays (OVERLAY_DEFAULT_OFF);

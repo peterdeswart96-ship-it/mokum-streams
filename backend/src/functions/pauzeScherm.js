@@ -8,7 +8,7 @@ const { isPauzeAutoOn, pauzeSchermKeys, pauzeSchermUitKeys, pauzeSchermRefreshKe
 
 // Timer-Function: automatisch pauzescherm (A auto-trigger, zie docs/pauzescherm-auto.md).
 // Per streamende tafel checkt 'ie via Cuescore of er een wedstrijd loopt; zo niet
-// (na debounce) → Jumbotron + Pauzemelding aan; zodra er weer gespeeld wordt → uit.
+// (na debounce) → pauzescherm aan (de Jumbotron-slides); zodra er weer gespeeld wordt → uit.
 // Draait alleen als PAUZESCHERM_AUTO=true én de agent de tafel als 'streaming' meldt.
 
 // Elke minuut op seconde 40 (was elke 30 seconden, #101). Deze timer was met twee tikken

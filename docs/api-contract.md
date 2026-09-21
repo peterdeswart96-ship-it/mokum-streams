@@ -3,7 +3,7 @@
 Enige waarheid voor de koppelvlakken tussen frontend/widget, backend en (later) de
 agent. Wijzigen? Eerst dit bestand bijwerken (met datum + reden onderaan), dan code.
 
-Status: CONCEPT v0.63 — velden worden definitief in fase 2.
+Status: CONCEPT v0.64 — velden worden definitief in fase 2.
 
 ## Conventies
 - Alle velden camelCase. Tijden in ISO 8601 met tijdzone (Europe/Amsterdam
@@ -80,12 +80,12 @@ POST /api/manage/planning/{id}       -> instellingen van één toernooi wijzigen
 POST /api/manage/planning-refresh    -> draait de Cuescore-import nu meteen (i.p.v. wachten op de uurlijkse timer) en werkt planning.json bij; antwoord: { imported, total, items } waarbij items = dezelfde vorm als GET /api/schedule. NB: route bewust NIET `manage/planning/refresh` — dat botst met `manage/planning/{id}`
 GET  /api/manage/defaults            -> standaard-instellingen (één set, zie hieronder)
 POST /api/manage/defaults            -> standaard-instellingen wijzigen
-POST /api/manage/streams/start       -> body: { "tableNumber": 15, "title"?: "...", "privacy"?: "public|unlisted|private", "overlays"?: { "sponsors": true, "scoreboard": true, "jumbotron": false, "pauzemelding": false }, "tournamentId"?: 83049058, "streamType"?: "challenge|competitie", "spelerA"?: "...", "spelerB"?: "...", "matchId"?: 88259371, "niveau"?: "Eerste Klasse", "thuisteam"?: "...", "uitteam"?: "..." } (vrije camera; enqueuet startStream + setOverlay per overlay. Mét tournamentId = beheerd, zonder = ad-hoc)
+POST /api/manage/streams/start       -> body: { "tableNumber": 15, "title"?: "...", "privacy"?: "public|unlisted|private", "overlays"?: { "sponsors": true, "scoreboard": true, "jumbotron": false }, "tournamentId"?: 83049058, "streamType"?: "challenge|competitie", "spelerA"?: "...", "spelerB"?: "...", "matchId"?: 88259371, "niveau"?: "Eerste Klasse", "thuisteam"?: "...", "uitteam"?: "..." } (vrije camera; enqueuet startStream + setOverlay per overlay. Mét tournamentId = beheerd, zonder = ad-hoc)
 GET  /api/manage/competitie/wedstrijden -> aankomende teamwedstrijden die BIJ MOKUM gespeeld worden (bron: mokum-competitie-API), voor de competitie-wizard; vorm zie v0.58 in de wijzigingslog
 POST /api/manage/streams/stop        -> body: { "tableNumber": 15 }
-POST /api/manage/streams/overlay     -> body: { "tableNumber": 15, "sponsors"?: bool, "scoreboard"?: bool, "jumbotron"?: bool, "pauzemelding"?: bool, "competitie"?: bool } (overlay(s) live aan/uit op een lopende stream; enqueuet setOverlay per opgegeven sleutel)
+POST /api/manage/streams/overlay     -> body: { "tableNumber": 15, "sponsors"?: bool, "scoreboard"?: bool, "jumbotron"?: bool, "competitie"?: bool } (overlay(s) live aan/uit op een lopende stream; enqueuet setOverlay per opgegeven sleutel)
    NB: content-overlays (sponsors/scoreboard) staan standaard AAN;
-   break-overlays (jumbotron/pauzemelding) staan standaard UIT (alleen tijdens pauzes tonen).
+   break-overlays (jumbotron) staan standaard UIT (alleen tijdens pauzes tonen).
    Ook `competitie` (OBS-bron `Competitiestand`, v0.62) staat standaard UIT.
 POST /api/manage/setup/streams       -> eenmalig: herbruikbare liveStream per tafel (idempotent) → schrijft config/tables.json; body (optioneel) { "cameras": [1,3,15,16] }
 GET  /api/manage/stats               -> opgetelde bezoek-/QR-teller: { "totaal", "perBron": {..}, "perPagina": {..}, "perDag": { "YYYY-MM-DD": { "totaal", "perBron": {..} } } } (voedt later het centrale mokum-bot-dashboard, #18 fase 4)
@@ -199,8 +199,8 @@ Antwoord:
 - `setOverlay` zet een OBS-bron (overlay/scoreboard) aan of uit (`enabled`).
 - **Overlay-switch → OBS-bronnaam** (zie `docs/obs-standaard.md`), schakelbare overlays:
   `overlays.sponsors` → **`Sponsor slideshow`**; `overlays.scoreboard` → **`Scoreboard`**
-  (officiële Cuescore-overlay: toernooikop + eigen scorebord); plus break-overlays
-  `overlays.jumbotron`/`overlays.pauzemelding`.
+  (officiële Cuescore-overlay: toernooikop + eigen scorebord); plus de break-overlays
+  `overlays.jumbotron` en `overlays.competitie`.
   Per broadcast/live schakelbaar (dashboard). `Camera Tafel N` staat altijd aan (geen
   schakelaar). Per tafel te overrijden via `config/tables.json` (`overlaySources`).
 - De agent bevestigt verwerkte commando's via de status-post (`verwerkteCommandoIds`),
@@ -981,3 +981,32 @@ Regels:
     tafel dus als live zonder titel — precies het signaal "hier loopt iets wat niet hoort".
   - Reden dat dit veilig is: `POST /api/manage/streams/stop` werkte al ongeacht de store-stand; het
     ontbrak alleen aan een knop. De oorzaak dát de stop niet aankwam is een agent-bug (#149).
+
+- 2026-09-21: v0.64 — **overlay `pauzemelding` verwijderd** (#151, besluit Peter 21-09). De OBS-bron
+  `Pauzemelding` bestaat in geen enkele van de vier instanties meer: de pauze-slides zitten sinds de
+  jumbotron-verbouwing in de bron `Jumbotron` (`/pauze/slides/02-jumbotron.html?tafel=N`). Omdat
+  `startCommandsFor` bij élke start een expliciete stand stuurt voor iedere sleutel uit `OVERLAY_BRON`,
+  liep er bij elke streamstart een `[DROP] setOverlay tafel N: bron 'Pauzemelding' niet gevonden`
+  (permanente fout, dus onschuldig — maar wel ruis, en het verborg de echte valkuil hieronder).
+  - De sleutel `pauzemelding` is weg uit `OVERLAY_BRON` en `OVERLAY_DEFAULT_OFF`
+    (`backend/src/agent/commandQueue.js`) en uit `DEFAULT_OVERLAY_SOURCES` (`agent/src/agent.js`).
+    De `overlays`-map op `POST /api/manage/streams/start`, de body van
+    `POST /api/manage/streams/overlay` en de `overlays`-stand in `GET /api/live` kennen de sleutel
+    dus niet meer; een meegestuurde `pauzemelding` wordt genegeerd i.p.v. gehonoreerd.
+  - **`pauzeSchermKeys()`** (`backend/src/config/automation.js`) geeft zonder app-setting nu
+    `['jumbotron']` terug i.p.v. `['pauzemelding']`. Dat was de echte valkuil: in productie staat
+    `PAUZESCHERM_KEYS=jumbotron`, dus het pauzescherm werkte — maar wie die app-setting weghaalt,
+    viel terug op een bron die niet bestaat, zonder zichtbare fout. Code en productie zeggen nu
+    hetzelfde.
+  - Het dashboard had de knop al niet meer (#75). Ongewijzigd: de overige overlays, het uitlezen van
+    de werkelijke overlay-standen voor het dashboard, en het expliciet zetten van elke bekende
+    overlay bij een start.
+  - Terug te zetten (zoals bij v0.18): OBS-bron aanmaken + sleutel weer toevoegen in `OVERLAY_BRON`,
+    `OVERLAY_DEFAULT_OFF`, agent `DEFAULT_OVERLAY_SOURCES` en frontend `OVERLAYS`.
+  - Meegenomen: `cuescoreLogo` stond nog in de agent-`DEFAULT_OVERLAY_SOURCES` terwijl de OBS-bron
+    `Cuescore logo` per v0.18 (13-07) al was verwijderd — dezelfde dode verwijzing, nu ook weg.
+    Dat gaf geen `[DROP]` (de backend stuurde er geen setOverlay meer voor), alleen twee nutteloze
+    OBS-calls per tafel per statusronde.
+  - Vastgelegd bij het uitzoeken: de `config.overlaySources`-override in `agent-config.json` doet
+    niets — `normalizeConfig()` geeft dat veld (net als `rotations`) niet door. De bronnamen in de
+    agent komen dus altijd uit `DEFAULT_OVERLAY_SOURCES`. Geen actie nodig op de OBS-pc.

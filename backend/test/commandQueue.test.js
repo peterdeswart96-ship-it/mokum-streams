@@ -35,7 +35,6 @@ test('startCommandsFor levert startStream + alle overlays op de gewenste stand',
     { type: 'setOverlay', tableNumber: 3, sourceName: 'Sponsor slideshow', enabled: true },
     { type: 'setOverlay', tableNumber: 3, sourceName: 'Scoreboard', enabled: false },
     { type: 'setOverlay', tableNumber: 3, sourceName: 'Jumbotron', enabled: true }, // expliciet aan
-    { type: 'setOverlay', tableNumber: 3, sourceName: 'Pauzemelding', enabled: false }, // break-overlay: standaard uit
     { type: 'setOverlay', tableNumber: 3, sourceName: 'Competitiestand', enabled: false }, // #147: standaard uit
     { type: 'refreshSource', tableNumber: 3, sourceName: 'Jumbotron' },
   ]);
@@ -67,11 +66,10 @@ test('startCommandsFor: opts.preflight → startStream krijgt preflight:true (au
 test('startCommandsFor: content-overlays standaard aan, break-overlays standaard uit', () => {
   const cmds = startCommandsFor({}, 1);
   const byBron = Object.fromEntries(cmds.filter((c) => c.type === 'setOverlay').map((c) => [c.sourceName, c.enabled]));
-  assert.strictEqual(cmds.length, 7); // startStream + 5 overlays + scorebord-refresh (scoreboard staat aan)
+  assert.strictEqual(cmds.length, 6); // startStream + 4 overlays + scorebord-refresh (scoreboard staat aan)
   assert.strictEqual(byBron['Sponsor slideshow'], true);
   assert.strictEqual(byBron['Scoreboard'], true);
   assert.strictEqual(byBron['Jumbotron'], false);      // break-overlay
-  assert.strictEqual(byBron['Pauzemelding'], false);   // break-overlay
   assert.strictEqual(byBron['Competitiestand'], false); // #147: alleen aan als de teamwedstrijd klaar is
 });
 

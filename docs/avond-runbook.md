@@ -46,7 +46,7 @@ in overleg met Nick. Bijgewerkt **2026-07-11 (avond)**.
 - [ ] **Hernoem** `Scoreboard Cuescore` → **`Scoreboard`** en **verwijder** de oude pixelgrid-`Scoreboard`.
       *(Anders schakelt de dashboardknop "Scorebord" de verkeerde bron — zie obs-standaard.)*
 - [ ] Voeg bron **`Jumbotron`** toe: *Browser*, `https://cuescore.com/venue/table/jumbotron/?venueId=60451687&branchId=1`, 1920×1080, **verborgen**, bovenaan.
-- [ ] Voeg bron **`Pauzemelding`** toe: *Text (GDI+)*, tekst bijv. "We wachten op de volgende wedstrijd…", **verborgen**, bovenaan.
+- [ ] ~~Voeg bron **`Pauzemelding`** toe~~ — **vervallen per 21-09 (#151)**: de pauzetekst zit nu in de `Jumbotron`-bron. Niet meer aanmaken.
 - [ ] Zet **`Scores other tables`** op de **bovenbalk-plek** (voor de rotatie-ticker) — bron mag verborgen blijven, de agent-rotatie toggelt 'm.
 - [ ] **obs-websocket** aan per instantie (Tools → WebSocket Server Settings → Enable, poort 4455/4456/4457/4458 + wachtwoord noteren) indien nog niet gedaan.
 
@@ -67,11 +67,11 @@ in overleg met Nick. Bijgewerkt **2026-07-11 (avond)**.
 - [ ] Later als **Windows-service** (NSSM/node-windows) — zie `agent/README.md`.
 
 ### 6. Verifiëren
-- [ ] **Dashboard**: tafels tonen live status + **1080p60** + overlay-standen; toggles werken (incl. Jumbotron/Pauzemelding).
+- [ ] **Dashboard**: tafels tonen live status + **1080p60** + overlay-standen; toggles werken (incl. Jumbotron).
 - [ ] **Rotatie**: `Scores other tables` verschijnt periodiek in de bovenbalk.
 - [ ] **Ad-hoc start**: dashboard → + Nieuwe stream → unlisted → Start → agent start OBS → YouTube live → Stop.
 - [ ] **#11 acceptatietest** (volautomatisch): `AUTOMATION_ARMED=true`, een **testtoernooi in Cuescore** (dummy-spelers, starttijd binnen pre-roll-venster) → timer maakt broadcast + agent start → na afloop stop. **Zet daarna `AUTOMATION_ARMED` weer op `false`.**
-- [ ] **Automatisch pauzescherm (A, optioneel):** pas nadat de agent draait én de OBS-bronnen `Jumbotron` + `Pauzemelding` bestaan → app-setting **`PAUZESCHERM_AUTO=true`**. De timer `pauzeScherm` zet dan tussen wedstrijden vanzelf het pauzescherm aan/uit (per streamende tafel, 20s debounce). Los van `AUTOMATION_ARMED`. Zie `docs/pauzescherm-auto.md`.
+- [ ] **Automatisch pauzescherm (A, optioneel):** pas nadat de agent draait én de OBS-bron `Jumbotron` bestaat → app-setting **`PAUZESCHERM_AUTO=true`**. De timer `pauzeScherm` zet dan tussen wedstrijden vanzelf het pauzescherm aan/uit (per streamende tafel, 20s debounce). Los van `AUTOMATION_ARMED`. Zie `docs/pauzescherm-auto.md`.
 
 ### 7. Opruimen
 - [ ] Oude test-/auto-broadcasts (unlisted/leeg) verwijderen via YouTube Studio.
