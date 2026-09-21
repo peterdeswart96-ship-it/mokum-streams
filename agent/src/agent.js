@@ -119,9 +119,16 @@ async function runOnce(config, pool, backend, logger = console, nowMs = Date.now
           continue; // niet bevestigen → volgende tik opnieuw
         }
       }
-      await voerCommandoUit(pool, cmd);
+      const uitkomst = await voerCommandoUit(pool, cmd);
       verwerkteCommandoIds.push(cmd.id);
-      logger.log(`[OK] ${cmd.type} tafel ${cmd.tableNumber}`);
+      // Een stop die niets aantrof is geen fout (de tafel was al stil), maar wél het soort
+      // gebeurtenis dat je achteraf wilt kunnen terugvinden: op 21-09 was dít het moment
+      // waarop een stream ongemerkt bleef doorlopen, en er stond niets over in de log (#149).
+      if (cmd.type === 'stopStream' && uitkomst && uitkomst.gestopt === false) {
+        logger.log(`[OK] stopStream tafel ${cmd.tableNumber} — OBS zond niet (niets gestopt)`);
+      } else {
+        logger.log(`[OK] ${cmd.type} tafel ${cmd.tableNumber}`);
+      }
     } catch (e) {
       // Permanente fout (bron bestaat niet) → bevestigen/droppen, anders blijft één rare
       // toggle de agent eeuwig in een lus houden. Transiënt (OBS onbereikbaar) → NIET

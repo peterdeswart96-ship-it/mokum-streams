@@ -148,11 +148,29 @@ class ObsPool {
     await obs.call('PressInputPropertiesButton', { inputName: sourceName, propertyName: 'refreshnocache' });
   }
 
-  // Idempotent: alleen stoppen als 'ie daadwerkelijk streamt.
-  async stopStream(tableNumber) {
+  // Idempotent, maar niet goedgelovig (#149). OBS zet outputActive pas op true zodra de
+  // RTMP-verbinding met YouTube staat; vlak na een start betekent 'niet actief' dus niet
+  // "er valt niets te stoppen", maar "hij is nog bezig". Op 21-09 verdampte daardoor een
+  // stop die 13 seconden na de start kwam: de agent zag false, deed niets, bevestigde het
+  // commando — en OBS ging daarna alsnog de lucht in. Die stream zond bijna een uur door.
+  // Daarom: is deze tafel net gestart, dan wachten we kort tot OBS kleur bekent voordat we
+  // concluderen dat er niets loopt. Begrensd (wachtMs), zodat een tafel die terecht stil is
+  // de agent niet ophoudt.
+  async stopStream(tableNumber, { opstartMs = 45000, wachtMs = 12000, intervalMs = 500 } = {}) {
     const obs = await this.connect(tableNumber);
-    const { outputActive } = await obs.call('GetStreamStatus');
-    if (outputActive) await obs.call('StopStream');
+    const netGestart = Date.now() - (this._laatsteStart.get(tableNumber) || 0) < opstartMs;
+    const eind = Date.now() + (netGestart ? wachtMs : 0);
+    for (;;) {
+      const { outputActive } = await obs.call('GetStreamStatus');
+      if (outputActive) {
+        await obs.call('StopStream');
+        // Gestopt: een volgende stop hoeft niet meer op deze start te wachten.
+        this._laatsteStart.delete(tableNumber);
+        return { gestopt: true };
+      }
+      if (Date.now() >= eind) return { gestopt: false };
+      await new Promise((r) => setTimeout(r, intervalMs));
+    }
   }
 
   // Zoekt een bron in de scène; valt terug op groepen als 'ie genest is
