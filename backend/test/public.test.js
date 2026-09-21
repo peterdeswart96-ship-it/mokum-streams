@@ -78,12 +78,22 @@ test('buildLiveTables geeft quality + overlays door voor een live tafel, null vo
 
 test('buildLiveTables: een gestopte entry telt als offline (geen videoId)', () => {
   const store = { '1': { videoId: 'v1', title: 'Tafel 1 Test', stopped: true } };
-  // Zelfs als de agent nog "streaming" meldt: gestopt = offline.
-  const status = { tables: [{ tableNumber: 1, streaming: true }] };
+  // Gestopt én stil = offline: geen agent die streaming meldt, geen actieve YouTube-broadcast.
+  const status = { tables: [{ tableNumber: 1, streaming: false }] };
   const res = buildLiveTables([1], store, status);
   assert.strictEqual(res[0].status, 'offline');
   assert.strictEqual(res[0].videoId, null);
   assert.strictEqual(res[0].title, null);
+});
+
+// Omgekeerd (#148, 21-09): meldt de agent nog steeds streaming, dan is 'gestopt' alleen de
+// administratie — de tafel zendt gewoon uit en moet dus live én stopbaar zijn. Deze test stond
+// er precies andersom in; dat was het gedrag dat op 21-09 een stream onzichtbaar liet doorlopen.
+test('buildLiveTables: een gestopte entry waar de agent nog streaming meldt → live', () => {
+  const store = { '1': { videoId: 'v1', title: 'Tafel 1 Test', stopped: true } };
+  const status = { tables: [{ tableNumber: 1, streaming: true }] };
+  const res = buildLiveTables([1], store, status);
+  assert.strictEqual(res[0].status, 'live');
 });
 
 test('buildLiveTables geeft de huidige Cuescore-match per tafel door (match)', () => {

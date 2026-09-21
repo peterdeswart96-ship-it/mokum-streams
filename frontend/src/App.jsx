@@ -321,6 +321,15 @@ function TableCard({ table, onStop, onOverlay, onPreview, busy }) {
         </div>
       </div>
       {table.title && <p className="text-sm text-ink-muted truncate" title={table.title}>{table.title}</p>}
+      {/* Live zonder titel = de tafel zendt uit terwijl het systeem er geen lopende uitzending
+          voor kent: een stream die over middernacht uit de dag-opslag rolde, of (#148, 21-09)
+          een stop die OBS nooit bereikte. Zonder deze regel is die kaart niet te onderscheiden
+          van een gewone stream, en juist dít geval hoort op te vallen. */}
+      {table.status === 'live' && !table.title && (
+        <p className="text-sm text-amber-400">
+          ⚠ Zendt uit zonder lopende uitzending in het systeem — stop 'm als dit niet de bedoeling is.
+        </p>
+      )}
       <CameraAlarm alarm={table.cameraAlarm} />
       <MatchRegel match={table.match} />
       {kwaliteit && <p className="text-xs text-ink-muted mt-0.5">🎥 {kwaliteit}</p>}
