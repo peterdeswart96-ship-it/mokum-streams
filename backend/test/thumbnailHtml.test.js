@@ -15,10 +15,12 @@ test('voegJackpotBadgeToe: badge komt binnen .canvas te staan, met het plaatje i
   assert.ok(uit.trimEnd().endsWith('</div></body></html>'));
 });
 
-test('voegJackpotBadgeToe: rechtsonder, want rechtsboven zit bij een finale het FINAL-lint', () => {
+test('voegJackpotBadgeToe: linksonder bij de datumpil — niet rechtsboven (FINAL-lint) en niet in de rechterhoek (YouTube-duurchip)', () => {
   const uit = voegJackpotBadgeToe(SJABLOON);
-  assert.match(uit, /\.jackpotbadge\{[^}]*right:\d+px/);
+  assert.match(uit, /\.jackpotbadge\{[^}]*left:\d+px/);
   assert.match(uit, /\.jackpotbadge\{[^}]*bottom:\d+px/);
+  // De exacte plek wordt tijdens het renderen gemeten; dit is de terugval in de CSS.
+  assert.doesNotMatch(uit, /\.jackpotbadge\{[^}]*right:\d+px/);
 });
 
 test('voegJackpotBadgeToe: onbekende sjabloonvorm → HTML ongewijzigd (liever geen badge dan kapot)', () => {

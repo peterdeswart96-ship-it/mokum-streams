@@ -108,9 +108,14 @@ function voegFinaleLintToe(html) {
     : html;
 }
 
-// Jackpot-badge rechtsonder (#150): bij toernooien met een extra jackpot. Zelfde aanpak als
-// het FINAL-lint hierboven — één overlay bovenop elk sjabloon, in plaats van vier sjablonen
-// apart aanpassen. RECHTSonder en niet rechtsboven, want daar zit bij een finale het lint.
+// Jackpot-badge naast de datumpil linksonder (#150): bij toernooien met een extra jackpot.
+// Zelfde aanpak als het FINAL-lint hierboven — één overlay bovenop elk sjabloon, in plaats van
+// vier sjablonen apart aanpassen. Niet rechtsboven (daar zit bij een finale het lint) en niet
+// in de rechterhoek: daar legt YouTube in elk overzicht de duurchip overheen, precies over het
+// woord JACKPOT (gezien in de proefrender van 21-09).
+// De pil groeit mee met de lengte van de datum ("DI 8 JULI" vs "WO 23 SEPTEMBER"), dus de
+// exacte plek wordt tijdens het renderen gemeten (zie plaatsBadgeNaastDatum). De waarden
+// hieronder zijn de terugval als die meting niet lukt: naast een pil van gemiddelde lengte.
 // Het plaatje wordt als data-URI ingebed: de render draait op setContent(), dus een relatief
 // bestandspad zou niet laden.
 const BADGE_BESTAND = path.join(__dirname, '..', '..', 'assets', 'jackpot-badge.png');
@@ -120,7 +125,7 @@ function jackpotBadgeHtml() {
   if (badgeDataUri === null) {
     badgeDataUri = `data:image/png;base64,${fs.readFileSync(BADGE_BESTAND).toString('base64')}`;
   }
-  return '<style>.jackpotbadge{position:absolute;right:28px;bottom:96px;width:190px;height:190px;'
+  return '<style>.jackpotbadge{position:absolute;left:430px;bottom:48px;width:95px;height:95px;'
     + 'z-index:20;pointer-events:none;filter:drop-shadow(0 4px 14px rgba(0,0,0,.6))}'
     + '.jackpotbadge img{width:100%;height:100%;display:block}</style>'
     + `<div class="jackpotbadge"><img src="${badgeDataUri}" alt=""></div>`;
@@ -132,6 +137,26 @@ function voegJackpotBadgeToe(html) {
   return /<\/div>\s*<\/body>\s*<\/html>\s*$/.test(html)
     ? html.replace(/<\/div>\s*<\/body>\s*<\/html>\s*$/, `${jackpotBadgeHtml()}</div></body></html>`)
     : html;
+}
+
+// Zet de badge vlak naast de datumpil en verticaal op dezelfde hoogte. Draait in de pagina
+// (puppeteer), want alleen dáár is bekend hoe breed de pil met déze datum is geworden.
+// Geen pil of geen badge → niets doen; de badge blijft dan op de CSS-terugval staan.
+async function plaatsBadgeNaastDatum(page) {
+  await page.evaluate(() => {
+    const badge = document.querySelector('.jackpotbadge');
+    const pil = document.querySelector('.datepill');
+    const canvas = document.querySelector('.canvas');
+    if (!badge || !pil || !canvas) return;
+    const MARGE = 22; // tussenruimte pil → badge
+    const c = canvas.getBoundingClientRect();
+    const p = pil.getBoundingClientRect();
+    const h = badge.getBoundingClientRect().height;
+    badge.style.left = `${Math.round(p.right - c.left + MARGE)}px`;
+    badge.style.right = 'auto';
+    badge.style.top = `${Math.round(p.top - c.top + (p.height - h) / 2)}px`;
+    badge.style.bottom = 'auto';
+  });
 }
 
 function templatePad(key) {
@@ -169,6 +194,8 @@ async function renderThumbnail(velden = {}) {
     // Wacht tot de (ingebedde) webfonts geladen zijn, anders valt de render terug op een
     // systeemfont en klopt de layout niet.
     await page.evaluate(async () => { if (document.fonts && document.fonts.ready) await document.fonts.ready; });
+    // Ná de fonts: mét het echte font is de datumpil pas zo breed als 'ie wordt (#150).
+    if (velden.jackpot) await plaatsBadgeNaastDatum(page);
     // Titel passend maken NÁ het laden van de fonts: krimp vanaf de vaste 150px tot de titel
     // binnen z'n vak past (hoogte én breedte). Korte namen blijven groot; lange krimpen net
     // genoeg zodat er niets wordt afgekapt. (Deterministisch — de template doet dit niet meer.)
