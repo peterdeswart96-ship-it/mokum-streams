@@ -144,7 +144,7 @@ test('datumThumb: korte hoofdletter-datum voor de datumpil', () => {
   assert.strictEqual(datumThumb('geen datum'), '');
 });
 
-// #150: de jackpot-badge hoort op alle MEGA rankings en de Fluke ranking, en nergens anders.
+// #150: de jackpot-pil hoort op alle MEGA rankings en de Fluke ranking, en nergens anders.
 test('heeftJackpot: MEGA rankings en de Fluke ranking', () => {
   for (const key of ['mega-ranking-buffalo', 'mega-summer-ranking', 'winter-ranking', 'fluke-ranking']) {
     assert.strictEqual(heeftJackpot(key), true, key);
