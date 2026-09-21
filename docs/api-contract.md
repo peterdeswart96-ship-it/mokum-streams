@@ -3,7 +3,7 @@
 Enige waarheid voor de koppelvlakken tussen frontend/widget, backend en (later) de
 agent. Wijzigen? Eerst dit bestand bijwerken (met datum + reden onderaan), dan code.
 
-Status: CONCEPT v0.62 — velden worden definitief in fase 2.
+Status: CONCEPT v0.63 — velden worden definitief in fase 2.
 
 ## Conventies
 - Alle velden camelCase. Tijden in ISO 8601 met tijdzone (Europe/Amsterdam
@@ -964,3 +964,20 @@ Regels:
      tikt eens per minuut, en de tik na 5 minuten viel door timer-jitter soms nét vóór
      `klaarSinds + 5:00`, waardoor de stop pas na 6 minuten kwam. Nu valt de stop voorspelbaar
      op de 5-minutentik, zodat het aftellen van de pagina klopt.
+
+- 2026-09-21: v0.63 — **fix: een doorlopende stream blijft stopbaar, ook als de store al "gestopt"
+  zegt** (#148, storing 21-09). Tegenhanger van v0.26: die maakte een stream zichtbaar als er
+  **geen** store-entry meer was (middernacht-rollover), maar een entry met `stopped: true` bleef
+  hard `offline`. Op 21-09 bleef daardoor een verborgen teststream bijna een uur onzichtbaar
+  doorzenden (OBS 16 Mbps, YouTube "Live now") terwijl het dashboard tafel 1 als offline toonde —
+  zonder Stop-knop, dus alleen nog via de API te sluiten.
+  - **`buildLiveTables`**: meldt de agent `streaming` op die tafel, of heeft YouTube er een actieve
+    broadcast (`liveVideoId`), dan is de status **`live`** — ook bij een store-entry met
+    `stopped: true`. Kort gezegd: de werkelijkheid wint van de administratie.
+  - `videoId` valt in dat geval terug op `liveVideoId` (de stream die écht loopt, niet de
+    geadministreerde), en `quality`/`overlays` volgen zoals altijd de agent-status.
+  - `title`/`tournamentName`/`scheduledStart`/`competitie` blijven leeg bij een gestopte entry: die
+    beschrijven de afgeronde uitzending, niet wat er nog de lucht in gaat. Het dashboard toont zo'n
+    tafel dus als live zonder titel — precies het signaal "hier loopt iets wat niet hoort".
+  - Reden dat dit veilig is: `POST /api/manage/streams/stop` werkte al ongeacht de store-stand; het
+    ontbrak alleen aan een knop. De oorzaak dát de stop niet aankwam is een agent-bug (#149).

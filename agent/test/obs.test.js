@@ -49,6 +49,51 @@ test('startStream: al aan het zenden + lang geleden gestart → schone flank (St
   assert.deepStrictEqual(obs.calls, ['GetStreamStatus', 'StopStream', 'StartStream']);
 });
 
+// --- stopStream: een stop mag niet verdampen tijdens het opstarten (#149) ---
+
+test('stopStream: OBS zendt → meteen StopStream', async () => {
+  const obs = fakeObs(true);
+  const res = await poolMet(obs).stopStream(1);
+  assert.deepStrictEqual(obs.calls, ['GetStreamStatus', 'StopStream']);
+  assert.strictEqual(res.gestopt, true);
+});
+
+test('stopStream: geen recente start en OBS is stil → één keer kijken, niet wachten', async () => {
+  const obs = fakeObs(false);
+  const res = await poolMet(obs).stopStream(1, { wachtMs: 5000, intervalMs: 1 });
+  assert.deepStrictEqual(obs.calls, ['GetStreamStatus']); // geen wachtlus
+  assert.strictEqual(res.gestopt, false);
+});
+
+// De storing van 21-09: stop 13 s na de start, OBS was nog aan het verbinden.
+test('stopStream: net gestart en OBS nog aan het verbinden → wacht en stopt alsnog', async () => {
+  const obs = fakeObs([false, false, true]);
+  const pool = poolMet(obs);
+  pool._laatsteStart.set(1, Date.now()); // net gestart
+  const res = await pool.stopStream(1, { wachtMs: 5000, intervalMs: 1 });
+  assert.deepStrictEqual(obs.calls, ['GetStreamStatus', 'GetStreamStatus', 'GetStreamStatus', 'StopStream']);
+  assert.strictEqual(res.gestopt, true);
+  assert.strictEqual(pool._laatsteStart.has(1), false); // start is afgehandeld
+});
+
+test('stopStream: net gestart maar OBS blijft stil → geeft na de wachttijd op', async () => {
+  const obs = fakeObs(false);
+  const pool = poolMet(obs);
+  pool._laatsteStart.set(1, Date.now());
+  const res = await pool.stopStream(1, { wachtMs: 20, intervalMs: 1 });
+  assert.strictEqual(res.gestopt, false);
+  assert.ok(!obs.calls.includes('StopStream'));
+  assert.ok(obs.calls.length > 1); // heeft wél doorgepolst
+});
+
+test('stopStream: een start van lang geleden telt niet als opstarten', async () => {
+  const obs = fakeObs(false);
+  const pool = poolMet(obs);
+  pool._laatsteStart.set(1, Date.now() - 120000);
+  await pool.stopStream(1, { wachtMs: 5000, intervalMs: 1 });
+  assert.deepStrictEqual(obs.calls, ['GetStreamStatus']);
+});
+
 // --- Freeze-watchdog + camera-herstel (#43 A2) ---
 
 // Rijkere fake: reageert op (req, params) en kan per request een handler draaien.

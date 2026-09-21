@@ -67,13 +67,17 @@ function buildLiveTables(cameraTables, store, status, liveMatches, liveVideos) {
     const rawVid = videos[String(nr)];
     const liveVideoId = typeof rawVid === 'string' ? rawVid : (rawVid && rawVid.videoId) || null;
     const liveVisibility = rawVid && typeof rawVid === 'object' ? rawVid.visibility || null : null;
-    // Status: de store-entry (actief) is leidend. Maar meldt de agent 'streaming' of heeft
-    // YouTube een actieve broadcast (liveVideoId) ZÓNDER store-entry — bijv. een stream die
-    // over middernacht heen loopt en uit de dag-store rolde — dan tonen we 'm alsnog als
-    // 'live' (en dus stopbaar), zodat een stream nooit "onzichtbaar" blijft doorlopen.
+    // Status: de store-entry (actief) is leidend zolang er niets tegenspreekt. Maar meldt de
+    // agent 'streaming' of heeft YouTube een actieve broadcast (liveVideoId), dan is de tafel
+    // 'live' (en dus stopbaar) — ongeacht wat de store zegt. Dat dekt twee gevallen af: géén
+    // store-entry (een stream die over middernacht heen uit de dag-store rolde, v0.26) én een
+    // entry die al op stopped staat terwijl de stream gewoon doorloopt (#148, 21-09: de stop
+    // bereikte OBS niet, waarna een verborgen stream bijna een uur onzichtbaar doorzond).
+    // Kort gezegd: de werkelijkheid wint van de administratie.
+    const echtLive = streaming || !!liveVideoId;
     let st = 'offline';
     if (actief) st = streaming ? 'live' : 'scheduled';
-    else if (!b && (streaming || liveVideoId)) st = 'live'; // GEEN store-entry (rollover), maar wel live
+    else if (echtLive) st = 'live'; // gestopt of uit de store gerold, maar wél in de lucht
     // Kwaliteit + overlays zodra de agent streaming meldt (los van de store-datum).
     const quality = streaming
       ? { resolution: s.resolution || null, fps: s.fps ?? null, bitrateKbps: s.bitrateKbps ?? null }

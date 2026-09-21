@@ -79,3 +79,38 @@ test('buildLiveTables: cameraAlarm uit de agent-status (pre-flight + freeze-watc
   assert.strictEqual(byT[3].cameraAlarm.recovered, true);
   assert.strictEqual(byT[15].cameraAlarm, null);
 });
+
+// #148 (21-09): een stop die OBS nooit bereikte liet een verborgen stream bijna een uur
+// onzichtbaar doorzenden — de store zei 'stopped', dus het dashboard zei 'offline' en er was
+// geen stopknop meer. De werkelijkheid (agent of YouTube) moet winnen van de administratie.
+test('buildLiveTables: store zegt gestopt maar de agent streamt nog → live + stopbaar', () => {
+  const store = { 1: { tableNumber: 1, videoId: 'oudVid', title: 'Tafel 1 Test', stopped: true } };
+  const status = { tables: [{ tableNumber: 1, streaming: true, bitrateKbps: 16014 }] };
+  const liveVideos = { videos: { 1: { videoId: 'echtVid', visibility: 'unlisted' } } };
+  const byT = Object.fromEntries(
+    buildLiveTables([1], store, status, {}, liveVideos).map((r) => [r.tableNumber, r])
+  );
+  assert.strictEqual(byT[1].status, 'live');
+  assert.strictEqual(byT[1].videoId, 'echtVid'); // de stream die écht loopt, niet de geadministreerde
+  assert.strictEqual(byT[1].quality.bitrateKbps, 16014);
+  assert.strictEqual(byT[1].title, null); // gestopte entry beschrijft de afgeronde uitzending
+});
+
+test('buildLiveTables: store zegt gestopt, agent stil, maar YouTube heeft nog een actieve broadcast → live', () => {
+  const store = { 1: { tableNumber: 1, videoId: 'oudVid', stopped: true } };
+  const liveVideos = { videos: { 1: { videoId: 'echtVid', visibility: 'unlisted' } } };
+  const byT = Object.fromEntries(
+    buildLiveTables([1], store, { tables: [] }, {}, liveVideos).map((r) => [r.tableNumber, r])
+  );
+  assert.strictEqual(byT[1].status, 'live');
+  assert.strictEqual(byT[1].videoId, 'echtVid');
+});
+
+test('buildLiveTables: gestopte entry zonder enig levensteken blijft offline', () => {
+  const store = { 1: { tableNumber: 1, videoId: 'oudVid', stopped: true } };
+  const byT = Object.fromEntries(
+    buildLiveTables([1], store, { tables: [{ tableNumber: 1, streaming: false }] }, {}, {}).map((r) => [r.tableNumber, r])
+  );
+  assert.strictEqual(byT[1].status, 'offline');
+  assert.strictEqual(byT[1].videoId, null);
+});
