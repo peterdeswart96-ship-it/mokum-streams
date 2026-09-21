@@ -108,6 +108,32 @@ function voegFinaleLintToe(html) {
     : html;
 }
 
+// Jackpot-badge rechtsonder (#150): bij toernooien met een extra jackpot. Zelfde aanpak als
+// het FINAL-lint hierboven — één overlay bovenop elk sjabloon, in plaats van vier sjablonen
+// apart aanpassen. RECHTSonder en niet rechtsboven, want daar zit bij een finale het lint.
+// Het plaatje wordt als data-URI ingebed: de render draait op setContent(), dus een relatief
+// bestandspad zou niet laden.
+const BADGE_BESTAND = path.join(__dirname, '..', '..', 'assets', 'jackpot-badge.png');
+let badgeDataUri = null;
+
+function jackpotBadgeHtml() {
+  if (badgeDataUri === null) {
+    badgeDataUri = `data:image/png;base64,${fs.readFileSync(BADGE_BESTAND).toString('base64')}`;
+  }
+  return '<style>.jackpotbadge{position:absolute;right:28px;bottom:96px;width:190px;height:190px;'
+    + 'z-index:20;pointer-events:none;filter:drop-shadow(0 4px 14px rgba(0,0,0,.6))}'
+    + '.jackpotbadge img{width:100%;height:100%;display:block}</style>'
+    + `<div class="jackpotbadge"><img src="${badgeDataUri}" alt=""></div>`;
+}
+
+// Zelfde invoegplek als het lint: als laatste kind van .canvas, want de screenshot pakt
+// alleen dat element en overflow:hidden knipt alles daarbuiten weg.
+function voegJackpotBadgeToe(html) {
+  return /<\/div>\s*<\/body>\s*<\/html>\s*$/.test(html)
+    ? html.replace(/<\/div>\s*<\/body>\s*<\/html>\s*$/, `${jackpotBadgeHtml()}</div></body></html>`)
+    : html;
+}
+
 function templatePad(key) {
   return path.join(TEMPLATE_DIR, `${path.basename(String(key))}.html`);
 }
@@ -119,7 +145,7 @@ function heeftTemplate(key) {
 }
 
 // Rendert een template naar een 1280×720 PNG-buffer.
-// velden: { templateKey, toernooinaam, datum, spelers, sponsor, finale, niveau, thuisteam, uitteam }
+// velden: { templateKey, toernooinaam, datum, spelers, sponsor, finale, jackpot, niveau, thuisteam, uitteam }
 async function renderThumbnail(velden = {}) {
   const bestand = templatePad(velden.templateKey);
   const raw = fs.readFileSync(bestand, 'utf8');
@@ -133,6 +159,7 @@ async function renderThumbnail(velden = {}) {
     uitteam: velden.uitteam || '',
   });
   if (velden.finale) html = voegFinaleLintToe(html);
+  if (velden.jackpot) html = voegJackpotBadgeToe(html);
 
   const browser = await getBrowser();
   const page = await browser.newPage();
@@ -193,4 +220,4 @@ async function sluitBrowser() {
   browserPromise = null;
 }
 
-module.exports = { renderThumbnail, heeftTemplate, sluitBrowser, voegFinaleLintToe };
+module.exports = { renderThumbnail, heeftTemplate, sluitBrowser, voegFinaleLintToe, voegJackpotBadgeToe };

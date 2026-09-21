@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { spelsoortVanDiscipline, sponsorVanNaam, schoneTitel, templateVoorToernooi, datumThumb, isFinaleToernooi } = require('../src/video/detectie');
+const { spelsoortVanDiscipline, sponsorVanNaam, schoneTitel, templateVoorToernooi, datumThumb, isFinaleToernooi, heeftJackpot } = require('../src/video/detectie');
 
 test('spelsoortVanDiscipline: standaard disciplines', () => {
   assert.strictEqual(spelsoortVanDiscipline('9-Ball'), '9');
@@ -142,4 +142,28 @@ test('datumThumb: korte hoofdletter-datum voor de datumpil', () => {
   // 22 juli 2026 is een woensdag (Europe/Amsterdam).
   assert.strictEqual(datumThumb('2026-07-22T19:30:00+02:00'), 'WO 22 JULI');
   assert.strictEqual(datumThumb('geen datum'), '');
+});
+
+// #150: de jackpot-badge hoort op alle MEGA rankings en de Fluke ranking, en nergens anders.
+test('heeftJackpot: MEGA rankings en de Fluke ranking', () => {
+  for (const key of ['mega-ranking-buffalo', 'mega-summer-ranking', 'winter-ranking', 'fluke-ranking']) {
+    assert.strictEqual(heeftJackpot(key), true, key);
+  }
+});
+
+test('heeftJackpot: andere toernooien krijgen geen badge', () => {
+  for (const key of ['8-ball-ranking', '9-ball-sunday', 'competitie', 'challenge-match', 'nk-10ball']) {
+    assert.strictEqual(heeftJackpot(key), false, key);
+  }
+  assert.strictEqual(heeftJackpot(null), false);
+  assert.strictEqual(heeftJackpot(undefined), false);
+  assert.strictEqual(heeftJackpot(''), false);
+});
+
+// De koppeling naam → badge loopt via de templatekeuze; deze test bewaakt dat die twee
+// op elkaar blijven aansluiten (een MEGA Winter Ranking heet intern winter-ranking).
+test('heeftJackpot volgt de templatekeuze uit de Cuescore-naam', () => {
+  assert.strictEqual(heeftJackpot(templateVoorToernooi('Mokum MEGA Winter Ranking #4')), true);
+  assert.strictEqual(heeftJackpot(templateVoorToernooi('Fluke ranking 9ball Seizoen 4 #2')), true);
+  assert.strictEqual(heeftJackpot(templateVoorToernooi('Mokum 8ball Ranking Seizoen 4 #1')), false);
 });
