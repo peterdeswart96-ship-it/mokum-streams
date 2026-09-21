@@ -1003,3 +1003,10 @@ Regels:
     overlay bij een start.
   - Terug te zetten (zoals bij v0.18): OBS-bron aanmaken + sleutel weer toevoegen in `OVERLAY_BRON`,
     `OVERLAY_DEFAULT_OFF`, agent `DEFAULT_OVERLAY_SOURCES` en frontend `OVERLAYS`.
+  - Meegenomen: `cuescoreLogo` stond nog in de agent-`DEFAULT_OVERLAY_SOURCES` terwijl de OBS-bron
+    `Cuescore logo` per v0.18 (13-07) al was verwijderd — dezelfde dode verwijzing, nu ook weg.
+    Dat gaf geen `[DROP]` (de backend stuurde er geen setOverlay meer voor), alleen twee nutteloze
+    OBS-calls per tafel per statusronde.
+  - Vastgelegd bij het uitzoeken: de `config.overlaySources`-override in `agent-config.json` doet
+    niets — `normalizeConfig()` geeft dat veld (net als `rotations`) niet door. De bronnamen in de
+    agent komen dus altijd uit `DEFAULT_OVERLAY_SOURCES`. Geen actie nodig op de OBS-pc.

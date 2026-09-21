@@ -37,13 +37,17 @@ function isDrukkeTijd(nowMs = Date.now()) {
 // OBS-pool, en de status (incl. bevestigde commando-ids) terugsturen.
 // `pool` en `backend` worden geïnjecteerd zodat runOnce testbaar is met fakes.
 
-// Standaard overlaybronnen (spiegelt backend OVERLAY_BRON). Per install te
-// overrijden via config.overlaySources. Gebruikt om de werkelijke overlay-stand
-// per tafel uit te lezen (dashboard-weergave, api-contract v0.10).
+// Standaard overlaybronnen (spiegelt backend OVERLAY_BRON). Gebruikt om de werkelijke
+// overlay-stand per tafel uit te lezen (dashboard-weergave, api-contract v0.10).
+//
+// NB (21-09, #151): de `config.overlaySources`-override hieronder is in de praktijk dood —
+// normalizeConfig() in src/config.js geeft dat veld (net als `rotations`) niet door, dus wat
+// er ook in agent-config.json staat, deze map wint. Houd hem daarom gelijk aan OVERLAY_BRON.
+// Een bron die hier staat maar niet in OBS bestaat, wordt stil overgeslagen (overlayStates
+// vangt de fout) — het kost alleen elke statusronde twee nutteloze OBS-calls per tafel.
 const DEFAULT_OVERLAY_SOURCES = {
   sponsors: 'Sponsor slideshow',
   scoreboard: 'Scoreboard',
-  cuescoreLogo: 'Cuescore logo',
   jumbotron: 'Jumbotron',
   competitie: 'Competitiestand', // #147
 };
