@@ -131,6 +131,22 @@ function isFinaleToernooi(naam) {
   return /\bfinale?\b/i.test(n);
 }
 
+// Heeft dit toernooi een extra jackpot (de badge rechtsonder op de thumbnail, #150)?
+// Besluit Peter 21-09: alle MEGA rankings en de Fluke ranking. We beslissen op de TEMPLATEKEY
+// en niet op de toernooinaam, want die keuze is elders al gemaakt en dekt alle schrijfwijzen
+// die Cuescore in de praktijk oplevert ("MEGA Winter Ranking" heet intern winter-ranking).
+// Komt er een toernooi bij met een jackpot, dan is deze lijst de enige plek om aan te passen.
+const JACKPOT_TEMPLATES = new Set([
+  'mega-ranking-buffalo',
+  'mega-summer-ranking',
+  'winter-ranking',       // = MEGA Winter Ranking
+  'fluke-ranking',
+]);
+
+function heeftJackpot(templateKey) {
+  return JACKPOT_TEMPLATES.has(String(templateKey || ''));
+}
+
 // Korte, hoofdletter-datum voor de datumpil op de thumbnail, bv. "DI 22 JULI".
 // (De lange datumNL uit hoofdstukken.js past niet in de pil.)
 function datumThumb(iso, tz = 'Europe/Amsterdam') {
@@ -144,4 +160,5 @@ function datumThumb(iso, tz = 'Europe/Amsterdam') {
 module.exports = {
   spelsoortVanDiscipline, sponsorVanNaam, schoneTitel, SPONSORS,
   templateVoorToernooi, TEMPLATE_TEKST, datumThumb, isFinaleToernooi,
+  heeftJackpot, JACKPOT_TEMPLATES,
 };

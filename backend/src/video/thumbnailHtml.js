@@ -108,6 +108,63 @@ function voegFinaleLintToe(html) {
     : html;
 }
 
+// Jackpot-pil naast de datumpil linksonder (#150): bij toernooien met een extra jackpot.
+// Zelfde aanpak als het FINAL-lint hierboven — één overlay bovenop elk sjabloon, in plaats van
+// vier sjablonen apart aanpassen. Niet rechtsboven (daar zit bij een finale het lint) en niet
+// in de rechterhoek: daar legt YouTube in elk overzicht de duurchip overheen, precies over het
+// woord JACKPOT (gezien in de proefrender van 21-09).
+// Vorm en maten zijn die van de datumpil uit de sjablonen (border-radius 40px, padding 12px 32px,
+// font-size 40px, Anton): zo leest het als één familie in plaats van een los plaatje. Alleen de
+// geldzak is een plaatje — als data-URI ingebed, want de render draait op setContent() en een
+// relatief bestandspad zou daar niet laden.
+// De datumpil groeit mee met de lengte van de datum ("DI 8 JULI" vs "WO 23 SEPTEMBER"), dus de
+// exacte plek wordt tijdens het renderen gemeten (zie plaatsBadgeNaastDatum). De waarden
+// hieronder zijn de terugval als die meting niet lukt.
+const ZAK_BESTAND = path.join(__dirname, '..', '..', 'assets', 'jackpot-geldzak.png');
+let zakDataUri = null;
+
+function jackpotBadgeHtml() {
+  if (zakDataUri === null) {
+    zakDataUri = `data:image/png;base64,${fs.readFileSync(ZAK_BESTAND).toString('base64')}`;
+  }
+  return '<style>.jackpotbadge{position:absolute;left:430px;bottom:44px;display:flex;align-items:center;'
+    + 'gap:14px;background:#cc0000;border-radius:40px;padding:12px 26px 12px 32px;'
+    + "font-family:'Anton','Arial Black',sans-serif;font-size:40px;color:#fff;letter-spacing:2px;"
+    + 'z-index:20;pointer-events:none;box-shadow:0 6px 22px rgba(0,0,0,.55)}'
+    + '.jackpotbadge img{height:52px;width:auto;display:block}</style>'
+    + `<div class="jackpotbadge"><span>JACKPOT</span><img src="${zakDataUri}" alt=""></div>`;
+}
+
+// Zelfde invoegplek als het lint: als laatste kind van .canvas, want de screenshot pakt
+// alleen dat element en overflow:hidden knipt alles daarbuiten weg.
+function voegJackpotBadgeToe(html) {
+  return /<\/div>\s*<\/body>\s*<\/html>\s*$/.test(html)
+    ? html.replace(/<\/div>\s*<\/body>\s*<\/html>\s*$/, `${jackpotBadgeHtml()}</div></body></html>`)
+    : html;
+}
+
+// Zet de badge vlak naast de datumpil en verticaal op dezelfde hoogte. Draait in de pagina
+// (puppeteer), want alleen dáár is bekend hoe breed de pil met déze datum is geworden.
+// Geen pil of geen badge → niets doen; de badge blijft dan op de CSS-terugval staan.
+async function plaatsBadgeNaastDatum(page) {
+  await page.evaluate(() => {
+    const badge = document.querySelector('.jackpotbadge');
+    const pil = document.querySelector('.datepill');
+    const canvas = document.querySelector('.canvas');
+    if (!badge || !pil || !canvas) return;
+    const MARGE = 22; // tussenruimte pil → badge
+    const c = canvas.getBoundingClientRect();
+    const p = pil.getBoundingClientRect();
+    const h = badge.getBoundingClientRect().height;
+    badge.style.left = `${Math.round(p.right - c.left + MARGE)}px`;
+    badge.style.right = 'auto';
+    // Midden op midden: de pillen zijn ongeveer even hoog, maar de geldzak maakt de
+    // jackpot-pil iets hoger. Centreren houdt ze optisch op één lijn.
+    badge.style.top = `${Math.round(p.top - c.top + (p.height - h) / 2)}px`;
+    badge.style.bottom = 'auto';
+  });
+}
+
 function templatePad(key) {
   return path.join(TEMPLATE_DIR, `${path.basename(String(key))}.html`);
 }
@@ -119,7 +176,7 @@ function heeftTemplate(key) {
 }
 
 // Rendert een template naar een 1280×720 PNG-buffer.
-// velden: { templateKey, toernooinaam, datum, spelers, sponsor, finale, niveau, thuisteam, uitteam }
+// velden: { templateKey, toernooinaam, datum, spelers, sponsor, finale, jackpot, niveau, thuisteam, uitteam }
 async function renderThumbnail(velden = {}) {
   const bestand = templatePad(velden.templateKey);
   const raw = fs.readFileSync(bestand, 'utf8');
@@ -133,6 +190,7 @@ async function renderThumbnail(velden = {}) {
     uitteam: velden.uitteam || '',
   });
   if (velden.finale) html = voegFinaleLintToe(html);
+  if (velden.jackpot) html = voegJackpotBadgeToe(html);
 
   const browser = await getBrowser();
   const page = await browser.newPage();
@@ -142,6 +200,8 @@ async function renderThumbnail(velden = {}) {
     // Wacht tot de (ingebedde) webfonts geladen zijn, anders valt de render terug op een
     // systeemfont en klopt de layout niet.
     await page.evaluate(async () => { if (document.fonts && document.fonts.ready) await document.fonts.ready; });
+    // Ná de fonts: mét het echte font is de datumpil pas zo breed als 'ie wordt (#150).
+    if (velden.jackpot) await plaatsBadgeNaastDatum(page);
     // Titel passend maken NÁ het laden van de fonts: krimp vanaf de vaste 150px tot de titel
     // binnen z'n vak past (hoogte én breedte). Korte namen blijven groot; lange krimpen net
     // genoeg zodat er niets wordt afgekapt. (Deterministisch — de template doet dit niet meer.)
@@ -193,4 +253,4 @@ async function sluitBrowser() {
   browserPromise = null;
 }
 
-module.exports = { renderThumbnail, heeftTemplate, sluitBrowser, voegFinaleLintToe };
+module.exports = { renderThumbnail, heeftTemplate, sluitBrowser, voegFinaleLintToe, voegJackpotBadgeToe };
