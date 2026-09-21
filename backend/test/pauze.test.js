@@ -126,13 +126,13 @@ test('telZaalLive: telt alle lopende wedstrijden over alle toernooien (case-onge
 });
 
 test('pauzeCommandos: schakelt de pauze-overlays op de gewenste stand, onbekende sleutels overslaan', () => {
-  const bron = { jumbotron: 'Jumbotron', pauzemelding: 'Pauzemelding', sponsors: 'Sponsor slideshow' };
-  const aan = pauzeCommandos(3, true, bron, ['jumbotron', 'pauzemelding', 'bestaatniet']);
+  const bron = { jumbotron: 'Jumbotron', competitie: 'Competitiestand', sponsors: 'Sponsor slideshow' };
+  const aan = pauzeCommandos(3, true, bron, ['jumbotron', 'competitie', 'bestaatniet']);
   assert.deepStrictEqual(aan, [
     { type: 'setOverlay', tableNumber: 3, sourceName: 'Jumbotron', enabled: true },
-    { type: 'setOverlay', tableNumber: 3, sourceName: 'Pauzemelding', enabled: true },
+    { type: 'setOverlay', tableNumber: 3, sourceName: 'Competitiestand', enabled: true },
   ]);
-  const uit = pauzeCommandos(3, false, bron, ['jumbotron', 'pauzemelding']);
+  const uit = pauzeCommandos(3, false, bron, ['jumbotron', 'competitie']);
   assert.ok(uit.every((c) => c.enabled === false));
 });
 

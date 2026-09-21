@@ -1,14 +1,17 @@
 # Pauzescherm-automatisering (A) — ontwerp
 
 > Doel: **per tafel automatisch** het pauzescherm tonen wanneer er **geen wedstrijd**
-> loopt (Jumbotron + Pauzemelding "we wachten op de volgende wedstrijd"), en het weer
-> verbergen zodra een wedstrijd begint. Zie ook [[break-productie]] (A/B) en
-> [[cuescore-overlays]].
+> loopt (de `Jumbotron`-bron met de eigen pauze-slides), en het weer verbergen zodra een
+> wedstrijd begint. Zie ook [[break-productie]] (A/B) en [[cuescore-overlays]].
+>
+> **Let op (21-09, #151):** de aparte bron `Pauzemelding` bestaat niet meer; de
+> pauzetekst zit in de `Jumbotron`-slides. Waar hieronder `pauzemelding` staat, is dat
+> geschiedenis — de sleutel bestaat nergens meer in code, agent of dashboard.
 
 ## Toestandsmachine (per tafel)
 Twee toestanden:
 - **SPELEN** — pauzescherm **uit** (camera + Cuescore-scoreboard normaal).
-- **PAUZE** — pauzescherm **aan** (Jumbotron + Pauzemelding).
+- **PAUZE** — pauzescherm **aan** (de `Jumbotron`-bron met de pauze-slides).
 
 Transities o.b.v. de Cuescore-status per tafel:
 - **SPELEN → PAUZE:** huidige wedstrijd is *finished* én er is (nog) geen nieuwe *playing*
@@ -88,14 +91,15 @@ en past beter in het brein.
 5. ▶ **Rotatie-onderdrukking** tijdens pauze (Jumbotron dekt het beeld al → laag-prioriteit).
 
 ## Uitrol (avond)
-Zet `PAUZESCHERM_AUTO=true` (app-setting) **nadat** de agent draait en de OBS-bronnen
-`Jumbotron` + `Pauzemelding` bestaan. Daarvóór doet de timer niets (default uit + geen
+Zet `PAUZESCHERM_AUTO=true` (app-setting) **nadat** de agent draait en de OBS-bron
+`Jumbotron` bestaat. Daarvóór doet de timer niets (default uit + geen
 streamende tafels).
 
 ## Welke overlays het pauzescherm toont (`PAUZESCHERM_KEYS`)
-De timer zet standaard **alléén de `pauzemelding`** aan/uit, niet de jumbotron.
+De timer zet standaard **alléén de `jumbotron`** aan/uit — gelijk aan wat er in productie
+in `PAUZESCHERM_KEYS` staat (#151; de default was tot 21-09 `pauzemelding`).
 
-**Waarom (besluit 18-07):** de Cuescore-jumbotron (`venue/table/jumbotron/`) dwingt een
+**Historie — waarom het ooit de pauzemelding was (besluit 18-07):** de Cuescore-jumbotron (`venue/table/jumbotron/`) dwingt een
 instellingenvenster af ("Jumbotron view / Grid size / Table filter") dat middenop het
 raster verschijnt en zo mee de uitzending in gaat. Het is een `<cs-jumbotron>`
 web-component (Lit) → de dialog zit in **shadow DOM** en is niet weg te krijgen met OBS'
@@ -107,8 +111,8 @@ alleen de tekstmelding.
 
 De app-setting `PAUZESCHERM_KEYS` (komma-gescheiden) overschrijft de standaard zonder
 redeploy:
-- **niet gezet / leeg** → `pauzemelding` (huidige situatie, schoon, geen venster)
-- **`jumbotron`** → de eigen jumbotron-overlay (#54, huidige productie-instelling)
+- **niet gezet / leeg** → `jumbotron` (sinds #151 gelijk aan productie)
+- **`jumbotron`** → de eigen jumbotron-overlay (#54, de productie-instelling)
 
 Onbekende sleutels worden stil overgeslagen (`pauzeCommandos` filtert op `OVERLAY_BRON`).
 

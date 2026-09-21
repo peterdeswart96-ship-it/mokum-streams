@@ -16,6 +16,7 @@ met Nick.
 
 > **Update (2026-07-16): pauze-overlays + sponsorpositie.** ✅ Alle 4 de instanties
 > hebben nu ook `Jumbotron` en `Pauzemelding` (#39, zie daar voor URL/instellingen).
+> *(`Pauzemelding` is per 21-09 vervallen — zie de update onderaan dit blok, #151.)*
 > OBS staat op **Engels** (voorkeur Peter) — dat breekt niets: de agent vraagt de
 > actieve scène op bij OBS zelf en OBS vertaalt scène- of bronnamen niet.
 > Nieuwe scene-exports gemaakt na afloop.
@@ -31,9 +32,16 @@ met Nick.
 > | Rotation | 0° |
 >
 > Bronvolgorde op alle 4, van boven naar beneden:
-> `Pauzemelding` (verborgen) → `Jumbotron` (verborgen) → `Scoreboard` →
-> `Sponsor slideshow` → `Camera Tafel N`. `Pauzemelding` moet **boven** `Jumbotron`:
-> het Cuescore-raster is dekkend, dus eronder zou de tekst onzichtbaar zijn.
+> `Competitiestand` (verborgen) → `Jumbotron` (verborgen) → `Scoreboard` →
+> `Sponsor slideshow` → `Camera Tafel N`, met `Toernooi-intro` boven de camera.
+> De volle-beeld-pauzeschermen (`Jumbotron`, `Competitiestand`) staan bovenaan: ze zijn
+> dekkend, dus alles eronder zou onzichtbaar zijn.
+>
+> **Update (2026-09-21, #151):** de bron **`Pauzemelding`** bestaat niet meer en hoeft ook
+> niet opnieuw aangemaakt te worden. De pauzetekst zit nu ín de `Jumbotron`-bron
+> (`/pauze/slides/02-jumbotron.html?tafel=N`). De sleutel `pauzemelding` is uit
+> `OVERLAY_BRON`, de agent en het dashboard gehaald; stond de bron er in de oude volgorde
+> nog boven `Jumbotron`, dan is dat achterhaald.
 >
 > Zet bronnen na het slepen **weer op slot** (🔒) — dat voorkomt dat er tijdens een
 > drukke avond per ongeluk beeld verschuift.

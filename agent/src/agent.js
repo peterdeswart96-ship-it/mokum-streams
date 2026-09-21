@@ -45,7 +45,6 @@ const DEFAULT_OVERLAY_SOURCES = {
   scoreboard: 'Scoreboard',
   cuescoreLogo: 'Cuescore logo',
   jumbotron: 'Jumbotron',
-  pauzemelding: 'Pauzemelding',
   competitie: 'Competitiestand', // #147
 };
 

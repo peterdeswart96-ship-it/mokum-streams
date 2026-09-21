@@ -18,10 +18,11 @@ De overlay-knoppen sturen op **exacte bronnamen**. Elke tafel-scene moet hebben:
 | Scores andere tafels | `Scores other tables` |
 | Cuescore-logo | `Cuescore logo` |
 | (pauze) Jumbotron | `Jumbotron` |
-| (pauze) Pauzemelding | `Pauzemelding` |
+| (pauze) Competitiestand | `Competitiestand` |
 
 - **Geen** `Challenge SB` of andere afwijkende naam (die worden door de knoppen niet
-  gevonden). `Jumbotron`/`Pauzemelding` mogen nu ontbreken (voor het pauzescherm later).
+  gevonden). `Jumbotron` mag nu ontbreken (voor het pauzescherm later). De bron `Pauzemelding` is per
+  21-09 vervallen (#151) — niet opnieuw aanmaken.
 - Profiel + Scene = `Tafel N`.
 
 ## 1. Belangrijk vóór je begint

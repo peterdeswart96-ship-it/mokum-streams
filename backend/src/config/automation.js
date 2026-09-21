@@ -12,7 +12,7 @@ function isArmed() {
   return String(process.env.AUTOMATION_ARMED || '').toLowerCase() === 'true';
 }
 
-// Aparte schakelaar voor het automatische PAUZESCHERM (Jumbotron + Pauzemelding
+// Aparte schakelaar voor het automatische PAUZESCHERM (de Jumbotron-slides
 // tussen wedstrijden, zie docs/pauzescherm-auto.md). Standaard UIT. Los van
 // AUTOMATION_ARMED omdat dit alleen overlays toggelt (geen broadcasts maakt/stopt):
 // je kunt het pauzescherm dus aanzetten zonder de volledige broadcast-automatisering
@@ -22,16 +22,17 @@ function isPauzeAutoOn() {
 }
 
 // Welke overlays het automatische pauzescherm aan/uit zet, als komma-gescheiden
-// app-setting PAUZESCHERM_KEYS. Standaard alléén 'pauzemelding' — de Cuescore-
-// jumbotron dwingt een instellingenvenster af dat mee de uitzending in gaat en niet
-// weg te krijgen is (zie #54). Zodra we een eigen tafelraster hebben, kan dit naar
-// bijv. "jumbotron,pauzemelding" zonder opnieuw te deployen. Onbekende sleutels
+// app-setting PAUZESCHERM_KEYS. Standaard 'jumbotron': dat is sinds #151 de enige
+// pauze-bron die nog bestaat (de eigen pauze-slides draaien erin, dus het bezwaar uit
+// #54 — de Cuescore-jumbotron met zijn niet weg te krijgen instellingenvenster — geldt
+// niet meer). Die waarde staat ook zo in productie, dus code en app-setting zeggen
+// hetzelfde: wie de setting weghaalt, houdt een werkend pauzescherm. Onbekende sleutels
 // worden verderop stil overgeslagen (pauzeCommandos filtert op OVERLAY_BRON).
 function pauzeSchermKeys() {
   const raw = String(process.env.PAUZESCHERM_KEYS || '').trim();
-  if (!raw) return ['pauzemelding'];
+  if (!raw) return ['jumbotron'];
   const keys = raw.split(',').map((k) => k.trim()).filter(Boolean);
-  return keys.length ? keys : ['pauzemelding'];
+  return keys.length ? keys : ['jumbotron'];
 }
 
 // Inverse van pauzeSchermKeys: overlays die tijdens SPELEN aan moeten en bij een

@@ -45,7 +45,8 @@ Op elke tafelkaart staan knopjes:
 
 - **Sponsors** — de sponsor-diavoorstelling (standaard aan).
 - **Scorebord** — de live score van de wedstrijd (standaard aan).
-- **Jumbotron / Pauzemelding** — voor tijdens een pauze (nog in de maak).
+- **Jumbotron** — het pauzescherm met alle tafels, voor tijdens een pauze.
+- **Competitiestand** — stand en uitslagen, aan het eind van een competitiewedstrijd.
 
 Je hoeft hier meestal niets aan te doen; standaard staat alles goed.
 

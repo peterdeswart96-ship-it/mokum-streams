@@ -20,7 +20,7 @@ const OVERLAYS = [
   // de schakelaar is er om het handmatig te tonen of te testen.
   { key: 'competitie', label: 'Competitiestand', desc: 'Stand + uitslagen van de afgelopen maand — gaat vanzelf aan als de teamwedstrijd klaar is', pos: 'volledig beeld', groep: 'pauze', defaultOn: false },
   // 'pauzemelding' verwijderd uit het dashboard (#75) — de jumbotron dekt de pauze al af.
-  // De backend-overlay/agent-bron blijft bestaan; hier staat alleen geen dashboardknop meer.
+  // Per #151 is ook de backend-overlay en de OBS-bron weg; de sleutel bestaat nergens meer.
 ];
 const CONTENT_OVERLAYS = OVERLAYS.filter((o) => o.groep === 'content');
 const PAUZE_OVERLAYS = OVERLAYS.filter((o) => o.groep === 'pauze');
