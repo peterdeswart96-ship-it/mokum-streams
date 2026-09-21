@@ -108,12 +108,13 @@ groen (de frontend heeft geen `lint`-script).
   `b728156` en is doorgetrokken naar `3e072e5` — daarmee kwamen ook de jackpot-thumbnail-commits
   van eerder die dag mee, die daar nog niet stonden. Taak `MokumAgent` herstart; `/api/live` geeft
   `agent.online: true` (laatst gezien 20 s eerder), dus de agent draait op de nieuwe code.
-- **Nog geen issue voor: de rotatie-tak in de agent is dood.** `config.rotations` haalt
-  `normalizeConfig()` net zomin als `overlaySources`, dus `rotations.length` is altijd 0 en de
-  hele `[ROTATIE]`-tak in `agent/src/agent.js` (rond regel 168) draait nooit. Dat is code
-  weggooien in plaats van een verwijzing corrigeren, dus dat is bewust aan Peter gelaten. Nog te
-  besluiten: opruimen, of de override in `normalizeConfig` alsnog doorgeven als we 'm ooit willen
-  gebruiken.
+- **#152 — de rotatie-tak in de agent is dood.** Zelfde oorzaak als de overlaySources-override:
+  `config.rotations` haalt `normalizeConfig()` niet, dus `rotations.length` is altijd 0 en de
+  `[ROTATIE]`-tak in `agent/src/agent.js` (rond regel 172) draait nooit. Twee tests dekken die tak
+  af en slagen, omdat ze het configobject rechtstreeks aan `runOnce` geven en `normalizeConfig`
+  overslaan — een groene test voor een pad dat in productie niet bestaat. De enige beoogde
+  gebruiker (`Scores other tables`) is bovendien per v0.18 al uit OBS verwijderd. Keuze tussen
+  opruimen (voorstel) en repareren staat in het issue; Peter beslist.
 - In OBS hoeft niets te gebeuren: de bron `Pauzemelding` moet **niet** opnieuw worden aangemaakt.
 - Uit eerdere overdrachten ongewijzigd: #145, #146, #140, #131, #132, #133, #147.
 
