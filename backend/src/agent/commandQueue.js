@@ -37,15 +37,31 @@ const OVERLAY_DEFAULT_OFF = new Set(['jumbotron', 'competitie']);
 // controleert of de camera live beeld geeft vóór hij OBS laat zenden. Alleen voor de
 // timer-automatisering (createBroadcasts); handmatige starts vanaf het dashboard laten
 // dit weg — daar kijkt een mens naar de preview.
+// Competitiestream (#153): het Cuescore-scorebord kijkt per TAFEL (`?tableId=...`), maar bij een
+// teamwedstrijd heeft Cuescore geen tafeldata (`table: []`, `frames: []`) - alleen de teamstand op
+// de wedstrijd zelf. Wat er dan in beeld komt is een losse challenge die iemand op die tafel heeft
+// gezet en die niemand bijhoudt: op 21-09 stond er zo 3,5 uur lang 0-0 op drie streams. Het gaat
+// soms wel goed (17-09) - namelijk als spelers hun challenges toevallig wel bijwerken - en juist
+// die onvoorspelbaarheid maakt het onbruikbaar. Beter geen stand dan een foute stand; de teamstand
+// krijgt een eigen balk (#154). Een expliciete `overlays.scoreboard: true` verliest hier bewust:
+// de wizard stuurt die standaard mee, en die keuze hoort niet per stream opnieuw gemaakt te worden.
+// Met de hand aanzetten kan nog steeds via POST /api/manage/streams/overlay.
+function isCompetitie(record) {
+  return String((record && record.streamType) || '') === 'competitie';
+}
+
 function startCommandsFor(record, tableNumber, overlayBron = OVERLAY_BRON, opts = {}) {
   const ov = (record && record.overlays) || {};
+  const competitie = isCompetitie(record);
   const startCmd = { type: 'startStream', tableNumber };
   if (opts.preflight) startCmd.preflight = true;
   const overlayCmds = Object.entries(overlayBron).map(([sleutel, sourceName]) => ({
     type: 'setOverlay',
     tableNumber,
     sourceName,
-    enabled: typeof ov[sleutel] === 'boolean' ? ov[sleutel] : !OVERLAY_DEFAULT_OFF.has(sleutel),
+    enabled: competitie && sleutel === 'scoreboard'
+      ? false
+      : (typeof ov[sleutel] === 'boolean' ? ov[sleutel] : !OVERLAY_DEFAULT_OFF.has(sleutel)),
   }));
   const cmds = [startCmd, ...overlayCmds];
   // Ververs het scorebord bij de start (als het aan staat): anders houdt de OBS-browserbron
@@ -93,4 +109,4 @@ function isTableBusy(broadcastsStore, tableNumber) {
   return !!(entry && !entry.stopped);
 }
 
-module.exports = { GELDIGE_TYPES, OVERLAY_BRON, startCommandsFor, competitieSchermCommando, removeProcessed, enqueue, isTableBusy };
+module.exports = { GELDIGE_TYPES, OVERLAY_BRON, isCompetitie, startCommandsFor, competitieSchermCommando, removeProcessed, enqueue, isTableBusy };

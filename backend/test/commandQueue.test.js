@@ -92,3 +92,29 @@ test('#93: een overlay die UIT gaat wordt niet herladen', () => {
   const cmds = startCommandsFor({ overlays: { scoreboard: false, jumbotron: false } }, 1);
   assert.deepStrictEqual(cmds.filter((c) => c.type === 'refreshSource'), []);
 });
+
+// #153: bij een competitiestream toont het Cuescore-scorebord niet de wedstrijd maar een losse
+// challenge op die tafel - Cuescore koppelt bij een teamwedstrijd geen partijen aan tafels. Op
+// 21-09 stond er daardoor 3,5 uur lang 0-0 op drie streams.
+test('#153: competitiestream start met het scorebord UIT', () => {
+  const cmds = startCommandsFor({ streamType: 'competitie' }, 15);
+  const byBron = Object.fromEntries(cmds.filter((c) => c.type === 'setOverlay').map((c) => [c.sourceName, c.enabled]));
+  assert.strictEqual(byBron['Scoreboard'], false);
+  assert.strictEqual(byBron['Sponsor slideshow'], true); // de rest ongewijzigd
+});
+
+test('#153: een expliciete scoreboard:true verliest van de competitieregel', () => {
+  const cmds = startCommandsFor({ streamType: 'competitie', overlays: { scoreboard: true } }, 15);
+  const sb = cmds.find((c) => c.sourceName === 'Scoreboard');
+  assert.strictEqual(sb.enabled, false);
+  // scorebord uit -> ook geen cache-refresh ervoor
+  assert.strictEqual(cmds.some((c) => c.type === 'refreshSource' && c.sourceName === 'Scoreboard'), false);
+});
+
+test('#153: andere streamsoorten houden het scorebord gewoon aan', () => {
+  for (const streamType of ['challenge', 'ranking', undefined]) {
+    const cmds = startCommandsFor({ streamType }, 15);
+    const sb = cmds.find((c) => c.sourceName === 'Scoreboard');
+    assert.strictEqual(sb.enabled, true, `verwacht scorebord AAN bij streamType=${streamType}`);
+  }
+});
