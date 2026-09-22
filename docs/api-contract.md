@@ -3,7 +3,7 @@
 Enige waarheid voor de koppelvlakken tussen frontend/widget, backend en (later) de
 agent. Wijzigen? Eerst dit bestand bijwerken (met datum + reden onderaan), dan code.
 
-Status: CONCEPT v0.65 — velden worden definitief in fase 2.
+Status: CONCEPT v0.66 — velden worden definitief in fase 2.
 
 ## Conventies
 - Alle velden camelCase. Tijden in ISO 8601 met tijdzone (Europe/Amsterdam
@@ -1037,3 +1037,34 @@ Regels:
     betrouwbaar zegt of er op die tafel gespeeld wordt. Een automaat die dat tóch raadt, raadt op
     een gegeven moment verkeerd — over een lopende wedstrijd heen. Zie ook #153 voor het
     scorebord, dat aan dezelfde lege bron hangt.
+
+- 2026-09-22: v0.66 — **vangnet: scorebord verdwijnt als de stand stilstaat** (#153, besluit
+  Peter 22-09). Sluit het gat dat op 21-09 drie en een half uur lang een 0-0 in beeld hield.
+  - **Waarom dit nodig is:** bij een competitiewedstrijd hangt het Cuescore-scorebord aan wat
+    spelers zelf aan de tafel koppelen en bijhouden. Doen ze dat (17-09), dan is het het mooiste
+    beeld dat er is: spelersnamen én de partijstand. Doen ze het niet (21-09), dan staat er
+    urenlang een leugen. Het scorebord blijft dus aan, maar verdwijnt zodra het aantoonbaar
+    achterloopt.
+  - **Nieuwe timer-Function `scorebordWacht`** (elke minuut, seconde 50 — naast checkStops/
+    liveMatches op 0, liveVideos op 20 en pauzeScherm op 40). Per tafel met een lopende
+    competitiestream haalt hij op wat de overlay zelf ophaalt:
+    `POST cuescore.com/ajax/scoreboard/overlay-v2.php` met `tableId`. Zo zien we exact wat de
+    kijker ziet, in plaats van een andere bron te raadplegen die iets anders kan zeggen.
+  - **Werking:** van elk antwoord wordt een vingerafdruk gemaakt (spelers + stand + matchId).
+    Verandert die niet gedurende `SCOREBORD_STIL_MIN` minuten (standaard 30), dan gaat er een
+    `setOverlay scoreboard false` naar die tafel. Verandert de vingerafdruk daarna weer, dan
+    gaat het scorebord meteen terug aan. Toestand per zaal-dag in
+    `scorebord-state/<zaaldag>.json`.
+  - **Fail-safe:** herkent de code de stand niet in het antwoord (onbekende veldnamen, Cuescore
+    onbereikbaar, `status: WAITING` omdat er niets op de tafel staat), dan gebeurt er **niets** —
+    het scorebord blijft zoals het stond. Liever niet ingrijpen dan verkeerd ingrijpen; de
+    ruwe respons wordt bij een omslag gelogd zodat de veldnamen na de eerste competitieavond
+    exact af te stellen zijn.
+  - **Alleen competitiestreams.** Bij een toernooistream beheert Cuescore de tafeltoewijzing zelf
+    en dekt het pauzescherm dit al af (`PAUZESCHERM_UIT=scoreboard`). Competitiestreams zijn
+    sinds v0.65 juist uitgesloten van het pauzescherm (#155), dus dit vangnet neemt daar die rol
+    over.
+  - **App-settings:** `SCOREBORD_WACHT` (standaard aan, op `false` zetten schakelt de timer uit)
+    en `SCOREBORD_STIL_MIN` (standaard 30). Geen deploy nodig om bij te stellen.
+  - Geen wijziging aan endpoints; het dashboard kan het scorebord altijd met de hand weer
+    aanzetten via `POST /api/manage/streams/overlay`.

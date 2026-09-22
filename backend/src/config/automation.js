@@ -90,7 +90,25 @@ function competitieWachtMs() {
   return (Number(process.env.COMPETITIE_STOP_WACHT_MIN) || 5) * 60 * 1000;
 }
 
+// Scorebord-vangnet (#153): verbergt het Cuescore-scorebord op een competitietafel zodra de
+// stand daar aantoonbaar stilstaat. Standaard AAN - het gat dat dit dicht (3,5 uur een verkeerde
+// stand in beeld) is erger dan het risico van deze regel, die alleen een overlay verbergt en
+// niets aan de uitzending zelf doet. Uit te zetten zonder deploy met SCOREBORD_WACHT=false.
+function isScorebordWachtAan() {
+  return String(process.env.SCOREBORD_WACHT || '').toLowerCase() !== 'false';
+}
+
+// Hoe lang dezelfde stand mag blijven staan voordat we het scorebord verbergen. Standaard 30
+// minuten: een partij tot 6 levert normaal elke paar minuten een verandering op, dus een half
+// uur stilstand is bij een lopende wedstrijd geen normale situatie. Ruim genoeg om een trage
+// partij of een lange pauze niet meteen af te straffen.
+function scorebordStilMs() {
+  const min = Number(process.env.SCOREBORD_STIL_MIN);
+  return (Number.isFinite(min) && min > 0 ? min : 30) * 60 * 1000;
+}
+
 module.exports = {
   isArmed, isPauzeAutoOn, pauzeSchermKeys, pauzeSchermUitKeys, pauzeSchermRefreshKeys,
   isInactiviteitsStopAan, isChallengeLimietAan, competitieWachtMs,
+  isScorebordWachtAan, scorebordStilMs,
 };
