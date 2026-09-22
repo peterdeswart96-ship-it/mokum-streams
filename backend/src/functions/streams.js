@@ -105,9 +105,7 @@ app.http('adminStreamStart', {
 
     // startStream + setOverlay (op basis van de meegegeven overlays; standaard aan).
     const commands = (await readJson('commands.json', [])) || [];
-    // streamType mee (#153): bij een competitiestream blijft het Cuescore-scorebord uit - dat
-    // toont bij een teamwedstrijd een losse challenge i.p.v. de wedstrijd.
-    const nieuwe = startCommandsFor({ overlays: body.overlays, streamType: body.streamType }, tafelNr).map((c) => ({
+    const nieuwe = startCommandsFor({ overlays: body.overlays }, tafelNr).map((c) => ({
       id: crypto.randomUUID(),
       createdAt: start,
       ...c,

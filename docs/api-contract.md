@@ -3,7 +3,7 @@
 Enige waarheid voor de koppelvlakken tussen frontend/widget, backend en (later) de
 agent. Wijzigen? Eerst dit bestand bijwerken (met datum + reden onderaan), dan code.
 
-Status: CONCEPT v0.65 — velden worden definitief in fase 2.
+Status: CONCEPT v0.64 — velden worden definitief in fase 2.
 
 ## Conventies
 - Alle velden camelCase. Tijden in ISO 8601 met tijdzone (Europe/Amsterdam
@@ -1010,30 +1010,3 @@ Regels:
   - Vastgelegd bij het uitzoeken: de `config.overlaySources`-override in `agent-config.json` doet
     niets — `normalizeConfig()` geeft dat veld (net als `rotations`) niet door. De bronnamen in de
     agent komen dus altijd uit `DEFAULT_OVERLAY_SOURCES`. Geen actie nodig op de OBS-pc.
-
-- 2026-09-22: v0.65 — **competitiestream start zonder het Cuescore-scorebord** (#153, besluit
-  Peter 22-09). Op 21-09 toonden drie competitiestreams 3,5 uur lang dezelfde beginstand (0-0,
-  met spelers die er allang niet meer stonden).
-  - **Oorzaak:** de OBS-bron `Scoreboard` is de Cuescore-overlay met een URL **per tafel**
-    (`?tableId=…`), en bij een teamwedstrijd heeft Cuescore geen tafeldata: `table: []`,
-    `frames: []` — alleen de teamstand op de wedstrijd zelf. De overlay was niet bevroren (hij
-    pollt elke 10 s); hij toonde een losse **challenge** die op die tafel stond en nooit werd
-    bijgewerkt.
-  - **Nuance (22-09):** het gaat soms wél goed — op 17-09 liep de stand keurig mee, bij een
-    wedstrijd die in Cuescore identiek leeg is (`table: []`, `frames: 0`). Dat kwam dus ook uit
-    challenges, die de spelers toen wél bijhielden. Het scorebord hangt bij competitie dus aan
-    vrijwillige handmatige invoer — niet iets om een uitzending op te bouwen.
-  - **Wijziging:** `startCommandsFor` (`backend/src/agent/commandQueue.js`) zet `scoreboard` op
-    `false` zodra het record `streamType: 'competitie'` heeft, óók als de aanroeper expliciet
-    `overlays.scoreboard: true` meestuurt. Dat is de enige plek waar start-commando's worden
-    gebouwd, dus het geldt voor zowel de wizard (`POST /api/manage/streams/start`) als de
-    timer (`createBroadcasts`). `POST /api/manage/streams/start` geeft `streamType` nu door aan
-    `startCommandsFor` (stond al wél in de store).
-  - Omdat het scorebord uit gaat, volgt er ook geen `refreshSource` meer voor die bron bij een
-    competitiestart.
-  - **Niet gewijzigd:** `POST /api/manage/streams/overlay` — het scorebord blijft met de hand aan
-    te zetten op een lopende stream (noodknop-principe). Andere streamsoorten (ranking, challenge,
-    ad-hoc) veranderen niet.
-  - **Gevolg voor het beeld:** de toernooikop linksboven (organisatielogo + competitienaam) zit in
-    dezelfde browserbron en is bij een competitiestream dus ook weg. Die komt terug met de eigen
-    scorebalk (#154).
