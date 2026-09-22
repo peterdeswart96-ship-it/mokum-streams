@@ -3,7 +3,7 @@
 Enige waarheid voor de koppelvlakken tussen frontend/widget, backend en (later) de
 agent. Wijzigen? Eerst dit bestand bijwerken (met datum + reden onderaan), dan code.
 
-Status: CONCEPT v0.64 — velden worden definitief in fase 2.
+Status: CONCEPT v0.65 — velden worden definitief in fase 2.
 
 ## Conventies
 - Alle velden camelCase. Tijden in ISO 8601 met tijdzone (Europe/Amsterdam
@@ -1010,3 +1010,30 @@ Regels:
   - Vastgelegd bij het uitzoeken: de `config.overlaySources`-override in `agent-config.json` doet
     niets — `normalizeConfig()` geeft dat veld (net als `rotations`) niet door. De bronnamen in de
     agent komen dus altijd uit `DEFAULT_OVERLAY_SOURCES`. Geen actie nodig op de OBS-pc.
+
+- 2026-09-22: v0.65 — **het automatische pauzescherm slaat competitiestreams over** (#155).
+  Ontdekt bij het uitzoeken van #153; dit is 21-09 nét niet misgegaan.
+  - **Het gat:** de timer `pauzeScherm` bepaalt per streamende tafel of er gespeeld wordt met
+    `tafelSpeeltNu(tournaments, tafel)` — die zoekt een lopende wedstrijd **op die tafel** in de
+    Cuescore-toernooidata van vandaag. Bij een teamwedstrijd bestaat die koppeling niet
+    (`table: []`, `frames: []`), dus het antwoord is altijd "er speelt niets" terwijl er gewoon
+    gespeeld wordt. De timer maakte geen onderscheid tussen een competitiestream en een
+    toernooistream.
+  - **Waarom het 21-09 goed ging:** toeval. Een tafel zonder eerdere toestand begint neutraal in
+    `pauze` (`volgendeToestand`), en zolang de toestand niet *verandert* stuurt de timer geen
+    commando's. De tafels bleven de hele avond in die begintoestand. Was er tussendoor één keer
+    een lopende partij op die tafel opgedoken (precies wat een losse partij op de tafel doet),
+    dan was de tafel naar `spelen` geslagen en daarna weer naar `pauze` — met de **jumbotron over
+    de lopende competitiewedstrijd** en het scorebord uit (`PAUZESCHERM_UIT=scoreboard`).
+  - **Wijziging:** `pauzeScherm` leest nu ook de broadcast-store van de zaal-dag en slaat elke
+    tafel over waarop een lopende competitiestream staat (`streamType: 'competitie'`, niet
+    `stopped`). Nieuwe pure helper `competitieTafels(store)` in `backend/src/planning/pauze.js`.
+    Zo'n tafel krijgt géén pauzescherm-commando's en houdt de overlay-stand waarmee hij is
+    gestart.
+  - **Niet gewijzigd:** toernooistreams (rankings), waar Cuescore de tafeltoewijzing wél beheert,
+    werken precies als voorheen. Het handmatig schakelen vanaf het dashboard blijft voor alle
+    streams werken.
+  - Waarom overslaan en niet "slimmer maken": voor een competitiestream bestaat er geen bron die
+    betrouwbaar zegt of er op die tafel gespeeld wordt. Een automaat die dat tóch raadt, raadt op
+    een gegeven moment verkeerd — over een lopende wedstrijd heen. Zie ook #153 voor het
+    scorebord, dat aan dezelfde lege bron hangt.

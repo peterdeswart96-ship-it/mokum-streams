@@ -202,4 +202,28 @@ function refreshCommandos(tableNumber, overlayBron, keys) {
     .map((k) => ({ type: 'refreshSource', tableNumber: Number(tableNumber), sourceName: overlayBron[k] }));
 }
 
-module.exports = { tafelSpeeltNu, volgendeToestand, pauzeCommandos, refreshCommandos, bouwLiveMatches, telZaalLive, bouwZaalRaster };
+// #155: op welke tafels loopt een COMPETITIEstream? Die doen niet mee aan het automatische
+// pauzescherm. Reden: de toestandsmachine hierboven vraagt aan Cuescore of er op die tafel een
+// wedstrijd loopt, en bij een teamwedstrijd koppelt Cuescore niets aan tafels (`table: []`,
+// `frames: []`, zie #153). Het antwoord is dan altijd 'er speelt niets' terwijl er gewoon
+// gespeeld wordt - en dan zet de automaat het pauzescherm over een lopende wedstrijd heen.
+// Er is voor zo'n stream geen bron die betrouwbaar zegt of er gespeeld wordt, dus raden we niet.
+// `store` = broadcasts/<zaaldag>.json. Een gestopte entry telt niet mee.
+//
+// LET OP: `streamType` wordt alleen gezet door de wizard (POST /api/manage/streams/start).
+// createBroadcasts schrijft het NIET mee. Dat werkt nu, omdat een competitiewedstrijd altijd
+// met de hand wordt gestart - maar zodra die ingepland kan worden (#145) moet createBroadcasts
+// het veld meeschrijven, anders herkent niet alleen deze functie de tafel niet, maar ook de
+// automatische stop (checkStops) en de thumbnailkeuze (finalizeKeuze) niet.
+function competitieTafels(store) {
+  const uit = new Set();
+  for (const entry of Object.values(store || {})) {
+    if (!entry || entry.stopped) continue;
+    if (String(entry.streamType || '') !== 'competitie') continue;
+    const tn = Number(entry.tableNumber);
+    if (Number.isInteger(tn)) uit.add(tn);
+  }
+  return uit;
+}
+
+module.exports = { tafelSpeeltNu, volgendeToestand, competitieTafels, pauzeCommandos, refreshCommandos, bouwLiveMatches, telZaalLive, bouwZaalRaster };

@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { tafelSpeeltNu, volgendeToestand, pauzeCommandos, bouwLiveMatches, telZaalLive } = require('../src/planning/pauze');
+const { tafelSpeeltNu, volgendeToestand, competitieTafels, pauzeCommandos, bouwLiveMatches, telZaalLive } = require('../src/planning/pauze');
 
 // Mini genormaliseerd toernooi (zoals normalizeTournament levert).
 const toernooiMet = (matches) => ({ id: 1, name: 'T', status: 'Active', finished: false, matches });
@@ -246,4 +246,28 @@ test('#86: het zaalraster toont alleen wat er vandaag speelt of gespeeld is', ()
   ]);
   const r = bouwZaalRaster([league], NU);
   assert.deepStrictEqual(r.map((x) => x.table), [3, 7]);
+});
+
+// #155: het pauzescherm vraagt aan Cuescore of er op een tafel gespeeld wordt, maar bij een
+// teamwedstrijd koppelt Cuescore niets aan tafels - het antwoord is dan altijd 'nee' terwijl er
+// gewoon gespeeld wordt. Zo'n tafel hoort de automaat dus met rust te laten.
+test('#155: competitieTafels vindt de tafels met een lopende competitiestream', () => {
+  const store = {
+    '1':  { tableNumber: 1,  streamType: 'competitie' },
+    '3':  { tableNumber: 3,  streamType: 'challenge' },
+    '15': { tableNumber: 15, streamType: 'competitie' },
+    '16': { tableNumber: 16 },
+  };
+  assert.deepStrictEqual([...competitieTafels(store)].sort((a, b) => a - b), [1, 15]);
+});
+
+test('#155: een gestopte competitiestream telt niet meer mee', () => {
+  const store = { '1': { tableNumber: 1, streamType: 'competitie', stopped: true } };
+  assert.deepStrictEqual([...competitieTafels(store)], []);
+});
+
+test('#155: rommel in de store levert geen tafels op', () => {
+  for (const store of [null, undefined, {}, { '1': null }, { '1': { streamType: 'competitie' } }]) {
+    assert.deepStrictEqual([...competitieTafels(store)], [], `verwacht leeg bij ${JSON.stringify(store)}`);
+  }
 });
