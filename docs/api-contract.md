@@ -3,7 +3,7 @@
 Enige waarheid voor de koppelvlakken tussen frontend/widget, backend en (later) de
 agent. Wijzigen? Eerst dit bestand bijwerken (met datum + reden onderaan), dan code.
 
-Status: CONCEPT v0.66 — velden worden definitief in fase 2.
+Status: CONCEPT v0.67 — velden worden definitief in fase 2.
 
 ## Conventies
 - Alle velden camelCase. Tijden in ISO 8601 met tijdzone (Europe/Amsterdam
@@ -1068,3 +1068,32 @@ Regels:
     en `SCOREBORD_STIL_MIN` (standaard 30). Geen deploy nodig om bij te stellen.
   - Geen wijziging aan endpoints; het dashboard kan het scorebord altijd met de hand weer
     aanzetten via `POST /api/manage/streams/overlay`.
+
+- 2026-09-22: v0.67 — **correctie op v0.66: het scorebord wordt ververst, niet verborgen** (#153).
+  Dezelfde dag nog rechtgezet, nadat een van de teams liet zien dat de diagnose niet klopte.
+  - **Wat er mis was aan v0.66:** die ging ervan uit dat de stand in Cuescore niet werd
+    bijgehouden. Een captain weersprak dat, en Cuescore geeft hem gelijk. Challenge `89921515`
+    van 21-09: `table.tableId 61403800` (= tafel 15), `matchstatus finished`, eindstand
+    `Joris de Winkel 1 - 8 Moudar Ali`. De partijen stonden dus op de juiste tafels, werden
+    bijgewerkt en netjes afgesloten — de hele avond door.
+  - **De echte oorzaak:** de data klopte, het beeld niet. De OBS-browserbron was bevroren. De
+    overlay-pagina van Cuescore stopt permanent met verversen zodra één aanvraag mislukt:
+    `.fail(function(a){ Scoreboard.Overlay.pollerInterval = null })` — geen retry, geen herstel.
+    Eén hapering en de pagina blijft staan waar hij stond. Dat verklaart ook waarom meerdere
+    tafels tegelijk bevroren (één netwerkhapering raakt alle bronnen) en waarom het de ene avond
+    wel en de andere niet gebeurt. Het tweede kanaal van die pagina, een websocket, herstelt zich
+    wél (`onclose` → opnieuw verbinden na 5 s); de poll-lus niet.
+  - **Nieuwe werking van `scorebordWacht`:** dezelfde timer, ander werk. Hij haalt nog steeds op
+    wat de overlay zelf ophaalt, maar stuurt nu een **`refreshSource`** voor de bron `Scoreboard`
+    zodra de stand is veranderd — hooguit eens per `SCOREBORD_REFRESH_MIN` minuten (standaard 10).
+    Verandert er niets, dan geen refresh: een bevroren bron doet op dat moment geen kwaad, want er
+    is toch niets nieuws te tonen.
+  - **Voor álle streams**, niet alleen competitie: een browserbron kan op elke avond bevriezen.
+    Wel alleen op tafels die de agent als `streaming` meldt.
+  - **Vervallen:** het verbergen bij stilstand en de app-setting `SCOREBORD_STIL_MIN`. Die regel
+    rustte op de weerlegde aanname en zou een kloppend scorebord kunnen verbergen tijdens een
+    trage partij. `SCOREBORD_WACHT` (standaard aan) blijft de aan/uit-schakelaar.
+  - **Kosten:** verwaarloosbaar. De timer draait toch al elke minuut — dat bepaalt de
+    Flex Consumption-rekening, niet of hij een commando wegschrijft. De werkelijke prijs is
+    zichtbaar: de bron is bij een refresh ongeveer een seconde uit beeld. Vandaar de rem van 10
+    minuten, zonder deploy bij te stellen.
