@@ -8,6 +8,12 @@
 > pauzetekst zit in de `Jumbotron`-slides. Waar hieronder `pauzemelding` staat, is dat
 > geschiedenis — de sleutel bestaat nergens meer in code, agent of dashboard.
 
+> **Let op (22-09, #155):** deze timer slaat **competitiestreams** over. Bij een
+> teamwedstrijd koppelt Cuescore geen partijen aan tafels, dus `tafelSpeeltNu` meldt altijd
+> "er speelt niets" terwijl er gewoon gespeeld wordt. Zonder die uitzondering zet de automaat
+> het pauzescherm over een lopende wedstrijd heen. Een tafel met een lopende competitiestream
+> in `broadcasts/<zaaldag>.json` krijgt dus geen pauzescherm-commandos.
+
 ## Toestandsmachine (per tafel)
 Twee toestanden:
 - **SPELEN** — pauzescherm **uit** (camera + Cuescore-scoreboard normaal).

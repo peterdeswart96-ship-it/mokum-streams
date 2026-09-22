@@ -3,7 +3,7 @@ const { readJson, writeJson, writeJsonAlsGewijzigd } = require('../storage/blob'
 const { getTodaysTournaments } = require('../cuescore');
 const { zaalDag } = require('../schedule/schedule');
 const { enqueue, OVERLAY_BRON } = require('../agent/commandQueue');
-const { tafelSpeeltNu, volgendeToestand, pauzeCommandos, refreshCommandos } = require('../planning/pauze');
+const { tafelSpeeltNu, volgendeToestand, competitieTafels, pauzeCommandos, refreshCommandos } = require('../planning/pauze');
 const { isPauzeAutoOn, pauzeSchermKeys, pauzeSchermUitKeys, pauzeSchermRefreshKeys } = require('../config/automation');
 
 // Timer-Function: automatisch pauzescherm (A auto-trigger, zie docs/pauzescherm-auto.md).
@@ -45,9 +45,23 @@ async function verwerk(now, context) {
 
   // Alleen tafels die de agent als streamend meldt (pauzescherm is zinloos zonder live stream).
   const status = (await readJson('status.json', {})) || {};
-  const streamend = ((status.tables || []).filter((t) => t && t.streaming) || []).map((t) => Number(t.tableNumber));
-  if (!streamend.length) {
+  const alleStreamend = ((status.tables || []).filter((t) => t && t.streaming) || []).map((t) => Number(t.tableNumber));
+  if (!alleStreamend.length) {
     context.log('[pauzeScherm] geen streamende tafels → niets te doen.');
+    return;
+  }
+
+  // #155: competitietafels overslaan - zie competitieTafels() voor het waarom. Warning-niveau
+  // zodat in de log terug te zien is dat de timer een tafel bewust met rust liet.
+  const broadcasts = (await readJson(`broadcasts/${zaalDag(now)}.json`, {})) || {};
+  const overslaan = competitieTafels(broadcasts);
+  const streamend = alleStreamend.filter((tn) => !overslaan.has(tn));
+  const genegeerd = alleStreamend.filter((tn) => overslaan.has(tn));
+  if (genegeerd.length) {
+    context.warn(`[pauzeScherm] tafel ${genegeerd.join(', ')} overgeslagen: competitiestream (#155)`);
+  }
+  if (!streamend.length) {
+    context.log('[pauzeScherm] alleen competitietafels streamen → niets te doen.');
     return;
   }
 
