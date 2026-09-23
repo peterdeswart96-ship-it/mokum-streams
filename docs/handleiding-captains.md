@@ -1,5 +1,15 @@
 # Handleiding voor teamcaptains — scores in de stream
 
+> **ACHTERHAALD (22-09-2026) — NIET VERSPREIDEN.**
+> Dit stuk is geschreven op een diagnose die onjuist bleek. De teams hielden hun partijen wél
+> bij: op de juiste tafels, met bijgewerkte stand, netjes afgesloten (bewijs in #153). Het
+> probleem lag bij ons: de browserbron in OBS bevroor, waardoor het beeld bleef hangen terwijl
+> de gegevens in Cuescore gewoon meeliepen. Dat is opgelost door de bron te verversen.
+>
+> Dit bestand blijft staan omdat de overdracht ernaar verwijst. Intrekken of herschrijven is
+> nog een besluit van Peter.
+
+
 > Doelgroep: de captains van de teams die bij Mokum spelen. Dit bestand is de bron; de
 > deelbare versie staat als pagina online (link hieronder) en is wat de captains krijgen.
 
