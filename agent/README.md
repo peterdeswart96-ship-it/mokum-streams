@@ -57,6 +57,17 @@ npm start
 npm test   # node --test — pure logica (config, commando-validatie, kernlus met fakes)
 ```
 
+## OBS-bronnen uitlezen (#98)
+Legt per tafel vast welke bronnen er in OBS staan en met welke URL/instellingen, en meldt
+waar de tafels van elkaar afwijken. **Alleen lezen** — zet of ververst niets in OBS, dus ook
+te draaien tijdens een uitzending. Draai het op de streaming-pc, in `agent/`:
+```powershell
+npm.cmd run bronnen -- --uit obs-bronnen.md
+```
+Leest `agent-config.json` (poorten) en de wachtwoorden uit `OBS_PASSWORD_TAFEL_<nr>`, net als
+de agent. Camerabronnen worden alleen met hun type getoond en gevoelige URL-delen gemaskeerd,
+maar bekijk de uitvoer toch even voordat je hem in de repo zet.
+
 ## Als Windows-service (op de streaming-pc)
 De agent moet automatisch opstarten met de pc. Twee beproefde opties:
 - **NSSM** (Non-Sucking Service Manager): `nssm install MokumStreamsAgent "C:\Program Files\nodejs\node.exe" "C:\pad\naar\agent\index.js"` — env-vars en working directory instelbaar in de NSSM-GUI.
