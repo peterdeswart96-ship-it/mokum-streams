@@ -40,27 +40,16 @@ function isDrukkeTijd(nowMs = Date.now()) {
 // Standaard overlaybronnen (spiegelt backend OVERLAY_BRON). Gebruikt om de werkelijke
 // overlay-stand per tafel uit te lezen (dashboard-weergave, api-contract v0.10).
 //
-// NB (21-09, #151): de `config.overlaySources`-override hieronder is in de praktijk dood —
-// normalizeConfig() in src/config.js geeft dat veld (net als `rotations`) niet door, dus wat
-// er ook in agent-config.json staat, deze map wint. Houd hem daarom gelijk aan OVERLAY_BRON.
+// Er is bewust géén override via agent-config.json: die bestond ooit maar kwam nooit door
+// normalizeConfig() heen (#151, #152). Houd deze map daarom gelijk aan OVERLAY_BRON.
 // Een bron die hier staat maar niet in OBS bestaat, wordt stil overgeslagen (overlayStates
 // vangt de fout) — het kost alleen elke statusronde twee nutteloze OBS-calls per tafel.
-const DEFAULT_OVERLAY_SOURCES = {
+const OVERLAY_SOURCES = {
   sponsors: 'Sponsor slideshow',
   scoreboard: 'Scoreboard',
   jumbotron: 'Jumbotron',
   competitie: 'Competitiestand', // #147
 };
-
-// Is een periodieke ("rotatie") overlay nu zichtbaar? true gedurende de eerste
-// `forSec` seconden van elke `everySec`-cyclus op de wandklok. Bijv. everySec=180,
-// forSec=20 → elke 3 minuten 20 seconden aan. Pure functie → testbaar.
-function rotatieZichtbaar(rotation, nowMs) {
-  const everySec = Number(rotation && rotation.everySec) || 0;
-  const forSec = Number(rotation && rotation.forSec) || 0;
-  if (everySec <= 0 || forSec <= 0) return false;
-  return Math.floor(nowMs / 1000) % everySec < forSec;
-}
 
 async function voerCommandoUit(pool, cmd) {
   switch (cmd.type) {
@@ -145,8 +134,6 @@ async function runOnce(config, pool, backend, logger = console, nowMs = Date.now
     }
   }
 
-  const overlaySources = config.overlaySources || DEFAULT_OVERLAY_SOURCES;
-  const rotations = config.rotations || [];
   // Per tafel parallel i.p.v. een sequentiële for-loop (26-08): een OBS-instantie die
   // druk is met het opzetten van een verse RTMP-verbinding kan een paar minuten traag
   // reageren op websocket-calls (GetStreamStatus e.d.). In een sequentiële loop trekt
@@ -161,28 +148,9 @@ async function runOnce(config, pool, backend, logger = console, nowMs = Date.now
       let overlays;
       if (base.streaming && typeof pool.overlayStates === 'function') {
         try {
-          overlays = await pool.overlayStates(t.tableNumber, overlaySources);
+          overlays = await pool.overlayStates(t.tableNumber, OVERLAY_SOURCES);
         } catch (e) {
           logger.log(`[STATUS] overlay-standen tafel ${t.tableNumber} mislukt: ${e.message}`);
-        }
-      }
-      // Periodieke overlays (rotatie): edge-triggered aan/uit zetten o.b.v. de wandklok.
-      // Hergebruikt de zojuist gelezen overlay-standen zodat we alleen bij een wijziging
-      // een OBS-call doen. Alleen zinvol als er gezonden wordt.
-      if (base.streaming && overlays && rotations.length) {
-        for (const r of rotations) {
-          const bron = overlaySources[r.key];
-          if (!bron) continue;
-          const gewenst = rotatieZichtbaar(r, nowMs);
-          if (overlays[r.key] !== gewenst) {
-            try {
-              await pool.setOverlay(t.tableNumber, bron, gewenst);
-              overlays[r.key] = gewenst; // gerapporteerde stand meteen bijwerken
-              logger.log(`[ROTATIE] tafel ${t.tableNumber} ${bron} -> ${gewenst ? 'aan' : 'uit'}`);
-            } catch (e) {
-              logger.log(`[ROTATIE] ${bron} tafel ${t.tableNumber} mislukt: ${e.message}`);
-            }
-          }
         }
       }
       // Freeze-watchdog (#43 A2): alleen zinvol op een streamende tafel. Detecteert een
@@ -274,4 +242,4 @@ function startLoop(config, pool, backend, logger = console) {
   return { stop: () => clearTimeout(timer) };
 }
 
-module.exports = { voerCommandoUit, runOnce, startLoop, rotatieZichtbaar, cameraBronVoor, isDrukkeTijd, isActieveRonde };
+module.exports = { voerCommandoUit, runOnce, startLoop, cameraBronVoor, isDrukkeTijd, isActieveRonde };

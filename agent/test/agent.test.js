@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { runOnce, rotatieZichtbaar, isDrukkeTijd, isActieveRonde } = require('../src/agent');
+const { runOnce, isDrukkeTijd, isActieveRonde } = require('../src/agent');
 
 // Fake OBS-pool die de aanroepen registreert i.p.v. echt OBS aan te spreken.
 function fakePool() {
@@ -142,21 +142,6 @@ test('runOnce verwerkt tafels parallel — een trage tafel vertraagt de andere n
   assert.deepStrictEqual(posted.tables.map((t) => t.tableNumber), [1, 2, 3]); // volgorde blijft behouden
 });
 
-test('rotatieZichtbaar: aan tijdens de eerste forSec, daarna uit tot de volgende cyclus', () => {
-  const r = { key: 'scoresOtherTables', everySec: 180, forSec: 20 };
-  assert.strictEqual(rotatieZichtbaar(r, 0), true);        // begin cyclus
-  assert.strictEqual(rotatieZichtbaar(r, 19_000), true);   // nog binnen de 20s
-  assert.strictEqual(rotatieZichtbaar(r, 20_000), false);  // net erna
-  assert.strictEqual(rotatieZichtbaar(r, 179_000), false); // eind cyclus
-  assert.strictEqual(rotatieZichtbaar(r, 180_000), true);  // volgende cyclus begint
-});
-
-test('rotatieZichtbaar: onvolledige/nul-config → altijd uit', () => {
-  assert.strictEqual(rotatieZichtbaar({ everySec: 0, forSec: 20 }, 5_000), false);
-  assert.strictEqual(rotatieZichtbaar({ everySec: 180 }, 5_000), false);
-  assert.strictEqual(rotatieZichtbaar({}, 5_000), false);
-});
-
 // Alle momenten hieronder in augustus (CEST, UTC+2) om DST buiten beschouwing te laten.
 // Donderdag 20-08-2026, zaterdag 22-08, zondag 23-08, maandag 24-08.
 test('isDrukkeTijd: doordeweeks binnen 18:00-01:30 (+marge) is druk, overdag niet', () => {
@@ -201,36 +186,26 @@ test('isActieveRonde: ontbrekende/undefined invoer valt veilig terug op niet-act
   assert.strictEqual(isActieveRonde(null, null), false);
 });
 
-test('runOnce zet een rotatie-overlay aan wanneer die zichtbaar hoort te zijn', async () => {
+test('runOnce leest de overlay-standen met de vaste bronnenlijst en schakelt zelf niets (#152)', async () => {
   const pool = fakePool();
   pool.status = async () => ({ obsConnected: true, streaming: true, bitrateKbps: 9000 });
-  pool.overlayStates = async () => ({ scoresOtherTables: false }); // staat nu uit
+  let gevraagd = null;
+  pool.overlayStates = async (_tafel, bronnen) => { gevraagd = bronnen; return { jumbotron: false }; };
   let posted = null;
   const backend = { async fetchCommands() { return []; }, async postStatus(_c, b) { posted = b; } };
+  // Een `overlaySources`/`rotations` in de config heeft geen effect: normalizeConfig geeft ze
+  // niet door, en runOnce hoort ze ook niet meer te lezen.
   const config = {
     tables: [{ tableNumber: 3 }],
-    overlaySources: { scoresOtherTables: 'Scores other tables' },
-    rotations: [{ key: 'scoresOtherTables', everySec: 180, forSec: 20 }],
+    overlaySources: { nepbron: 'Bestaat niet' },
+    rotations: [{ key: 'jumbotron', everySec: 180, forSec: 20 }],
   };
-  await runOnce(config, pool, backend, { log() {} }, 0); // nowMs=0 → binnen forSec → moet aan
+  await runOnce(config, pool, backend, { log() {} }, 0);
 
-  assert.deepStrictEqual(pool.calls, [['overlay', 3, 'Scores other tables', true]]);
-  assert.strictEqual(posted.tables[0].overlays.scoresOtherTables, true); // gerapporteerde stand bijgewerkt
-});
-
-test('runOnce laat een rotatie-overlay met rust als de stand al klopt', async () => {
-  const pool = fakePool();
-  pool.status = async () => ({ obsConnected: true, streaming: true, bitrateKbps: 9000 });
-  pool.overlayStates = async () => ({ scoresOtherTables: false }); // al uit
-  const backend = { async fetchCommands() { return []; }, async postStatus() {} };
-  const config = {
-    tables: [{ tableNumber: 3 }],
-    overlaySources: { scoresOtherTables: 'Scores other tables' },
-    rotations: [{ key: 'scoresOtherTables', everySec: 180, forSec: 20 }],
-  };
-  await runOnce(config, pool, backend, { log() {} }, 50_000); // buiten forSec → wil uit; is al uit
-
-  assert.deepStrictEqual(pool.calls, []); // geen overbodige OBS-call
+  assert.strictEqual(gevraagd.jumbotron, 'Jumbotron');
+  assert.strictEqual(gevraagd.nepbron, undefined);
+  assert.deepStrictEqual(pool.calls, []); // geen setOverlay uit eigen beweging
+  assert.strictEqual(posted.tables[0].overlays.jumbotron, false);
 });
 
 test('runOnce: auto-start (preflight) met een BEVROREN camera → niet starten, niet bevestigen, alarm in status', async () => {

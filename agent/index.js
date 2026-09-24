@@ -14,9 +14,9 @@ function tijdgestempeldeLogger() {
 // Entrypoint van de agent. Draait als gewoon Node-proces; op de streaming-pc
 // wordt dit als Windows-service opgestart (zie README). Alleen uitgaande HTTPS.
 function main() {
-  const config = loadConfig();
-  const pool = new ObsPool(config.tables);
   const logger = tijdgestempeldeLogger();
+  const config = loadConfig(undefined, logger);
+  const pool = new ObsPool(config.tables);
   logger.log(
     `Mokum Streams-agent gestart — ${config.tables.length} tafel(s), poll elke ${config.pollIntervalMs}ms`
   );

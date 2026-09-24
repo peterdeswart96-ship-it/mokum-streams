@@ -93,9 +93,9 @@ dashboard "live" en gaan de overlay-knoppen echt togglen.
 4. **Secrets als env-vars** (niet in het bestand):
    - `AGENT_TOKEN` = **exact** de `AGENT_TOKEN` uit de Azure Function App-instellingen.
    - `OBS_PASSWORD_TAFEL_1/3/15/16` = de websocket-wachtwoorden uit stap 5.
-5. **Rotatie:** de voorbeeldconfig rouleert `scoresOtherTables` (elke 180s, 20s aan) → dat
-   toggelt die overlay zichtbaar op de **live** stream. Wil je dat nu niet, haal dan het
-   `rotations`-blok (tijdelijk) weg.
+5. **Rotatie:** vervallen — de rotatie-feature is in #152 uit de agent gehaald, dus er is
+   niets meer om uit te zetten. Staat er in jouw `agent-config.json` nog een `rotations`-blok,
+   dan meldt de agent bij het starten `[CONFIG] onbekend veld 'rotations'`; je mag het weghalen.
 6. **Starten:** in `agent/` → `node index.js`. Let op de log: *verbonden* met alle 4 OBS,
    *status gepost*. Op het dashboard flippen de tafels dan naar **live** en tonen ze de
    echte overlay-standen.
