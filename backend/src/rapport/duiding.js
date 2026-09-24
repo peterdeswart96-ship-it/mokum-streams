@@ -28,6 +28,11 @@ const probleemSleutel = (m) => m.replace(POGING_RE, 'poging N/M');
 // erger: als élke ochtend zo'n rode balk staat, kijkt niemand meer op van een échte.
 const OPSTARTRUIS_RE = /Process reporting unhealthy|NoScriptHost/i;
 
+// #114/#116: de herstelpogingen en het alarm van checkStops. `opnieuw starten (poging N/M)` valt
+// níét onder PROBLEEM_RE en werd daardoor nooit gemeld.
+const HERSTART_RE = /^\[checkStops\] tafel \d+: nog geen data van de agent.*opnieuw starten \(poging (\d+)\/(\d+)\)/i;
+const ALARM_RE = /^\[ALARM\] tafel \d+: niet live na/i;
+
 // Tafelnummer uit een regel, of null. Let op de vormen die in de logs voorkomen:
 //   [checkStops] tafel 3: stoppen — ...
 //   [OK] Broadcast + startcommando's: tafel 1 — "..."
@@ -72,6 +77,24 @@ const REGELS = [
   {
     test: /^\[createBroadcasts\]/,
     soort: null, // routinewerk: niet in het rapport
+  },
+  {
+    // Herstel-vangnet (#114): OBS zendt nog niet, ruim na de geplande start. Zonder deze regel
+    // was een tafel die pas bij de tweede of derde poging aansloeg onzichtbaar (#116).
+    test: HERSTART_RE,
+    soort: 'let-op',
+    titel: (m) => metTafel(m, 'startte niet meteen — opnieuw geprobeerd'),
+    uitleg: (m) => {
+      const p = HERSTART_RE.exec(m);
+      return `OBS begon niet direct te zenden. Het systeem probeerde het vanzelf opnieuw (poging ${p[1]} van ${p[2]}). Of het lukte, blijkt uit het vervolg: een alarm betekent dat het niet gelukt is.`;
+    },
+  },
+  {
+    // Het alarm dat al per mail en ntfy naar jullie ging: dat hoort in het rapport ook te staan.
+    test: ALARM_RE,
+    soort: 'fout',
+    titel: (m) => metTafel(m, 'niet live gekomen — alarm verstuurd'),
+    uitleg: 'Alle automatische startpogingen zijn gedaan en er kwam nog steeds geen beeld. Dit lost het systeem niet zelf op: iemand moet naar de OBS-pc kijken.',
   },
   {
     test: OPSTARTRUIS_RE,
@@ -222,6 +245,8 @@ function analyseer(regels, { langsteOpenUren = 2 } = {}) {
   let gekoppeld = 0;
   const scorebordVerversingen = []; // { tafel, tijd }
   const scorebordOnleesbaar = new Map(); // tafelnummer → aantal mislukte Cuescore-aanvragen
+  const herstartPogingen = new Map(); // tafelnummer → hoogste pogingnummer (#116)
+  const alarmTafels = new Set(); // tafels waarvoor het niet-live-alarm afging (#116)
 
   for (const r of rijen) {
     const m = String(r.bericht).replace(/\r?\n/g, ' ').trim();
@@ -235,6 +260,10 @@ function analyseer(regels, { langsteOpenUren = 2 } = {}) {
     }
 
     if (/^\[pauzeScherm\]/.test(m)) { pauzeschakelingen++; continue; }
+
+    const herstart = HERSTART_RE.exec(m);
+    if (herstart) herstartPogingen.set(tafelUit(m), Math.max(herstartPogingen.get(tafelUit(m)) || 0, Number(herstart[1])));
+    if (ALARM_RE.test(m)) alarmTafels.add(tafelUit(m));
 
     const ververst = SCOREBORD_VERVERST_RE.exec(m);
     if (ververst) scorebordVerversingen.push({ tafel: Number(ververst[1]), tijd: r.tijd });
@@ -355,6 +384,24 @@ function analyseer(regels, { langsteOpenUren = 2 } = {}) {
         tekst: 'Een uitzending zonder toernooi stopt nooit vanzelf; iemand moet hem afsluiten zodra de partij klaar is. Zo lang open betekent een video waarin kijkers vooral naar een lege tafel kijken.',
       });
     }
+  }
+
+  // Start die niet vanzelf aansloeg (#114/#116). Een alarm is een echt aandachtspunt; alleen
+  // herstelpogingen (die uiteindelijk wel of niet lukten) zijn een let-op.
+  for (const tafel of alarmTafels) {
+    bevindingen.push({
+      soort: 'fout',
+      kop: `Tafel ${tafel} is niet gaan zenden, ondanks alle startpogingen`,
+      tekst: 'Het systeem probeerde het meerdere keren en stuurde een alarm (mail en ntfy). Dit los je niet vanzelf op: er moet iemand naar de OBS-pc kijken. Controleer of de uitzending daarna alsnog is gestart.',
+    });
+  }
+  for (const [tafel, poging] of herstartPogingen) {
+    if (alarmTafels.has(tafel)) continue; // staat al als aandachtspunt hierboven
+    bevindingen.push({
+      soort: 'let-op',
+      kop: `Tafel ${tafel} startte niet vanzelf in één keer`,
+      tekst: `OBS begon niet direct te zenden; het systeem heeft het ${poging === 1 ? 'één keer' : `${poging} keer`} opnieuw geprobeerd zonder dat iemand hoefde in te grijpen. Kwam er geen alarm, dan is de uitzending uiteindelijk gestart.`,
+    });
   }
 
   // Scorebord niet ververst tijdens een lange uitzending (#156). Losse (ad-hoc) uitzendingen

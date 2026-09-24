@@ -464,3 +464,48 @@ test('#156: de mail toont het aantal scorebord-verversingen bij de cijfers', () 
   const a = analyseer([start(1, 17, 30), ververst(1, 18, 5), stop(1, 21, 10)]);
   assert.match(tekst('2026-08-03', a), /scorebord ververst\s*: 1x/);
 });
+
+// #116: de herstelpogingen (#114) en het niet-live-alarm stonden wel in de logs maar niet in het rapport.
+const HERSTART = (tafel, p) => `[checkStops] tafel ${tafel}: nog geen data van de agent sinds de geplande start → opnieuw starten (poging ${p}/3)`;
+const ALARM = (tafel) => `[ALARM] tafel ${tafel}: niet live na 3 pogingen — alarm wordt verstuurd.`;
+
+test('#116: een herstelpoging is geen "niets bijzonders" meer', () => {
+  const a = analyseer([start(1, 17, 30), { tijd: T(17, 33), bericht: HERSTART(1, 1) }, stop(1, 21, 10)]);
+  assert.ok(!a.bevindingen.some((b) => b.soort === 'goed'), JSON.stringify(a.bevindingen));
+  const b = a.bevindingen.find((x) => /startte niet vanzelf/.test(x.kop));
+  assert.ok(b);
+  assert.strictEqual(b.soort, 'let-op'); // geen alarm: het vangnet deed zijn werk
+  assert.match(b.tekst, /één keer opnieuw/);
+  const g = a.gebeurtenissen.find((x) => /opnieuw geprobeerd/.test(x.titel));
+  assert.match(g.titel, /^Tafel 1:/);
+  assert.match(g.uitleg, /poging 1 van 3/);
+});
+
+test('#116: meerdere pogingen op één tafel geven één bevinding met het hoogste pogingnummer', () => {
+  const a = analyseer([
+    start(3, 17, 30),
+    { tijd: T(17, 33), bericht: HERSTART(3, 1) },
+    { tijd: T(17, 35), bericht: HERSTART(3, 2) },
+    stop(3, 21, 10),
+  ]);
+  const b = a.bevindingen.filter((x) => /startte niet vanzelf/.test(x.kop));
+  assert.strictEqual(b.length, 1);
+  assert.match(b[0].tekst, /2 keer opnieuw/);
+});
+
+test('#116: het niet-live-alarm komt als aandachtspunt in het rapport en in de onderwerpregel', () => {
+  const a = analyseer([
+    start(1, 17, 30),
+    { tijd: T(17, 33), bericht: HERSTART(1, 1) },
+    { tijd: T(17, 35), bericht: HERSTART(1, 2) },
+    { tijd: T(17, 37), bericht: HERSTART(1, 3) },
+    { tijd: T(17, 40), bericht: ALARM(1) },
+    { tijd: T(17, 40), bericht: '[ALARM] tafel 1: mail verstuurd, ntfy verstuurd.' },
+    stop(1, 18, 0),
+  ]);
+  const b = a.bevindingen.find((x) => /niet gaan zenden/.test(x.kop));
+  assert.ok(b);
+  assert.strictEqual(b.soort, 'fout');
+  assert.strictEqual(a.bevindingen.filter((x) => /tafel 1/i.test(x.kop) && /startte niet vanzelf/.test(x.kop)).length, 0, 'geen dubbele melding naast het alarm');
+  assert.match(onderwerp('2026-08-03', a), /1 aandachtspunt/);
+});
