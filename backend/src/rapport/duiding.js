@@ -162,6 +162,19 @@ const tafelUit = (m) => {
 
 const minuten = (a, b) => Math.round((b - a) / 60000);
 
+// Scorebord-vangnet (#153, #156). Het rapport meet niet de stand zelf maar of het vangnet zijn
+// werk deed: de timer `scorebordWacht` herlaadt de OBS-bron zodra de Cuescore-stand verandert
+// en logt dat op Warning-niveau. Op 21-09 bleef het beeld urenlang staan terwijl Cuescore
+// gewoon meebewoog; dat was pas een dag later te zien.
+//
+// Een uitzending van deze lengte zonder één verversing is verdacht: óf er veranderde in
+// Cuescore niets (niemand hield de stand bij), óf de timer draaide niet. Beide horen in het
+// rapport. Alleen melden — ingrijpen is niet aan het rapport (en automatisch afkappen deed
+// eerder schade, #134).
+const SCOREBORD_VERVERST_RE = /^\[scorebordWacht\] tafel (\d+): scorebord ververst/;
+const SCOREBORD_ONLEESBAAR_RE = /^\[scorebordWacht\] tafel (\d+): Cuescore niet bereikbaar/;
+const SCOREBORD_STIL_MIN = 60;
+
 // Kleur per uitzending, zodat je in het rapport in één oogopslag ziet welke regels bij
 // elkaar horen. Vier vaste kleuren uit het gevalideerde categorische palet (blauw, oranje,
 // aqua, violet): die halen alle controles op kleurenblindheid, ook als je ze twee aan twee
@@ -207,6 +220,8 @@ function analyseer(regels, { langsteOpenUren = 2 } = {}) {
   let automatischGestopt = 0;
   let handmatigGestart = 0;
   let gekoppeld = 0;
+  const scorebordVerversingen = []; // { tafel, tijd }
+  const scorebordOnleesbaar = new Map(); // tafelnummer → aantal mislukte Cuescore-aanvragen
 
   for (const r of rijen) {
     const m = String(r.bericht).replace(/\r?\n/g, ' ').trim();
@@ -220,6 +235,11 @@ function analyseer(regels, { langsteOpenUren = 2 } = {}) {
     }
 
     if (/^\[pauzeScherm\]/.test(m)) { pauzeschakelingen++; continue; }
+
+    const ververst = SCOREBORD_VERVERST_RE.exec(m);
+    if (ververst) scorebordVerversingen.push({ tafel: Number(ververst[1]), tijd: r.tijd });
+    const onleesbaar = SCOREBORD_ONLEESBAAR_RE.exec(m);
+    if (onleesbaar) scorebordOnleesbaar.set(Number(onleesbaar[1]), (scorebordOnleesbaar.get(Number(onleesbaar[1])) || 0) + 1);
 
     const hs = /(\d+) hoofdstukken/.exec(m);
     if (hs) hoofdstukken += Number(hs[1]);
@@ -337,6 +357,23 @@ function analyseer(regels, { langsteOpenUren = 2 } = {}) {
     }
   }
 
+  // Scorebord niet ververst tijdens een lange uitzending (#156). Losse (ad-hoc) uitzendingen
+  // slaan we over: zonder toernooi houdt vaak niemand een stand bij, dus nul verversingen is
+  // daar normaal en zou elke avond vals alarm geven.
+  for (const u of uitzendingen) {
+    if (u.adhoc || !u.stop) continue;
+    const min = minuten(u.start, u.stop);
+    if (min < SCOREBORD_STIL_MIN) continue;
+    const gehad = scorebordVerversingen.some((v) => v.tafel === u.tafel && v.tijd >= u.start && v.tijd <= u.stop);
+    if (gehad) continue;
+    const haperingen = scorebordOnleesbaar.get(u.tafel) || 0;
+    bevindingen.push({
+      soort: 'let-op',
+      kop: `Scorebord op tafel ${u.tafel} is niet één keer ververst`,
+      tekst: `De uitzending duurde ${uurNotatie(min)}, maar het scorebord in beeld is in die tijd niet herladen. Dat klopt als er in Cuescore niets veranderde (bijvoorbeeld omdat niemand de stand bijhield). Het kan ook betekenen dat het scorebord vastzat of dat de controle niet draaide — kijk in de opname of de stand meebewoog.${haperingen ? ` Cuescore was die avond ${haperingen}x niet bereikbaar voor deze controle.` : ''}`,
+    });
+  }
+
   if (problemen.size) {
     bevindingen.push({
       soort: 'let-op',
@@ -364,6 +401,7 @@ function analyseer(regels, { langsteOpenUren = 2 } = {}) {
       afgerondeVideos: gebeurtenissen.filter((g) => /gefinaliseerd/.test(g.bericht)).length,
       hoofdstukken,
       pauzeschakelingen,
+      scorebordVerversingen: scorebordVerversingen.length,
       problemen: problemen.size,
       uitzendingen,
       streams,

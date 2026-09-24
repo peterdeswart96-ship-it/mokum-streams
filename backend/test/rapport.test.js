@@ -406,3 +406,61 @@ test('#91: een nieuwe uitzending op dezelfde tafel neemt het stokje over', () =>
   const klaar = a.gebeurtenissen.find((g) => /video afgerond/.test(g.titel));
   assert.strictEqual(klaar.stream, 'Tweede');
 });
+
+// #156: het rapport meet of het scorebord-vangnet (#153) zijn werk deed, niet de stand zelf.
+const start = (tafel, u, m) => ({ tijd: T(u, m), bericht: `[OK] Broadcast + startcommando's: tafel ${tafel} — "Tafel ${tafel} Fluke ranking" (vid${tafel}xxxxxx)` });
+const stop = (tafel, u, m) => ({ tijd: T(u, m), bericht: `[checkStops] tafel ${tafel}: stoppen — toernooi klaar, podium-grace van 180s verstreken` });
+const ververst = (tafel, u, m) => ({ tijd: T(u, m), bericht: `[scorebordWacht] tafel ${tafel}: scorebord ververst — nieuwe stand "1|A|B|0|0"` });
+const scorebordMelding = (a) => a.bevindingen.find((b) => /Scorebord op tafel/.test(b.kop));
+
+test('#156: een lange uitzending zonder één scorebord-verversing wordt gemeld', () => {
+  const a = analyseer([start(1, 17, 30), stop(1, 21, 10)]);
+  const b = scorebordMelding(a);
+  assert.ok(b, JSON.stringify(a.bevindingen));
+  assert.strictEqual(b.soort, 'let-op'); // melden, geen alarm: telt niet mee in de onderwerpregel
+  assert.match(b.kop, /tafel 1/);
+  assert.match(b.tekst, /3 uur en 40 minuten/);
+  assert.strictEqual(a.cijfers.scorebordVerversingen, 0);
+});
+
+test('#156: een normale avond met verversingen levert geen melding op', () => {
+  const a = analyseer([start(1, 17, 30), ververst(1, 18, 5), ververst(1, 19, 40), stop(1, 21, 10)]);
+  assert.strictEqual(scorebordMelding(a), undefined);
+  assert.strictEqual(a.cijfers.scorebordVerversingen, 2);
+  assert.ok(a.bevindingen.some((b) => b.soort === 'goed'), 'nog steeds "niets bijzonders"');
+});
+
+test('#156: een verversing op een andere tafel telt niet mee', () => {
+  const a = analyseer([start(1, 17, 30), start(3, 17, 30), ververst(3, 18, 0), stop(1, 21, 0), stop(3, 21, 0)]);
+  const b = scorebordMelding(a);
+  assert.ok(b);
+  assert.match(b.kop, /tafel 1/);
+  assert.strictEqual(a.bevindingen.filter((x) => /Scorebord op tafel/.test(x.kop)).length, 1);
+});
+
+test('#156: een korte uitzending (onder het uur) geeft geen melding', () => {
+  assert.strictEqual(scorebordMelding(analyseer([start(1, 17, 30), stop(1, 18, 10)])), undefined);
+});
+
+test('#156: een losse uitzending zonder toernooi geeft geen melding (daar houdt niemand een stand bij)', () => {
+  const a = analyseer([
+    { tijd: T(17, 30), bericht: '[streams/start] tafel 1 HANDMATIG gestart via het dashboard — ad-hoc (geen toernooi), public, video I9a3epTPE5I' },
+    { tijd: T(21, 0), bericht: '[streams/stop] tafel 1 HANDMATIG gestopt via het dashboard' },
+  ]);
+  assert.strictEqual(scorebordMelding(a), undefined);
+});
+
+test('#156: de melding noemt hoe vaak Cuescore niet bereikbaar was', () => {
+  const a = analyseer([
+    start(3, 17, 30),
+    { tijd: T(18, 0), bericht: '[scorebordWacht] tafel 3: Cuescore niet bereikbaar (HTTP 503) → ongewijzigd.' },
+    { tijd: T(18, 1), bericht: '[scorebordWacht] tafel 3: Cuescore niet bereikbaar (HTTP 503) → ongewijzigd.' },
+    stop(3, 21, 0),
+  ]);
+  assert.match(scorebordMelding(a).tekst, /2x niet bereikbaar/);
+});
+
+test('#156: de mail toont het aantal scorebord-verversingen bij de cijfers', () => {
+  const a = analyseer([start(1, 17, 30), ververst(1, 18, 5), stop(1, 21, 10)]);
+  assert.match(tekst('2026-08-03', a), /scorebord ververst\s*: 1x/);
+});
