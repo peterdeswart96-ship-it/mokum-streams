@@ -31,8 +31,16 @@ function maskeerUrl(url) {
 
 // Vervangt het tafelnummer in de URL door {N}, zodat de URL van tafel 1 en tafel 3 vergeleken
 // kunnen worden: `?tafel=1` en `?table=3` zijn dan gelijk (dat hoort ook zo).
+// Het Cuescore-tableId (Scoreboard) is per tafel anders, dus ook dat telt niet als verschil.
 function normaliseerUrl(url, tafel) {
-  return String(url || '').replace(new RegExp(`([?&](?:tafel|table)=)${Number(tafel)}(?=&|$)`, 'i'), '$1{N}');
+  return String(url || '')
+    .replace(new RegExp(`([?&](?:tafel|table)=)${Number(tafel)}(?=&|$)`, 'i'), '$1{N}')
+    .replace(/([?&]tableId=)\d+/i, '$1{ID}');
+}
+
+// "Camera Tafel 15" hoort op elke tafel te bestaan, met het eigen nummer erin.
+function normaliseerNaam(naam, tafel) {
+  return String(naam || '').replace(new RegExp(`(?<=\\s)${Number(tafel)}$`), '{N}');
 }
 
 // Reduceert de instellingen van één bron tot wat veilig en relevant is.
@@ -47,14 +55,16 @@ function veiligeInstellingen(soort, settings) {
       breedte: s.width ?? null,
       hoogte: s.height ?? null,
       fps: s.fps_custom ? (s.fps ?? null) : null,
+      // OBS geeft in GetInputSettings alleen waarden die van de standaard afwijken. Ontbreekt
+      // een instelling, dan staat hij op de OBS-standaard: voor beide hieronder is dat UIT.
       // "Vernieuwen wanneer scène actief wordt" (bij de intro bewust UIT, #58).
-      verversBijActief: s.restart_when_active ?? null,
+      verversBijActief: s.restart_when_active ?? false,
       // "Bron uitschakelen wanneer niet zichtbaar".
-      stopBijVerborgen: s.shutdown ?? null,
-      eigenCss: !!(s.css && String(s.css).trim()),
+      stopBijVerborgen: s.shutdown ?? false,
+      css: String(s.css || '').replace(/\s+/g, ' ').trim().slice(0, 300),
     };
   }
-  if (soort === 'image_slideshow') {
+  if (soort === 'image_slideshow' || soort === 'slideshow_v2') {
     return { bestanden: Array.isArray(s.files) ? s.files.length : null, slideTijdMs: s.slide_time ?? null };
   }
   return {}; // camera's e.d.: alleen het type, zie de veiligheidsnotitie bovenaan
@@ -75,12 +85,27 @@ function vergelijkTafels(tafels) {
   const bereikbaar = (tafels || []).filter((t) => t && Array.isArray(t.bronnen));
   if (bereikbaar.length < 2) return verschillen;
 
-  const namen = [...new Set(bereikbaar.flatMap((t) => t.bronnen.map((b) => b.naam)))];
+  const naamVan = (t, b) => normaliseerNaam(b.naam, t.tafel);
+  const namen = [...new Set(bereikbaar.flatMap((t) => t.bronnen.map((b) => naamVan(t, b))))];
+
+  const scenes = new Map();
+  for (const t of bereikbaar) scenes.set(t.scene, [...(scenes.get(t.scene) || []), t.tafel]);
+  if (scenes.size > 1) {
+    const delen = [...scenes.entries()].map(([sc, ts]) => `tafel ${ts.join(', ')}: '${sc}'`);
+    verschillen.push(`De scènenaam verschilt - ${delen.join(' | ')} (de agent gebruikt de actieve scène, dus dit is onschuldig).`);
+  }
+
   for (const naam of namen) {
-    const per = bereikbaar.map((t) => ({ tafel: t.tafel, bron: t.bronnen.find((b) => b.naam === naam) }));
+    const per = bereikbaar.map((t) => ({ tafel: t.tafel, bron: t.bronnen.find((b) => naamVan(t, b) === naam) }));
     const ontbreekt = per.filter((p) => !p.bron).map((p) => p.tafel);
     if (ontbreekt.length) {
       verschillen.push(`Bron '${naam}' ontbreekt op tafel ${ontbreekt.join(', ')}.`);
+    }
+    // Slot: hoort overal aan te staan (zie obs-standaard). Zichtbaarheid negeren we: die schakelt.
+    const aanwezigLijst = per.filter((p) => p.bron);
+    const openSlot = aanwezigLijst.filter((p) => p.bron.vergrendeld === false).map((p) => p.tafel);
+    if (openSlot.length && openSlot.length < aanwezigLijst.length) {
+      verschillen.push(`Bron '${naam}' staat NIET op slot op tafel ${openSlot.join(', ')} (op de andere tafels wel).`);
     }
     const aanwezig = per.filter((p) => p.bron);
     const groepen = new Map();
@@ -90,18 +115,18 @@ function vergelijkTafels(tafels) {
     }
     if (groepen.size > 1) {
       const delen = [...groepen.entries()].map(([h, ts]) => `tafel ${ts.join(', ')}: ${h}`);
-      verschillen.push(`Bron '${naam}' verschilt tussen tafels — ${delen.join(' | ')}`);
+      verschillen.push(`Bron '${naam}' verschilt tussen tafels - ${delen.join(' | ')}`);
     }
   }
 
   // Volgorde van de bronnen (van boven naar onder), alleen de bronnen die overal voorkomen.
-  const gemeenschappelijk = namen.filter((n) => bereikbaar.every((t) => t.bronnen.some((b) => b.naam === n)));
-  const volgorde = (t) => t.bronnen.map((b) => b.naam).filter((n) => gemeenschappelijk.includes(n)).join(' > ');
+  const gemeenschappelijk = namen.filter((n) => bereikbaar.every((t) => t.bronnen.some((b) => naamVan(t, b) === n)));
+  const volgorde = (t) => t.bronnen.map((b) => naamVan(t, b)).filter((n) => gemeenschappelijk.includes(n)).join(' > ');
   const volgordes = new Map();
   for (const t of bereikbaar) volgordes.set(volgorde(t), [...(volgordes.get(volgorde(t)) || []), t.tafel]);
   if (volgordes.size > 1) {
     const delen = [...volgordes.entries()].map(([v, ts]) => `tafel ${ts.join(', ')}: ${v}`);
-    verschillen.push(`De bronvolgorde (boven → onder) verschilt — ${delen.join(' | ')}`);
+    verschillen.push(`De bronvolgorde (boven naar onder) verschilt - ${delen.join(' | ')}`);
   }
   return verschillen;
 }
@@ -122,9 +147,9 @@ function maakMarkdown(tafels, nu = new Date()) {
     for (const b of t.bronnen) {
       const i = b.instellingen || {};
       const details = i.url !== undefined
-        ? `\`${cel(i.url)}\``
+        ? `\`${cel(i.url)}\`${i.css ? `<br>css: \`${cel(i.css)}\`` : ''}`
         : i.bestanden !== undefined ? `${i.bestanden} bestand(en), ${i.slideTijdMs} ms per slide` : '';
-      const afm = i.breedte != null ? `${i.breedte}×${i.hoogte}` : '';
+      const afm = i.breedte != null ? `${i.breedte}x${i.hoogte}` : '';
       r.push(`| ${cel(b.naam)} | ${cel(b.soort)} | ${ja(b.zichtbaar)} | ${ja(b.vergrendeld)} | ${details} | ${afm} | ${i.verversBijActief != null ? ja(i.verversBijActief) : ''} | ${i.stopBijVerborgen != null ? ja(i.stopBijVerborgen) : ''} |`);
     }
     r.push('');
@@ -137,4 +162,4 @@ function maakMarkdown(tafels, nu = new Date()) {
   return r.join('\n');
 }
 
-module.exports = { maskeerUrl, normaliseerUrl, veiligeInstellingen, vergelijkTafels, maakMarkdown };
+module.exports = { maskeerUrl, normaliseerUrl, normaliseerNaam, veiligeInstellingen, vergelijkTafels, maakMarkdown };
