@@ -57,18 +57,17 @@ in overleg met Nick. Bijgewerkt **2026-07-11 (avond)**.
 ### 5. Echte agent op de OBS-pc (alle 4 tafels)
 - [ ] Code ophalen: `git clone` (of `git pull` als de repo er al staat) — bevat alle code van vandaag.
 - [ ] `cd agent; npm ci`
-- [ ] `Copy-Item agent-config.example.json agent-config.json` (poorten 4455–4458 staan goed; `rotations` staat al ingevuld: `scoresOtherTables` elke 180s, 20s).
+- [ ] `Copy-Item agent-config.example.json agent-config.json` (poorten 4455–4458 staan goed).
 - [ ] Secrets via env (niet in het bestand):
   ```powershell
   $env:AGENT_TOKEN = "<agent-token>"
   $env:OBS_PASSWORD_TAFEL_1 = "..."   # idem 3/15/16
   ```
-- [ ] `npm start` → agent pollt de backend, meldt status (dashboard toont dan live kwaliteit + overlay-standen), en draait de rotatie.
+- [ ] `npm start` → agent pollt de backend, meldt status (dashboard toont dan live kwaliteit + overlay-standen).
 - [ ] Later als **Windows-service** (NSSM/node-windows) — zie `agent/README.md`.
 
 ### 6. Verifiëren
 - [ ] **Dashboard**: tafels tonen live status + **1080p60** + overlay-standen; toggles werken (incl. Jumbotron).
-- [ ] **Rotatie**: `Scores other tables` verschijnt periodiek in de bovenbalk.
 - [ ] **Ad-hoc start**: dashboard → + Nieuwe stream → unlisted → Start → agent start OBS → YouTube live → Stop.
 - [ ] **#11 acceptatietest** (volautomatisch): `AUTOMATION_ARMED=true`, een **testtoernooi in Cuescore** (dummy-spelers, starttijd binnen pre-roll-venster) → timer maakt broadcast + agent start → na afloop stop. **Zet daarna `AUTOMATION_ARMED` weer op `false`.**
 - [ ] **Automatisch pauzescherm (A, optioneel):** pas nadat de agent draait én de OBS-bron `Jumbotron` bestaat → app-setting **`PAUZESCHERM_AUTO=true`**. De timer `pauzeScherm` zet dan tussen wedstrijden vanzelf het pauzescherm aan/uit (per streamende tafel, 20s debounce). Los van `AUTOMATION_ARMED`. Zie `docs/pauzescherm-auto.md`.

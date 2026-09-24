@@ -48,10 +48,11 @@ tafels. Werkt, maar **10-30s vertraging** + meer CPU + minder strak. NDI heeft d
 
 ## Bouwvolgorde (voorstel)
 1. ✅ Jumbotron + pauzemelding als dashboard-schakelaars (overlay-model).
-2. ✅ **Rotatie-feature (B)** — agent toont een bron periodiek. Config in `agent-config.json`:
-   `"rotations": [{ "key": "scoresOtherTables", "everySec": 180, "forSec": 20 }]`. De agent
-   zet de bron edge-triggered aan/uit o.b.v. de wandklok (pure `rotatieZichtbaar`).
-   **Nog doen bij uitrol:** `Scores other tables` positioneren op de bovenbalk-plek.
+2. ~~**Rotatie-feature (B)** — agent toont een bron periodiek (`rotations` in
+   `agent-config.json`, pure `rotatieZichtbaar`).~~ **Verwijderd in #152 (24-09):** de code
+   draaide nooit (`normalizeConfig` gaf `rotations` niet door) en de enige beoogde bron,
+   `Scores other tables`, bestaat sinds api-contract v0.18 niet meer. De implementatie staat
+   in de geschiedenis: commit `eb68d2f`.
 3. ▶ **A auto-trigger (Cuescore-API)** — pauzescherm automatisch tussen wedstrijden.
    **Ontwerp uitgewerkt in [[pauzescherm-auto]]** (toestandsmachine, architectuurkeuze
    backend-side, de Cuescore-live-endpoint-blokker, gefaseerd plan).

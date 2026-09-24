@@ -48,6 +48,7 @@ function tekst(datum, analyse) {
   r.push(`  met de hand gestart   : ${c.handmatigGestart}`);
   r.push(`  automatisch gestopt   : ${c.automatischGestopt}`);
   r.push(`  pauzescherm geschakeld: ${c.pauzeschakelingen}x`);
+  r.push(`  scorebord ververst    : ${c.scorebordVerversingen || 0}x`);
   r.push('', 'UITZENDINGEN');
   for (const st of c.streams || []) r.push(`  tafel ${st.tafel}  ${st.naam}${st.videoId ? ` — https://youtu.be/${st.videoId}` : ''}`);
   if (!(c.streams || []).length) r.push('  (er is niets uitgezonden)');

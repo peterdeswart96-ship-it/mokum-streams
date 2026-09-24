@@ -406,3 +406,106 @@ test('#91: een nieuwe uitzending op dezelfde tafel neemt het stokje over', () =>
   const klaar = a.gebeurtenissen.find((g) => /video afgerond/.test(g.titel));
   assert.strictEqual(klaar.stream, 'Tweede');
 });
+
+// #156: het rapport meet of het scorebord-vangnet (#153) zijn werk deed, niet de stand zelf.
+const start = (tafel, u, m) => ({ tijd: T(u, m), bericht: `[OK] Broadcast + startcommando's: tafel ${tafel} — "Tafel ${tafel} Fluke ranking" (vid${tafel}xxxxxx)` });
+const stop = (tafel, u, m) => ({ tijd: T(u, m), bericht: `[checkStops] tafel ${tafel}: stoppen — toernooi klaar, podium-grace van 180s verstreken` });
+const ververst = (tafel, u, m) => ({ tijd: T(u, m), bericht: `[scorebordWacht] tafel ${tafel}: scorebord ververst — nieuwe stand "1|A|B|0|0"` });
+const scorebordMelding = (a) => a.bevindingen.find((b) => /Scorebord op tafel/.test(b.kop));
+
+test('#156: een lange uitzending zonder één scorebord-verversing wordt gemeld', () => {
+  const a = analyseer([start(1, 17, 30), stop(1, 21, 10)]);
+  const b = scorebordMelding(a);
+  assert.ok(b, JSON.stringify(a.bevindingen));
+  assert.strictEqual(b.soort, 'let-op'); // melden, geen alarm: telt niet mee in de onderwerpregel
+  assert.match(b.kop, /tafel 1/);
+  assert.match(b.tekst, /3 uur en 40 minuten/);
+  assert.strictEqual(a.cijfers.scorebordVerversingen, 0);
+});
+
+test('#156: een normale avond met verversingen levert geen melding op', () => {
+  const a = analyseer([start(1, 17, 30), ververst(1, 18, 5), ververst(1, 19, 40), stop(1, 21, 10)]);
+  assert.strictEqual(scorebordMelding(a), undefined);
+  assert.strictEqual(a.cijfers.scorebordVerversingen, 2);
+  assert.ok(a.bevindingen.some((b) => b.soort === 'goed'), 'nog steeds "niets bijzonders"');
+});
+
+test('#156: een verversing op een andere tafel telt niet mee', () => {
+  const a = analyseer([start(1, 17, 30), start(3, 17, 30), ververst(3, 18, 0), stop(1, 21, 0), stop(3, 21, 0)]);
+  const b = scorebordMelding(a);
+  assert.ok(b);
+  assert.match(b.kop, /tafel 1/);
+  assert.strictEqual(a.bevindingen.filter((x) => /Scorebord op tafel/.test(x.kop)).length, 1);
+});
+
+test('#156: een korte uitzending (onder het uur) geeft geen melding', () => {
+  assert.strictEqual(scorebordMelding(analyseer([start(1, 17, 30), stop(1, 18, 10)])), undefined);
+});
+
+test('#156: een losse uitzending zonder toernooi geeft geen melding (daar houdt niemand een stand bij)', () => {
+  const a = analyseer([
+    { tijd: T(17, 30), bericht: '[streams/start] tafel 1 HANDMATIG gestart via het dashboard — ad-hoc (geen toernooi), public, video I9a3epTPE5I' },
+    { tijd: T(21, 0), bericht: '[streams/stop] tafel 1 HANDMATIG gestopt via het dashboard' },
+  ]);
+  assert.strictEqual(scorebordMelding(a), undefined);
+});
+
+test('#156: de melding noemt hoe vaak Cuescore niet bereikbaar was', () => {
+  const a = analyseer([
+    start(3, 17, 30),
+    { tijd: T(18, 0), bericht: '[scorebordWacht] tafel 3: Cuescore niet bereikbaar (HTTP 503) → ongewijzigd.' },
+    { tijd: T(18, 1), bericht: '[scorebordWacht] tafel 3: Cuescore niet bereikbaar (HTTP 503) → ongewijzigd.' },
+    stop(3, 21, 0),
+  ]);
+  assert.match(scorebordMelding(a).tekst, /2x niet bereikbaar/);
+});
+
+test('#156: de mail toont het aantal scorebord-verversingen bij de cijfers', () => {
+  const a = analyseer([start(1, 17, 30), ververst(1, 18, 5), stop(1, 21, 10)]);
+  assert.match(tekst('2026-08-03', a), /scorebord ververst\s*: 1x/);
+});
+
+// #116: de herstelpogingen (#114) en het niet-live-alarm stonden wel in de logs maar niet in het rapport.
+const HERSTART = (tafel, p) => `[checkStops] tafel ${tafel}: nog geen data van de agent sinds de geplande start → opnieuw starten (poging ${p}/3)`;
+const ALARM = (tafel) => `[ALARM] tafel ${tafel}: niet live na 3 pogingen — alarm wordt verstuurd.`;
+
+test('#116: een herstelpoging is geen "niets bijzonders" meer', () => {
+  const a = analyseer([start(1, 17, 30), { tijd: T(17, 33), bericht: HERSTART(1, 1) }, stop(1, 21, 10)]);
+  assert.ok(!a.bevindingen.some((b) => b.soort === 'goed'), JSON.stringify(a.bevindingen));
+  const b = a.bevindingen.find((x) => /startte niet vanzelf/.test(x.kop));
+  assert.ok(b);
+  assert.strictEqual(b.soort, 'let-op'); // geen alarm: het vangnet deed zijn werk
+  assert.match(b.tekst, /één keer opnieuw/);
+  const g = a.gebeurtenissen.find((x) => /opnieuw geprobeerd/.test(x.titel));
+  assert.match(g.titel, /^Tafel 1:/);
+  assert.match(g.uitleg, /poging 1 van 3/);
+});
+
+test('#116: meerdere pogingen op één tafel geven één bevinding met het hoogste pogingnummer', () => {
+  const a = analyseer([
+    start(3, 17, 30),
+    { tijd: T(17, 33), bericht: HERSTART(3, 1) },
+    { tijd: T(17, 35), bericht: HERSTART(3, 2) },
+    stop(3, 21, 10),
+  ]);
+  const b = a.bevindingen.filter((x) => /startte niet vanzelf/.test(x.kop));
+  assert.strictEqual(b.length, 1);
+  assert.match(b[0].tekst, /2 keer opnieuw/);
+});
+
+test('#116: het niet-live-alarm komt als aandachtspunt in het rapport en in de onderwerpregel', () => {
+  const a = analyseer([
+    start(1, 17, 30),
+    { tijd: T(17, 33), bericht: HERSTART(1, 1) },
+    { tijd: T(17, 35), bericht: HERSTART(1, 2) },
+    { tijd: T(17, 37), bericht: HERSTART(1, 3) },
+    { tijd: T(17, 40), bericht: ALARM(1) },
+    { tijd: T(17, 40), bericht: '[ALARM] tafel 1: mail verstuurd, ntfy verstuurd.' },
+    stop(1, 18, 0),
+  ]);
+  const b = a.bevindingen.find((x) => /niet gaan zenden/.test(x.kop));
+  assert.ok(b);
+  assert.strictEqual(b.soort, 'fout');
+  assert.strictEqual(a.bevindingen.filter((x) => /tafel 1/i.test(x.kop) && /startte niet vanzelf/.test(x.kop)).length, 0, 'geen dubbele melding naast het alarm');
+  assert.match(onderwerp('2026-08-03', a), /1 aandachtspunt/);
+});

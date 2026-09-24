@@ -44,9 +44,36 @@ function normalizeConfig(raw) {
   };
 }
 
-function loadConfig(path = process.env.AGENT_CONFIG || './agent-config.json') {
-  const raw = JSON.parse(fs.readFileSync(path, 'utf8'));
-  return normalizeConfig(raw);
+// Velden die normalizeConfig() doorgeeft. Al het andere in agent-config.json wordt stil
+// weggegooid — dat bleek twee keer een valkuil (`overlaySources`, `rotations`, #151/#152):
+// je stelt iets in en er gebeurt niets, zonder dat ergens een fout staat.
+const BEKENDE_VELDEN = ['backendUrl', 'agentToken', 'pollIntervalMs', 'tables', 'cameraWatchdog'];
+const BEKENDE_TAFELVELDEN = ['tableNumber', 'sceneName', 'cameraSource', 'obs'];
+
+// Geeft de namen terug van velden die de agent niet kent (puur → unit-testbaar).
+// Sleutels die met `_` beginnen gelden als commentaar en worden genegeerd.
+function onbekendeVelden(raw) {
+  if (!raw || typeof raw !== 'object') return [];
+  const onbekend = (obj, bekend, voorvoegsel) =>
+    Object.keys(obj)
+      .filter((k) => !k.startsWith('_') && !bekend.includes(k))
+      .map((k) => `${voorvoegsel}${k}`);
+  const tafels = Array.isArray(raw.tables) ? raw.tables : [];
+  return [
+    ...onbekend(raw, BEKENDE_VELDEN, ''),
+    ...tafels.flatMap((t, i) =>
+      t && typeof t === 'object' ? onbekend(t, BEKENDE_TAFELVELDEN, `tables[${i}].`) : []
+    ),
+  ];
 }
 
-module.exports = { normalizeConfig, loadConfig };
+function loadConfig(path = process.env.AGENT_CONFIG || './agent-config.json', logger = console) {
+  const raw = JSON.parse(fs.readFileSync(path, 'utf8'));
+  const config = normalizeConfig(raw);
+  for (const veld of onbekendeVelden(raw)) {
+    logger.log(`[CONFIG] onbekend veld '${veld}' in ${path} — wordt genegeerd`);
+  }
+  return config;
+}
+
+module.exports = { normalizeConfig, loadConfig, onbekendeVelden };

@@ -2,6 +2,7 @@ const { app } = require('@azure/functions');
 const { readJson, writeJson } = require('../storage/blob');
 const { removeProcessed } = require('../agent/commandQueue');
 const { isAgent } = require('../admin/auth');
+const { statusOmslagen, omslagRegel } = require('../agent/statusOmslag');
 
 // Agent-endpoints (zie api-contract v0.5). De agent maakt alleen uitgaande HTTPS:
 // hij pollt commando's (commands.json) en post status (status.json). Auth: Bearer
@@ -29,7 +30,7 @@ app.http('agentStatus', {
   methods: ['POST'],
   authLevel: 'anonymous',
   route: 'agent/status',
-  handler: async (request) => {
+  handler: async (request, context) => {
     if (!isAgent(request)) return json(401, { error: 'niet geautoriseerd' });
     let body;
     try {
@@ -42,6 +43,17 @@ app.http('agentStatus', {
     const commands = (await readJson('commands.json', [])) || [];
     const rest = removeProcessed(commands, body.verwerkteCommandoIds || []);
     await writeJson('commands.json', rest);
+
+    // Omslagen (gaat zenden / gestopt) loggen vóór we de vorige status overschrijven (#116).
+    // Op Warning-niveau, want logLevel.default staat op Warning (zie #112): een gewone .log()
+    // haalt Application Insights niet. Het loggen mag de statuspost nooit laten mislukken —
+    // een agent die geen status kwijt kan, ziet er voor het dashboard offline uit.
+    try {
+      const vorige = await readJson('status.json', null);
+      for (const o of statusOmslagen(vorige && vorige.tables, body.tables)) context.warn(omslagRegel(o));
+    } catch (e) {
+      context.warn(`[agent] statusomslag loggen mislukt: ${e.message}`);
+    }
 
     // Laatst gerapporteerde status bewaren (bron voor dashboard/live).
     await writeJson('status.json', { agentTime: body.agentTime || null, tables: body.tables || [] });

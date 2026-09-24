@@ -6,6 +6,11 @@ import {
 
 const CAMERAS = [1, 3, 15, 16];
 const REFRESH_MS = 5000;
+// Na een Stop-klik: hoe vaak we verversen zolang het stoppen loopt, en hoe lang we op de
+// agent wachten voordat we melden dat het niet gelukt lijkt (#159). De agent haalt
+// commando's elke ~5s op, dus 60s is ruim genoeg voor een gezonde agent.
+const STOP_REFRESH_MS = 2000;
+const STOP_WACHT_MAX_MS = 60000;
 
 // De schakelbare overlays (sleutel = API-veld, label = wat de gebruiker ziet,
 // desc = wat het toont, pos = waar op het beeld, groep = content|pauze, defaultOn =
@@ -288,7 +293,7 @@ function YouTubeIcoon({ table }) {
   return <span className="shrink-0" title={live ? 'Live op YouTube' : 'Offline'}>{img}</span>;
 }
 
-function TableCard({ table, onStop, onOverlay, onPreview, busy }) {
+function TableCard({ table, onStop, onOverlay, onPreview, busy, stopt }) {
   const actief = table.status === 'live' || table.status === 'scheduled';
   // Overlay-toggles: lokaal-optimistisch, maar volgen de echte OBS-stand zodra de
   // agent die meldt (table.overlays). Zonder agent-data blijft het lokale gedrag.
@@ -358,11 +363,11 @@ function TableCard({ table, onStop, onOverlay, onPreview, busy }) {
         )}
         {actief && (
           <button
-            disabled={busy}
+            disabled={busy || stopt}
             onClick={() => onStop(table.tableNumber)}
             className="flex-1 bg-surface-raised hover:bg-neutral-700 text-ink border border-line rounded px-3 py-2 text-sm font-medium disabled:opacity-40"
           >
-            Stop stream
+            {stopt ? 'Bezig met stoppen…' : 'Stop stream'}
           </button>
         )}
       </div>
@@ -1652,6 +1657,10 @@ export default function App() {
   const [infoOpen, setInfoOpen] = useState(false);
   const [preview, setPreview] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+  // Tafels waarvoor een stop-opdracht is verstuurd maar die nog live/gepland staan:
+  // tafelnummer → tijdstip van de klik. De API antwoordt meteen (het commando staat dan
+  // alleen nog in de wachtrij), dus zonder dit lijkt er niets te gebeuren (#159).
+  const [stoppend, setStoppend] = useState({});
 
   const pushToast = useCallback((message, type = 'ok') => {
     const id = Date.now() + Math.random();
@@ -1674,12 +1683,48 @@ export default function App() {
     }
   }, []);
 
+  // Sneller verversen zolang er een stop loopt, zodat "Bezig met stoppen…" snel omslaat.
+  const wachtOpStop = Object.keys(stoppend).length > 0;
   useEffect(() => {
     if (!ingelogd) return;
     laad();
-    const t = setInterval(laad, REFRESH_MS);
+    const t = setInterval(laad, wachtOpStop ? STOP_REFRESH_MS : REFRESH_MS);
     return () => clearInterval(t);
-  }, [ingelogd, laad]);
+  }, [ingelogd, laad, wachtOpStop]);
+
+  // Klaar met wachten: de tafel is niet meer live/gepland (gelukt), of de agent heeft er
+  // te lang over gedaan (melden, en de knop weer vrijgeven zodat je het opnieuw kunt proberen).
+  useEffect(() => {
+    const nu = Date.now();
+    const klaar = [];
+    for (const [n, sinds] of Object.entries(stoppend)) {
+      const tafel = tables.find((t) => t.tableNumber === Number(n));
+      const nogActief = tafel && (tafel.status === 'live' || tafel.status === 'scheduled');
+      if (!nogActief) klaar.push({ n, gelukt: true });
+      else if (nu - sinds >= STOP_WACHT_MAX_MS) klaar.push({ n, gelukt: false });
+    }
+    if (klaar.length === 0) return;
+    setStoppend((s) => {
+      const rest = { ...s };
+      for (const { n } of klaar) delete rest[n];
+      return rest;
+    });
+    for (const { n, gelukt } of klaar) {
+      if (gelukt) pushToast(`Tafel ${n} is gestopt`, 'ok');
+      else pushToast(`Tafel ${n} staat na ${STOP_WACHT_MAX_MS / 1000} s nog live — controleer of de agent/OBS-pc bereikbaar is`, 'fout');
+    }
+  }, [tables, stoppend, pushToast]);
+
+  async function stopTafel(n) {
+    setStoppend((s) => ({ ...s, [n]: Date.now() }));
+    await actie(async () => {
+      try { await stopStream(n); }
+      catch (e) {
+        setStoppend((s) => { const rest = { ...s }; delete rest[n]; return rest; }); // mislukt → knop vrijgeven
+        throw e;
+      }
+    }, `Stop-opdracht voor tafel ${n} verstuurd`);
+  }
 
   async function actie(fn, okText) {
     setBusy(true);
@@ -1749,7 +1794,8 @@ export default function App() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {tables.map((t) => (
                 <TableCard key={t.tableNumber} table={t} busy={busy}
-                  onStop={(n) => actie(() => stopStream(n), `Tafel ${n} gestopt`)}
+                  stopt={t.tableNumber in stoppend}
+                  onStop={stopTafel}
                   onOverlay={wijzigOverlay}
                   onPreview={(tafel) => setPreview(tafel)}
                 />
