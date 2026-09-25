@@ -952,14 +952,16 @@ Regels:
      checkStops tikt eens per minuut, dus de echte stop valt tussen `stopOm` en een minuut later.
   4. **De pagina haalt stand en uitslagen zelf uit Cuescore** (`api.cuescore.com/tournament/?id=`,
      CORS `*`). Geen extra endpoint, geen Azure- of YouTube-kosten. Uitslagen = gespeelde
-     wedstrijden van de afgelopen 31 dagen (besluit Peter 18-09; niet de kalendermaand, want die
-     is aan het begin van de maand bijna leeg).
+     wedstrijden van de **laatste 2 rondes** (besluit Peter 25-09; eerder de afgelopen 31 dagen,
+     maar dat gaf bij 3+ rondes te veel pagina's). Met `?maand=` blijft een kalendermaand kiesbaar.
   5. Bestaat de bron niet in OBS, dan dropt de agent het commando (`SOURCE_NOT_FOUND`). Uitrollen
      kan dus al voordat de OBS-bron er staat.
   6. **Volgorde en bedankscherm** (wens Peter 18-09): de pagina telt af naar `stopOm`:
-     stand 2 min → uitslagen 2 min → de laatste minuut "Thanks for watching!" met de eindstand
-     en een bedankje aan de KNBB, CueScore en alle vrijwilligers en teamcaptains. Puur de
-     pagina; geen extra endpoint.
+     stand 2 min → uitslagen 2 min → de laatste minuut "Bedankt voor het kijken!" met de eindstand
+     (niveau als gekleurde pil, zelfde kleur als de thumbnail) en een bedankje aan de KNBB,
+     CueScore en alle vrijwilligers en teamcaptains. Sinds 25-09 toont elk scherm een kleine
+     **timer** (leeglopend balkje + "nog 1:24") tot het scherm wisselt of de uitzending stopt.
+     Puur de pagina; geen extra endpoint.
   7. **Speling van 30 s in de stopregel** (`competitieStop.js`, `TIK_SPELING_MS`): checkStops
      tikt eens per minuut, en de tik na 5 minuten viel door timer-jitter soms nét vóór
      `klaarSinds + 5:00`, waardoor de stop pas na 6 minuten kwam. Nu valt de stop voorspelbaar
