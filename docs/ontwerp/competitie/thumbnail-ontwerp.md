@@ -26,7 +26,7 @@ De pil heeft witte tekst; elk niveau heeft een vaste kleur. **Geen rood** — da
 | Derde Klasse | teal | `#0e8f9c` |
 | (onbekend niveau) | grijs | `#5b6470` |
 
-**Bron in de code:** `backend/src/mokumCompetitie/niveauKleuren.js`. Nieuw niveau (bv. een
+**Bron in de code:** `backend/src/mokumCompetitie/niveauKleuren.js`. Het bedankscherm van het competitiescherm (`frontend/public/competitie/index.html`) gebruikt **dezelfde kleuren** via een kopie (`KLEUR_PER_NIVEAU`, `verkortNiveau`) — bij een nieuw niveau of seizoen dus op beide plekken bijwerken. Nieuw niveau (bv. een
 Tweede Divisie of nieuw seizoen)? Kleur daar toevoegen, ook in deze tabel, en kies een kleur die
 zich duidelijk onderscheidt van de bestaande. Zet het niveau ook in `toernooien.js`.
 
