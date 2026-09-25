@@ -47,11 +47,14 @@
   }
   .card.zichtbaar { opacity: 1; }
 
-  /* Kop: niveau in rood (zoals de competitie-thumbnail), daaronder wat je ziet. */
+  /* Kop: niveau als gekleurde pil (zelfde vorm en kleur per niveau als de competitie-thumbnail en
+     het bedankscherm), daaronder wat je ziet. */
   .kop { display: flex; align-items: flex-end; justify-content: space-between;
          border-bottom: 4px solid #cc0000; padding-bottom: 18px; margin-bottom: 14px; }
-  .kop .niveau { font-size: 26px; color: #ff3b3b; letter-spacing: 3px; text-transform: uppercase; }
-  .kop h1 { margin: 6px 0 0; font-size: 60px; line-height: 1; letter-spacing: 1px; text-transform: uppercase; }
+  .kop .niveau { display: inline-block; background: var(--niveaukleur, #5b6470); color: #fff; border-radius: 40px;
+                 padding: 6px 24px; font-size: 24px; letter-spacing: 2px; text-transform: uppercase;
+                 white-space: nowrap; box-shadow: 0 6px 22px rgba(0,0,0,0.55); }
+  .kop h1 { margin: 14px 0 0; font-size: 60px; line-height: 1; letter-spacing: 1px; text-transform: uppercase; }
   .kop .rechts { text-align: right; font-family: Arial, sans-serif; font-weight: bold;
                  color: rgba(255,255,255,0.6); font-size: 22px; line-height: 1.4; }
 
@@ -264,7 +267,8 @@ function isMokum(team) { return team && team.venueId === MOKUM_VENUE_ID; }
 // ---- Opbouw van de twee schermen ------------------------------------------------------
 
 function kop(niveau, titel, rechts) {
-  return `<div class="kop"><div><div class="niveau">${esc(niveau)}</div><h1>${esc(titel)}</h1></div>
+  const kleur = KLEUR_PER_NIVEAU[String(niveau || '').trim()] || STANDAARD_KLEUR;
+  return `<div class="kop"><div><div class="niveau" style="--niveaukleur:${kleur}">${esc(verkortNiveau(niveau))}</div><h1>${esc(titel)}</h1></div>
           <div class="rechts">${rechts}</div></div>`;
 }
 
