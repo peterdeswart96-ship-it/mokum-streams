@@ -12,6 +12,7 @@
 const fs = require('fs');
 const path = require('path');
 const puppeteer = require('puppeteer-core');
+const { kleurVoorNiveau, verkortNiveau, verkortTeamnaam } = require('../mokumCompetitie/niveauKleuren');
 
 const TEMPLATE_DIR = path.join(__dirname, '..', '..', 'assets', 'thumbnail-templates');
 const W = 1280, H = 720;
@@ -81,9 +82,10 @@ function vulPlaceholders(html, velden) {
     .replace(/\{\{SPELERS\}\}/g, escapeHtml(velden.spelers))
     .replace(/\{\{SPONSOR\}\}/g, escapeHtml(velden.sponsor))
     // Competitie-template (#82)
-    .replace(/\{\{NIVEAU\}\}/g, escapeHtml(velden.niveau))
-    .replace(/\{\{THUISTEAM\}\}/g, escapeHtml(velden.thuisteam))
-    .replace(/\{\{UITTEAM\}\}/g, escapeHtml(velden.uitteam));
+    .replace(/\{\{NIVEAUKLEUR\}\}/g, kleurVoorNiveau(velden.niveau))
+    .replace(/\{\{NIVEAU\}\}/g, escapeHtml(verkortNiveau(velden.niveau)))
+    .replace(/\{\{THUISTEAM\}\}/g, escapeHtml(verkortTeamnaam(velden.thuisteam)))
+    .replace(/\{\{UITTEAM\}\}/g, escapeHtml(verkortTeamnaam(velden.uitteam)));
 }
 
 // Rood "FINAL"-lint rechtsboven (#123), voor de finale van een toernooireeks — herbruikbaar
@@ -221,21 +223,19 @@ async function renderThumbnail(velden = {}) {
     // Competitie (#82): beide teamnamen even groot houden en samen verkleinen tot ze in het
     // tekstvak passen. Een lange naam mag naar twee regels, maar niet uit het vak lopen.
     await page.evaluate(() => {
-      // Het niveau blijft op één regel ("Derde Divisie Noord-West" brak anders op het streepje).
-      const niv = document.querySelector('.niveau');
-      if (niv) {
-        let n = parseFloat(getComputedStyle(niv).fontSize) || 40;
-        while (n > 20 && niv.scrollWidth > niv.clientWidth + 2) { n -= 2; niv.style.fontSize = `${n}px`; }
-      }
       const vak = document.querySelector('.info');
       const teams = [...document.querySelectorAll('.team')];
       if (!vak || !teams.length) return;
       let s = parseFloat(getComputedStyle(teams[0]).fontSize) || 88;
+      const vs = document.querySelector('.vs');
       const pastNiet = () => vak.scrollHeight > vak.clientHeight + 2
         || teams.some((t) => t.scrollWidth > t.clientWidth + 2);
       let guard = 40;
       while (guard-- > 0 && s > 40 && pastNiet()) {
         s -= 4; teams.forEach((t) => { t.style.fontSize = `${s}px`; });
+        // VS en regelafstand schalen mee, zodat de verhoudingen bij elke grootte gelijk blijven.
+        if (vs) vs.style.fontSize = `${Math.round(s * 0.6)}px`;
+        vak.style.gap = `${Math.round(s * 0.16)}px`;
       }
     });
     const el = await page.$('.canvas');

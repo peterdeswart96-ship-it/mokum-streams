@@ -77,6 +77,8 @@ voordat je vragen beantwoordt over architectuur, besluiten of geschiedenis:
   dit bestand vóór de code** (werkafspraak 3).
 - `docs/sessies/` — overdrachten per sessie: wat er is gebouwd, welke besluiten er zijn
   genomen en waaróm, en welke valkuilen tijd hebben gekost. Begin bij de nieuwste.
+- `docs/ontwerp/competitie/thumbnail-ontwerp.md` — layout en vaste kleur per niveau van de
+  competitie-thumbnail. Kleur nodig voor een niveau? Daar opzoeken en aanhouden.
 - `docs/` verder — projectplan, runbooks, en per onderwerp een document
   (bijv. `cuescore-challenge.md` voor het koppelvlak met Cuescore).
 - **GitHub-issues** — de redenering staat in de omschrijving, het bewijs in de afsluitende
