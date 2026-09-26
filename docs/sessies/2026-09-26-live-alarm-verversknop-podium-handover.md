@@ -1,4 +1,4 @@
-# Overdracht 26-09 (avond) — live-alarm (#131), ververs-knop (#99), rebuild-droogloop (#161/#140), podium-fix (#162), OBS-bronnen (#98)
+# Overdracht 26-09 (avond) — live-alarm (#131), ververs-knop (#99), rebuild-droogloop (#161/#140), podium-fix (#162), OBS-bronnen (#98), thumbnails (#165)
 
 Vervolg op `2026-09-26-vangnetten-archief-en-scherpte-handover.md` (dezelfde dag, eerder). Aanleiding:
 Peter vroeg welke openstaande issues Claude zelfstandig kon uitvoeren. Tijdens de sessie liep de finale van
@@ -99,6 +99,31 @@ bredere selector; scènenaam `Scene` op tafel 15. **#98 gesloten.**
 - **#159** (Stop-knop feedback): al gedaan in `08f5f30`, op main en develop. **Nog open** tot een test in de
   browser (werkafspraak 9).
 
+## 7. #165 — challenge-thumbnail op drie regels, MEGA in rood
+
+Peter zag dat bij "Gurps VS Dylan" (Tafel 15, 8 september) de titel over het plaatje liep, en wilde de tekst
+op drie regels met "VS" in rood; bij de MEGA rankings het woord "MEGA" in rood, verder alles gelijk.
+Eerst lokaal gerenderd met echte Chrome (`renderThumbnail`, geen Azure) en door Peter beoordeeld, pas toen
+gecommit. In PR #166 op main (`d2b47db`), `/api/health` bevestigd.
+
+- `backend/src/video/thumbnailHtml.js`: `spelersHtml()` splitst "A VS B" (precies één " VS ") in drie
+  `<span class="sp">`-regels; vrije tekst zonder VS (bijv. "9 BALL BANK CHALLENGE", `spelersTekst` in
+  `finalize.js`) blijft één regel; namen worden geëscaped. 4 nieuwe tests in `test/thumbnailHtml.test.js`.
+- `assets/thumbnail-templates/challenge-match.html`: tekstvak 600 px breed i.p.v. 54% (de tekst liep over de
+  bal, die vanaf x≈675 staat); namen `nowrap`, lange namen krimpen met de bestaande passend-maken-logica in
+  `renderThumbnail`; "VS" `#e10600`, even groot als de namen (variant A; een kleinere VS viel weg).
+- `mega-summer-ranking.html`, `winter-ranking.html` (= MEGA Winter Ranking) en `mega-ranking-buffalo.html`:
+  `.mega` kreeg `color:#e10600`.
+- **Bestaande video's veranderen niet** (ook Gurps vs Dylan niet). Opnieuw maken kan met
+  `backend/scripts/herthumbnail-challenges.js`; dat herschrijft ook de beschrijving en is een bewuste
+  productie-actie voor Peter.
+- **Valkuil bij templates:** ze bevatten ingebedde fonts en afbeeldingen (tot 1,7 MB op weinig regels). Nooit
+  volledig tonen of `cat`-en; strip `data:…;base64,…` eerst. Aanpassen kan met een patchscript dat één
+  CSS-stukje vervangt en de CRLF behoudt (`git diff --stat` moet dan 1 regel per template laten zien).
+- **Nog te doen:** #165 blijft open tot een echte challenge en MEGA-ranking-uitzending op YouTube het nieuwe
+  ontwerp laat zien. Peter noemde "2 andere thumbs"; alleen de MEGA-wijziging is doorgegeven — de tweede is
+  nog niet genoemd.
+
 ## OBS-pc bijgewerkt
 
 `git pull` naar main (`2103823`, dus de agent-wijzigingen t/m #152) en `MokumAgent` herstart na de finale;
@@ -136,9 +161,12 @@ meer: #131/#99/#161/#162 zijn alleen backend/frontend.
 
 ## Wat er nog open staat
 
-1. **Bewijs op een echte toernooiavond:** #131 (geen vals "niet live"-alarm; log `[ALARM] … YouTube staat niet
+1. **Bewijs op een echte avond:** #165 (challenge- en MEGA-thumbnail op YouTube); #131 (geen vals "niet live"-alarm; log `[ALARM] … YouTube staat niet
    live`), #99 (ververs-knop op een tafel zonder live stream testen), #162 (medaillescherm verschijnt;
    `podiumPerTafel` gevuld in `/api/live`), #159 (Stop-knop in de browser).
+   Openstaande vraag van Peter: kan het medaillescherm alsnog bij de opname van 26-09 (tafel 1)? Aan de opname
+   zelf niet; opties: (1) hoofdstuk "Podium" + winnaars in de beschrijving (productie-schrijfactie, mogelijk door
+   Peter zelf in Studio), (2) aparte clip via de demo-modus `?podium` van de Jumbotron.
 2. Van de eerdere overdracht van vandaag: #113, #132, #130, #128, #129, #153, #155, #151, #156, #115,
    #158 (Lanczos-test op de OBS-pc; dan `docs/obs-standaard.md` bijwerken).
 3. Geen integratietests voor `checkStops` (#113, #131) en de timer `agentBewaking`.
