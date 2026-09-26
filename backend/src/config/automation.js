@@ -118,8 +118,22 @@ function isStopAfstemmingAan() {
   return String(process.env.STOP_AFSTEMMING || '').toLowerCase() !== 'false';
 }
 
+// Agent-offline-alarm (#132): mail + ntfy als de OBS-pc langer dan AGENT_ALARM_MIN minuten (standaard
+// 10) niets laat horen, plus een herstelmelding. Standaard AAN: het doet niets aan de streams, het
+// meldt alleen. 's Nachts (01:00-07:00) wordt niet gealarmeerd; de melding komt dan om 07:00.
+// Uit te zetten zonder deploy met AGENT_ALARM=false.
+function isAgentAlarmAan() {
+  return String(process.env.AGENT_ALARM || '').toLowerCase() !== 'false';
+}
+
+function agentAlarmStilMs() {
+  const min = Number(process.env.AGENT_ALARM_MIN);
+  return (Number.isFinite(min) && min > 0 ? min : 10) * 60 * 1000;
+}
+
 module.exports = {
   isArmed, isPauzeAutoOn, pauzeSchermKeys, pauzeSchermUitKeys, pauzeSchermRefreshKeys,
   isInactiviteitsStopAan, isChallengeLimietAan, competitieWachtMs,
   isScorebordWachtAan, scorebordRefreshMs, isStopAfstemmingAan,
+  isAgentAlarmAan, agentAlarmStilMs,
 };
