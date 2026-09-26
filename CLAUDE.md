@@ -47,6 +47,9 @@ Plan een toernooi in de Toernooi planner en de rest gaat vanzelf:
    opnieuw een stopcommando (max. 3x, daarna alarm; #113, uit met `STOP_AFSTEMMING=false`).
    Zwijgt de agent (OBS-pc) langer dan 10 min., dan volgt een alarm (mail + ntfy) en later een herstelmelding;
    tussen 01:00 en 07:00 wacht het alarm tot 07:00 (#132, uit met `AGENT_ALARM=false`).
+   Meldt de agent dat een tafel zendt, maar heeft YouTube de uitzending 10 min. na de geplande start nog
+   niet live gezet (geen `actualStartTime`), dan volgt eenmalig een alarm (mail + ntfy; #131, uit met
+   `LIVE_CONTROLE=false`). Alleen een melding, geen actie op de stream.
 
 **Competitiewedstrijden** (via de competitie-wizard, #120) stoppen sinds 17-09 wél automatisch:
 5 minuten nadat Cuescore de teamwedstrijd afgerond meldt, of nadat de stand compleet is

@@ -251,6 +251,8 @@ node scripts\obs-bronnen-uitlezen.js --uit obs-bronnen.md
 
 `N` is het tafelnummer (1, 3, 15 of 16). Alle bronnen staan op slot, behalve waar hieronder anders vermeld.
 "Vernieuwen bij actief" staat overal **uit**. Zichtbaar/verborgen is een momentopname en geen norm.
+Na de opruiming van 26-09 (zelfde avond, opnieuw uitgelezen) is de tabel hieronder voor alle vier de tafels gelijk,
+op de twee punten onder "Bekende verschillen" na.
 
 | Bron | Soort | URL | Afmeting | Uit bij verborgen |
 |---|---|---|---|---|
@@ -277,14 +279,13 @@ eigen tafel (#104, #162).
 **Custom CSS**
 - Jumbotron (tafel 1, 3, 16): `body { background-color: rgba(0, 0, 0, 0); margin: 0px auto; overflow: hidden; } .dialog { display: none !important; }`
 - Jumbotron (tafel 15): dezelfde regel, maar met een bredere dialog-selector: `dialog, .dialog, [class*="dialog"] { display: none !important; }`
-- Scoreboard (tafel 3 en 16): `body { background-color: rgba(0, 0, 0, 0); margin: 0px auto; overflow: hidden; }`; tafel 1 en 15: geen css.
+- Scoreboard (**alle vier de tafels**, gelijkgetrokken op 26-09): `body { background-color: rgba(0, 0, 0, 0); margin: 0px auto; overflow: hidden; }`
 
-**Bekende verschillen tussen de tafels (nog niet beslist):**
-- `Camera Tafel 15` staat niet op slot (de andere drie wel).
-- Scoreboard-css: tafel 3 en 16 hebben de transparante-achtergrond-regel, tafel 1 en 15 niet. Uitzoeken welke bedoeld is en dan gelijktrekken.
-- Jumbotron-css op tafel 15 wijkt af (bredere selector); kies één versie voor alle tafels.
-- De scène heet op tafel 15 `Scene`, op de andere `Scène`. Onschuldig: de agent gebruikt de actieve scène.
-- Gecorrigeerd op 26-09: `Competitiestand` op tafel 16 stond op 24-09 nog niet op slot, nu wel.
+**Bekende verschillen tussen de tafels (onschuldig, bewust zo gelaten):**
+- Jumbotron-css op tafel 15 heeft een bredere dialog-selector (`dialog, .dialog, [class*="dialog"]`) dan de andere drie (`.dialog`). Geen effect op het gedrag.
+- De scène heet op tafel 15 `Scene`, op de andere `Scène`. De agent gebruikt de actieve scène, dus dit maakt niets uit.
+
+**Gecorrigeerd op 26-09:** `Camera Tafel 15` staat nu op slot, de Scoreboard-css is op alle tafels gelijk en `Competitiestand` op tafel 16 (op 24-09 nog niet vergrendeld) staat op slot.
 
 ## Aanbevolen structuur & volgorde in de Sources-lijst
 In OBS bepaalt de volgorde de **z-volgorde**: **bovenaan = bovenop**, onderaan =
