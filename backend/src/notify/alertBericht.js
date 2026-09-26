@@ -14,6 +14,21 @@ function bouwStreamFalenAlert({ tableNumber, tournamentName, videoId, pogingen }
   return { onderwerp, tekst: regels.join('\n') };
 }
 
+// Alarm als een tafel als gestopt geregistreerd staat, maar de agent na meerdere stopcommando's
+// nog steeds zendt (#113, 23-08: tafel 15 negeerde een expliciet stopcommando). De uitzending
+// loopt dan onbewaakt door op YouTube tot iemand ingrijpt.
+function bouwStopFalenAlert({ tableNumber, tournamentName, videoId, pogingen }) {
+  const naam = tournamentName || 'onbekend toernooi';
+  const onderwerp = `⚠ Tafel ${tableNumber} blijft zenden na stop — ${naam}`;
+  const studioLink = videoId ? `https://studio.youtube.com/video/${videoId}/livestreaming` : null;
+  const regels = [
+    `Tafel ${tableNumber} (${naam}) staat als gestopt geregistreerd, maar zendt na ${pogingen} stopcommando's nog steeds.`,
+    "De uitzending loopt onbewaakt door op YouTube. Stop OBS op de streaming-pc met de hand (via Tailscale/RustDesk) en controleer of de agent commando's ontvangt.",
+  ];
+  if (studioLink) regels.push(`YouTube Studio: ${studioLink}`);
+  return { onderwerp, tekst: regels.join('\n') };
+}
+
 // Alarm bij de noodrem op het aanmaken van broadcasts (#128). Gaat af als één tafel op
 // één dag onverwacht vaak opnieuw geclaimd wordt — het patroon van 16-09, toen twee
 // planning-records voor hetzelfde toernooi elkaar de tafel afhandig maakten en er vier
@@ -30,4 +45,4 @@ function bouwBroadcastLimietAlert({ tableNumber, naam, gemaakt }) {
   return { onderwerp, tekst: regels.join('\n') };
 }
 
-module.exports = { bouwStreamFalenAlert, bouwBroadcastLimietAlert };
+module.exports = { bouwStreamFalenAlert, bouwStopFalenAlert, bouwBroadcastLimietAlert };

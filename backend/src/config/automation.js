@@ -108,8 +108,18 @@ function scorebordRefreshMs() {
   return (Number.isFinite(min) && min > 0 ? min : 10) * 60 * 1000;
 }
 
+// Stop-afstemcheck (#113): vergelijkt `stopped` in de store met wat de agent meldt en stuurt
+// opnieuw een stopStream als een 'gestopte' tafel na een paar minuten nog zendt (zie
+// planning/stopAfstemming.js). Standaard AAN: het gat dat dit dicht (uitzendingen die uren
+// onbewaakt doorliepen, vijf keer op 22-24 augustus) is erger dan het risico. Alleen tafels
+// waarvoor vandaag al een gestopte registratie bestaat worden geraakt. Uit te zetten zonder
+// deploy met STOP_AFSTEMMING=false.
+function isStopAfstemmingAan() {
+  return String(process.env.STOP_AFSTEMMING || '').toLowerCase() !== 'false';
+}
+
 module.exports = {
   isArmed, isPauzeAutoOn, pauzeSchermKeys, pauzeSchermUitKeys, pauzeSchermRefreshKeys,
   isInactiviteitsStopAan, isChallengeLimietAan, competitieWachtMs,
-  isScorebordWachtAan, scorebordRefreshMs,
+  isScorebordWachtAan, scorebordRefreshMs, isStopAfstemmingAan,
 };

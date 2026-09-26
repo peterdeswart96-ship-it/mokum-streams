@@ -43,6 +43,8 @@ Plan een toernooi in de Toernooi planner en de rest gaat vanzelf:
    cameratafels (#72).
 4. **Na de finale** — medaillescherm 3 min, dan stop, dan automatisch thumbnail + hoofdstukken.
 5. **Vangnetten** — eigen eindtijd 01:30, en de nachtstop van 03:00 die altijd stopt.
+   Een tafel die als gestopt geregistreerd staat maar volgens de agent nog zendt, krijgt na 3 min.
+   opnieuw een stopcommando (max. 3x, daarna alarm; #113, uit met `STOP_AFSTEMMING=false`).
 
 **Competitiewedstrijden** (via de competitie-wizard, #120) stoppen sinds 17-09 wél automatisch:
 5 minuten nadat Cuescore de teamwedstrijd afgerond meldt, of nadat de stand compleet is

@@ -12,9 +12,10 @@ const { competitieStopBesluit, moetCompetitieChecken } = require('../planning/co
 const { toernooiVoorNiveau } = require('../mokumCompetitie/toernooien');
 const { zoekCompetitieWedstrijd, heeftTeams } = require('../mokumCompetitie/zoekWedstrijd');
 const { moetOpnieuwStarten, moetAlarmeren, MAX_POGINGEN } = require('../planning/herstart');
-const { bouwStreamFalenAlert } = require('../notify/alertBericht');
+const { stopAfstemming, MAX_STOP_POGINGEN } = require('../planning/stopAfstemming');
+const { bouwStreamFalenAlert, bouwStopFalenAlert } = require('../notify/alertBericht');
 const { stuurAlert } = require('../notify/verzenden');
-const { isArmed, isInactiviteitsStopAan, isChallengeLimietAan, competitieWachtMs } = require('../config/automation');
+const { isArmed, isInactiviteitsStopAan, isChallengeLimietAan, competitieWachtMs, isStopAfstemmingAan } = require('../config/automation');
 
 // Timer-Function: bewaakt lopende broadcasts en stopt ze automatisch wanneer het
 // toernooi klaar is (Cuescore `Finished`), de league-avond op die tafel voorbij is,
@@ -92,6 +93,15 @@ async function verwerk(now, context) {
   const streamtTafel = new Map(
     ((status && status.tables) || []).map((t) => [Number(t.tableNumber), !!t.streaming])
   );
+  // Voor de stop-afstemcheck (#113): de volledige meting per tafel.
+  const tafelStatus = new Map(
+    ((status && status.tables) || []).map((t) => [Number(t.tableNumber), t])
+  );
+  // Tafels waarvoor we al een (nieuwere) registratie zagen. `dagen` staat nieuwste eerst, dus
+  // een gestopte entry van gisteren mag niet afgestemd worden als vandaag een nieuwe uitzending
+  // op diezelfde tafel staat — dan zouden we de nieuwe uitzending stoppen.
+  const tafelsGezien = new Set();
+  const teAlarmerenStop = [];
 
   const teStoppen = [];
   const teHerstarten = [];
@@ -123,7 +133,31 @@ async function verwerk(now, context) {
 
     for (const key of Object.keys(store)) {
       let entry = store[key];
-      if (!entry || entry.stopped) continue;
+      if (!entry) continue;
+
+      // Stop-afstemcheck (#113): staat als gestopt geregistreerd, maar zendt de agent nog?
+      // Alleen voor de nieuwste registratie van deze tafel (zie tafelsGezien).
+      const nieuwsteVanTafel = !tafelsGezien.has(String(entry.tableNumber));
+      tafelsGezien.add(String(entry.tableNumber));
+      if (entry.stopped) {
+        if (isStopAfstemmingAan() && nieuwsteVanTafel) {
+          const res = stopAfstemming(entry, tafelStatus.get(Number(entry.tableNumber)), now.getTime());
+          if (Object.keys(res.patch).length) {
+            store[key] = { ...entry, ...res.patch };
+            storeGewijzigd = true;
+          }
+          if (res.actie === 'herstop') {
+            context.warn(`[checkStops] tafel ${entry.tableNumber}: staat als gestopt geregistreerd maar zendt nog → opnieuw stoppen (poging ${res.patch.stopPogingen}/${MAX_STOP_POGINGEN}) (#113)`);
+            teStoppen.push(entry.tableNumber);
+          } else if (res.actie === 'alarm') {
+            teAlarmerenStop.push({
+              tableNumber: entry.tableNumber, tournamentName: entry.tournamentName,
+              videoId: entry.videoId, pogingen: Number(entry.stopPogingen) || 0,
+            });
+          }
+        }
+        continue;
+      }
 
       // Herstart-vangnet (#114): de broadcast is aangemaakt en het startStream-commando
       // is verstuurd, maar de agent meldt nog altijd geen data — terwijl de geplande start
@@ -429,6 +463,17 @@ async function verwerk(now, context) {
   for (const a of teAlarmeren) {
     const bericht = bouwStreamFalenAlert(a);
     context.warn(`[ALARM] tafel ${a.tableNumber}: niet live na ${a.pogingen} pogingen — alarm wordt verstuurd.`);
+    try {
+      const res = await stuurAlert(bericht);
+      context.warn(`[ALARM] tafel ${a.tableNumber}: mail ${res.mail.verstuurd ? 'verstuurd' : `overgeslagen (${res.mail.reden})`}, ntfy ${res.ntfy.verstuurd ? 'verstuurd' : `overgeslagen (${res.ntfy.reden})`}.`);
+    } catch (e) {
+      context.warn(`[WAARSCHUWING] [ALARM] tafel ${a.tableNumber}: versturen mislukt: ${e.message}`);
+    }
+  }
+
+  for (const a of teAlarmerenStop) {
+    const bericht = bouwStopFalenAlert(a);
+    context.warn(`[ALARM] tafel ${a.tableNumber}: blijft zenden na ${a.pogingen} stopcommando's (#113) — alarm wordt verstuurd.`);
     try {
       const res = await stuurAlert(bericht);
       context.warn(`[ALARM] tafel ${a.tableNumber}: mail ${res.mail.verstuurd ? 'verstuurd' : `overgeslagen (${res.mail.reden})`}, ntfy ${res.ntfy.verstuurd ? 'verstuurd' : `overgeslagen (${res.ntfy.reden})`}.`);
