@@ -70,6 +70,8 @@ function hoofdstukData(streamStartISO, tournament, tableNumber, opts = {}) {
     const secGecorrigeerd = vorige && sec - vorige.offsetSec < minGapSec ? vorige.offsetSec + minGapSec : sec;
     uit.push({
       offsetSec: secGecorrigeerd,
+      // matchId: vaste sleutel voor het archief (#140); namen kunnen bij Cuescore veranderen.
+      matchId: m.matchId != null ? m.matchId : null,
       spelers: [a, b].filter(Boolean),
       label: `${a || '?'} vs ${b || '?'}`,
       round: m.roundName || null,

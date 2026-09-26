@@ -220,3 +220,104 @@ test('zonder rack-einde is er geen clipvenster (niet af te spelen)', () => {
   const r = wedstrijdenVoorVideo(INDEX, t)[0].runouts[0];
   assert.deepStrictEqual([r.exact, r.clipVan, r.clipTot], [false, null, null]);
 });
+
+// --- #140: hernoemde spelers mogen niet uit het archief vallen ---------------------------
+
+function wm(id, tafel, a, b, start, ronde = 'Round 1') {
+  return {
+    matchId: id, table: String(tafel), roundName: ronde, start,
+    playerA: { name: a }, playerB: { name: b }, scoreA: 5, scoreB: 3,
+    runoutsA: 0, runoutsB: 0, runoutRacks: [],
+  };
+}
+
+const T = (min) => new Date(Date.parse('2026-09-16T19:00:00Z') + min * 60000).toISOString();
+
+test('#140 nieuwe records: koppelen op matchId, ook als beide spelers zijn hernoemd', () => {
+  const rec = {
+    videoId: 'v1', tableNumber: 1, datum: '2026-09-16',
+    hoofdstukken: [{ offsetSec: 0, spelers: ['Oude Naam A', 'Oude Naam B'], matchId: 501 }],
+  };
+  const t = { name: 'T', matches: [wm(501, 1, 'Nieuwe Naam A', 'Nieuwe Naam B', T(0))] };
+  const uit = wedstrijdenVoorVideo(rec, t);
+  assert.strictEqual(uit.length, 1);
+  assert.strictEqual(uit[0].offsetSec, 0);
+  // De regel toont de HUIDIGE namen uit Cuescore.
+  assert.deepStrictEqual(uit[0].spelers, ['Nieuwe Naam A', 'Nieuwe Naam B']);
+});
+
+test('#140 oude records zonder matchId: hernoemde speler tussen twee ankers wordt op volgorde gekoppeld', () => {
+  const rec = {
+    videoId: 'v2', tableNumber: 1, datum: '2026-09-16',
+    hoofdstukken: [
+      { offsetSec: 0, spelers: ['Anna', 'Bert'] },
+      { offsetSec: 1800, spelers: ['Luuk Van den herik', 'Cees'] }, // oude naam
+      { offsetSec: 3600, spelers: ['Dirk', 'Eva'] },
+    ],
+  };
+  const t = { name: 'T', matches: [
+    wm(1, 1, 'Anna', 'Bert', T(0)),
+    wm(2, 1, 'Luuk. h', 'Cees', T(30)), // hernoemd
+    wm(3, 1, 'Dirk', 'Eva', T(60)),
+  ] };
+  const uit = wedstrijdenVoorVideo(rec, t);
+  assert.strictEqual(uit.length, 3);
+  assert.strictEqual(uit.find((u) => u.spelers.includes('Luuk. h')).offsetSec, 1800);
+});
+
+test('#140 volgorde-terugval: alleen als het aantal onbekende hoofdstukken en wedstrijden gelijk is', () => {
+  const rec = {
+    videoId: 'v3', tableNumber: 1, datum: '2026-09-16',
+    hoofdstukken: [
+      { offsetSec: 0, spelers: ['Anna', 'Bert'] },
+      { offsetSec: 1800, spelers: ['Oud X', 'Cees'] },
+      { offsetSec: 3600, spelers: ['Dirk', 'Eva'] },
+    ],
+  };
+  // Twee onbekende wedstrijden tussen de ankers, maar één onbekend hoofdstuk: te onzeker.
+  const t = { name: 'T', matches: [
+    wm(1, 1, 'Anna', 'Bert', T(0)),
+    wm(2, 1, 'Nieuw X', 'Cees', T(20)),
+    wm(4, 1, 'Nieuw Y', 'Zoë', T(40)),
+    wm(3, 1, 'Dirk', 'Eva', T(60)),
+  ] };
+  const uit = wedstrijdenVoorVideo(rec, t);
+  assert.deepStrictEqual(uit.map((u) => u.spelers[0]).sort(), ['Anna', 'Dirk']);
+});
+
+test('#140 volgorde-terugval aan het begin en einde van de video', () => {
+  const rec = {
+    videoId: 'v4', tableNumber: 1, datum: '2026-09-16',
+    hoofdstukken: [
+      { offsetSec: 0, spelers: ['Oud A', 'Bert'] },
+      { offsetSec: 1800, spelers: ['Cees', 'Dirk'] },
+      { offsetSec: 3600, spelers: ['Eva', 'Oud F'] },
+    ],
+  };
+  const t = { name: 'T', matches: [
+    wm(1, 1, 'Nieuw A', 'Bert', T(0)),
+    wm(2, 1, 'Cees', 'Dirk', T(30)),
+    wm(3, 1, 'Eva', 'Nieuw F', T(60)),
+  ] };
+  const uit = wedstrijdenVoorVideo(rec, t);
+  assert.strictEqual(uit.length, 3);
+  assert.deepStrictEqual(uit.map((u) => u.offsetSec).sort((x, y) => x - y), [0, 1800, 3600]);
+});
+
+test('#140 een hoofdstuk wordt nooit aan twee wedstrijden gekoppeld', () => {
+  const rec = {
+    videoId: 'v5', tableNumber: 1, datum: '2026-09-16',
+    hoofdstukken: [{ offsetSec: 0, spelers: ['Anna', 'Bert'], matchId: 1 }],
+  };
+  const t = { name: 'T', matches: [
+    wm(1, 1, 'Anna', 'Bert', T(0)),
+    wm(2, 1, 'Anna', 'Bert', T(90)), // zelfde paar, latere ronde
+  ] };
+  assert.strictEqual(wedstrijdenVoorVideo(rec, t).length, 1);
+});
+
+test('#140 geen enkel anker en ongelijke aantallen: niets koppelen (veilige kant)', () => {
+  const rec = { videoId: 'v6', tableNumber: 1, hoofdstukken: [{ offsetSec: 0, spelers: ['Oud', 'Oud2'] }] };
+  const t = { name: 'T', matches: [wm(1, 1, 'A', 'B', T(0)), wm(2, 1, 'C', 'D', T(30))] };
+  assert.deepStrictEqual(wedstrijdenVoorVideo(rec, t), []);
+});

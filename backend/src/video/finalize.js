@@ -130,7 +130,7 @@ async function finaliseerToernooi({ videoId, tournamentId, tableNumber, alleenHo
   const indexRecord = {
     videoId, tournamentId, tableNumber, tournamentName: naamRaw,
     datum: (streamStart || '').slice(0, 10), finalizedAt: new Date().toISOString(),
-    hoofdstukken: hoofdstukken.filter((h) => h.spelers.length).map((h) => ({ offsetSec: h.offsetSec, spelers: h.spelers })),
+    hoofdstukken: hoofdstukken.filter((h) => h.spelers.length).map((h) => ({ offsetSec: h.offsetSec, spelers: h.spelers, matchId: h.matchId != null ? h.matchId : null })),
   };
   await writeJson(INDEX(videoId), indexRecord);
 

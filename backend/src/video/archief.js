@@ -7,10 +7,15 @@
 // (startAt/endAt zijn afgeschaft). Knippen + her-uploaden kost 1.600 quota-eenheden per
 // clip. Besluit 22-07 (#67): fase 1 = links naar het moment in de bestaande video.
 //
-// Koppeling video ↔ wedstrijd gaat via het SPELERSPAAR uit de hoofdstukken die bij het
-// finaliseren zijn weggeschreven (`video-index/<videoId>.json`); die bevatten al de offset
-// in seconden t.o.v. het begin van de stream. Zo werkt dit ook voor video's die al
-// gefinaliseerd waren vóór dit issue — de index hoeft niet herschreven te worden.
+// Koppeling video ↔ wedstrijd gaat via de hoofdstukken die bij het finaliseren zijn
+// weggeschreven (`video-index/<videoId>.json`); die bevatten al de offset in seconden t.o.v.
+// het begin van de stream. Zo werkt dit ook voor video's die al gefinaliseerd waren vóór dit
+// issue — de index hoeft niet herschreven te worden.
+//
+// Volgorde van koppelen (#140): 1) het wedstrijd-id (`matchId`, bewaard sinds #140),
+// 2) het spelerspaar op naam, 3) voor records die door een naamswijziging op 2 missen: de
+// volgorde tussen twee wedstrijden die wél kloppen. Alleen namen was de oude situatie; een
+// speler die zich bij Cuescore hernoemde viel dan bij een volledige rebuild uit het archief.
 
 const { templateVoorToernooi, TEMPLATE_TEKST } = require('./detectie');
 
@@ -58,6 +63,71 @@ function clipVenster(startSec, eindSec) {
   return { clipVan: Math.max(0, Math.max(startSec, eindSec - CLIP_MAX_SEC)), clipTot: eindSec + CLIP_NA_SEC };
 }
 
+// Koppelt de wedstrijden van één tafel aan de hoofdstukken van een video (#140). Retour: een
+// Map van wedstrijd-object → offset in seconden. Wedstrijden die nergens aan te koppelen zijn
+// staan er niet in (die zitten niet in deze video, of het is te onzeker).
+//
+// De terugval op volgorde werkt zo: hoofdstukken zijn de wedstrijden van deze tafel op
+// starttijd (zie hoofdstukData), dus ze staan in dezelfde volgorde. Wedstrijden die op id of
+// naam kloppen zijn ankers. Tussen twee ankers moeten de onbekende hoofdstukken en de
+// onbekende wedstrijden even lang zijn; dan horen ze op volgorde bij elkaar. Zijn ze dat niet
+// (bijv. omdat een wedstrijd buiten de video viel), dan koppelen we niets: liever een
+// wedstrijd missen dan een verkeerd moment in een video tonen.
+function koppelHoofdstukken(rec, tafel, tournament) {
+  const hs = rec.hoofdstukken || [];
+  const perId = new Map();
+  const perSleutel = new Map();
+  hs.forEach((h, i) => {
+    if (h && h.matchId != null && !perId.has(String(h.matchId))) perId.set(String(h.matchId), i);
+    const sleutel = spelersSleutel(h && h.spelers);
+    // Eerste voorkomen wint (een paar speelt zelden twee keer op dezelfde tafel).
+    if (sleutel && !perSleutel.has(sleutel)) perSleutel.set(sleutel, i);
+  });
+
+  const opTafel = ((tournament && tournament.matches) || []).filter((m) => m && String(m.table) === tafel);
+  const naam = (p) => (p && p.name) || null;
+
+  // Stap 1 en 2: id, dan naam.
+  const hoofdstukVan = new Map(); // wedstrijd → index in hs
+  const gebruikt = new Set();
+  for (const m of opTafel) {
+    let i = m.matchId != null ? perId.get(String(m.matchId)) : undefined;
+    if (i === undefined) i = perSleutel.get(spelersSleutel([naam(m.playerA), naam(m.playerB)]));
+    if (i !== undefined && !gebruikt.has(i)) {
+      hoofdstukVan.set(m, i);
+      gebruikt.add(i);
+    }
+  }
+
+  // Stap 3: op volgorde tussen ankers.
+  const gesorteerd = opTafel
+    .filter((m) => m.start && !Number.isNaN(Date.parse(m.start)) && (naam(m.playerA) || naam(m.playerB)))
+    .sort((x, y) => Date.parse(x.start) - Date.parse(y.start));
+  let vorigJ = -1;
+  let vorigC = -1;
+  const koppelSegment = (totJ, totC) => {
+    const vrijeM = gesorteerd.slice(vorigJ + 1, totJ).filter((m) => !hoofdstukVan.has(m));
+    const vrijeC = [];
+    for (let c = vorigC + 1; c < totC; c++) if (!gebruikt.has(c) && hs[c] && (hs[c].spelers || []).length) vrijeC.push(c);
+    if (vrijeM.length > 0 && vrijeM.length === vrijeC.length) {
+      vrijeM.forEach((m, k) => { hoofdstukVan.set(m, vrijeC[k]); gebruikt.add(vrijeC[k]); });
+    }
+  };
+  const ankers = [];
+  gesorteerd.forEach((m, j) => { if (hoofdstukVan.has(m)) ankers.push({ j, c: hoofdstukVan.get(m) }); });
+  for (const { j, c } of ankers) {
+    if (c <= vorigC) continue; // anker in de verkeerde volgorde: niet op vertrouwen
+    koppelSegment(j, c);
+    vorigJ = j;
+    vorigC = c;
+  }
+  koppelSegment(gesorteerd.length, hs.length);
+
+  const offsets = new Map();
+  for (const [m, i] of hoofdstukVan) offsets.set(m, hs[i].offsetSec);
+  return offsets;
+}
+
 // Bouwt de archiefregels van één video. `indexRecord` = video-index/<id>.json,
 // `tournament` = genormaliseerd Cuescore-toernooi. Retour: array (kan leeg zijn).
 function wedstrijdenVoorVideo(indexRecord, tournament) {
@@ -65,13 +135,8 @@ function wedstrijdenVoorVideo(indexRecord, tournament) {
   if (!rec.videoId) return [];
   const tafel = String(rec.tableNumber);
 
-  // Offset per spelerspaar uit de al bewaarde hoofdstukken.
-  const offsetPerPaar = new Map();
-  for (const h of rec.hoofdstukken || []) {
-    const sleutel = spelersSleutel(h && h.spelers);
-    // Eerste voorkomen wint (een paar speelt zelden twee keer op dezelfde tafel).
-    if (sleutel && !offsetPerPaar.has(sleutel)) offsetPerPaar.set(sleutel, h.offsetSec);
-  }
+  // Offset per wedstrijd uit de al bewaarde hoofdstukken (id → naam → volgorde, zie #140).
+  const offsetPerWedstrijd = koppelHoofdstukken(rec, tafel, tournament);
 
   const naamToernooi = rec.tournamentName || (tournament && tournament.name) || '';
 
@@ -80,7 +145,7 @@ function wedstrijdenVoorVideo(indexRecord, tournament) {
     if (!m || String(m.table) !== tafel) continue;
     const a = (m.playerA && m.playerA.name) || null;
     const b = (m.playerB && m.playerB.name) || null;
-    const offset = offsetPerPaar.get(spelersSleutel([a, b]));
+    const offset = offsetPerWedstrijd.get(m);
     if (offset == null) continue; // wedstrijd zit niet in deze video
 
     // Run-outs (#67): één regel per gewonnen rack, met een EIGEN offset. Cuescore's
