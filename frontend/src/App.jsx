@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  getLive, startStream, stopStream, setOverlay, refreshPlanning, getPlanning, updatePlanning, getCompetitieWedstrijden,
+  getLive, startStream, stopStream, setOverlay, refreshBronnen, refreshPlanning, getPlanning, updatePlanning, getCompetitieWedstrijden,
   getToken, setToken as saveToken, clearToken,
 } from './api.js';
 
@@ -11,6 +11,7 @@ const REFRESH_MS = 5000;
 // commando's elke ~5s op, dus 60s is ruim genoeg voor een gezonde agent.
 const STOP_REFRESH_MS = 2000;
 const STOP_WACHT_MAX_MS = 60000;
+const VERVERS_LOCK_MS = 8000; // iets langer dan de pollinterval van de agent (5 s)
 
 // De schakelbare overlays (sleutel = API-veld, label = wat de gebruiker ziet,
 // desc = wat het toont, pos = waar op het beeld, groep = content|pauze, defaultOn =
@@ -293,8 +294,17 @@ function YouTubeIcoon({ table }) {
   return <span className="shrink-0" title={live ? 'Live op YouTube' : 'Offline'}>{img}</span>;
 }
 
-function TableCard({ table, onStop, onOverlay, onPreview, busy, stopt }) {
+function TableCard({ table, onStop, onOverlay, onRefresh, onPreview, busy, stopt }) {
   const actief = table.status === 'live' || table.status === 'scheduled';
+  // Na een klik op "Ververs" blijft de knop even op slot: de agent haalt commando's pas om de
+  // ~5 s op, en zonder terugkoppeling klikt iemand drie keer (zie #159).
+  const [ververst, setVerversT] = useState(false);
+  const ververs = async () => {
+    if (table.status === 'live' && !window.confirm(`Tafel ${table.tableNumber} is live. Het scorebord is even (ongeveer een seconde) uit beeld. Doorgaan?`)) return;
+    setVerversT(true);
+    await onRefresh(table.tableNumber);
+    setTimeout(() => setVerversT(false), VERVERS_LOCK_MS);
+  };
   // Overlay-toggles: lokaal-optimistisch, maar volgen de echte OBS-stand zodra de
   // agent die meldt (table.overlays). Zonder agent-data blijft het lokale gedrag.
   const serverOv = table.overlays;
@@ -351,6 +361,16 @@ function TableCard({ table, onStop, onOverlay, onPreview, busy, stopt }) {
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <span className="text-xs text-neutral-500 uppercase tracking-wide">Pauze</span>
         {PAUZE_OVERLAYS.map(toggle)}
+      </div>
+      <div className="mt-2">
+        <button
+          disabled={busy || ververst}
+          onClick={ververs}
+          title="Herlaadt Scoreboard en Jumbotron in OBS, zonder de stream te herstarten"
+          className="text-xs text-ink-muted hover:text-ink underline disabled:opacity-40 disabled:no-underline"
+        >
+          {ververst ? 'Bezig met verversen…' : '↻ Ververs beeldbronnen'}
+        </button>
       </div>
       <div className="mt-3 flex gap-2">
         {table.status === 'live' && table.videoId && (
@@ -1735,6 +1755,17 @@ export default function App() {
     } finally { setBusy(false); }
   }
 
+  // Overlays in OBS opnieuw laden (#99). tafel: getal of 'alle'. Geeft niets terug; een fout wordt gemeld.
+  async function verversBronnen(tafel) {
+    try {
+      await refreshBronnen(tafel);
+      pushToast(tafel === 'alle' ? 'Beeldbronnen van alle tafels worden ververst' : `Beeldbronnen van tafel ${tafel} worden ververst`, 'ok');
+    } catch (e) {
+      if (e.status === 401) { clearToken(); setIngelogd(false); }
+      else pushToast(`Verversen mislukt: ${e.message}`, 'fout');
+    }
+  }
+
   // Overlay wijzigen met rollback-ondersteuning: geeft true bij succes, false bij fout
   // (dan draait de tafelkaart de knop terug). Succes is stil — de knop bevestigt zelf;
   // alleen bij een fout een toast.
@@ -1797,10 +1828,21 @@ export default function App() {
                   stopt={t.tableNumber in stoppend}
                   onStop={stopTafel}
                   onOverlay={wijzigOverlay}
+                  onRefresh={verversBronnen}
                   onPreview={(tafel) => setPreview(tafel)}
                 />
               ))}
             </div>
+            <p className="mt-3 text-sm text-ink-muted">
+              Pagina in een overlay gewijzigd?{' '}
+              <button
+                disabled={busy}
+                onClick={() => { if (window.confirm('Scoreboard en Jumbotron worden op ALLE tafels herladen. Op tafels die live zijn is het scorebord even (ongeveer een seconde) uit beeld. Doorgaan?')) verversBronnen('alle'); }}
+                className="underline hover:text-ink disabled:opacity-40"
+              >
+                ↻ Ververs beeldbronnen op alle tafels
+              </button>
+            </p>
             <StreamPaneel tables={tables} />
             <div className="mt-4">
               <ToernooiPlanner onGepland={laad} />

@@ -3,7 +3,7 @@
 Enige waarheid voor de koppelvlakken tussen frontend/widget, backend en (later) de
 agent. Wijzigen? Eerst dit bestand bijwerken (met datum + reden onderaan), dan code.
 
-Status: CONCEPT v0.67 — velden worden definitief in fase 2.
+Status: CONCEPT v0.68 — velden worden definitief in fase 2.
 
 ## Conventies
 - Alle velden camelCase. Tijden in ISO 8601 met tijdzone (Europe/Amsterdam
@@ -83,6 +83,7 @@ POST /api/manage/defaults            -> standaard-instellingen wijzigen
 POST /api/manage/streams/start       -> body: { "tableNumber": 15, "title"?: "...", "privacy"?: "public|unlisted|private", "overlays"?: { "sponsors": true, "scoreboard": true, "jumbotron": false }, "tournamentId"?: 83049058, "streamType"?: "challenge|competitie", "spelerA"?: "...", "spelerB"?: "...", "matchId"?: 88259371, "niveau"?: "Eerste Klasse", "thuisteam"?: "...", "uitteam"?: "..." } (vrije camera; enqueuet startStream + setOverlay per overlay. Mét tournamentId = beheerd, zonder = ad-hoc)
 GET  /api/manage/competitie/wedstrijden -> aankomende teamwedstrijden die BIJ MOKUM gespeeld worden (bron: mokum-competitie-API), voor de competitie-wizard; vorm zie v0.58 in de wijzigingslog
 POST /api/manage/streams/stop        -> body: { "tableNumber": 15 }
+POST /api/manage/streams/refresh     -> body: { "tableNumber": 15 | "alle", "bronnen"?: ["scoreboard","jumbotron"] } (ververst de webpagina-overlays in OBS zonder streamherstart; enqueuet een refreshSource per tafel en bron; zonder `bronnen` allebei; antwoord { commands }. Zie v0.68)
 POST /api/manage/streams/overlay     -> body: { "tableNumber": 15, "sponsors"?: bool, "scoreboard"?: bool, "jumbotron"?: bool, "competitie"?: bool } (overlay(s) live aan/uit op een lopende stream; enqueuet setOverlay per opgegeven sleutel)
    NB: content-overlays (sponsors/scoreboard) staan standaard AAN;
    break-overlays (jumbotron) staan standaard UIT (alleen tijdens pauzes tonen).
@@ -1099,3 +1100,18 @@ Regels:
     Flex Consumption-rekening, niet of hij een commando wegschrijft. De werkelijke prijs is
     zichtbaar: de bron is bij een refresh ongeveer een seconde uit beeld. Vandaar de rem van 10
     minuten, zonder deploy bij te stellen.
+- 2026-09-26: v0.68 — **overlays op afstand verversen** (#99). Een OBS-browserbron herlaadt zichzelf
+  niet en de pc staat 24/7 aan. Sinds 05-08 ververst `startCommandsFor()` bij elke streamstart, maar tijdens
+  een lopende avond (of na een teruggedraaide deploy) was er geen ingang om dat los te doen.
+  1. **Nieuw: `POST /api/manage/streams/refresh`** (admin). Body `{ "tableNumber": <geheel getal> | "alle",
+     "bronnen"?: ["scoreboard","jumbotron"] }`. `"alle"` = de cameratafels 1, 3, 15 en 16. Zonder `bronnen`
+     worden beide webpagina-overlays ververst. Antwoord: `{ "commands": [...] }`. 400 bij een ongeldige
+     tafel of onbekende bron; alleen `scoreboard` en `jumbotron` zijn toegestaan.
+  2. **Waarom alleen die twee:** het zijn de webpagina-overlays waar een verouderde pagina schade doet. Een
+     camerabron verversen doet niets nuttigs en kan het beeld laten haperen; de sponsor-slideshow is geen
+     webpagina; het competitiescherm laadt vers bij het aanzetten.
+  3. **Effect:** de agent haalt commando's elke ~5 s op, dus tussen klik en effect zit enkele seconden.
+     Het scorebord is bij een refresh ongeveer een seconde uit beeld; het dashboard waarschuwt daarvoor
+     bij een tafel die live is.
+  4. **Geen wijziging** aan bestaande endpoints; het commandotype `refreshSource` bestond al.
+  5. **Loggen:** elke aanroep komt als warning in de log (handmatige actie, zie #125).
