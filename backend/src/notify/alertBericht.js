@@ -29,6 +29,21 @@ function bouwStopFalenAlert({ tableNumber, tournamentName, videoId, pogingen }) 
   return { onderwerp, tekst: regels.join('\n') };
 }
 
+// Alarm als de agent zegt dat OBS zendt, maar YouTube de uitzending ruim na de geplande start
+// nog niet live heeft gezet (#131, 16-09: tafel 3 bleef uren op 'Upcoming', beeld zwart). Kijkers
+// zien niets, terwijl alles aan onze kant er goed uitziet.
+function bouwNietLiveOpYoutubeAlert({ tableNumber, tournamentName, videoId, wachtMin }) {
+  const naam = tournamentName || 'onbekend toernooi';
+  const onderwerp = `⚠ Tafel ${tableNumber} zendt, maar staat niet live op YouTube — ${naam}`;
+  const studioLink = videoId ? `https://studio.youtube.com/video/${videoId}/livestreaming` : null;
+  const regels = [
+    `OBS zendt op tafel ${tableNumber} (${naam}), maar YouTube heeft de uitzending ${wachtMin} minuten na de geplande start nog niet live gezet. Kijkers zien niets.`,
+    'Meest waarschijnlijk hangt de nieuwe uitzending aan een stream key die al actief was. Open YouTube Studio: staat de uitzending op "Upcoming"? Stop en start dan de stream van deze tafel opnieuw (dashboard: stop, wacht even, start).',
+  ];
+  if (studioLink) regels.push(`YouTube Studio: ${studioLink}`);
+  return { onderwerp, tekst: regels.join('\n') };
+}
+
 // Klokkijk-formattering voor de agent-meldingen (Amsterdamse tijd), zodat "sinds 02:16" klopt.
 function tijdAmsterdam(iso) {
   const d = new Date(iso);
@@ -74,4 +89,4 @@ function bouwBroadcastLimietAlert({ tableNumber, naam, gemaakt }) {
   return { onderwerp, tekst: regels.join('\n') };
 }
 
-module.exports = { bouwStreamFalenAlert, bouwStopFalenAlert, bouwAgentOfflineAlert, bouwAgentHerstelAlert, bouwBroadcastLimietAlert };
+module.exports = { bouwStreamFalenAlert, bouwStopFalenAlert, bouwNietLiveOpYoutubeAlert, bouwAgentOfflineAlert, bouwAgentHerstelAlert, bouwBroadcastLimietAlert };

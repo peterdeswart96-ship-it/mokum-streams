@@ -15,7 +15,7 @@ met Nick.
 > (poort 4455/4456/4457/4458 + wachtwoord per instantie) → dan Fase 1-test.
 
 > **Update (2026-07-16): pauze-overlays + sponsorpositie.** ✅ Alle 4 de instanties
-> hebben nu ook `Jumbotron` en `Pauzemelding` (#39, zie daar voor URL/instellingen).
+> hebben nu ook `Jumbotron` en `Pauzemelding` (#39; URL's en instellingen staan in de tabel "Bronnen per tafel" verderop).
 > *(`Pauzemelding` is per 21-09 vervallen — zie de update onderaan dit blok, #151.)*
 > OBS staat op **Engels** (voorkeur Peter) — dat breekt niets: de agent vraagt de
 > actieve scène op bij OBS zelf en OBS vertaalt scène- of bronnamen niet.
@@ -238,6 +238,53 @@ loopt; staat op de herbruikbare keys al goed.
 > `config/tables.json` bevat de lijst overlaybronnen en het planning-record
 > `overlays` wordt een map `{ naam: aan/uit }` — zo is elke overlay vanuit het
 > dashboard te schakelen zonder hardcoding.
+
+## Bronnen per tafel (uitgelezen uit OBS op 26-09-2026, #98)
+
+Uitgelezen met `agent/scripts/obs-bronnen-uitlezen.js` — alleen lezen, dus gerust te draaien tijdens een
+uitzending. Herhalen na een wijziging in OBS (op de OBS-pc, in PowerShell):
+
+```powershell
+cd C:\mokum-streams\agent
+node scripts\obs-bronnen-uitlezen.js --uit obs-bronnen.md
+```
+
+`N` is het tafelnummer (1, 3, 15 of 16). Alle bronnen staan op slot, behalve waar hieronder anders vermeld.
+"Vernieuwen bij actief" staat overal **uit**. Zichtbaar/verborgen is een momentopname en geen norm.
+
+| Bron | Soort | URL | Afmeting | Uit bij verborgen |
+|---|---|---|---|---|
+| Competitiestand | browserbron | `https://mokum-streams.pdscloud.nl/competitie/?tafel=N` | 1920×1080 | **ja** |
+| Jumbotron | browserbron | `https://mokum-streams.pdscloud.nl/pauze/slides/02-jumbotron.html?tafel=N` | 1920×1080 | nee |
+| Scoreboard | browserbron | `https://cuescore.com/scoreboard/overlay/?tableId=<ID>&lang=nl` | 1280×720 | nee |
+| Sponsor slideshow | slideshow | één bestand, 10000 ms per slide | | |
+| Toernooi-intro | browserbron | `https://mokum-streams.pdscloud.nl/pauze/intro.html?table=N` | 1920×1080 | nee |
+| Camera Tafel N | ffmpeg-bron | *(bewust niet vastgelegd: een camera-URL kan inloggegevens bevatten)* | | |
+
+**Let op:** de intro gebruikt `?table=N`, alle andere pagina's `?tafel=N`. Dat is geen typfout: de intro-pagina
+leest `table`. De Jumbotron **moet** `?tafel=N` hebben, anders toont hij het zaalbrede podium i.p.v. dat van de
+eigen tafel (#104, #162).
+
+**Cuescore-`tableId` per tafel** (Scoreboard-URL):
+
+| Tafel | tableId |
+|---|---|
+| 1 | 61403749 |
+| 3 | 61403764 |
+| 15 | 61403800 |
+| 16 | 61403803 |
+
+**Custom CSS**
+- Jumbotron (tafel 1, 3, 16): `body { background-color: rgba(0, 0, 0, 0); margin: 0px auto; overflow: hidden; } .dialog { display: none !important; }`
+- Jumbotron (tafel 15): dezelfde regel, maar met een bredere dialog-selector: `dialog, .dialog, [class*="dialog"] { display: none !important; }`
+- Scoreboard (tafel 3 en 16): `body { background-color: rgba(0, 0, 0, 0); margin: 0px auto; overflow: hidden; }`; tafel 1 en 15: geen css.
+
+**Bekende verschillen tussen de tafels (nog niet beslist):**
+- `Camera Tafel 15` staat niet op slot (de andere drie wel).
+- Scoreboard-css: tafel 3 en 16 hebben de transparante-achtergrond-regel, tafel 1 en 15 niet. Uitzoeken welke bedoeld is en dan gelijktrekken.
+- Jumbotron-css op tafel 15 wijkt af (bredere selector); kies één versie voor alle tafels.
+- De scène heet op tafel 15 `Scene`, op de andere `Scène`. Onschuldig: de agent gebruikt de actieve scène.
+- Gecorrigeerd op 26-09: `Competitiestand` op tafel 16 stond op 24-09 nog niet op slot, nu wel.
 
 ## Aanbevolen structuur & volgorde in de Sources-lijst
 In OBS bepaalt de volgorde de **z-volgorde**: **bovenaan = bovenop**, onderaan =

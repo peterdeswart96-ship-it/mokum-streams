@@ -1,7 +1,7 @@
 const { app } = require('@azure/functions');
 const { readJson, writeJson } = require('../storage/blob');
 const { zaalDag } = require('../schedule/schedule');
-const { enqueue, isTableBusy, startCommandsFor, OVERLAY_BRON } = require('../agent/commandQueue');
+const { enqueue, isTableBusy, startCommandsFor, refreshCommandsFor, OVERLAY_BRON } = require('../agent/commandQueue');
 const { buildBroadcastTitle, buildBroadcastDescription, createBroadcast, bindBroadcast, ruimStreamKeyOp } = require('../youtube/broadcasts');
 const { isAdmin } = require('../admin/auth');
 
@@ -11,6 +11,9 @@ const { isAdmin } = require('../admin/auth');
 // stopStream-commando. Zie api-contract v0.5 (Beheer + Agent).
 
 const json = (status, body) => ({ status, jsonBody: body });
+
+// Tafels met een camera; "alle" bij het verversen bedoelt precies deze (zaalnummering).
+const CAMERA_TAFELS = [1, 3, 15, 16];
 
 async function leesBody(request) {
   try {
@@ -195,5 +198,40 @@ app.http('adminStreamStop', {
     context.warn(`[streams/stop] tafel ${tafelNr} HANDMATIG gestopt via het dashboard — ${wat}`);
 
     return json(200, { command: cmd });
+  },
+});
+
+// POST /api/manage/streams/refresh — ververst webpagina-overlays in OBS zonder streamherstart (#99).
+// body { tableNumber: 15 | "alle", bronnen?: ["scoreboard", "jumbotron"] }
+app.http('adminStreamRefresh', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'manage/streams/refresh',
+  handler: async (request, context) => {
+    if (!isAdmin(request)) return json(401, { error: 'niet geautoriseerd' });
+    const body = await leesBody(request);
+    if (!body) return json(400, { error: 'ongeldige of lege JSON' });
+
+    const alle = body.tableNumber === 'alle';
+    const tafelNr = Number(body.tableNumber);
+    if (!alle && !Number.isInteger(tafelNr)) return json(400, { error: 'tableNumber (geheel getal of "alle") is verplicht' });
+    if (body.bronnen !== undefined && !Array.isArray(body.bronnen)) return json(400, { error: 'bronnen moet een lijst zijn' });
+
+    let cmds;
+    try {
+      cmds = refreshCommandsFor(alle ? CAMERA_TAFELS : [tafelNr], body.bronnen);
+    } catch (e) {
+      return json(400, { error: e.message });
+    }
+
+    const now = new Date().toISOString();
+    const withMeta = cmds.map((c) => ({ id: crypto.randomUUID(), createdAt: now, ...c }));
+    const commands = (await readJson('commands.json', [])) || [];
+    await writeJson('commands.json', enqueue(commands, withMeta));
+
+    // Handmatige actie = audit-spoor (#125), op warning-niveau zodat de regel de log haalt (#110).
+    context.warn(`[streams/refresh] ${alle ? 'alle tafels' : `tafel ${tafelNr}`} HANDMATIG ververst via het dashboard — ${[...new Set(cmds.map((c) => c.sourceName))].join(', ')}`);
+
+    return json(200, { commands: withMeta });
   },
 });

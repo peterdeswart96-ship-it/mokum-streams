@@ -118,6 +118,14 @@ function isStopAfstemmingAan() {
   return String(process.env.STOP_AFSTEMMING || '').toLowerCase() !== 'false';
 }
 
+// Live-bevestiging (#131): alarm als de agent zegt dat OBS zendt, maar YouTube de uitzending
+// ruim na de geplande start nog niet live heeft gezet (16-09: tafel 3 bleef uren op 'Upcoming').
+// Alleen een melding, geen actie op de stream. Kost 1 quota-eenheid per uitzending tot 'ie
+// bevestigd is. Uit te zetten zonder deploy met LIVE_CONTROLE=false.
+function isLiveControleAan() {
+  return String(process.env.LIVE_CONTROLE || '').toLowerCase() !== 'false';
+}
+
 // Agent-offline-alarm (#132): mail + ntfy als de OBS-pc langer dan AGENT_ALARM_MIN minuten (standaard
 // 10) niets laat horen, plus een herstelmelding. Standaard AAN: het doet niets aan de streams, het
 // meldt alleen. 's Nachts (01:00-07:00) wordt niet gealarmeerd; de melding komt dan om 07:00.
@@ -134,6 +142,6 @@ function agentAlarmStilMs() {
 module.exports = {
   isArmed, isPauzeAutoOn, pauzeSchermKeys, pauzeSchermUitKeys, pauzeSchermRefreshKeys,
   isInactiviteitsStopAan, isChallengeLimietAan, competitieWachtMs,
-  isScorebordWachtAan, scorebordRefreshMs, isStopAfstemmingAan,
+  isScorebordWachtAan, scorebordRefreshMs, isStopAfstemmingAan, isLiveControleAan,
   isAgentAlarmAan, agentAlarmStilMs,
 };

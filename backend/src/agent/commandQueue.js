@@ -66,6 +66,25 @@ function startCommandsFor(record, tableNumber, overlayBron = OVERLAY_BRON, opts 
   return cmds;
 }
 
+// Webpagina-overlays die je op afstand mag verversen (#99): de bronnen waar een verouderde
+// pagina schade doet (zie startCommandsFor). Camerabron verversen doet niets nuttigs en kan het
+// beeld laten haperen; de sponsor-slideshow is geen webpagina; het competitiescherm laadt vers
+// bij het aanzetten.
+const REFRESH_SLEUTELS = ['scoreboard', 'jumbotron'];
+
+// Bouwt refreshSource-commando's voor de gegeven tafels en bronsleutels (standaard allebei).
+// Gooit een Error bij een onbekende sleutel, zodat de function-laag er een 400 van maakt.
+// Zonder id/tijd — die voegt de function-laag toe.
+function refreshCommandsFor(tafels, sleutels = REFRESH_SLEUTELS, overlayBron = OVERLAY_BRON) {
+  const gekozen = sleutels && sleutels.length ? sleutels : REFRESH_SLEUTELS;
+  for (const s of gekozen) {
+    if (!REFRESH_SLEUTELS.includes(s)) throw new Error(`bron "${s}" mag niet ververst worden (kies uit ${REFRESH_SLEUTELS.join('/')})`);
+  }
+  return tafels.flatMap((tableNumber) => gekozen.map((s) => ({
+    type: 'refreshSource', tableNumber: Number(tableNumber), sourceName: overlayBron[s],
+  })));
+}
+
 // Competitiescherm aanzetten (#147): gebruikt door checkStops zodra een teamwedstrijd klaar
 // is, aan het begin van de wachttijd vóór de automatische stop. Géén refreshSource: de
 // OBS-bron staat op "uitschakelen als niet zichtbaar", dus hij laadt vers bij het aanzetten.
@@ -93,4 +112,4 @@ function isTableBusy(broadcastsStore, tableNumber) {
   return !!(entry && !entry.stopped);
 }
 
-module.exports = { GELDIGE_TYPES, OVERLAY_BRON, startCommandsFor, competitieSchermCommando, removeProcessed, enqueue, isTableBusy };
+module.exports = { GELDIGE_TYPES, OVERLAY_BRON, REFRESH_SLEUTELS, startCommandsFor, refreshCommandsFor, competitieSchermCommando, removeProcessed, enqueue, isTableBusy };

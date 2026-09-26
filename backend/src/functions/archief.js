@@ -15,6 +15,10 @@ function duurSec(iso) {
 // `video-index/`-records (#59/#67). Admin-beveiligd. Kost GEEN YouTube-quota: we lezen
 // alleen onze eigen blobs + de Cuescore-API (per toernooi één keer, gecachet).
 //
+// ?dryRun=1 (#161): doet alles behalve wegschrijven, zodat je vooraf ziet wat een rebuild zou
+// opleveren (en of het aantal daalt, zoals op 17-09 gebeurde, #140). Het antwoord bevat altijd
+// `huidig`: het aantal wedstrijden in het archief zoals het nu staat.
+//
 // Nodig na het aanzetten van deze functie (al gefinaliseerde video's zijn nooit langs de
 // archief-stap gekomen) en als vangnet wanneer de incrementele bijwerking iets mist.
 
@@ -26,6 +30,9 @@ app.http('adminArchiefRebuild', {
   route: 'manage/archief/rebuild',
   handler: async (request, context) => {
     if (!isAdmin(request)) return json(401, { error: 'niet geautoriseerd' });
+
+    const dryRun = request.query.get('dryRun') === '1';
+    const bestaand = (await readJson('archief.json', [])) || [];
 
     const container = await getContainerClient();
     const paden = [];
@@ -75,11 +82,13 @@ app.http('adminArchiefRebuild', {
     }
 
     const lijst = sorteerWedstrijden(alle);
-    await writeJson('archief.json', lijst);
+    if (!dryRun) await writeJson('archief.json', lijst);
     const runouts = runoutsUitArchief(lijst).length;
-    context.log(`[archief] herbouwd: ${lijst.length} wedstrijden (${runouts} run-outs) uit ${gelezen} video's; ${buitenVideo} buiten de videolengte geweerd.`);
+    context.log(`[archief] ${dryRun ? 'droogloop (niets weggeschreven)' : 'herbouwd'}: ${lijst.length} wedstrijden (${runouts} run-outs) uit ${gelezen} video's; ${buitenVideo} buiten de videolengte geweerd.`);
     return json(200, {
       ok: true,
+      ...(dryRun ? { dryRun: true } : {}),
+      huidig: Array.isArray(bestaand) ? bestaand.length : 0,
       wedstrijden: lijst.length,
       runouts,
       videos: gelezen,
