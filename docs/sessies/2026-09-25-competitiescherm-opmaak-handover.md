@@ -13,6 +13,7 @@
 | **Stand** | tabel met 9 kolommen en lijntjes, rode zijstreep bij de teams van vanavond | losse afgeronde balken, 5 kolommen (positie, team, gespeeld, partijen, punten), punten groot, nummer 1 rood; vanavond = donkerrode balk **zonder** rode zijstreep. Rijhoogte schaalt mee met 8–16 teams |
 | **Uitslagen** | afgelopen 31 dagen, titel "Uitslagen afgelopen maand" | dezelfde balkenstijl; alleen de **laatste 2 rondes** (rechts staat "laatste 2 rondes"); winnaar wit, verliezer grijs, gelijkspel beide wit. Rijhoogte rekent met aantal wedstrijden + rondekoppen zodat het altijd in de kaart past |
 | **Bedankt** | "Thanks for watching!", grote kaart | "Bedankt voor het kijken!", **kleinere kaart** (1408×730, staat lager) zodat de MOKUM-letters van de zaalfoto zichtbaar zijn; niveau als **gekleurde pil** (zelfde kleur als de thumbnail); eindstand groot met logo boven de naam, winnaar iets lichter kader; zin "Het weergeven van alle competitiestanden wordt mede mogelijk gemaakt dankzij:"; partners als smalle rij |
+| **Niveau-pil in de kop** | rood tekstje boven de titel | dezelfde gekleurde pil als op Bedankt en de thumbnail, ook op Stand en Uitslagen (achteraf op verzoek, commit `ee8e4bd`) |
 | **Timer** (nieuw) | — | dun rood balkje onderaan de kaart dat leegloopt + "nog 1:24" midden in de voettekst; komt uit dezelfde `planning()` als de schermwissel; niet bij `?scherm=`; bij 0 verdwijnt de tekst |
 
 ## Besluiten en waarom
@@ -22,9 +23,8 @@
   Twee rondes past op 1 pagina (Derde Klasse: 2 pagina's van 60 s). Besluit Peter.
 - **Geen rode zijstreep** bij de teams van vanavond (Peter, na het eerste voorbeeld). Er staan twee
   regels voor in het bestand; beide moesten weg.
-- **Niveaupil op Bedankt, niet op Stand/Uitslagen:** Peter vroeg het voor het bedankscherm. Stand en
-  Uitslagen houden het rode niveau-tekstje boven de titel. Wil hij dat eenduidig, dan is dat een
-  kleine vervolgstap.
+- **Niveaupil op alle drie de schermen:** eerst alleen op Bedankt gevraagd; daarna liet Peter voorbeelden
+  zien van Stand en Uitslagen met dezelfde pil en keurde die goed. Titel staat daardoor ~16 px lager.
 - **Balk + tekst i.p.v. rondje** voor de timer: rustiger, op elk scherm op dezelfde plek, botst niet met de stippen.
 
 ## Valkuilen
@@ -44,7 +44,7 @@
 Headless Chrome tegen echte Cuescore-data: Eerste Klasse (12 teams) en Derde Klasse (16 teams, 12 uitslagen
 op één pagina), alle drie de schermen, `?demo&seconden=60` op drie momenten (stand nog 0:40, uitslagen 0:11,
 bedankt 0:10), en Bedankt met twee absurd lange teamnamen (één zonder spaties — breekt nu af, kaders blijven gelijk).
-**Niet getest:** een echte competitieavond in OBS; de eerstvolgende competitiestream is de echte test.
+**Niet getest:** een echte competitieavond in OBS (`#147` blijft daarom open, comment staat erop); de eerstvolgende competitiestream is de echte test.
 Na een deploy moet de OBS-bron `Competitiestand` de nieuwe pagina laden (bron verversen of OBS herstarten).
 
 ## Documentatie bijgewerkt

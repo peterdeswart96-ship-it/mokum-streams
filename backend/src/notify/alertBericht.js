@@ -14,6 +14,50 @@ function bouwStreamFalenAlert({ tableNumber, tournamentName, videoId, pogingen }
   return { onderwerp, tekst: regels.join('\n') };
 }
 
+// Alarm als een tafel als gestopt geregistreerd staat, maar de agent na meerdere stopcommando's
+// nog steeds zendt (#113, 23-08: tafel 15 negeerde een expliciet stopcommando). De uitzending
+// loopt dan onbewaakt door op YouTube tot iemand ingrijpt.
+function bouwStopFalenAlert({ tableNumber, tournamentName, videoId, pogingen }) {
+  const naam = tournamentName || 'onbekend toernooi';
+  const onderwerp = `⚠ Tafel ${tableNumber} blijft zenden na stop — ${naam}`;
+  const studioLink = videoId ? `https://studio.youtube.com/video/${videoId}/livestreaming` : null;
+  const regels = [
+    `Tafel ${tableNumber} (${naam}) staat als gestopt geregistreerd, maar zendt na ${pogingen} stopcommando's nog steeds.`,
+    "De uitzending loopt onbewaakt door op YouTube. Stop OBS op de streaming-pc met de hand (via Tailscale/RustDesk) en controleer of de agent commando's ontvangt.",
+  ];
+  if (studioLink) regels.push(`YouTube Studio: ${studioLink}`);
+  return { onderwerp, tekst: regels.join('\n') };
+}
+
+// Klokkijk-formattering voor de agent-meldingen (Amsterdamse tijd), zodat "sinds 02:16" klopt.
+function tijdAmsterdam(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return 'onbekend';
+  return new Intl.DateTimeFormat('nl-NL', {
+    timeZone: 'Europe/Amsterdam', weekday: 'short', hour: '2-digit', minute: '2-digit',
+  }).format(d);
+}
+
+// Alarm als de agent (OBS-pc) niets meer laat horen (#132, 17-09: pc viel om 02:16 weg en
+// werd pas om 10:00 ontdekt). Dit is een storing buiten een geplande stream om.
+function bouwAgentOfflineAlert({ lastSeen, duurMin }) {
+  const onderwerp = '⚠ OBS-pc is offline';
+  const regels = [
+    `De agent op de OBS-pc laat al ${duurMin} minuten niets horen (laatst gezien: ${tijdAmsterdam(lastSeen)}).`,
+    'Checklist: staat de pc aan (stroom, sleepstand)? Is er internet? Draait de agent-taak? Zie docs/obs-herstel-runbook.md voor de stappen.',
+    'Zolang de pc offline is, kunnen er geen streams starten of stoppen.',
+  ];
+  return { onderwerp, tekst: regels.join('\n') };
+}
+
+// Herstelmelding: de agent is weer online na een eerder alarm.
+function bouwAgentHerstelAlert({ sindsLastSeen }) {
+  return {
+    onderwerp: '✅ OBS-pc is weer online',
+    tekst: `De agent meldt zich weer (was weg sinds ${tijdAmsterdam(sindsLastSeen)}).`,
+  };
+}
+
 // Alarm bij de noodrem op het aanmaken van broadcasts (#128). Gaat af als één tafel op
 // één dag onverwacht vaak opnieuw geclaimd wordt — het patroon van 16-09, toen twee
 // planning-records voor hetzelfde toernooi elkaar de tafel afhandig maakten en er vier
@@ -30,4 +74,4 @@ function bouwBroadcastLimietAlert({ tableNumber, naam, gemaakt }) {
   return { onderwerp, tekst: regels.join('\n') };
 }
 
-module.exports = { bouwStreamFalenAlert, bouwBroadcastLimietAlert };
+module.exports = { bouwStreamFalenAlert, bouwStopFalenAlert, bouwAgentOfflineAlert, bouwAgentHerstelAlert, bouwBroadcastLimietAlert };
