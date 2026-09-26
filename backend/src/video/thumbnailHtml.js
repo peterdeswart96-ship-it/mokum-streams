@@ -75,11 +75,21 @@ function escapeHtml(s) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// Challenge-thumbnail: "A VS B" wordt drie regels (naam / VS in rood / naam), zodat de titel
+// smal blijft en het plaatje ernaast vrij blijft. Alles wat niet precies één " VS " bevat (bijv. de
+// vrije tekst "9 BALL BANK CHALLENGE") blijft gewone tekst. De namen worden geëscaped.
+function spelersHtml(spelers) {
+  const tekst = String(spelers == null ? '' : spelers);
+  const delen = tekst.split(/\s+VS\s+/i);
+  if (delen.length !== 2 || !delen[0].trim() || !delen[1].trim()) return escapeHtml(tekst);
+  return `<span class="sp">${escapeHtml(delen[0].trim())}</span><span class="sp vs">VS</span><span class="sp">${escapeHtml(delen[1].trim())}</span>`;
+}
+
 function vulPlaceholders(html, velden) {
   return html
     .replace(/\{\{TOERNOOINAAM\}\}/g, escapeHtml(velden.toernooinaam))
     .replace(/\{\{DATUM\}\}/g, escapeHtml(velden.datum))
-    .replace(/\{\{SPELERS\}\}/g, escapeHtml(velden.spelers))
+    .replace(/\{\{SPELERS\}\}/g, () => spelersHtml(velden.spelers))
     .replace(/\{\{SPONSOR\}\}/g, escapeHtml(velden.sponsor))
     // Competitie-template (#82)
     .replace(/\{\{NIVEAUKLEUR\}\}/g, kleurVoorNiveau(velden.niveau))
@@ -253,4 +263,4 @@ async function sluitBrowser() {
   browserPromise = null;
 }
 
-module.exports = { renderThumbnail, heeftTemplate, sluitBrowser, voegFinaleLintToe, voegJackpotBadgeToe };
+module.exports = { renderThumbnail, heeftTemplate, spelersHtml, sluitBrowser, voegFinaleLintToe, voegJackpotBadgeToe };
