@@ -3,7 +3,7 @@
 Enige waarheid voor de koppelvlakken tussen frontend/widget, backend en (later) de
 agent. Wijzigen? Eerst dit bestand bijwerken (met datum + reden onderaan), dan code.
 
-Status: CONCEPT v0.68 — velden worden definitief in fase 2.
+Status: CONCEPT v0.69 — velden worden definitief in fase 2.
 
 ## Conventies
 - Alle velden camelCase. Tijden in ISO 8601 met tijdzone (Europe/Amsterdam
@@ -525,6 +525,9 @@ Body:
   - **`POST /api/manage/archief/rebuild`** (admin) → herbouwt de aggregatie-blob `archief.json` uit
     alle `video-index/`-records + Cuescore. Kost **geen YouTube-quota**. Nodig als eenmalige
     backfill en als vangnet; de finalize-keten werkt het archief daarna per video bij (idempotent).
+    **`?dryRun=1`** (v0.69): doet alles behalve wegschrijven; het antwoord bevat dan `dryRun: true`.
+    Het antwoord bevat sinds v0.69 altijd `huidig` (het aantal wedstrijden in het bestaande `archief.json`),
+    zodat je vóór het echte schrijven kunt zien of het aantal daalt.
   - Koppeling wedstrijd ↔ moment gaat via het **spelerspaar** uit de bewaarde hoofdstukken
     (`video-index/<videoId>.json`), dus dit werkt ook voor video's die al eerder gefinaliseerd zijn.
   - `normalizeMatch` neemt voortaan **`runoutsA`/`runoutsB`** mee uit de Cuescore-API.
@@ -1115,3 +1118,11 @@ Regels:
      bij een tafel die live is.
   4. **Geen wijziging** aan bestaande endpoints; het commandotype `refreshSource` bestond al.
   5. **Loggen:** elke aanroep komt als warning in de log (handmatige actie, zie #125).
+- 2026-09-26: v0.69 — **droogloop voor de archief-rebuild** (#161, vervolg op #140). De rebuild schrijft
+  `archief.json` volledig opnieuw en het aantal wedstrijden mag niet dalen (17-09: 85 wedstrijden kwijt).
+  Er was geen manier om vooraf te zien wat een rebuild zou opleveren.
+  1. `POST /api/manage/archief/rebuild?dryRun=1` (admin) doet alles behalve `writeJson('archief.json')` en
+     antwoordt met `dryRun: true`. Zonder de parameter blijft het gedrag ongewijzigd.
+  2. Het antwoord van de rebuild (echt én droog) heeft er één veld bij: **`huidig`**, het aantal wedstrijden
+     in het archief zoals het nu staat. Bestaande velden zijn ongewijzigd.
+  3. Geen effect op de frontend; niets anders dan de rebuild leest deze parameter.
