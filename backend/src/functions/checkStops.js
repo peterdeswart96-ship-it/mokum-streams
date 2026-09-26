@@ -13,9 +13,11 @@ const { toernooiVoorNiveau } = require('../mokumCompetitie/toernooien');
 const { zoekCompetitieWedstrijd, heeftTeams } = require('../mokumCompetitie/zoekWedstrijd');
 const { moetOpnieuwStarten, moetAlarmeren, MAX_POGINGEN } = require('../planning/herstart');
 const { stopAfstemming, MAX_STOP_POGINGEN } = require('../planning/stopAfstemming');
-const { bouwStreamFalenAlert, bouwStopFalenAlert } = require('../notify/alertBericht');
+const { moetLiveControleren, beoordeelLive } = require('../planning/liveBevestiging');
+const { getVideoDetails } = require('../youtube/videos');
+const { bouwStreamFalenAlert, bouwStopFalenAlert, bouwNietLiveOpYoutubeAlert } = require('../notify/alertBericht');
 const { stuurAlert } = require('../notify/verzenden');
-const { isArmed, isInactiviteitsStopAan, isChallengeLimietAan, competitieWachtMs, isStopAfstemmingAan } = require('../config/automation');
+const { isArmed, isInactiviteitsStopAan, isChallengeLimietAan, competitieWachtMs, isStopAfstemmingAan, isLiveControleAan } = require('../config/automation');
 
 // Timer-Function: bewaakt lopende broadcasts en stopt ze automatisch wanneer het
 // toernooi klaar is (Cuescore `Finished`), de league-avond op die tafel voorbij is,
@@ -102,6 +104,7 @@ async function verwerk(now, context) {
   // op diezelfde tafel staat — dan zouden we de nieuwe uitzending stoppen.
   const tafelsGezien = new Set();
   const teAlarmerenStop = [];
+  const teAlarmerenNietLive = [];
 
   const teStoppen = [];
   const teHerstarten = [];
@@ -189,6 +192,28 @@ async function verwerk(now, context) {
         store[key] = { ...entry, alertVerstuurd: true };
         storeGewijzigd = true;
         continue;
+      }
+
+      // Live-bevestiging (#131): de agent zegt dat OBS zendt, maar heeft YouTube de uitzending
+      // ook echt live gezet? Zo niet, dan zien kijkers niets (16-09: tafel 3, uren zwart).
+      // Alleen melden; een mislukte YouTube-aanroep mag checkStops nooit ophouden.
+      if (isLiveControleAan() && moetLiveControleren(entry, streamtTafel.get(Number(entry.tableNumber)), now.getTime())) {
+        try {
+          const res = beoordeelLive(entry, await getVideoDetails(entry.videoId));
+          if (Object.keys(res.patch).length) {
+            entry = { ...entry, ...res.patch };
+            store[key] = entry;
+            storeGewijzigd = true;
+          }
+          if (res.actie === 'alarm') {
+            teAlarmerenNietLive.push({
+              tableNumber: entry.tableNumber, tournamentName: entry.tournamentName, videoId: entry.videoId,
+              wachtMin: Math.round((now.getTime() - Date.parse(entry.scheduledStart)) / 60000),
+            });
+          }
+        } catch (e) {
+          context.warn(`[checkStops] tafel ${entry.tableNumber}: live-bevestiging bij YouTube mislukt: ${e.message}`);
+        }
       }
 
       // Handmatig gestart zonder toernooi? Probeer alsnog te koppelen (#69). Lukt dat
@@ -463,6 +488,17 @@ async function verwerk(now, context) {
   for (const a of teAlarmeren) {
     const bericht = bouwStreamFalenAlert(a);
     context.warn(`[ALARM] tafel ${a.tableNumber}: niet live na ${a.pogingen} pogingen — alarm wordt verstuurd.`);
+    try {
+      const res = await stuurAlert(bericht);
+      context.warn(`[ALARM] tafel ${a.tableNumber}: mail ${res.mail.verstuurd ? 'verstuurd' : `overgeslagen (${res.mail.reden})`}, ntfy ${res.ntfy.verstuurd ? 'verstuurd' : `overgeslagen (${res.ntfy.reden})`}.`);
+    } catch (e) {
+      context.warn(`[WAARSCHUWING] [ALARM] tafel ${a.tableNumber}: versturen mislukt: ${e.message}`);
+    }
+  }
+
+  for (const a of teAlarmerenNietLive) {
+    const bericht = bouwNietLiveOpYoutubeAlert(a);
+    context.warn(`[ALARM] tafel ${a.tableNumber}: agent zendt maar YouTube staat niet live na ${a.wachtMin} min (#131) — alarm wordt verstuurd.`);
     try {
       const res = await stuurAlert(bericht);
       context.warn(`[ALARM] tafel ${a.tableNumber}: mail ${res.mail.verstuurd ? 'verstuurd' : `overgeslagen (${res.mail.reden})`}, ntfy ${res.ntfy.verstuurd ? 'verstuurd' : `overgeslagen (${res.ntfy.reden})`}.`);
