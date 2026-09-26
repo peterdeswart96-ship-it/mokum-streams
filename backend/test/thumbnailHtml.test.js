@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { voegJackpotBadgeToe } = require('../src/video/thumbnailHtml');
+const { voegJackpotBadgeToe, spelersHtml } = require('../src/video/thumbnailHtml');
 
 // #150: de badge moet als LAATSTE kind van .canvas landen — daarbuiten knipt overflow:hidden
 // 'm weg en zou de screenshot 'm missen.
@@ -26,4 +26,27 @@ test('voegJackpotBadgeToe: linksonder bij de datumpil — niet rechtsboven (FINA
 test('voegJackpotBadgeToe: onbekende sjabloonvorm → HTML ongewijzigd (liever geen badge dan kapot)', () => {
   const raar = '<html><body><p>geen canvas</p></body>';
   assert.strictEqual(voegJackpotBadgeToe(raar), raar);
+});
+
+// Challenge-thumbnail: "A VS B" wordt drie regels met VS apart (rood via de template).
+test('spelersHtml: "A VS B" wordt naam / VS / naam op drie regels', () => {
+  assert.strictEqual(spelersHtml('Gurps VS Dylan'),
+    '<span class="sp">Gurps</span><span class="sp vs">VS</span><span class="sp">Dylan</span>');
+  assert.match(spelersHtml('Koen Hoevenaars vs Joris de Winkel'), /Koen Hoevenaars<\/span><span class="sp vs">VS<\/span><span class="sp">Joris de Winkel/);
+});
+
+test('spelersHtml: vrije tekst zonder VS blijft één regel gewone tekst', () => {
+  assert.strictEqual(spelersHtml('9 Ball Bank Challenge'), '9 Ball Bank Challenge');
+  assert.strictEqual(spelersHtml(''), '');
+  assert.strictEqual(spelersHtml(null), '');
+});
+
+test('spelersHtml: onvolledig paar of meerdere VS → gewone tekst (geen half resultaat)', () => {
+  assert.strictEqual(spelersHtml('? VS '), '? VS ');
+  assert.ok(!spelersHtml('A VS B VS C').includes('class="sp"'));
+});
+
+test('spelersHtml: namen worden geëscaped', () => {
+  const h = spelersHtml('<b>A</b> VS B&C');
+  assert.ok(h.includes('&lt;b&gt;A&lt;/b&gt;') && h.includes('B&amp;C') && !h.includes('<b>'));
 });
