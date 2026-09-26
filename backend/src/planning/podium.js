@@ -108,6 +108,9 @@ function podiumVoorZaal(tournaments, cameraTables) {
 // toernooi GEEN ENKELE cameratafel meer claimen — ook niet eentje die het zelf ooit
 // gebruikte. Het actieve toernooi zelf kan intussen gewoon zijn EIGEN podium tonen op zijn
 // eigen tafels zodra dat relevant wordt (zie de #104-test hieronder).
+const speeltNuOpTafel = (matches, tafel) =>
+  (matches || []).some((m) => Number(m && m.table) === Number(tafel) && String((m && m.status) || '').toLowerCase() === 'playing');
+
 function podiumPerTafel(tournaments, cameraTables) {
   const lijst = tournaments || [];
   const cams = (cameraTables || []).map(Number);
@@ -131,7 +134,15 @@ function podiumPerTafel(tournaments, cameraTables) {
 
     const p = podiumVan(t);
     const waarde = p ? { tournamentName: (t && t.name) || '', podium: p } : null;
-    for (const tafel of eigenTafels) resultaat[tafel] = waarde;
+    for (const tafel of eigenTafels) {
+      // 26-09 (#162): de 14.1 Summer league staat het hele seizoen als 'Active' in de lijst en heeft
+      // wedstrijden uit eerdere dagen op alle cameratafels. Zonder finale is zijn waarde null, en
+      // omdat hij NA de Ranking kwam, wiste hij het podium van de net gespeelde finale op tafel
+      // 1 en 3 — geen medaillescherm. Een toernooi zonder podium wist een bestaand podium daarom
+      // alleen als er op DEZE tafel nu echt een wedstrijd speelt (zie de 05-09-tests).
+      if (!waarde && resultaat[tafel] && !speeltNuOpTafel(matches, tafel)) continue;
+      resultaat[tafel] = waarde;
+    }
   }
   return resultaat;
 }

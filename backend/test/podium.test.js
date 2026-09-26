@@ -175,3 +175,34 @@ test('podiumPerTafel: toernooi zonder cameratafel-wedstrijd raakt geen enkele ta
   const uit = podiumPerTafel([t], CAMS);
   assert.deepStrictEqual(uit, { 1: null, 3: null, 15: null, 16: null });
 });
+
+// 26-09 (#162): na de finale van de Ranking bleef het medaillescherm weg. De 14.1 Summer league
+// (Active, geen finale, oude wedstrijden op alle cameratafels, nu niets spelend) stond ná de
+// Ranking in de lijst en overschreef zijn podium op tafel 1 en 3 met null.
+test('podiumPerTafel: een doorlopende league zonder lopende wedstrijd wist het podium van de finale niet (#162)', () => {
+  const ranking = {
+    name: 'Mokum 8ball Ranking Seizoen 4 #3', finished: false,
+    matches: [opTafel(match('Final', 'finished', 'Anna', 5, 'Bob', 2), 1), opTafel(match('Final', 'finished', 'Anna', 5, 'Bob', 2), 3)],
+  };
+  const league = {
+    name: 'Mokum 14.1 Summer league', finished: false,
+    matches: [1, 3, 15, 16].map((n) => opTafel(match('Round 4', 'finished', 'X', 100, 'Y', 80), n)),
+  };
+  const uit = podiumPerTafel([ranking, league], CAMS);
+  assert.strictEqual(uit[1].tournamentName, 'Mokum 8ball Ranking Seizoen 4 #3');
+  assert.strictEqual(uit[3].tournamentName, 'Mokum 8ball Ranking Seizoen 4 #3');
+  assert.strictEqual(uit[15], null);
+  assert.strictEqual(uit[16], null);
+});
+
+test('podiumPerTafel: dezelfde league in omgekeerde volgorde geeft hetzelfde resultaat (#162)', () => {
+  const ranking = { name: 'Ranking', finished: false, matches: [opTafel(match('Final', 'finished', 'Anna', 5, 'Bob', 2), 1)] };
+  const league = { name: 'League', finished: false, matches: [opTafel(match('Round 4', 'finished', 'X', 100, 'Y', 80), 1)] };
+  assert.strictEqual(podiumPerTafel([league, ranking], CAMS)[1].tournamentName, 'Ranking');
+});
+
+test('podiumPerTafel: speelt er in de league nu WEL een wedstrijd op tafel 1, dan blijft het podium daar weg (#162)', () => {
+  const ranking = { name: 'Ranking', finished: false, matches: [opTafel(match('Final', 'finished', 'Anna', 5, 'Bob', 2), 1)] };
+  const league = { name: 'League', finished: false, matches: [opTafel(match('Round 5', 'playing', 'X', 12, 'Y', 30), 1)] };
+  assert.strictEqual(podiumPerTafel([ranking, league], CAMS)[1], null);
+});
