@@ -206,3 +206,37 @@ test('podiumPerTafel: speelt er in de league nu WEL een wedstrijd op tafel 1, da
   const league = { name: 'League', finished: false, matches: [opTafel(match('Round 5', 'playing', 'X', 12, 'Y', 30), 1)] };
   assert.strictEqual(podiumPerTafel([ranking, league], CAMS)[1], null);
 });
+
+// 29-09: middagtoernooi "Team WRA" (finale 15:55, in Cuescore nog niet 'finished') claimde tafel 3.
+// De Fluke ranking van die avond had op tafel 3 zijn halve finale net af, nog geen finale: het
+// middagpodium verscheen om 22:00 op de live stream. Nieuwere activiteit op de tafel wist het.
+const metTijd = (m, start, stop) => ({ ...m, start, stop });
+
+test('podiumPerTafel: podium van een middagtoernooi wijkt voor een nieuwer toernooi op dezelfde tafel (29-09)', () => {
+  const teamWra = {
+    name: 'Team WRA', finished: false,
+    matches: [opTafel(metTijd(match('Final', 'finished', 'Bert', 3, 'Alex', 1), '2026-09-29T13:40:00Z', '2026-09-29T13:55:00Z'), 3)],
+  };
+  const fluke = {
+    name: 'Fluke ranking', finished: false,
+    matches: [
+      opTafel(metTijd(match('Semi final', 'finished', 'A', 3, 'B', 1), '2026-09-29T20:30:00Z', '2026-09-29T21:50:00Z'), 3),
+      opTafel(match('Final', 'playing', 'A', 0, 'C', 0), 1),
+    ],
+  };
+  assert.strictEqual(podiumPerTafel([teamWra, fluke], CAMS)[3], null);
+  assert.strictEqual(podiumPerTafel([fluke, teamWra], CAMS)[3], null);
+});
+
+test('podiumPerTafel: oudere activiteit op de tafel wist een nieuwer podium niet (29-09)', () => {
+  const ranking = {
+    name: 'Ranking', finished: false,
+    matches: [opTafel(metTijd(match('Final', 'finished', 'Anna', 5, 'Bob', 2), '2026-09-29T20:00:00Z', '2026-09-29T21:00:00Z'), 3)],
+  };
+  const league = {
+    name: 'League', finished: false,
+    matches: [opTafel(metTijd(match('Round 4', 'finished', 'X', 100, 'Y', 80), '2026-09-20T19:00:00Z', '2026-09-20T20:00:00Z'), 3)],
+  };
+  assert.strictEqual(podiumPerTafel([ranking, league], CAMS)[3].tournamentName, 'Ranking');
+  assert.strictEqual(podiumPerTafel([league, ranking], CAMS)[3].tournamentName, 'Ranking');
+});
