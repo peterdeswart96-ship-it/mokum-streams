@@ -75,6 +75,12 @@ test('templateVoorToernooi: kiest de juiste template per (Cuescore-)naam', () =>
   // OnePocket monthly — echt voorbeeld: "#12 Mokum OnePocket monthly" (29-08).
   assert.strictEqual(templateVoorToernooi('#12 Mokum OnePocket monthly'), 'onepocket-monthly');
   assert.strictEqual(templateVoorToernooi('Mokum One Pocket Monthly #3'), 'onepocket-monthly');
+  // OnePocket.org Europe-weekend (okt 2026): echte namen uit de broadcasts van 1 en 2 okt.
+  assert.strictEqual(templateVoorToernooi('5th Anniversary edition OnePocket.org Member tournament'), 'onepocket-main-event');
+  assert.strictEqual(templateVoorToernooi('SIDE-EVENT | One Ball OnePocket -'), 'onepocket-one-ball');
+  assert.strictEqual(templateVoorToernooi('SIDE-EVENT | Bank Pool'), 'onepocket-bank-pool');
+  // Een gewoon Bank Pool-toernooi (zonder side-event/onepocket in de naam) krijgt de poster NIET.
+  assert.strictEqual(templateVoorToernooi('Mokum Bank Pool #3'), null);
   // "Best of One" bevat ook los "one", maar hoort zijn eigen sjabloon te houden.
   assert.strictEqual(templateVoorToernooi('Best of One — alles of niets'), 'best-of-one');
 });

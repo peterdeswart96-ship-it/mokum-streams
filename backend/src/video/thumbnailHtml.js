@@ -177,8 +177,17 @@ async function plaatsBadgeNaastDatum(page) {
   });
 }
 
+// Sleutels die één HTML-bestand delen (zelfde poster, andere naampil) — scheelt drie keer
+// dezelfde 400 KB aan ingebedde afbeelding. Niet genoemd = bestandsnaam is de sleutel zelf.
+const TEMPLATE_BESTAND = {
+  'onepocket-main-event': 'onepocket-event',
+  'onepocket-one-ball': 'onepocket-event',
+  'onepocket-bank-pool': 'onepocket-event',
+};
+
 function templatePad(key) {
-  return path.join(TEMPLATE_DIR, `${path.basename(String(key))}.html`);
+  const naam = TEMPLATE_BESTAND[String(key)] || String(key);
+  return path.join(TEMPLATE_DIR, `${path.basename(naam)}.html`);
 }
 
 // Bestaat er een template voor deze key? (finalize gebruikt dit om te beslissen tussen
