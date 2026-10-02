@@ -438,7 +438,7 @@ const STREAM_TYPES = {
       { ok: true, tekst: 'Het scorebord toont de stand van deze challenge — die hangt aan de tafel.' },
       { ok: false, tekst: 'De stream sluit NIET vanzelf. Stop hem zelf als de partij klaar is.' },
       { ok: false, tekst: 'Thumbnail en afronding gebeuren voorlopig achteraf, niet automatisch.' },
-      { ok: false, tekst: 'Vergeet je te stoppen, dan sluit de nachtstop hem om 02:00.' },
+      { ok: false, tekst: 'Vergeet je te stoppen, dan sluit de nachtstop hem om 03:00.' },
     ],
   },
   competitie: {
@@ -462,7 +462,7 @@ const STREAM_TYPES = {
       { ok: false, tekst: 'Er gebeurt niets automatisch: geen thumbnail, geen hoofdstukken.' },
       { ok: false, tekst: 'De stream sluit NIET vanzelf. Stop hem zelf.' },
       { ok: false, tekst: 'Scorebord en jumbotron staan uit — zonder Cuescore-wedstrijd tonen die oude gegevens.' },
-      { ok: false, tekst: 'Vergeet je te stoppen, dan sluit de nachtstop hem om 02:00.' },
+      { ok: false, tekst: 'Vergeet je te stoppen, dan sluit de nachtstop hem om 03:00.' },
     ],
   },
 };
@@ -483,11 +483,11 @@ function ijkVoorPlanning(record) {
 // de backend (planning/vrijmaken.js): alleen ingeplande, niet-uitgezette toernooien, en het
 // venster begint een half uur vóór de (eventueel handmatig verschoven) aanvang.
 //   nu     — het venster is al open: de tafel is geblokkeerd
-//   straks — het venster opent vóór de eerstvolgende nachtstop (02:00): starten mag, maar
+//   straks — het venster opent vóór de eerstvolgende nachtstop (03:00): starten mag, maar
 //            de stream stopt dan. Na de nachtstop telt het niet, want dan stopt hij toch al.
 function tafelClaims(items, nu) {
   const nachtstop = new Date(nu);
-  nachtstop.setHours(2, 0, 0, 0);
+  nachtstop.setHours(3, 0, 0, 0);
   if (nachtstop.getTime() <= nu) nachtstop.setDate(nachtstop.getDate() + 1);
 
   const claims = { nu: {}, straks: {} };
@@ -769,7 +769,7 @@ function Wizard({ onClose, onStarted, tables = [] }) {
                 </p>
                 <p className="text-xs mt-2 rounded border px-3 py-2" style={{ borderColor: '#a16207', background: '#a1620722', color: '#fcd34d' }}>
                   <strong>Stopt niet vanzelf</strong> — deze stream blijft lopen tot je 'm zelf stopt,
-                  en anders tot de nachtstop van 02:00. Denk er dus aan 'm na afloop te stoppen.
+                  en anders tot de nachtstop van 03:00. Denk er dus aan 'm na afloop te stoppen.
                 </p>
               </>
             )}
@@ -1383,7 +1383,7 @@ function ToernooiPlanner({ onGepland }) {
       // 23:59 (plaatsvuller), terwijl toernooien vaak later doorlopen. Sinds 05-08 half twee
       // in plaats van één uur — avondtoernooien lopen geregeld uit. Het is hoe dan ook een
       // vangnet: normaal stopt de uitzending vanzelf zodra de finale gespeeld is. De harde
-      // grens blijft de nachtstop van 02:00.
+      // grens blijft de nachtstop van 03:00.
       startTijd: e.startTijd ?? (hhmm(r.startOverride) || hhmm(r.plannedStart) || '19:00'),
       eindTijd: e.eindTijd ?? (hhmm(r.stopOverride) || STANDAARD_EINDTIJD),
     };
