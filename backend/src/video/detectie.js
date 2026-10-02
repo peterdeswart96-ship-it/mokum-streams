@@ -86,6 +86,12 @@ function templateVoorToernooi(naam) {
   // en "monthly" beide vereist, zodat een willekeurig ander toernooi met "pocket" erin
   // (komt verder nergens voor) dit sjabloon niet per ongeluk pakt.
   if (/one[\s-]?pocket/.test(n) && n.includes('monthly')) return 'onepocket-monthly';
+  // OnePocket.org Europe-weekend (1-3 okt 2026): hoofdtoernooi + twee side events, alle drie op
+  // dezelfde poster met een eigen naampil (template onepocket-event, zie TEMPLATE_BESTAND).
+  // "Ball One Pocket" vóór de Member-regel: de side-event-naam bevat ook "OnePocket".
+  if (/one[\s-]?ball[\s-]*one[\s-]?pocket/.test(n)) return 'onepocket-one-ball';
+  if (/bank[\s-]?pool/.test(n) && /(side[\s-]?event|one[\s-]?pocket)/.test(n)) return 'onepocket-bank-pool';
+  if (/one[\s-]?pocket\.?(org)?/.test(n) && /(member|anniversary)/.test(n)) return 'onepocket-main-event';
   if (n.includes('best of one') || n.includes('best-of-one')) return 'best-of-one';
   if (n.includes('amsterdam open') || n.includes('go customs') || n.includes('customs')) return 'go-customs-amsterdam-open';
   return null;
@@ -114,6 +120,9 @@ const TEMPLATE_TEKST = {
   'nk-10ball':                 { titel: 'NK 10-Ball Kwalificatie' },
   '10ball-summer-break':       { titel: '10-Ball Summer Break' },
   'onepocket-monthly':         { titel: 'One Pocket Monthly' },
+  'onepocket-main-event':      { titel: 'OnePocket.org Main Event' },
+  'onepocket-one-ball':        { titel: 'One Ball One Pocket' },
+  'onepocket-bank-pool':       { titel: 'Bank Pool' },
 };
 
 // Is dit de finale van een toernooireeks (voor het rode "FINAL"-lint rechtsboven op de
