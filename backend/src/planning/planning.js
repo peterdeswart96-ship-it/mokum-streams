@@ -238,7 +238,10 @@ function mergePlanning(existing, imported, defaults = STANDAARD_DEFAULTS, { now 
         type: bepaalType(nieuweStart, nieuweStop), // afgeleid, altijd verversen
         plannedStart: nieuweStart,
         plannedStop: nieuweStop,
-        date: oud.date || afgeleideDatum(t.start),
+        // Volgt de Cuescore-startdatum: verzet de organisator het toernooi (3 okt: dag 2 van een
+        // meerdaags toernooi), dan moet ook de datum in de wizard en planner meeschuiven.
+        // Eerst bleef hier de oude datum staan, terwijl plannedStart wél werd bijgewerkt.
+        date: afgeleideDatum(t.start) || oud.date,
         source: 'cuescore',
       });
       continue;
