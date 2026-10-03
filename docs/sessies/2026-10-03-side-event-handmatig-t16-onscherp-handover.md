@@ -7,7 +7,8 @@ stream geannuleerd en de streams op tafel 1 en 3 handmatig gestart. Daarna kwam 
 sprake. Alleen onderzoek, geen codewijziging; er liepen streams.
 
 ## Rode draad
-1. Handmatige streams op T1/T3 zijn veilig voor het hoofdtoernooi (OnePocket, T16).
+1. Handmatige streams op T1/T3 worden niet geraakt door de finale-sluiting van het hoofdtoernooi
+   (OnePocket, T16); die finale is bovendien pas morgen.
 2. T3 was even gesloten en is daarna via het dashboard opnieuw gestart, nu mét registratie.
 3. T16 is vanavond onscherp, terwijl het eerder op de dag scherp was. Oorzaak ligt vóór OBS.
 
@@ -23,6 +24,8 @@ Uit de code gelezen (niet in productie bekeken):
   met de naam van het hoofdtoernooi, dus die koppeling wordt geweigerd.
 - Zolang het hoofdtoernooi nog niet-afgeronde wedstrijden op een tafel heeft, sluit een gekoppelde
   stream daar niet (`anderToernooiNogOpTafel`).
+- De finale van het hoofdtoernooi is pas morgen (zondag 04-10, dag 3). Vanavond speelt deze
+  vraag dus niet; morgen geldt #72 gewoon voor streams die aan het hoofdtoernooi gekoppeld zijn.
 - Gevolg: T1 en T3 stoppen na de finale van het side-event zelf (mits gekoppeld), met podium,
   thumbnail en hoofdstukken. Is een stream niet gekoppeld, dan stopt Peter hem zelf; het vangnet
   is de nachtstop van 03:00.
