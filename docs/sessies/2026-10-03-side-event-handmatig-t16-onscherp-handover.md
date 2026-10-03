@@ -60,8 +60,8 @@ live is.
   sluitertijd/ruisonderdrukking/WDR en bitrate/H.265 (#32).
 - Opgelost: het scorebord op het T16-beeld toonde "SIDE-EVENT | BANK POOL – Round 1 – Tafel 16",
   terwijl T16 voor het hoofdtoernooi is bedoeld. Dat was een fout van Peter (verkeerde
-  scorebordbron). Peter heeft de T16-stream daarna herstart. Of het beeld daarna scherper was, is
-  nog niet bekend; noteer dat in #158.
+  scorebordbron). Peter heeft de T16-stream daarna herstart. Het beeld bleef daarna onscherp: een
+  herstart van de stream helpt dus niet (ook genoteerd in #158).
 - Peter stopt T1/T3 zelf als de automatische stop na de side-event-finale niet gebeurt; controleer
   de volgende ochtend of de streams zijn gestopt, gefinaliseerd en van thumbnail voorzien.
 - Optioneel: het opnamepad in OBS rechtzetten (zie boven).
