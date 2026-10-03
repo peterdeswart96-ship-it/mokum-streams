@@ -102,6 +102,8 @@ Besluiten van Peter, allemaal in het issue:
   `main` (de podium-fix verandert het medaillescherm, daarom bewust uitgesteld vlak voor de finale).
 - **#169 (ticker):** uitwerken na proefversie in OBS; open punten: plaatsing onderaan zonder het
   scorebord te hinderen.
+  Referentie van een andere stream (ticker onderaan met scores van andere tafels) staat als comment op #169;
+  testen dat de balk niet botst met de YouTube-spelerbalk. Tafelscores in de balk = idee voor later (#68).
 - Het meerdaagse toernooi vraagt nog dagelijks dat Nick de Cuescore-tijden verzet (zie overdracht 02-10).
 
 ## Waar de kennis verder staat
