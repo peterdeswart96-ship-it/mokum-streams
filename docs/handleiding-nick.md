@@ -79,15 +79,22 @@ bijv. via Chrome Remote Desktop). Doe dit het liefst als er niets live staat.
 1. **Log in op de streaming-pc** (remote of fysiek in de zaal).
 2. Open de map **`C:\Mokum-Sponsors`** en verwijder daar het plaatje.
 3. De "Sponsor slideshow"-bron in OBS wijst naar die hele map (niet naar losse
-   bestanden), dus meestal is stap 2 al genoeg. Blijft het plaatje toch nog een tijdje
-   voorbijkomen op een van de 4 tafels (1, 3, 15, 16), forceer dan een herinlezing:
-   - Rechtsklik de bron **"Sponsor slideshow"** in de bronnenlijst → zet het oogje
-     (zichtbaarheid) **uit en weer aan**.
-   - Blijft het plaatje er toch in staan, open dan **Properties** op die bron en klik op
-     **OK** — dat leest de map ook opnieuw in.
+   bestanden), maar OBS leest de lijst bestanden maar één keer in. Een plaatje
+   toevoegen of verwijderen zie je dus pas na een herinlezing. Oogje uit/aan en alleen
+   OK klikken in Properties helpen niet (gebleken op 02-10-2026). Doe dit in elk van de
+   4 OBS-vensters (tafel 1, 3, 15, 16):
+   - Open **Properties** op de bron **"Sponsor slideshow"**.
+   - Selecteer in **Image Files** het item `C:/Mokum-Sponsors` en klik op de prullenbak.
+     Klik op **OK**.
+   - Open Properties opnieuw, klik op **+** → **Add Folder**, kies `C:\Mokum-Sponsors` en
+     klik op **OK**.
+   - Controleer de teller onder de bronnenlijst (bijvoorbeeld "1/6"): die moet het
+     juiste aantal plaatjes tonen.
+   - Herstart OBS niet als er een stream live staat.
 
-> Controleer dit gerust op alle 4 de OBS-vensters, maar in de praktijk delen ze
-> dezelfde map — verwijderen op één plek is voor alle 4 tegelijk genoeg.
+> De 4 OBS-vensters delen dezelfde map, maar elk venster heeft zijn eigen ingelezen
+> lijst. Bestanden hoef je maar één keer te kopiëren of te verwijderen; de herinlezing
+> doe je per venster.
 
 ---
 

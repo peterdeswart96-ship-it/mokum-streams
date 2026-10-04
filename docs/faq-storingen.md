@@ -34,6 +34,27 @@ Komt het toch nog voor: meld het, dan is de vaste regel om een andere reden weg.
 
 ---
 
+## Alle tafels van een meerdaags toernooi stoppen midden in de wedstrijd
+
+**Wat je ziet:** de streams van een toernooi dat meerdere dagen duurt (bijv. een weekend-
+toernooi) stoppen op dag 2 of 3 vanzelf, soms meerdere tafels tegelijk, ook als er nog gespeeld wordt.
+
+**Oorzaak:** de eindtijd uit de Toernooi planner staat nog op die van de vorige dag
+(bijv. 02:30 vannacht). Die tijd is al voorbij, dus het systeem denkt dat het toernooi klaar
+is. Normaal beschermt een lopende wedstrijd de stream, maar zodra Cuescore even niet
+reageert valt die bescherming weg.
+
+**Wat je zelf kunt doen:** de **Eind**-tijd van het toernooi in de planner op een
+tijdstip in de toekomst zetten (bijv. 01:30 de volgende nacht) vóór je de streams start.
+Starten voordat de eindtijd is aangepast heeft geen zin: de stream wordt weer gestopt.
+
+**Structureel opgelost?** Nog niet. Zie [#171](https://github.com/peterdeswart96-ship-it/mokum-streams/issues/171).
+Zolang dat open staat, moet bij een meerdaags toernooi elke dag de eindtijd vooruit gezet worden.
+
+**Incident:** 03-10-2026, OnePocket-weekend, tafel 1, 3, 15 en 16. [#171](https://github.com/peterdeswart96-ship-it/mokum-streams/issues/171)
+
+---
+
 ## Nog toe te voegen
 Dit bestand groeit mee met nieuwe incidenten. Bij elk afgerond issue over een
 herkenbare storing: hier een punt bij, met de link naar het issue voor de details.

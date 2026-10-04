@@ -25,8 +25,16 @@ const klok = (iso) => {
 //   - toernooien die al live zijn of al klaar: iemand heeft ze met de hand gestart, en
 //     daar hoeft geen herinnering meer overheen.
 //   - uitgezette toernooien (enabled === false): daar is bewust voor gekozen.
+//   - toernooien waarvan de starttijd al voorbij is: een herinnering komt dan te laat om
+//     nog iets te doen. Op 04-10 kwam er om 17:31 een mail over een toernooi van 11:00,
+//     omdat GitHub de geplande run ruim 4 uur te laat uitvoerde.
 function tekort(items, nu = new Date()) {
   const vandaag = zaalDatum(nu);
+  const nogNietBegonnen = (r) => {
+    const start = Date.parse(r.startOverride || r.plannedStart);
+    // Geen leesbare starttijd? Dan niet verzwijgen: liever een mail te veel.
+    return Number.isNaN(start) || start > nu.getTime();
+  };
   return (items || [])
     .filter((r) => r && r.name)
     .filter((r) => (r.type || 'tournament') !== 'competition')
@@ -34,6 +42,7 @@ function tekort(items, nu = new Date()) {
     .filter((r) => r.enabled !== false && !r.geannuleerd)
     .filter((r) => r.planned !== true)
     .filter((r) => !['live', 'klaar'].includes(String(r.status || '').toLowerCase()))
+    .filter(nogNietBegonnen)
     .map((r) => ({
       tournamentId: r.tournamentId,
       naam: r.name,
@@ -47,16 +56,16 @@ function onderwerp(lijst) {
   if (!lijst.length) return null;
   const n = lijst.length;
   return n === 1
-    ? `Vanavond ${lijst[0].start || ''} — "${lijst[0].naam}" staat nog niet ingepland`.replace('  ', ' ')
-    : `${n} toernooien vanavond staan nog niet ingepland`;
+    ? `Vandaag ${lijst[0].start || ''} — "${lijst[0].naam}" staat nog niet ingepland`.replace('  ', ' ')
+    : `${n} toernooien vandaag staan nog niet ingepland`;
 }
 
 function tekst(lijst) {
   const r = [];
   r.push('NOG NIET INGEPLAND', '='.repeat(50), '');
   r.push(lijst.length === 1
-    ? 'Er speelt vanavond een toernooi dat nog niet is ingepland in het dashboard:'
-    : 'Er spelen vanavond toernooien die nog niet zijn ingepland in het dashboard:');
+    ? 'Er speelt vandaag een toernooi dat nog niet is ingepland in het dashboard:'
+    : 'Er spelen vandaag toernooien die nog niet zijn ingepland in het dashboard:');
   r.push('');
   for (const t of lijst) {
     r.push(`  ${t.start || 'tijd onbekend'}  ${t.naam}`);
@@ -90,8 +99,8 @@ function html(lijst) {
 
     <p style="font-size:15px;color:#1b1614;margin:0 0 14px;">
       ${lijst.length === 1
-        ? 'Er speelt vanavond een toernooi dat nog niet is ingepland in het dashboard.'
-        : 'Er spelen vanavond toernooien die nog niet zijn ingepland in het dashboard.'}
+        ? 'Er speelt vandaag een toernooi dat nog niet is ingepland in het dashboard.'
+        : 'Er spelen vandaag toernooien die nog niet zijn ingepland in het dashboard.'}
     </p>
 
     <div style="border:1px solid #e6dedc;border-radius:6px;background:#ffffff;padding:4px 16px;">

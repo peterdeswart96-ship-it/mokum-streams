@@ -111,12 +111,19 @@ function podiumVoorZaal(tournaments, cameraTables) {
 const speeltNuOpTafel = (matches, tafel) =>
   (matches || []).some((m) => Number(m && m.table) === Number(tafel) && String((m && m.status) || '').toLowerCase() === 'playing');
 
+// Tijdstip (ms) van de jongste wedstrijd van dit toernooi op één tafel; 0 als er geen tijden zijn.
+const laatsteActiviteit = (matches, tafel) =>
+  (matches || [])
+    .filter((m) => Number(m && m.table) === Number(tafel))
+    .reduce((max, m) => Math.max(max, Date.parse((m && (m.stop || m.start)) || '') || 0), 0);
+
 function podiumPerTafel(tournaments, cameraTables) {
   const lijst = tournaments || [];
   const cams = (cameraTables || []).map(Number);
   const opCamera = (m) => cams.includes(Number(m && m.table));
 
   const resultaat = {};
+  const claimToernooi = {}; // per tafel: wedstrijden van het toernooi dat het podium claimde
   for (const cam of cams) resultaat[cam] = null;
 
   const heeftNogActiefToernooi = lijst.some(
@@ -142,7 +149,24 @@ function podiumPerTafel(tournaments, cameraTables) {
       // alleen als er op DEZE tafel nu echt een wedstrijd speelt (zie de 05-09-tests).
       if (!waarde && resultaat[tafel] && !speeltNuOpTafel(matches, tafel)) continue;
       resultaat[tafel] = waarde;
+      if (waarde) claimToernooi[tafel] = matches;
     }
+  }
+
+  // 29-09: "Team WRA" (middagtoernooi, finale 15:55, in Cuescore nog niet op 'finished') claimde
+  // tafel 3. De Fluke ranking van die avond had daar zijn halve finale net afgerond maar nog geen
+  // finale, dus "speelt nu niet" en het middagpodium bleef staan: het kwam om 22:00 op de live
+  // stream. Een podium vervalt daarom zodra een ANDER toernooi op dezelfde tafel jongere activiteit
+  // heeft dan de laatste wedstrijd van het claimende toernooi. De volgorde in de lijst doet er niet
+  // toe. De league met alleen oude wedstrijden blijft buiten schot; ontbreken de tijden, dan
+  // verandert er niets.
+  for (const tafel of cams) {
+    const claim = claimToernooi[tafel];
+    if (!resultaat[tafel] || !claim) continue;
+    const claimTijd = laatsteActiviteit(claim, tafel);
+    if (!claimTijd) continue;
+    const nieuwerElders = lijst.some((t) => t && t.matches !== claim && laatsteActiviteit(t.matches, tafel) > claimTijd);
+    if (nieuwerElders) resultaat[tafel] = null;
   }
   return resultaat;
 }

@@ -277,6 +277,23 @@ test('#92: een ingepland toernooi levert geen herinnering op', () => {
   assert.deepStrictEqual(tekort([record({ planned: true })], NU), []);
 });
 
+test('#92: een toernooi waarvan de starttijd al voorbij is wordt niet meer gemeld', () => {
+  // 04-10: om 17:31 kwam er een mail over een toernooi van 11:00. Te laat om nog iets te doen.
+  assert.deepStrictEqual(tekort([record({ plannedStart: '2026-08-03T09:00:00Z' })], NU), []);
+  // startOverride (handmatig verzet) gaat voor plannedStart
+  assert.deepStrictEqual(
+    tekort([record({ plannedStart: '2026-08-03T17:15:00Z', startOverride: '2026-08-03T09:00:00Z' })], NU), []);
+});
+
+test('#92: een toernooi zonder leesbare starttijd wordt voor de zekerheid wel gemeld', () => {
+  assert.strictEqual(tekort([record({ plannedStart: undefined })], NU).length, 1);
+});
+
+test('#92: het onderwerp zegt "vandaag", want een toernooi kan ook overdag beginnen', () => {
+  const l = tekort([record({ name: 'Middagtoernooi', plannedStart: '2026-08-03T12:00:00Z' })], NU);
+  assert.match(herinneringOnderwerp(l), /^Vandaag 14:00/);
+});
+
 test('#92: toernooien van een andere dag tellen niet mee', () => {
   assert.deepStrictEqual(tekort([record({ date: '2026-08-04' })], NU), []);
   assert.deepStrictEqual(tekort([record({ date: '2026-08-02' })], NU), []);
