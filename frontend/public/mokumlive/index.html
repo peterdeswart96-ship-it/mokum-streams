@@ -187,6 +187,15 @@
     body.xl .mrij .mk { font-size: 22px; }
     body.xl .sdot { width: 10px; height: 10px; }
     body.xl .pin svg { width: 22px; height: 22px; }
+    /* Bovenbalk 2x zo groot: logo, titel en het hamburgermenu (knop komt uit /site-nav.js). */
+    body.xl header { padding: 14px 24px; }
+    body.xl .logo { height: 80px; }
+    body.xl .kop-titel .titel { font-size: 44px; }
+    body.xl .kop-titel .titel-sub { font-size: 24px; margin-top: 6px; }
+    body.xl #mokumnav-knop { width: 80px; height: 80px; font-size: 36px; border-radius: 18px; top: 14px; right: 24px; }
+    body.xl #mokumnav-paneel { top: 104px; right: 24px; width: 420px; }
+    body.xl #mokumnav-paneel .mokumnav-rij .naam { font-size: 18px; }
+    body.xl #mokumnav-paneel .mokumnav-rij .omschrijving { font-size: 14px; }
     /* Tafel-tabs 2x zo groot. */
     body.xl .tabs { gap: 14px; }
     body.xl .tab { font-size: 28px; padding: 18px 30px; border-radius: 16px; gap: 14px; }
@@ -195,7 +204,7 @@
     /* Video zo groot mogelijk: het grootste 16:9-vlak dat in de resterende breedte
        én de schermhoogte past (voorkomt zwarte balken en loze ruimte). */
     /* Cap op 1920px (native 1080p): niet groter uitrekken dan de bron → blijft scherp. */
-    body.xl .video { padding-top: 0; aspect-ratio: 16 / 9; width: min(100%, calc((100vh - 280px) * 16 / 9)); max-width: 1920px; margin: 0 auto; }
+    body.xl .video { padding-top: 0; aspect-ratio: 16 / 9; width: min(100%, calc((100vh - 340px) * 16 / 9)); max-width: 1920px; margin: 0 auto; }
   }
 
   /* Toernooi-chips: één tik = alleen dat toernooi, "Alles" = alles. Kleur = toernooikleur. */
