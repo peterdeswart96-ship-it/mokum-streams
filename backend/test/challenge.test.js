@@ -10,7 +10,9 @@ process.env.CHALLENGE_MASTER_KEY = Buffer.alloc(32, 7).toString('base64');
 
 const { versleutel, ontsleutel, nieuweHoofdsleutel } = require('../src/challenge/kluis');
 const { maakToken, leesToken, ledId } = require('../src/challenge/token');
-const { normaliseerSjabloon, normaliseerSjablonen, MAX_SJABLONEN, MAX_NAAM } = require('../src/challenge/sjablonen');
+const { normaliseerSjabloon, normaliseerSjablonen, MAX_SJABLONEN, MAX_NAAM, DISCIPLINES, schoneShotclock } = require('../src/challenge/sjablonen');
+const { onthoudSpeler, schoneSpeler, MAX_RECENT } = require('../src/challenge/recent');
+const { shotclockInstellingen } = require('../src/challenge/cuescore');
 
 // ── Kluis ────────────────────────────────────────────────────────────────────
 
@@ -181,4 +183,70 @@ test('sjablonen: dezelfde naam met een andere tegenstander mag wél naast elkaar
 
 test('sjablonen: geen lijst → lege lijst, geen fout', () => {
   for (const w of [null, undefined, 'x', 42, {}]) assert.deepStrictEqual(normaliseerSjablonen(w), []);
+});
+
+test('speltypes: geen English pool (besluit 04-10), wel One pocket en Bank pool', () => {
+  const ids = Object.keys(DISCIPLINES).map(Number);
+  assert.ok(!ids.includes(301) && !ids.includes(302));
+  assert.strictEqual(DISCIPLINES[6], 'One pocket');
+  assert.strictEqual(DISCIPLINES[7], 'Bank pool');
+});
+
+test('tafels: een challenge kan alleen op tafel 1 t/m 16 (Cuescore biedt er geen andere)', () => {
+  const { CHALLENGE_TAFELS, TAFELS } = require('../src/challenge/cuescore');
+  assert.deepStrictEqual(Object.keys(CHALLENGE_TAFELS).map(Number), Array.from({ length: 16 }, (_, i) => i + 1));
+  assert.ok(TAFELS[17], 'de id van tafel 17 blijft bewaard voor andere functies');
+  assert.strictEqual(normaliseerSjabloon({ discipline: 3, raceTo: 5, tafel: 17 }).tafel, undefined);
+  assert.strictEqual(normaliseerSjabloon({ discipline: 3, raceTo: 5, tafel: 16 }).tafel, 16);
+});
+
+// ── Laatste vijf spelers ─────────────────────────────────────────────────────
+
+test('recent: nieuwste bovenaan, nooit meer dan vijf', () => {
+  let lijst = [];
+  for (let i = 1; i <= 7; i++) lijst = onthoudSpeler(lijst, { playerId: i, naam: `Speler ${i}` });
+  assert.strictEqual(lijst.length, MAX_RECENT);
+  assert.deepStrictEqual(lijst.map((s) => s.playerId), [7, 6, 5, 4, 3]);
+});
+
+test('recent: dezelfde speler nog eens verhuist naar boven, geen dubbelen', () => {
+  let lijst = [1, 2, 3].reduce((l, id) => onthoudSpeler(l, { playerId: id, naam: `S${id}` }), []);
+  lijst = onthoudSpeler(lijst, { playerId: 1, naam: 'S1 (nieuwe naam)' });
+  assert.deepStrictEqual(lijst.map((s) => s.playerId), [1, 3, 2]);
+  assert.strictEqual(lijst[0].naam, 'S1 (nieuwe naam)');
+});
+
+test('recent: rommel wordt geweigerd en een foto moet een http(s)-adres zijn', () => {
+  assert.strictEqual(schoneSpeler(null), null);
+  assert.strictEqual(schoneSpeler({ playerId: 'abc' }), null);
+  assert.strictEqual(schoneSpeler({ playerId: 5, foto: 'javascript:alert(1)' }).foto, null);
+  assert.strictEqual(schoneSpeler({ playerId: 5, foto: 'https://x.nl/a.jpg' }).foto, 'https://x.nl/a.jpg');
+  // ongeldige invoer laat de bestaande lijst met rust
+  assert.deepStrictEqual(onthoudSpeler([{ playerId: 1, naam: 'A' }], { playerId: 0 }).map((s) => s.playerId), [1]);
+});
+
+// ── Shot clock ───────────────────────────────────────────────────────────────
+
+test('shotclock: alleen redelijke seconden, anders geen shot clock', () => {
+  assert.strictEqual(schoneShotclock(30), 30);
+  assert.strictEqual(schoneShotclock('45'), 45);
+  assert.strictEqual(schoneShotclock(0), null);
+  assert.strictEqual(schoneShotclock(4), null);
+  assert.strictEqual(schoneShotclock(301), null);
+  assert.strictEqual(schoneShotclock('abc'), null);
+  assert.strictEqual(schoneShotclock(undefined), null);
+});
+
+test('shotclock: favoriet onthoudt de lengte, en laat hem weg als hij ongeldig is', () => {
+  assert.strictEqual(normaliseerSjabloon({ discipline: 3, raceTo: 5, shotclock: 30 }).shotclock, 30);
+  assert.strictEqual('shotclock' in normaliseerSjabloon({ discipline: 3, raceTo: 5, shotclock: 2 }), false);
+});
+
+test('shotclock: instellingen hebben de vorm die het scorebord zelf opslaat', () => {
+  assert.deepStrictEqual(shotclockInstellingen(30), { active: true, length: 30, extensions: 1, extensionLength: 30 });
+});
+
+test('speltypes: namen zijn Engels', () => {
+  assert.strictEqual(DISCIPLINES[201], 'One cushion (carom)');
+  assert.ok(!Object.values(DISCIPLINES).some((n) => /band|carambole/i.test(n)));
 });

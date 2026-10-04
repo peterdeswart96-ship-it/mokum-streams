@@ -4,6 +4,7 @@ const cuescore = require('../challenge/cuescore');
 const sjablonen = require('../challenge/sjablonen');
 const { maakToken, leesToken, tokenUitRequest } = require('../challenge/token');
 const { haalSleutel } = require('../challenge/kluis');
+const { onthoudSpeler } = require('../challenge/recent');
 
 // Endpoints waarmee Mokum-LEDEN een challenge in Cuescore aanmaken (#90).
 // Zie docs/api-contract.md v0.48 en docs/cuescore-challenge.md.
@@ -88,7 +89,7 @@ app.http('challengeMe', {
   handler: metLid(async (lid) => json(200, {
     lid: leden.publiek(lid.record),
     tafels: cuescore.CAMERA_TAFELS,
-    alleTafels: Object.keys(cuescore.TAFELS).map(Number).sort((a, b) => a - b),
+    alleTafels: Object.keys(cuescore.CHALLENGE_TAFELS).map(Number).sort((a, b) => a - b),
     disciplines: Object.entries(sjablonen.DISCIPLINES).map(([id, naam]) => ({ id: Number(id), naam })),
     breakregels: sjablonen.BREAKRULES.map((k) => ({ id: k, naam: sjablonen.BREAKRULE_LABELS[k] })),
     maxRace: sjablonen.MAX_RACE,
@@ -121,7 +122,7 @@ app.http('challengeAanmaken', {
     const tegenstanderId = Number(body && body.tegenstanderId);
     const tafel = Number(body && body.tafel);
     if (!Number.isFinite(tegenstanderId) || tegenstanderId <= 0) return json(400, { error: 'kies een tegenstander' });
-    if (!cuescore.TAFELS[tafel]) return json(400, { error: `onbekende tafel: ${body && body.tafel}` });
+    if (!cuescore.CHALLENGE_TAFELS[tafel]) return json(400, { error: `onbekende tafel: ${body && body.tafel}` });
 
     const s = await sessieOfFout(lid);
     if (s.fout) return s.fout;
@@ -142,8 +143,24 @@ app.http('challengeAanmaken', {
     if (!r.ok) return json(502, { error: r.melding });
 
     context.log(`[challenge/aanmaken] tafel ${tafel}: challenge ${r.challengeId} (match ${r.matchId})`);
-    await leden.schrijf(lid.id, { ...lid.record, laatstGebruikt: new Date().toISOString() });
-    return json(200, r);
+
+    // Shot clock is optioneel en komt ná het aanmaken (hij hoort bij de wedstrijd). Mislukt hij,
+    // dan is de challenge er wél: dat melden we, in plaats van alles als fout te tonen.
+    const shotclock = sjablonen.schoneShotclock(body.shotclock);
+    let shotclockGelukt = null;
+    if (shotclock) {
+      try {
+        shotclockGelukt = (await cuescore.zetShotclock(s.cookies, r.matchId, shotclock)).ok;
+      } catch (e) {
+        shotclockGelukt = false;
+        context.warn(`[challenge/aanmaken] shot clock niet gezet (match ${r.matchId}): ${e.message}`);
+      }
+    }
+
+    // Onthoud de tegenstander voor de lijst "recently played against".
+    const recent = onthoudSpeler(lid.record.recent, { ...(body.tegenstander || {}), playerId: tegenstanderId });
+    await leden.schrijf(lid.id, { ...lid.record, recent, laatstGebruikt: new Date().toISOString() });
+    return json(200, { ...r, shotclock: shotclockGelukt, recent });
   }),
 });
 
