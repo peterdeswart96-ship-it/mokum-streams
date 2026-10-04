@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Challenge wizard — example screens</title>
+<style>
+  /* Zelfde tokens als tailwind.config.js van de frontend. */
+  :root {
+    --brand:#cc0000; --brand-dark:#a30000; --brand-light:#ff6b6b;
+    --canvas:#0a0a0a; --surface:#1a1a1a; --raised:#2a2a2a;
+    --ink:#fff; --muted:#cccccc; --line:#2a2a2a;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#050505; color:var(--ink); font-family:Arial,Helvetica,sans-serif; padding:24px 16px 64px; }
+  h1.doc { font-family:"Arial Black",Arial,sans-serif; font-size:20px; margin:0 0 4px; }
+  p.doc { color:var(--muted); font-size:14px; margin:0 0 24px; max-width:720px; line-height:1.5; }
+  .rij { display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start; }
+  .tel { width:340px; }
+  .tel > .cap { font-size:12px; color:var(--muted); margin:0 0 8px 4px; }
+
+  /* Telefoonkader */
+  .tel .scherm { background:var(--canvas); border:1px solid #333; border-radius:28px; padding:0 0 20px; overflow:hidden; min-height:640px; display:flex; flex-direction:column; }
+  header.kop { padding:16px 18px 12px; border-bottom:1px solid var(--line); }
+  header.kop h2 { font-family:"Arial Black",Arial,sans-serif; font-size:19px; margin:0; }
+  header.kop h2 span { color:var(--brand); }
+  header.kop p { margin:2px 0 0; font-size:11px; color:var(--muted); }
+
+  /* Voortgang: vier stippen met naam, de huidige is gevuld */
+  .voortgang { display:flex; gap:6px; padding:14px 18px 4px; }
+  .voortgang div { flex:1; }
+  .voortgang i { display:block; height:4px; border-radius:2px; background:var(--raised); }
+  .voortgang .klaar i, .voortgang .nu i { background:var(--brand); }
+  .voortgang small { display:block; margin-top:6px; font-size:10px; color:#888; }
+  .voortgang .nu small { color:var(--ink); font-weight:bold; }
+
+  main { padding:6px 18px 0; flex:1; }
+  h3 { font-size:22px; margin:14px 0 4px; font-family:"Arial Black",Arial,sans-serif; }
+  .uitleg { font-size:13px; color:var(--muted); margin:0 0 16px; }
+  .label { font-size:12px; color:var(--muted); margin:18px 0 8px; }
+
+  .knop { border:1px solid var(--line); background:var(--surface); color:var(--ink); border-radius:12px; padding:14px; font-size:15px; text-align:center; }
+  .knop.aan { border-color:var(--brand); background:rgba(204,0,0,.18); }
+  .knop small { display:block; font-size:11px; color:var(--muted); margin-top:2px; }
+
+  .tegels { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .tegel { padding:20px 10px; font-weight:bold; font-size:17px; }
+  .meer { margin-top:10px; text-align:center; font-size:13px; color:var(--muted); text-decoration:underline; }
+  .rijtje { display:flex; gap:8px; }
+  .rijtje .knop { flex:1; padding:14px 4px; }
+
+  .tafels { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+  .tafels .knop { padding:14px 0; font-size:16px; font-weight:bold; }
+  .cam { display:block; width:14px; height:8px; margin:3px auto 0; border-radius:2px; background:var(--brand-light); }
+
+  .zoek { width:100%; background:var(--canvas); border:1px solid var(--line); border-radius:12px; padding:14px; color:var(--muted); font-size:16px; }
+  .speler { display:flex; gap:12px; align-items:center; border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-top:8px; }
+  .speler.aan { border-color:var(--brand); background:rgba(204,0,0,.18); }
+  .avatar { width:36px; height:36px; border-radius:50%; background:var(--raised); flex:none; }
+  .speler b { display:block; font-size:15px; } .speler span { font-size:11px; color:var(--muted); }
+
+  .samen { border:1px solid var(--line); border-radius:12px; background:var(--surface); }
+  .samen div { display:flex; justify-content:space-between; align-items:center; padding:13px 14px; border-bottom:1px solid var(--line); font-size:14px; }
+  .samen div:last-child { border-bottom:0; }
+  .samen em { font-style:normal; color:var(--muted); font-size:12px; }
+  .samen u { color:var(--brand-light); font-size:12px; }
+
+  .favs { margin-top:14px; }
+  .fav { display:flex; align-items:center; gap:10px; }
+  .ster { width:16px; height:16px; fill:var(--brand); flex:none; }
+
+  footer.voet { padding:12px 18px 0; display:flex; gap:10px; }
+  .terug { flex:0 0 96px; border:1px solid var(--line); border-radius:12px; background:transparent; color:var(--muted); padding:16px 0; font-size:15px; text-align:center; }
+  .door { flex:1; background:var(--brand); border-radius:12px; padding:16px; font-size:16px; font-weight:bold; text-align:center; }
+  .door.uit { opacity:.35; }
+  .bewaar { text-align:center; font-size:12px; color:var(--muted); text-decoration:underline; margin-top:12px; }
+  .favlink { display:block; margin:12px 0 0; font-size:14px; color:var(--muted); }
+  .favlink b { color:#f5c518; }
+  .favlink u { color:var(--ink); }
+  .favlijst { margin-top:8px; }
+  .favlijst .knop { text-align:left; margin-bottom:8px; display:flex; gap:10px; align-items:center; }
+  .favlijst .ster { fill:#f5c518; }
+  .bewaartegel { margin:18px 0 0; border:1px solid #22a559; background:linear-gradient(180deg,#1d7a45,#145c33); border-radius:12px; padding:16px; display:flex; align-items:center; justify-content:center; gap:10px; font-weight:bold; font-size:16px; }
+  .bewaartegel .ster { fill:#f5c518; width:22px; height:22px; filter:drop-shadow(0 0 3px rgba(245,197,24,.6)); }
+  .bal { width:44px; height:44px; border-radius:50%; flex:none; position:relative; box-shadow:inset -5px -6px 10px rgba(0,0,0,.35), 0 2px 5px rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; }
+  .bal i { font-style:normal; font-weight:bold; font-size:12px; width:22px; height:22px; border-radius:50%; background:#fff; color:#111; display:flex; align-items:center; justify-content:center; }
+  .bal.b9  { background:linear-gradient(180deg,#fff 0 22%,#f5c518 22% 78%,#fff 78%); }
+  .bal.b8  { background:radial-gradient(circle at 35% 30%,#555,#1c1c1c 70%); }
+  .bal.b10 { background:linear-gradient(180deg,#fff 0 22%,#1e5bd8 22% 78%,#fff 78%); }
+  .bal.b141{ background:radial-gradient(circle at 35% 30%,#3b82f6,#1741a8 75%); }
+  .bal.b141 i { font-size:9px; letter-spacing:-.5px; }
+  .tegel { display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .tegel.t9.aan  { border-color:#f5c518; background:linear-gradient(180deg,rgba(245,197,24,.28),rgba(255,255,255,.07)); }
+  .tegel.t8.aan  { border-color:#777; background:linear-gradient(180deg,rgba(120,120,120,.35),rgba(30,30,30,.4)); }
+  .tegel.t10.aan { border-color:#3b82f6; background:linear-gradient(180deg,rgba(30,91,216,.35),rgba(255,255,255,.07)); }
+  .tegel.t141.aan{ border-color:#2f6df0; background:linear-gradient(180deg,rgba(23,65,168,.55),rgba(23,65,168,.15)); }
+  .schakel { display:flex; align-items:center; justify-content:space-between; }
+  .schakel .pil { width:44px; height:26px; border-radius:13px; background:var(--raised); position:relative; }
+  .schakel .pil::after { content:""; position:absolute; left:3px; top:3px; width:20px; height:20px; border-radius:50%; background:#888; }
+  .oranje { margin-top:10px; border:1px solid #f08a1c; background:linear-gradient(180deg,#f59a2b,#d9700a); border-radius:12px; padding:16px; text-align:center; font-weight:bold; font-size:16px; color:#fff; }
+  .legenda { display:flex; align-items:center; gap:8px; margin-top:14px; font-size:12px; color:var(--muted); }
+  .cuescore { margin-top:8px; display:flex; align-items:center; justify-content:center; gap:10px; border:1px solid #d0d0d0; background:linear-gradient(180deg,#f0f0f0,#d8d8d8); color:#222; border-radius:12px; padding:14px; font-weight:bold; font-size:15px; }
+  .cuescore img { width:26px; height:26px; border-radius:6px; }
+  .bruin { border:1px solid #c9a27a; background:linear-gradient(180deg,#e3c9a8,#c9a27a); color:#3a2410; border-radius:12px; padding:16px; text-align:center; font-weight:bold; font-size:16px; }
+  .bruinpaneel { border:1px solid #c9a27a; border-top:0; border-radius:0 0 12px 12px; background:rgba(201,162,122,.12); padding:14px; margin-top:-4px; }
+  .klok { font-size:32px; vertical-align:middle; line-height:1; margin-right:4px; }
+  .oke { display:flex; align-items:center; gap:10px; }
+  .oke .vink { width:26px; height:26px; border-radius:50%; background:#22a559; color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px; flex:none; }
+ border:1px solid rgba(5,150,105,.5); background:rgba(5,150,105,.1); color:#6ee7b7; border-radius:12px; padding:12px 14px; font-size:14px; }
+</style>
+</head>
+<body>
+<h1 class="doc">Challenge wizard — example screens</h1>
+<p class="doc">
+  Concept for the new challenge page, on a phone. Four steps: <b>Opponent → Game → Table → Review</b>.
+  Same dark Mokum style as now, but one question per screen, bigger tap targets and a progress bar.
+  This is a mock-up; nothing is built yet and the data is made up.
+</p>
+
+<div class="rij">
+
+<!-- ═══ Stap 1 ═══ -->
+<div class="tel">
+  <p class="cap">1 · Opponent (favorites, last 5, or someone else)</p>
+  <div class="scherm">
+    <header class="kop"><h2><span>Mokum</span> Challenge</h2><p>Quickly create a challenge in Cuescore</p></header>
+    <div class="voortgang">
+      <div class="nu"><i></i><small>Opponent</small></div>
+      <div><i></i><small>Game</small></div>
+      <div><i></i><small>Table</small></div>
+      <div><i></i><small>Review</small></div>
+    </div>
+    <main>
+      <h3>Who are you playing?</h3>
+      <div class="label" style="margin-top:14px">Recently played against</div>
+      <div class="speler aan"><div class="avatar"></div><div><b>Lennert Duyn</b><span>Netherlands · Mokum Pool &amp; Darts · #3404805</span></div></div>
+      <div class="speler"><div class="avatar"></div><div><b>Mark Jansen</b><span>Netherlands · #1893321</span></div></div>
+      <div class="speler"><div class="avatar"></div><div><b>Sanne Bakker</b><span>Netherlands · Mokum Pool &amp; Darts · #2754410</span></div></div>
+      <div class="speler"><div class="avatar"></div><div><b>Joris de Winkel</b><span>Netherlands · #2210984</span></div></div>
+      <div class="speler"><div class="avatar"></div><div><b>Moudar Ali</b><span>Netherlands · #1650072</span></div></div>
+      <div class="knop" style="margin-top:12px;text-align:left">&#128269; Search another player&hellip;</div>
+      <div class="bewaartegel" style="margin-top:12px"><svg class="ster" viewBox="0 0 24 24"><path d="M12 2.5l2.9 5.9 6.5.95-4.7 4.6 1.1 6.5L12 17.4l-5.8 3.05 1.1-6.5-4.7-4.6 6.5-.95L12 2.5z"/></svg>Favorites<span style="margin-left:6px;font-weight:normal">&#9662;</span></div>
+    </main>
+    <footer class="voet"><div class="terug" style="visibility:hidden">Back</div><div class="door">Next</div></footer>
+  </div>
+</div>
+
+
+<!-- ═══ Stap 1b ═══ -->
+<div class="tel">
+  <p class="cap">1b · After tapping the green Favorites tile</p>
+  <div class="scherm">
+    <header class="kop"><h2><span>Mokum</span> Challenge</h2><p>Quickly create a challenge in Cuescore</p></header>
+    <div class="voortgang">
+      <div class="nu"><i></i><small>Opponent</small></div>
+      <div><i></i><small>Game</small></div>
+      <div><i></i><small>Table</small></div>
+      <div><i></i><small>Review</small></div>
+    </div>
+    <main>
+      <div class="knop" style="margin-top:12px;text-align:left">&#128269; Search another player&hellip;</div>
+      <div class="bewaartegel" style="margin-top:12px"><svg class="ster" viewBox="0 0 24 24"><path d="M12 2.5l2.9 5.9 6.5.95-4.7 4.6 1.1 6.5L12 17.4l-5.8 3.05 1.1-6.5-4.7-4.6 6.5-.95L12 2.5z"/></svg>Favorites<span style="margin-left:6px;font-weight:normal">&#9652;</span></div>
+      <div class="label">Tap a favorite to jump straight to the review.</div>
+      <div class="favlijst">
+        <div class="knop"><svg class="ster" viewBox="0 0 24 24"><path d="M12 2.5l2.9 5.9 6.5.95-4.7 4.6 1.1 6.5L12 17.4l-5.8 3.05 1.1-6.5-4.7-4.6 6.5-.95L12 2.5z"/></svg><span>Lennert Duyn<small>9-Ball · race to 5 · table 1</small></span></div>
+        <div class="knop"><svg class="ster" viewBox="0 0 24 24"><path d="M12 2.5l2.9 5.9 6.5.95-4.7 4.6 1.1 6.5L12 17.4l-5.8 3.05 1.1-6.5-4.7-4.6 6.5-.95L12 2.5z"/></svg><span>Mark Jansen<small>One pocket · race to 3 · winner break</small></span></div>
+        <div class="knop"><svg class="ster" viewBox="0 0 24 24"><path d="M12 2.5l2.9 5.9 6.5.95-4.7 4.6 1.1 6.5L12 17.4l-5.8 3.05 1.1-6.5-4.7-4.6 6.5-.95L12 2.5z"/></svg><span>Sanne Bakker<small>8-Ball · race to 7 · table 10</small></span></div>
+      </div>
+    </main>
+    <footer class="voet"><div class="terug" style="visibility:hidden">Back</div><div class="door uit">Next</div></footer>
+  </div>
+</div>
+
+<!-- ═══ Stap 2 ═══ -->
+<div class="tel">
+  <p class="cap">2 · Which game?</p>
+  <div class="scherm">
+    <header class="kop"><h2><span>Mokum</span> Challenge</h2><p>Challenge against Lennert Duyn</p></header>
+    <div class="voortgang">
+      <div class="klaar"><i></i><small>Opponent</small></div>
+      <div class="nu"><i></i><small>Game</small></div>
+      <div><i></i><small>Table</small></div>
+      <div><i></i><small>Review</small></div>
+    </div>
+    <main>
+      <h3>What are you playing?</h3>
+      <div class="tegels" style="margin-top:14px">
+        <div class="knop tegel t9 aan"><span class="bal b9"><i>9</i></span>9-Ball</div>
+        <div class="knop tegel t8"><span class="bal b8"><i>8</i></span>8-Ball</div>
+        <div class="knop tegel t10"><span class="bal b10"><i>10</i></span>10-Ball</div>
+        <div class="knop tegel t141"><span class="bal b141"><i>14.1</i></span>14.1</div>
+      </div>
+      <div class="oranje">Other games <span style="font-weight:normal">&#9662;</span></div>
+
+      <div class="label">Race to</div>
+      <div class="rijtje">
+        <div class="knop">3</div><div class="knop aan">5</div><div class="knop">7</div><div class="knop">Other</div>
+      </div>
+
+      <div class="label">Break</div>
+      <div class="rijtje">
+        <div class="knop">Alternate break</div><div class="knop aan">Winner break</div>
+      </div>
+
+      <div class="bruin" style="margin-top:18px"><span class="klok">&#9201;&#65039;</span> Shot clock <span style="font-weight:normal;opacity:.8">(optional)</span> <span style="font-weight:normal">&#9662;</span></div>
+    </main>
+    <footer class="voet"><div class="terug">Back</div><div class="door">Next</div></footer>
+  </div>
+</div>
+
+
+<!-- ═══ Stap 2b ═══ -->
+<div class="tel">
+  <p class="cap">2b · After tapping the Shot clock tile</p>
+  <div class="scherm">
+    <header class="kop"><h2><span>Mokum</span> Challenge</h2><p>Challenge against Lennert Duyn</p></header>
+    <div class="voortgang">
+      <div class="klaar"><i></i><small>Opponent</small></div>
+      <div class="nu"><i></i><small>Game</small></div>
+      <div><i></i><small>Table</small></div>
+      <div><i></i><small>Review</small></div>
+    </div>
+    <main>
+      <div class="label" style="margin-top:6px">Break</div>
+      <div class="rijtje">
+        <div class="knop">Alternate break</div><div class="knop aan">Winner break</div>
+      </div>
+      <div class="bruin" style="margin-top:18px;border-radius:12px 12px 0 0"><span class="klok">&#9201;&#65039;</span> Shot clock <span style="font-weight:normal;opacity:.8">(optional)</span> <span style="font-weight:normal">&#9652;</span></div>
+      <div class="bruinpaneel">
+        <div class="rijtje">
+          <div class="knop aan">Off</div><div class="knop">30 s</div><div class="knop">45 s</div><div class="knop">Other</div>
+        </div>
+        <div class="uitleg" style="margin:10px 0 0;font-size:12px">The clock is set on the scoreboard for this match.</div>
+      </div>
+    </main>
+    <footer class="voet"><div class="terug">Back</div><div class="door">Next</div></footer>
+  </div>
+</div>
+
+<!-- ═══ Stap 3 ═══ -->
+<div class="tel">
+  <p class="cap">3 · Which table?</p>
+  <div class="scherm">
+    <header class="kop"><h2><span>Mokum</span> Challenge</h2><p>Lennert Duyn · 9-Ball · race to 5</p></header>
+    <div class="voortgang">
+      <div class="klaar"><i></i><small>Opponent</small></div>
+      <div class="klaar"><i></i><small>Game</small></div>
+      <div class="nu"><i></i><small>Table</small></div>
+      <div><i></i><small>Review</small></div>
+    </div>
+    <main>
+      <h3>Which table?</h3>
+      <div class="tafels">
+        <div class="knop">1<span class="cam"></span></div><div class="knop">2</div><div class="knop">3<span class="cam"></span></div><div class="knop">4</div>
+        <div class="knop">5</div><div class="knop">6</div><div class="knop">7</div><div class="knop">8</div>
+        <div class="knop">9</div><div class="knop aan">10</div><div class="knop">11</div><div class="knop">12</div>
+        <div class="knop">13</div><div class="knop">14</div><div class="knop">15<span class="cam"></span></div><div class="knop">16<span class="cam"></span></div>
+      </div>
+      <div class="legenda"><span class="cam" style="margin:0"></span> stream table</div>
+    </main>
+    <footer class="voet"><div class="terug">Back</div><div class="door">Next</div></footer>
+  </div>
+</div>
+
+<!-- ═══ Stap 4 ═══ -->
+<div class="tel">
+  <p class="cap">4 · Review and create</p>
+  <div class="scherm">
+    <header class="kop"><h2><span>Mokum</span> Challenge</h2><p>Almost done</p></header>
+    <div class="voortgang">
+      <div class="klaar"><i></i><small>Opponent</small></div>
+      <div class="klaar"><i></i><small>Game</small></div>
+      <div class="klaar"><i></i><small>Table</small></div>
+      <div class="nu"><i></i><small>Review</small></div>
+    </div>
+    <main>
+      <h3>Is this right?</h3>
+      <p class="uitleg">Tap a line to change it.</p>
+      <div class="samen">
+        <div><span><em>Opponent</em><br>Lennert Duyn</span><u>change</u></div>
+        <div><span><em>Game</em><br>9-Ball · race to 5</span><u>change</u></div>
+        <div><span><em>Break</em><br>Winner break</span><u>change</u></div>
+        <div><span><em>Table</em><br>10</span><u>change</u></div>
+      </div>
+      <div class="bewaartegel"><svg class="ster" viewBox="0 0 24 24"><path d="M12 2.5l2.9 5.9 6.5.95-4.7 4.6 1.1 6.5L12 17.4l-5.8 3.05 1.1-6.5-4.7-4.6 6.5-.95L12 2.5z"/></svg>Save as favorite</div>
+    </main>
+    <footer class="voet"><div class="terug">Back</div><div class="door">Create challenge</div></footer>
+  </div>
+</div>
+
+<!-- ═══ Klaar ═══ -->
+<div class="tel">
+  <p class="cap">After creating</p>
+  <div class="scherm">
+    <header class="kop"><h2><span>Mokum</span> Challenge</h2><p>Challenge created</p></header>
+    <main style="padding-top:24px">
+      <div class="oke"><span class="vink">&#10003;</span><span>Challenge created. &#128512;</span></div>
+      <p class="uitleg" style="margin-top:14px">&#128241; <b style="color:#fff">Turn on the iPad at table 10.</b> The challenge scoreboard will show up there.</p>
+      <p class="uitleg">Then do the lag and press START on the scoreboard.</p>
+      <div class="cuescore"><img src="cuescore-logo.png" alt="">Open in Cuescore &#8599;</div>
+    </main>
+    <footer class="voet"><div class="door">Another challenge</div></footer>
+  </div>
+</div>
+
+</div>
+</body>
+</html>
