@@ -122,6 +122,10 @@ async function zoekSpelers(cookies, zoekterm) {
   }));
 }
 
+// De pagina van een challenge in Cuescore. Het is een gewone wedstrijdpagina: de adres-vorm
+// /challenge/<challengeId> bestaat niet (geeft "Page not found", gezien 04-10-2026).
+const matchUrl = (matchId) => `${BASIS}/match/?matchId=${encodeURIComponent(matchId)}`;
+
 // De echte actie. Retour: { ok, challengeId, matchId, url, melding }.
 async function maakChallenge(cookies, { tegenstanderId, tafel, discipline = 3, raceTo = 5, breakrule = 'winner' }) {
   const tableId = TAFELS[Number(tafel)];
@@ -154,7 +158,7 @@ async function maakChallenge(cookies, { tegenstanderId, tafel, discipline = 3, r
     ok: true,
     challengeId: data.challengeId,
     matchId: data.matchId,
-    url: `${BASIS}/challenge/${data.challengeId}`,
+    url: matchUrl(data.matchId),
   };
 }
 
@@ -180,4 +184,4 @@ async function zetShotclock(cookies, matchId, seconden) {
   return { ok: res.status >= 200 && res.status < 300, status: res.status };
 }
 
-module.exports = { login, sessieGeldig, zoekSpelers, maakChallenge, zetShotclock, shotclockInstellingen, TAFELS, CHALLENGE_TAFELS, CAMERA_TAFELS, VENUE_ID };
+module.exports = { login, sessieGeldig, zoekSpelers, maakChallenge, matchUrl, zetShotclock, shotclockInstellingen, TAFELS, CHALLENGE_TAFELS, CAMERA_TAFELS, VENUE_ID };

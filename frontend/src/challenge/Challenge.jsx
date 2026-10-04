@@ -388,7 +388,7 @@ export default function Challenge() {
 
       <button onClick={() => setZoeken(!zoeken)}
               className={`${knop} ${knopUit} w-full text-left mt-3 flex items-center gap-2`}>
-        <span aria-hidden="true">🔍</span> Search another player…
+        <span aria-hidden="true">🔍</span> Search playername
       </button>
       {zoeken && <ZoekSpeler onKies={(x) => { setTegenstander(x); setZoeken(false); }} />}
 
