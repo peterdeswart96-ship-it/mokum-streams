@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="nl">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,6 +7,13 @@
     <link rel="apple-touch-icon" href="/mokum-logo.png" />
     <meta name="theme-color" content="#0b0b0c" />
     <title>Mokum Challenge</title>
+    <!-- Op een telefoon is dit al goed. Op een groter scherm schalen we alles mee op: de
+         pagina rekent in rem, dus een grotere basisletter maakt tekst, knoppen, tegels en
+         kolombreedte in één keer groter. Alleen deze pagina, niet het dashboard. -->
+    <style>
+      @media (min-width: 768px)  { html { font-size: 20px; } }
+      @media (min-width: 1280px) { html { font-size: 24px; } }
+    </style>
   </head>
   <body>
     <div id="root"></div>

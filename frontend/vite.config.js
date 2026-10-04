@@ -7,6 +7,16 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   base: '/',
+  // Alleen voor `npm run dev`: stuurt /api door naar de echte backend. Nodig om de pagina op een
+  // telefoon in het eigen netwerk te testen — de backend laat alleen localhost en de echte
+  // site toe als herkomst, dus vanaf http://<ip-van-je-pc>:5173 zou elke aanroep geweigerd
+  // worden. Via dit doorgeefluik komt de aanvraag van de dev-server zelf, zonder die controle.
+  // Start dan met een lege VITE_API_BASE, zodat de pagina /api op zichzelf aanroept.
+  server: {
+    proxy: {
+      '/api': { target: 'https://mokum-streams-func.azurewebsites.net', changeOrigin: true },
+    },
+  },
   build: {
     // Twee losse pagina's in plaats van één app met routes: het dashboard (index.html,
     // voor beheerders) en de challenge-pagina (challenge.html, voor leden). Losse

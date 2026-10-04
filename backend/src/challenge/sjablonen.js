@@ -4,7 +4,7 @@
 // break") zodat een lid niet elke keer het hele formulier hoeft in te vullen. Dit bestand
 // bewaakt wat er de opslag in mag: alles komt van een webpagina, dus niets vertrouwen.
 
-const { TAFELS } = require('./cuescore');
+const { CHALLENGE_TAFELS } = require('./cuescore');
 
 const MAX_SJABLONEN = 12;
 // Ruim genomen: de naam wordt automatisch samengesteld uit tegenstander, race, speltype en
@@ -17,13 +17,14 @@ const BREAKRULES = ['winner', 'alternate'];
 const BREAKRULE_LABELS = { winner: 'Winner break', alternate: 'Alternate break' };
 
 // Spelsoorten met hun Cuescore-nummer, uitgelezen uit CueScore.Discipline in hun eigen
-// bibliotheek. Alleen 9-Ball (3) is live geverifieerd; de rest komt uit hun code en is dus
-// betrouwbaar, maar nog niet in de praktijk aangemaakt.
+// bibliotheek. Live geverifieerd: 9-Ball (3), One pocket (6) en Bank pool (7); de rest komt
+// uit hun code en is dus betrouwbaar, maar nog niet in de praktijk aangemaakt.
 //
-// Dit is een selectie die past bij wat er in Mokum staat: zestien pooltafels, twee English
-// pool-tafels (17/18) en een carambolebiljart (19). Cuescore kent er veel meer (snooker,
-// Russisch piramide, Braziliaanse varianten); die laten we weg om de lijst bruikbaar te
-// houden. Onbekende nummers weigeren we niet — het moet alleen een getal zijn.
+// Dit is een selectie die past bij wat er in Mokum staat: zestien pooltafels en een
+// carambolebiljart (19). English pool laten we bewust weg (besluit Peter, 04-10): het
+// challenge-formulier van Cuescore biedt alleen tafel 1 t/m 16 aan. Cuescore kent er veel
+// meer (snooker, Russisch piramide, Braziliaanse varianten); die laten we weg om de lijst
+// bruikbaar te houden. Onbekende nummers weigeren we niet — het moet alleen een getal zijn.
 const DISCIPLINES = {
   1: '7-Ball',
   2: '8-Ball',
@@ -33,12 +34,19 @@ const DISCIPLINES = {
   6: 'One pocket',
   7: 'Bank pool',
   10: 'Multiball',
-  201: 'Eén band (carambole)',
-  202: 'Driebanden (carambole)',
-  203: 'Libre (carambole)',
-  301: 'Blackball (English pool)',
-  302: 'World rules (English pool)',
+  201: 'One cushion (carom)',
+  202: 'Three cushion (carom)',
+  203: 'Libre (carom)',
 };
+
+// Shot clock in seconden (optioneel). Cuescore bewaart die per wedstrijd op het scorebord.
+// Grenzen ruim genomen; alles daarbuiten (of geen getal) betekent: geen shot clock.
+const MIN_SHOTCLOCK = 5;
+const MAX_SHOTCLOCK = 300;
+function schoneShotclock(waarde) {
+  const n = Math.round(Number(waarde));
+  return Number.isFinite(n) && n >= MIN_SHOTCLOCK && n <= MAX_SHOTCLOCK ? n : null;
+}
 
 const STANDAARD = {
   naam: '9-ball race 5',
@@ -63,6 +71,7 @@ function normaliseerSjabloon(rauw) {
 
   const tegenstanderId = Number(rauw.tegenstanderId);
   const tafel = Number(rauw.tafel);
+  const shotclock = schoneShotclock(rauw.shotclock);
   return {
     naam: schoonNaam(rauw.naam, `${DISCIPLINES[discipline] || 'challenge'} race ${raceTo}`),
     discipline,
@@ -70,7 +79,8 @@ function normaliseerSjabloon(rauw) {
     breakrule: BREAKRULES.includes(rauw.breakrule) ? rauw.breakrule : 'winner',
     // Tafel is optioneel. Staat 'ie erin, dan wordt hij bij het aantikken meteen gekozen —
     // anders zou de naam ("… tafel 1") iets beloven wat niet gebeurt.
-    ...(TAFELS[tafel] ? { tafel } : {}),
+    ...(CHALLENGE_TAFELS[tafel] ? { tafel } : {}),
+    ...(shotclock ? { shotclock } : {}),
     // Een vaste tegenstander is optioneel: "Lennert — 9-ball race 5" is één tik, een
     // sjabloon zonder tegenstander vraagt er nog om.
     ...(Number.isFinite(tegenstanderId) && tegenstanderId > 0
@@ -96,6 +106,6 @@ function normaliseerSjablonen(rauw) {
 }
 
 module.exports = {
-  normaliseerSjabloon, normaliseerSjablonen, STANDAARD,
+  normaliseerSjabloon, normaliseerSjablonen, STANDAARD, schoneShotclock,
   DISCIPLINES, BREAKRULES, BREAKRULE_LABELS, MAX_SJABLONEN, MAX_NAAM, MAX_RACE,
 };
