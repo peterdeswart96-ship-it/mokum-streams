@@ -690,13 +690,14 @@ POST /api/challenge/login      -> body: { "email": "...", "wachtwoord": "..." }
                                   Logt in bij Cuescore, bewaart het wachtwoord VERSLEUTELD
                                   (AES-256-GCM, sleutel uit Key Vault) en geeft terug:
                                   { "token", "speler": { "playerId", "naam" }, "sjablonen": [...] }
-GET  /api/challenge/me         -> { "speler", "sjablonen", "tafels": [...] }
+GET  /api/challenge/me         -> { "lid": { ..., "sjablonen", "recent": [laatste 5 tegenstanders] }, "tafels", "alleTafels" (1-16), "disciplines", ... }
 GET  /api/challenge/spelers?q= -> { "spelers": [ { "playerId", "naam" } ] } (zoeken via Cuescore)
 POST /api/challenge/aanmaken   -> body: { "tegenstanderId": 3404805, "tafel": 1,
-                                  "discipline"?: 3, "raceTo"?: 5, "breakrule"?: "winner|alternate" }
-                                  -> { "challengeId", "matchId", "url" }
+                                  "discipline"?: 3, "raceTo"?: 5, "breakrule"?: "winner|alternate",
+                                  "shotclock"?: 30, "tegenstander"?: { "naam", "foto", "land", "club", "plaats" } }
+                                  -> { "challengeId", "matchId", "url", "shotclock": true|false|null, "recent": [...] }
 POST /api/challenge/sjablonen  -> body: { "sjablonen": [ { "naam", "tegenstanderId"?, "discipline",
-                                  "raceTo", "breakrule" } ] } (max 12) -> { "sjablonen" }
+                                  "raceTo", "breakrule", "shotclock"? } ] } (max 12) -> { "sjablonen" }
 POST /api/challenge/loskoppelen-> wist het opgeslagen wachtwoord en de sessie -> { "ok": true }
 
 Ledenrecord (opslag `challenge/leden/<playerId>.json`, nooit naar de frontend):
@@ -1126,3 +1127,15 @@ Regels:
   2. Het antwoord van de rebuild (echt én droog) heeft er één veld bij: **`huidig`**, het aantal wedstrijden
      in het archief zoals het nu staat. Bestaande velden zijn ongewijzigd.
   3. Geen effect op de frontend; niets anders dan de rebuild leest deze parameter.
+
+- 2026-10-04: v0.70 — **challenge-pagina wordt een wizard (#90)**. Vier stappen (Opponent → Game →
+  Table → Review), alleen Engels. Backend-wijzigingen, allemaal achterwaarts compatibel:
+  1. **`recent`** in het ledenrecord en in `GET /api/challenge/me` (`lid.recent`): de laatste vijf
+     tegenstanders, nieuwste bovenaan, opgeslagen per lid zodat ze op elk apparaat gelijk zijn.
+     `aanmaken` vult dit; de frontend stuurt `tegenstander` (naam/foto/land/club/plaats) mee.
+  2. **`shotclock`** (seconden, 5-300, optioneel) bij `aanmaken` en in favorieten. Na het aanmaken
+     zet de backend hem via `POST /ajax/scoreboard-v2/save-settings.php?matchId=…` — dezelfde
+     aanroep als het scorebord zelf doet. **Nog niet live getest.** Mislukt het, dan is de challenge
+     er wél: het antwoord heeft `shotclock: false` en de pagina wijst naar het menu op de iPad.
+  3. **English pool weg** uit de speltypes en **tafels 17-19 weg** uit `alleTafels`: het
+     challenge-formulier van Cuescore biedt alleen tafel 1 t/m 16 aan. Speltypenamen zijn Engels.
