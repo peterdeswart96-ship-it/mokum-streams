@@ -117,13 +117,22 @@ const laatsteActiviteit = (matches, tafel) =>
     .filter((m) => Number(m && m.table) === Number(tafel))
     .reduce((max, m) => Math.max(max, Date.parse((m && (m.stop || m.start)) || '') || 0), 0);
 
-function podiumPerTafel(tournaments, cameraTables) {
+//
+// 04-10: een toernooi dat nog geen wedstrijd aan een cameratafel heeft hangen (loting/tafelindeling
+// volgt pas bij de start) doet in de berekening hierboven niet mee en kan dus nooit een podium van
+// een ander toernooi tegenhouden. Multiball 2 draaide op tafel 1 en 3, het net afgeronde
+// OnePocket-toernooi claimde ze, en beide streams kregen het OnePocket-medaillescherm.
+// `streamToernooi` = { tafelnr: toernooi-id } van de LOPENDE stream per tafel (uit de broadcast-
+// store). Hoort die stream bij een ander toernooi dan het podium, dan tonen we niets. Tafels
+// zonder (bekend) toernooi-id, zoals losse streams, houden het oude gedrag.
+function podiumPerTafel(tournaments, cameraTables, streamToernooi = {}) {
   const lijst = tournaments || [];
   const cams = (cameraTables || []).map(Number);
   const opCamera = (m) => cams.includes(Number(m && m.table));
 
   const resultaat = {};
   const claimToernooi = {}; // per tafel: wedstrijden van het toernooi dat het podium claimde
+  const claimId = {}; // per tafel: id van dat toernooi
   for (const cam of cams) resultaat[cam] = null;
 
   const heeftNogActiefToernooi = lijst.some(
@@ -149,7 +158,7 @@ function podiumPerTafel(tournaments, cameraTables) {
       // alleen als er op DEZE tafel nu echt een wedstrijd speelt (zie de 05-09-tests).
       if (!waarde && resultaat[tafel] && !speeltNuOpTafel(matches, tafel)) continue;
       resultaat[tafel] = waarde;
-      if (waarde) claimToernooi[tafel] = matches;
+      if (waarde) { claimToernooi[tafel] = matches; claimId[tafel] = t && t.id; }
     }
   }
 
@@ -167,6 +176,12 @@ function podiumPerTafel(tournaments, cameraTables) {
     if (!claimTijd) continue;
     const nieuwerElders = lijst.some((t) => t && t.matches !== claim && laatsteActiviteit(t.matches, tafel) > claimTijd);
     if (nieuwerElders) resultaat[tafel] = null;
+  }
+
+  for (const tafel of cams) {
+    const stream = streamToernooi && streamToernooi[tafel];
+    if (!resultaat[tafel] || stream == null || claimId[tafel] == null) continue;
+    if (String(stream) !== String(claimId[tafel])) resultaat[tafel] = null;
   }
   return resultaat;
 }
