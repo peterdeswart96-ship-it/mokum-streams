@@ -56,7 +56,31 @@ en [2026-10-03-side-event-handmatig-t16-onscherp-handover.md](2026-10-03-side-ev
 - Bevindingen staan als comment in #158. Conclusie: OBS, encoder en YouTube-ingest zijn het niet,
   het verlies zit vóór OBS (camera of camerastroom).
 
+## 5. T3 om 12:20 automatisch gestopt: verlopen eindtijd (#171), niet het personeel
+- Peter vroeg of de zaal T3 handmatig had gestopt. Logs (gedeelde Log Analytics, gefilterd op
+  `mokum-streams-func`): geen `[streams/stop] … HANDMATIG`-regel. Wel `12:19:50 scorebord WAITING`
+  (partij afgelopen) en `12:20:04 [checkStops] tafel 3: stoppen — ingestelde eindtijd bereikt
+  (2026-10-03T23:30:00Z)`, daarna 12:25 gefinaliseerd.
+- Oorzaak: de tijdelijke `stopOverride` van gisteren (01:30 lokaal van 4 okt) lag op dag 3 in het
+  verleden; de handmatige stap om hem vooruit te zetten was niet gedaan. De #76-bescherming hield de
+  stop tegen zolang de partij liep, T1 en T16 zaten nog midden in een partij.
+- Oplossing: `stopOverride` van record 74776897 op `null` gezet met een los scriptje op `planning.json`
+  (alleen dat veld; vergeleken met een backup: 1 veldverschil van 95 records, backup in
+  `%TEMP%\planning-backup-*.json`). Na de importrun van 13:00 nog steeds `null`. Zonder eigen eindtijd
+  is de nachtstop (03:00) het vangnet.
+- T3 is daarna opnieuw gestart via **Nieuwe stream → Cuescore-toernooi** (niet ad-hoc): meteen
+  gekoppeld aan 74776897, nieuwe video `WxxSw6HzfCA`; de eerdere T3-video `B-BqRqxyCBY` is apart
+  afgerond (1 hoofdstuk).
+- **Planner-valkuil (nieuw):** staat een toernooi op Concept, dan slaat het Eind-veld niets op de server
+  op tot een klik op Plan (`wijzig` in `App.jsx`). Plan klikken kan de automatische start tafels laten
+  aanmaken, dus geen veilig alternatief. Een eindtijd corrigeer je voorlopig in `planning.json`.
+- Alles staat als comment in #171, met een voorstel (negeer een `stopOverride` van vóór `scheduledStart`
+  in `stopReden()`, overrides meeschuiven in `mergePlanning`, planner-melding bij Concept). Nog niet
+  gebouwd: Peter heeft akkoord gegeven voor het voorstel, maar de deploy wacht tot er niets meer zendt.
+
 ## Wat er nog open staat
+- **#171:** de drie fixes uit het voorstel (zie punt 5), na het toernooi, plus een punt in
+  [../faq-storingen.md](../faq-storingen.md).
 - **#158:** UniFi Protect-live view van de T16-camera op High naast T15, videokwaliteit (4K / Enhanced
   H.265 / Custom 12–16 Mbps / FPS Auto), welk kwaliteitskanaal de RTSP-link van T16 gebruikt, lens,
   en of de camera vanochtend verbindingen verloor. Peter kon er vanuit huis niet bij; kan via een
