@@ -18,6 +18,10 @@ const TAFELS = {
   16: 61403803, 17: 74876986, 18: 74877322, 19: 74877334,
 };
 const CAMERA_TAFELS = [1, 3, 15, 16];
+// Tafels waarop een challenge aangemaakt kan worden. Het challenge-formulier van Cuescore
+// biedt alleen tafel 1 t/m 16 aan (gecontroleerd 04-10-2026); 17-19 (English pool, carambole)
+// staan er niet tussen. Hun id's blijven in TAFELS staan voor als dat verandert.
+const CHALLENGE_TAFELS = Object.fromEntries(Object.entries(TAFELS).filter(([nr]) => Number(nr) <= 16));
 
 const cookieHeader = (cookies) => Object.entries(cookies || {}).map(([k, v]) => `${k}=${v}`).join('; ');
 
@@ -154,4 +158,26 @@ async function maakChallenge(cookies, { tegenstanderId, tafel, discipline = 3, r
   };
 }
 
-module.exports = { login, sessieGeldig, zoekSpelers, maakChallenge, TAFELS, CAMERA_TAFELS, VENUE_ID };
+// Shot clock van een wedstrijd instellen — dezelfde aanroep die het scorebord zelf doet
+// (Scoreboard.Actions.saveShotclockSettings in scoreboard-v2.js, uitgelezen 04-10-2026).
+// De instellingen horen bij de wedstrijd, dus dit kan pas na het aanmaken (matchId).
+// Verlenging: Cuescore's eigen standaard (1 keer 30 s). Nog NIET live getest.
+function shotclockInstellingen(seconden) {
+  return { active: true, length: Number(seconden), extensions: 1, extensionLength: 30 };
+}
+
+async function zetShotclock(cookies, matchId, seconden) {
+  const res = await haal(`/ajax/scoreboard-v2/save-settings.php?matchId=${encodeURIComponent(matchId)}`, cookies, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+      'X-Requested-With': 'XMLHttpRequest',
+      Referer: `${BASIS}/scoreboard/?code=personal`,
+      Origin: BASIS,
+    },
+    body: new URLSearchParams({ shotclock: JSON.stringify(shotclockInstellingen(seconden)) }),
+  });
+  return { ok: res.status >= 200 && res.status < 300, status: res.status };
+}
+
+module.exports = { login, sessieGeldig, zoekSpelers, maakChallenge, zetShotclock, shotclockInstellingen, TAFELS, CHALLENGE_TAFELS, CAMERA_TAFELS, VENUE_ID };
