@@ -23,6 +23,7 @@ function publiek(record) {
     naam: record.naam || '',
     email: record.email || '',
     sjablonen: record.sjablonen || [],
+    recent: record.recent || [],
     aangemaakt: record.aangemaakt || null,
     laatstGebruikt: record.laatstGebruikt || null,
   };
@@ -42,6 +43,7 @@ async function koppel(email, wachtwoord) {
     geheim: versleutel(wachtwoord, await haalSleutel()),
     cookies: poging.cookies,
     sjablonen: (bestaand && bestaand.sjablonen) || [STANDAARD],
+    recent: (bestaand && bestaand.recent) || [],
     aangemaakt: (bestaand && bestaand.aangemaakt) || new Date().toISOString(),
     laatstGebruikt: new Date().toISOString(),
   };
