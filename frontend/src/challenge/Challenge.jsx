@@ -61,8 +61,8 @@ function Bal({ soort, nr }) {
   return (
     <span className="relative flex items-center justify-center w-11 h-11 rounded-full shrink-0"
           style={{ background: BAL_STIJL[soort], boxShadow: 'inset -5px -6px 10px rgba(0,0,0,.35), 0 2px 5px rgba(0,0,0,.5)' }}>
-      <span className="flex items-center justify-center w-[22px] h-[22px] rounded-full bg-white text-[#111] font-bold"
-            style={{ fontSize: nr.length > 2 ? 9 : 12 }}>{nr}</span>
+      <span className="flex items-center justify-center w-[1.375rem] h-[1.375rem] rounded-full bg-white text-[#111] font-bold"
+            style={{ fontSize: nr.length > 2 ? '0.5625rem' : '0.75rem' }}>{nr}</span>
     </span>
   );
 }
@@ -74,7 +74,7 @@ function Voortgang({ stap }) {
       {STAPPEN.map((naam, i) => (
         <div key={naam} className="flex-1">
           <div className={`h-1 rounded-full ${i <= stap ? 'bg-brand' : 'bg-surface-raised'}`} />
-          <small className={`block mt-1.5 text-[10px] ${i === stap ? 'text-ink font-bold' : 'text-ink-muted/70'}`}>{naam}</small>
+          <small className={`block mt-1.5 text-[0.625rem] ${i === stap ? 'text-ink font-bold' : 'text-ink-muted/70'}`}>{naam}</small>
         </div>
       ))}
     </div>
@@ -176,7 +176,7 @@ function SpelerRij({ s, gekozen, onKies }) {
         <span className="block truncate font-bold">{s.naam}</span>
         {/* The id as well, so you can check you have the right one of thirteen namesakes
             before the challenge is created. */}
-        <span className="block text-[11px] text-ink-muted truncate">
+        <span className="block text-[0.6875rem] text-ink-muted truncate">
           {info.join(' · ')}{info.length ? ' · ' : ''}#{s.playerId}
         </span>
       </span>
@@ -388,7 +388,7 @@ export default function Challenge() {
 
       <button onClick={() => setZoeken(!zoeken)}
               className={`${knop} ${knopUit} w-full text-left mt-3 flex items-center gap-2`}>
-        <span aria-hidden="true">🔍</span> Search another player…
+        <span aria-hidden="true">🔍</span> Search playername
       </button>
       {zoeken && <ZoekSpeler onKies={(x) => { setTegenstander(x); setZoeken(false); }} />}
 
@@ -397,12 +397,12 @@ export default function Challenge() {
           <KleurTegel open={openFav} onToggle={() => setOpenFav(!openFav)}
                       className="border-[#22a559] text-white"
                       stijl={{ background: 'linear-gradient(180deg,#1d7a45,#145c33)' }}>
-            <Ster className="w-[22px] h-[22px] text-[#f5c518]" /> Favorites
+            <Ster className="w-[1.375rem] h-[1.375rem] text-[#f5c518]" /> Favorites
           </KleurTegel>
           {openFav && (
             <div className="mt-2">
               <div className="flex items-baseline justify-between mb-1">
-                <p className="text-[11px] text-ink-muted">Tap a favorite to fill everything in.</p>
+                <p className="text-[0.6875rem] text-ink-muted">Tap a favorite to fill everything in.</p>
                 <button onClick={() => setBewerken(!bewerken)} className="text-xs text-ink-muted underline shrink-0 ml-2">
                   {bewerken ? 'done' : 'edit'}
                 </button>
@@ -572,7 +572,7 @@ export default function Challenge() {
       <button onClick={bewaarAlsFavoriet} disabled={bewaard}
               className="w-full mt-5 rounded-xl border border-[#22a559] px-4 py-4 font-bold text-base text-white flex items-center justify-center gap-2.5 disabled:opacity-80"
               style={{ background: 'linear-gradient(180deg,#1d7a45,#145c33)' }}>
-        <Ster className="w-[22px] h-[22px] text-[#f5c518]" />
+        <Ster className="w-[1.375rem] h-[1.375rem] text-[#f5c518]" />
         {bewaard ? 'Saved as favorite' : 'Save as favorite'}
       </button>
     </>
@@ -618,7 +618,7 @@ export default function Challenge() {
             <a href={klaar.url} target="_blank" rel="noreferrer"
                className="flex items-center justify-center gap-2.5 rounded-xl border border-[#d0d0d0] px-4 py-3.5 font-bold text-[#222]"
                style={{ background: 'linear-gradient(180deg,#f0f0f0,#d8d8d8)' }}>
-              <img src="/cuescore-logo.png" alt="" className="w-[26px] h-[26px] rounded-md" />
+              <img src="/cuescore-logo.png" alt="" className="w-[1.625rem] h-[1.625rem] rounded-md" />
               Open in Cuescore ↗
             </a>
             <button onClick={opnieuw}
