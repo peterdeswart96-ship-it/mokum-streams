@@ -12,7 +12,7 @@ const { versleutel, ontsleutel, nieuweHoofdsleutel } = require('../src/challenge
 const { maakToken, leesToken, ledId } = require('../src/challenge/token');
 const { normaliseerSjabloon, normaliseerSjablonen, MAX_SJABLONEN, MAX_NAAM, DISCIPLINES, schoneShotclock } = require('../src/challenge/sjablonen');
 const { onthoudSpeler, schoneSpeler, MAX_RECENT } = require('../src/challenge/recent');
-const { shotclockInstellingen } = require('../src/challenge/cuescore');
+const { shotclockInstellingen, matchUrl } = require('../src/challenge/cuescore');
 
 // ── Kluis ────────────────────────────────────────────────────────────────────
 
@@ -249,4 +249,8 @@ test('shotclock: instellingen hebben de vorm die het scorebord zelf opslaat', ()
 test('speltypes: namen zijn Engels', () => {
   assert.strictEqual(DISCIPLINES[201], 'One cushion (carom)');
   assert.ok(!Object.values(DISCIPLINES).some((n) => /band|carambole/i.test(n)));
+});
+
+test('link naar Cuescore: de wedstrijdpagina, niet /challenge/<id> (die bestaat niet)', () => {
+  assert.strictEqual(matchUrl(90554992), 'https://cuescore.com/match/?matchId=90554992');
 });
