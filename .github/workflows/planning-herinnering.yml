@@ -1,6 +1,6 @@
 name: Herinnering ongeplande toernooien
 
-# Kijkt 's middags of er vanavond een toernooi speelt dat nog niet is ingepland. Zo ja, dan
+# Kijkt 's ochtends of er vandaag een toernooi speelt dat nog niet is ingepland. Zo ja, dan
 # een mailtje; zo nee, dan hoor je niets. Dat laatste is belangrijk: een bericht dat elke dag
 # komt wordt genegeerd, en dan mis je 'm juist op de dag dat het ertoe doet.
 #
@@ -9,11 +9,13 @@ name: Herinnering ongeplande toernooien
 # precies 15:00 in Amsterdam was; die maakte van elke vertraging stilte, en toen kwam er dus
 # geen herinnering. Nu: één cron, geen poortwachter.
 #
-# 11:00 UTC is 13:00 in de zomer en 12:00 in de winter. Met de gebruikelijke vertraging landt
-# het bericht ruim vóór een avondtoernooi, en dat is het enige dat telt.
+# 06:00 UTC is 08:00 in de zomer en 07:00 in de winter. Sinds 04-10 zo vroeg: toernooien
+# beginnen soms al om 11:00 (04-10: 5th Anniversary OnePocket.org), en de run van 11:00 UTC
+# kwam toen pas om 17:31 lokaal. Het script slaat toernooien over waarvan de starttijd al
+# voorbij is, dus een late run levert stilte op en geen mail die te laat komt.
 on:
   schedule:
-    - cron: '0 11 * * *'
+    - cron: '0 6 * * *'
   workflow_dispatch:
 
 permissions:
