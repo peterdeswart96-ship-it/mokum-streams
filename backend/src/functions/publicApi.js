@@ -60,6 +60,9 @@ app.http('publicLive', {
     // podium = medaillescherm van een net-afgerond toernooi (winnaar-moment #54), of null.
     // Zaalbreed — zie podiumPerTafel hieronder voor de per-tafel-versie (#104).
     const podium = liveMatches.podium || null;
+    // toernooien = de toernooien van vandaag volgens onze backend (id/naam/status), voor de
+    // toernooi-dropdown op Mokum Live. Leeg tot de liveMatches-timer het veld schrijft.
+    const toernooien = Array.isArray(liveMatches.toernooien) ? liveMatches.toernooien : [];
     // podiumPerTafel: per cameratafel welk podium DIE tafel moet tonen, ongeacht wat er op
     // een andere cameratafel speelt. { "1": {...} | null, "3": ..., ... }.
     const podiumPerTafel = liveMatches.podiumPerTafel || {};
@@ -70,6 +73,7 @@ app.http('publicLive', {
       generatedAt: now.toISOString(),
       venueLive,
       venueTables,
+      toernooien,
       podium,
       podiumPerTafel,
       ticker,
