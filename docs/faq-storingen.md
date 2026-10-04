@@ -58,3 +58,19 @@ Zolang dat open staat, moet bij een meerdaags toernooi elke dag de eindtijd voor
 ## Nog toe te voegen
 Dit bestand groeit mee met nieuwe incidenten. Bij elk afgerond issue over een
 herkenbare storing: hier een punt bij, met de link naar het issue voor de details.
+
+---
+
+## Medaillescherm van het vorige toernooi op een tafel van een ander toernooi
+
+**Wat je ziet:** een toernooi is net afgelopen en op een tafel waar een ánder toernooi
+zendt (nog zonder partij) verschijnt het podium van het eerste toernooi, bijvoorbeeld
+zodra de jumbotron aan gaat.
+
+**Wat je zelf kunt doen (als het toch nog voorkomt):**
+1. Zet de jumbotron van die tafel uit in het dashboard.
+2. Geef het door; dan kijken we of de stream aan het juiste toernooi hangt.
+3. Na een deploy duurt het tot een minuut voordat de nieuwe regel meetelt.
+
+**Structureel opgelost?** Ja, sinds 04-10: een podium verschijnt alleen op een tafel
+waar de stream bij hetzelfde toernooi hoort. Zie [#178](https://github.com/peterdeswart96-ship-it/mokum-streams/issues/178).

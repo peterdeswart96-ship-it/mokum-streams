@@ -57,12 +57,16 @@ async function verwerk(now, context) {
     context.warn(`[liveMatches] broadcast-store niet leesbaar (${e.message}) → podium zonder stream-controle.`);
   }
   const podiumTafels = podiumPerTafel(tournaments, cameras, streamToernooi);
+  // toernooien = id + naam + status van wat onze backend als "vandaag" ziet (organisatiepagina).
+  // De publieke Mokum Live-pagina kreeg zijn lijst uit Cuescore's venue/events, en daar ontbrak
+  // het lopende toernooi (04-10: Mokum Multiball 2) terwijl oude leagues er wél in stonden.
+  const toernooien = tournaments.map((t) => ({ id: t.id, name: t.name || '', status: t.status || '' }));
   // `updatedAt` buiten de vergelijking, anders verschilt er per definitie elke ronde iets
   // en schrijven we alsnog elke minuut. Tussen twee wedstrijden in verandert er soms een
   // half uur niets — dan hoeft er ook niets naar de opslag (#101).
   const geschreven = await writeJsonAlsGewijzigd(
     'live-matches.json',
-    { updatedAt: now.toISOString(), matches, venueLive, venueTables, podium, podiumPerTafel: podiumTafels },
+    { updatedAt: now.toISOString(), matches, venueLive, venueTables, podium, podiumPerTafel: podiumTafels, toernooien },
     { negeer: ['updatedAt'] },
   );
   const live = Object.values(matches).filter((m) => m && m.status === 'playing').length;

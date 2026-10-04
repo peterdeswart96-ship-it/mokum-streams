@@ -18,6 +18,7 @@ GET /api/live
 Antwoord:
 {
   "generatedAt": "2026-07-08T18:00:00Z",
+  "toernooien": [ { "id": 90541678, "name": "Mokum Multiball 2", "status": "Active" } ],   // v0.71: toernooien van vandaag volgens onze backend (organisatiepagina); leeg tot de timer draait
   "venueLive": 7 | null,          // totaal aantal lopende wedstrijden in de héle zaal (alle toernooien), los van welke tafels wij filmen; null = onbekend
   "tables": [
     {
@@ -1139,3 +1140,13 @@ Regels:
      er wél: het antwoord heeft `shotclock: false` en de pagina wijst naar het menu op de iPad.
   3. **English pool weg** uit de speltypes en **tafels 17-19 weg** uit `alleTafels`: het
      challenge-formulier van Cuescore biedt alleen tafel 1 t/m 16 aan. Speltypenamen zijn Engels.
+
+- 2026-10-04: v0.71 — **Mokum Live: toernooi-dropdown mist het lopende toernooi**. De pagina haalde de
+  toernooien van vandaag uit Cuescore's `venue/events`, maar daar staat "Mokum Multiball 2" niet in
+  (wel oude leagues en afgelopen toernooien). Onze backend vindt het toernooi wél, via de
+  organisatiepagina. Achterwaarts compatibel:
+  1. `GET /api/live` krijgt een array **`toernooien`**: `{ id, name, status }` per toernooi van vandaag
+     volgens `getTodaysTournaments` (bron: `live-matches.json`). Ontbreekt het veld (oude blob), dan
+     valt de pagina terug op `venue/events`.
+  2. De pagina combineert beide lijsten en toont alleen toernooien die niet afgerond zijn én vandaag
+     iets spelen of gepland hebben.
