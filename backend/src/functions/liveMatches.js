@@ -3,6 +3,7 @@ const { readJson, writeJsonAlsGewijzigd } = require('../storage/blob');
 const { getTodaysTournaments } = require('../cuescore');
 const { bouwLiveMatches, telZaalLive, bouwZaalRaster } = require('../planning/pauze');
 const { podiumVoorZaal, podiumPerTafel } = require('../planning/podium');
+const { zaalDag } = require('../schedule/schedule');
 
 // Timer-Function: haalt periodiek de live wedstrijd-status per cameratafel op uit
 // Cuescore en schrijft die naar live-matches.json. Puur lees-werk (geen streams/
@@ -44,7 +45,18 @@ async function verwerk(now, context) {
   // podiumPerTafel: zelfde afleiding, maar per cameratafel — een tafel waarvan het EIGEN
   // toernooi klaar is toont zijn podium, ongeacht wat er op een andere cameratafel speelt.
   // Actief zodra de jumbotron-OBS-bron van die tafel `?tafel=N` in de URL heeft staan.
-  const podiumTafels = podiumPerTafel(tournaments, cameras);
+  // Lopende streams per tafel → toernooi-id, zodat een podium alleen op tafels komt waar de stream
+  // bij dat toernooi hoort (04-10). Een mislukte lezing mag de timer niet stuk maken.
+  const streamToernooi = {};
+  try {
+    const store = (await readJson(`broadcasts/${zaalDag(now)}.json`, {})) || {};
+    for (const e of Object.values(store)) {
+      if (e && !e.stopped && e.tournamentId != null) streamToernooi[Number(e.tableNumber)] = e.tournamentId;
+    }
+  } catch (e) {
+    context.warn(`[liveMatches] broadcast-store niet leesbaar (${e.message}) → podium zonder stream-controle.`);
+  }
+  const podiumTafels = podiumPerTafel(tournaments, cameras, streamToernooi);
   // `updatedAt` buiten de vergelijking, anders verschilt er per definitie elke ronde iets
   // en schrijven we alsnog elke minuut. Tussen twee wedstrijden in verandert er soms een
   // half uur niets — dan hoeft er ook niets naar de opslag (#101).

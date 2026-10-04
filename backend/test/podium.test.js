@@ -240,3 +240,14 @@ test('podiumPerTafel: oudere activiteit op de tafel wist een nieuwer podium niet
   assert.strictEqual(podiumPerTafel([ranking, league], CAMS)[3].tournamentName, 'Ranking');
   assert.strictEqual(podiumPerTafel([league, ranking], CAMS)[3].tournamentName, 'Ranking');
 });
+
+// 04-10: Multiball 2 streamde op tafel 1 en 3 zonder dat Cuescore er al een wedstrijd aan had
+// gekoppeld; het net afgeronde OnePocket-toernooi claimde die tafels en kwam op beide streams.
+test('podiumPerTafel: stream van een ander toernooi (zonder wedstrijden op tafel) krijgt het podium niet', () => {
+  const klaar = { id: 111, name: 'OnePocket', matches: [opTafel(match('Final', 'finished', 'Anna', 5, 'Bob', 2), 15), opTafel(match('Quarter final', 'finished', 'X', 3, 'Y', 0), 3)] };
+  const nieuw = { id: 222, name: 'Multiball 2', matches: [] };
+  const uit = podiumPerTafel([nieuw, klaar], CAMS, { 1: 222, 3: 222 });
+  assert.strictEqual(uit[3], null);                       // stream is van Multiball 2
+  assert.strictEqual(uit[15].tournamentName, 'OnePocket'); // geen stream-info → oud gedrag
+  assert.strictEqual(podiumPerTafel([nieuw, klaar], CAMS, { 3: 111 })[3].tournamentName, 'OnePocket'); // eigen stream
+});
