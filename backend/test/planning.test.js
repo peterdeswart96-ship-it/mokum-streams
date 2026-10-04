@@ -61,6 +61,21 @@ test('mergePlanning behoudt handmatige keuzes en ververst Cuescore-velden', () =
   assert.ok(adhoc, 'ad-hoc record blijft behouden');
 });
 
+test('mergePlanning: verzet Cuescore de startdatum, dan schuift ook `date` mee (3 okt, dag 2 main event)', () => {
+  const bestaand = [{
+    tournamentId: 74776897, name: '5th Anniversary edition OnePocket.org Member tournament',
+    date: '2026-10-02', plannedStart: '2026-10-02T07:00:00Z', plannedStop: '2026-10-02T19:59:00Z',
+    source: 'cuescore', tafels: [1, 3, 15, 16],
+  }];
+  const imported = [{ id: 74776897, name: '5th Anniversary edition OnePocket.org Member tournament',
+    start: '2026-10-03T07:00:00Z', stop: '2026-10-03T19:59:00Z' }];
+
+  const [r] = mergePlanning(bestaand, imported);
+  assert.strictEqual(r.date, '2026-10-03');
+  assert.strictEqual(r.plannedStart, '2026-10-03T07:00:00Z');
+  assert.deepStrictEqual(r.tafels, [1, 3, 15, 16]); // handmatige keuzes blijven
+});
+
 test('mergePlanning: een niet meer gezien ID met dezelfde naam+datum als een nieuw ID wordt vervangen, geen dubbelganger (incident 09-09/10-09)', () => {
   const bestaand = [
     {
