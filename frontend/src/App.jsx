@@ -1195,49 +1195,79 @@ function Preview({ table, onClose }) {
 // Toont de echte YouTube-stream van een gekozen tafel, zodat je overlay-wijzigingen
 // op het beeld kunt controleren (met de normale YouTube-vertraging). Gebruikt
 // liveVideoId (uit /api/live) — werkt ook voor handmatig gestarte streams.
+//
+// Inklapbaar, net als de Toernooi planner: de titel en de tafelknoppen staan altijd in beeld,
+// alleen de video klapt weg. Een klik op een tafelknop klapt het paneel ook open. De keuze
+// (open/dicht) onthoudt de browser; lukt dat niet, dan start het paneel dicht.
+const LS_STREAM_OPEN = 'dashboard_stream_open';
+
+// Eén tafelknop: cijfer + YouTube-logo. Offline = alles grijs; live = rood gloeiend cijfer en het
+// YouTube-icoon met dezelfde gloed als op de tafelkaarten.
+function TafelKnop({ nr, live, gekozen, onClick }) {
+  return (
+    <button onClick={onClick} aria-pressed={gekozen}
+            title={live ? `Tafel ${nr} — live op YouTube` : `Tafel ${nr} — niet live`}
+            className={`flex items-center gap-2 rounded-xl border-2 pl-1.5 pr-2 py-1 transition ${
+              gekozen ? 'border-white bg-black/40' : 'border-transparent bg-black/20 hover:bg-black/35'
+            }`}>
+      <span className={`w-9 h-9 rounded-full flex items-center justify-center font-display text-base transition ${
+        live ? 'bg-brand text-white nr-live' : 'bg-neutral-500 text-neutral-200'
+      }`}>{nr}</span>
+      <img src="/youtube.png" alt="" className={`w-9 h-9 rounded-lg transition ${live ? 'yt-live' : 'grayscale opacity-40'}`} />
+    </button>
+  );
+}
+
 function StreamPaneel({ tables }) {
   const [sel, setSel] = useState(CAMERAS[0]);
+  const [open, setOpenState] = useState(() => {
+    try { return localStorage.getItem(LS_STREAM_OPEN) === '1'; } catch { return false; }
+  });
+  const zetOpen = (v) => {
+    setOpenState(v);
+    try { localStorage.setItem(LS_STREAM_OPEN, v ? '1' : '0'); } catch { /* geen opslag? dan onthoudt hij het niet */ }
+  };
   const t = tables.find((c) => c.tableNumber === sel) || tables[0];
   const vid = t && (t.liveVideoId || t.videoId);
   return (
-    <div className="bg-surface border border-line rounded-lg shadow-lg p-4 mt-4">
-      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-        <h3 className="font-display">Livestream</h3>
-        <div className="flex gap-1.5 flex-wrap">
-          {tables.map((c) => {
-            const heeft = !!(c.liveVideoId || c.videoId);
-            const actief = t && c.tableNumber === t.tableNumber;
-            return (
-              <button key={c.tableNumber} onClick={() => setSel(c.tableNumber)}
-                className={`px-3 py-1 rounded text-sm border flex items-center gap-1.5 ${
-                  actief ? 'bg-brand border-brand text-white' : 'bg-surface-raised border-line text-ink-muted'
-                }`}>
-                {heeft && <span className="w-1.5 h-1.5 rounded-full bg-brand-light" />}
-                Tafel {c.tableNumber}
-              </button>
-            );
-          })}
+    <div className="bg-[#3b3f45] text-white border-2 border-[#5c626a] rounded-lg shadow-lg mt-4">
+      <div className="flex items-center justify-between gap-3 px-4 py-2 flex-wrap min-h-[68px]">
+        <button onClick={() => zetOpen(!open)} aria-expanded={open}
+                className="flex items-center gap-2 py-1 text-left">
+          <span className="font-display">Nu live op YouTube</span>
+          <span className={`text-neutral-300 text-sm transition-transform ${open ? 'rotate-180' : ''}`}>▾</span>
+        </button>
+        <div className="flex gap-2 flex-wrap">
+          {tables.map((c) => (
+            <TafelKnop key={c.tableNumber} nr={c.tableNumber} live={c.status === 'live'}
+                       gekozen={!!t && c.tableNumber === t.tableNumber}
+                       onClick={() => { setSel(c.tableNumber); zetOpen(true); }} />
+          ))}
         </div>
       </div>
-      {vid ? (
-        <div className="relative w-full" style={{ paddingTop: '56.25%' }}>
-          <iframe
-            key={vid}
-            className="absolute inset-0 w-full h-full rounded"
-            src={`https://www.youtube.com/embed/${vid}?autoplay=1&mute=1`}
-            title={`Tafel ${t.tableNumber} livestream`}
-            allow="autoplay; encrypted-media; picture-in-picture"
-            allowFullScreen
-          />
-        </div>
-      ) : (
-        <div className="text-ink-muted text-sm py-12 text-center border border-line rounded bg-canvas">
-          Geen livestream gevonden voor Tafel {t && t.tableNumber}.
+      {open && (
+        <div className="px-4 pb-4">
+          {vid ? (
+            <div className="relative w-full" style={{ paddingTop: '56.25%' }}>
+              <iframe
+                key={vid}
+                className="absolute inset-0 w-full h-full rounded"
+                src={`https://www.youtube.com/embed/${vid}?autoplay=1&mute=1`}
+                title={`Tafel ${t.tableNumber} livestream`}
+                allow="autoplay; encrypted-media; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          ) : (
+            <div className="text-ink-muted text-sm py-12 text-center border border-line rounded bg-canvas">
+              Geen livestream gevonden voor Tafel {t && t.tableNumber}.
+            </div>
+          )}
+          <p className="text-[11px] text-neutral-300 mt-2">
+            YouTube-vertraging ~10-30s — overlay-wijzigingen zie je met wat vertraging.
+          </p>
         </div>
       )}
-      <p className="text-[11px] text-neutral-500 mt-2">
-        YouTube-vertraging ~10-30s — overlay-wijzigingen zie je met wat vertraging.
-      </p>
     </div>
   );
 }
@@ -1433,24 +1463,30 @@ function ToernooiPlanner({ onGepland }) {
   const annuleer = (r) => doe(() => updatePlanning(r.tournamentId, { planned: false }), 'Annuleren mislukt');
   const ververs = () => doe(() => refreshPlanning(), 'Verversen mislukt');
 
-  const aantalGepland = Array.isArray(records) ? records.filter((r) => r.planned).length : 0;
+  // Hoeveel toernooien staan er VANDAAG ingepland? Zaaldag: vóór 06:00 telt nog als gisteren
+  // (zelfde grens als de backend), zodat een toernooi dat na middernacht doorloopt blijft meetellen.
+  const zaalVandaag = (() => {
+    const d = new Date(Date.now() - 6 * 3600 * 1000);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  })();
+  const aantalVandaag = Array.isArray(records) ? records.filter((r) => r.planned && r.date === zaalVandaag).length : null;
   const cell = 'px-2 py-2 align-middle';
   const sel = 'bg-canvas border border-line rounded px-1.5 py-1 text-xs text-ink disabled:opacity-60';
 
   return (
-    <div className="bg-surface border border-line rounded-lg shadow-lg">
+    <div className="bg-surface border-2 border-blue-900 rounded-lg shadow-lg overflow-hidden">
       <button onClick={() => setOpen((o) => !o)} aria-expanded={open}
-              className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left">
+              className="w-full flex items-center justify-between gap-3 px-4 py-2 min-h-[68px] text-left bg-blue-100 text-blue-950">
         <span className="font-display flex items-center gap-2">
           Toernooi planner
-          {aantalGepland > 0 && (
-            <span className="text-xs font-medium text-emerald-300 bg-emerald-500/10 border border-emerald-500/40 rounded-full px-2 py-0.5">{aantalGepland} toernooi{aantalGepland === 1 ? '' : 'en'} ingepland</span>
-          )}
+          {aantalVandaag != null && (aantalVandaag > 0
+            ? <span className="text-sm font-bold text-green-700">Vandaag ingepland: {aantalVandaag} toernooi{aantalVandaag === 1 ? '' : 'en'}</span>
+            : <span className="text-sm font-bold text-red-600">Vandaag geen toernooien gepland</span>)}
         </span>
-        <span className={`text-ink-muted text-sm transition-transform ${open ? 'rotate-180' : ''}`}>▾</span>
+        <span className={`text-blue-900 text-sm transition-transform ${open ? 'rotate-180' : ''}`}>▾</span>
       </button>
       {open && (
-        <div className="px-4 pb-4">
+        <div className="px-4 pt-3 pb-4">
           {records == null ? (
             <p className="text-sm text-ink-muted">Laden…</p>
           ) : records.length === 0 ? (
