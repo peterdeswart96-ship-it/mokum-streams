@@ -11,7 +11,6 @@ const REFRESH_MS = 5000;
 // commando's elke ~5s op, dus 60s is ruim genoeg voor een gezonde agent.
 const STOP_REFRESH_MS = 2000;
 const STOP_WACHT_MAX_MS = 60000;
-const VERVERS_LOCK_MS = 8000; // iets langer dan de pollinterval van de agent (5 s)
 
 // De schakelbare overlays (sleutel = API-veld, label = wat de gebruiker ziet,
 // desc = wat het toont, pos = waar op het beeld, groep = content|pauze, defaultOn =
@@ -218,7 +217,7 @@ function Overzicht({ tables, venueLive }) {
     </div>
   );
   return (
-    <div className="bg-surface border border-line rounded-lg shadow-lg p-4 mb-4">
+    <div className="bg-[#3b3f45] border-2 border-[#5c626a] rounded-lg shadow-lg p-4 mb-4">
       <div className="flex items-center gap-x-6 gap-y-2 flex-wrap">
         <Stat n={`${live.length}/${tables.length}`} label="live" kleur="text-brand-light"
               uitleg="Tafels die nu uitzenden" />
@@ -294,17 +293,8 @@ function YouTubeIcoon({ table }) {
   return <span className="shrink-0" title={live ? 'Live op YouTube' : 'Offline'}>{img}</span>;
 }
 
-function TableCard({ table, onStop, onOverlay, onRefresh, onPreview, busy, stopt }) {
+function TableCard({ table, onStop, onOverlay, onPreview, busy, stopt }) {
   const actief = table.status === 'live' || table.status === 'scheduled';
-  // Na een klik op "Ververs" blijft de knop even op slot: de agent haalt commando's pas om de
-  // ~5 s op, en zonder terugkoppeling klikt iemand drie keer (zie #159).
-  const [ververst, setVerversT] = useState(false);
-  const ververs = async () => {
-    if (table.status === 'live' && !window.confirm(`Tafel ${table.tableNumber} is live. Het scorebord is even (ongeveer een seconde) uit beeld. Doorgaan?`)) return;
-    setVerversT(true);
-    await onRefresh(table.tableNumber);
-    setTimeout(() => setVerversT(false), VERVERS_LOCK_MS);
-  };
   // Overlay-toggles: lokaal-optimistisch, maar volgen de echte OBS-stand zodra de
   // agent die meldt (table.overlays). Zonder agent-data blijft het lokale gedrag.
   const serverOv = table.overlays;
@@ -361,16 +351,6 @@ function TableCard({ table, onStop, onOverlay, onRefresh, onPreview, busy, stopt
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <span className="text-xs text-neutral-500 uppercase tracking-wide">Pauze</span>
         {PAUZE_OVERLAYS.map(toggle)}
-      </div>
-      <div className="mt-2">
-        <button
-          disabled={busy || ververst}
-          onClick={ververs}
-          title="Herlaadt Scoreboard en Jumbotron in OBS, zonder de stream te herstarten"
-          className="text-xs text-ink-muted hover:text-ink underline disabled:opacity-40 disabled:no-underline"
-        >
-          {ververst ? 'Bezig met verversen…' : '↻ Ververs beeldbronnen'}
-        </button>
       </div>
       <div className="mt-3 flex gap-2">
         {table.status === 'live' && table.videoId && (
@@ -1476,14 +1456,18 @@ function ToernooiPlanner({ onGepland }) {
   return (
     <div className="bg-[#3b3f45] border-2 border-[#5c626a] rounded-lg shadow-lg overflow-hidden">
       <button onClick={() => setOpen((o) => !o)} aria-expanded={open}
-              className="w-full flex items-center justify-between gap-3 px-4 py-2 min-h-[68px] text-left text-white">
-        <span className="font-display flex items-center gap-2">
-          Toernooi planner
-          {aantalVandaag != null && (aantalVandaag > 0
-            ? <span className="text-sm font-bold text-green-400">Vandaag ingepland: {aantalVandaag} toernooi{aantalVandaag === 1 ? '' : 'en'}</span>
-            : <span className="text-sm font-bold text-red-400">Vandaag geen toernooien gepland</span>)}
-        </span>
-        <span className={`text-neutral-300 text-sm transition-transform ${open ? 'rotate-180' : ''}`}>▾</span>
+              className="w-full grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 py-2 min-h-[68px] text-left text-white">
+        <span className="font-display flex items-center gap-2">Toernooi planner <span aria-hidden="true">📅</span></span>
+        {/* Midden: "Vandaag" + het aantal ingeplande toernooien in een cirkel — groen bij 1 of meer,
+            rood bij 0. Zo zie je zonder te lezen of er vandaag iets gepland is. */}
+        {aantalVandaag != null ? (
+          <span className="flex items-center gap-2 font-display"
+                title={aantalVandaag > 0 ? `Vandaag staan er ${aantalVandaag} toernooi${aantalVandaag === 1 ? '' : 'en'} ingepland` : 'Vandaag staat er geen toernooi ingepland'}>
+            Vandaag
+            <span className={`w-8 h-8 rounded-full flex items-center justify-center ${aantalVandaag > 0 ? 'bg-green-500' : 'bg-red-600'}`}>{aantalVandaag}</span>
+          </span>
+        ) : <span />}
+        <span className={`justify-self-end text-neutral-300 text-sm transition-transform ${open ? 'rotate-180' : ''}`}>▾</span>
       </button>
       {open && (
         <div className="px-4 pt-3 pb-4">
@@ -1539,8 +1523,11 @@ function ToernooiPlanner({ onGepland }) {
                     // Vaste start- en eindtijden gelden daar niet voor (#86).
                     const competitie = (r.type || 'tournament') === 'competition';
                     const eindDatum = (r.plannedStop || '').slice(0, 10);
+                    // Staat dit toernooi VANDAAG op de planning? Dan krijgt de rij een groene kleur met een
+                    // donkergroen randje, zodat je in één oogopslag ziet wat er vanavond gebeurt.
+                    const vandaagGepland = r.date === zaalVandaag && (status === 'gepland' || status === 'live');
                     return (
-                      <tr key={r.tournamentId} className="border-b border-line/50">
+                      <tr key={r.tournamentId} className={`border-b border-line/50 ${vandaagGepland ? 'bg-green-400/20 outline outline-1 -outline-offset-1 outline-green-600' : ''}`}>
                         <td className={cell}>
                           {status === 'concept' && (
                             <button onClick={() => setConfirm(r)} disabled={bezig || cur.tafels.length === 0}
@@ -1842,7 +1829,7 @@ export default function App() {
       <main className="max-w-7xl mx-auto p-4 sm:p-6">
         <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
           <button onClick={() => setWizard(true)}
-                  className="bg-brand hover:bg-brand-dark text-white rounded-lg px-4 py-2 font-medium shadow-lg">
+                  className="bg-brand/20 hover:bg-brand/30 border border-brand text-ink rounded px-3 py-2 text-sm font-medium">
             + Nieuwe stream
           </button>
           <div className="flex items-center gap-4 flex-wrap">
@@ -1878,7 +1865,6 @@ export default function App() {
                   stopt={t.tableNumber in stoppend}
                   onStop={stopTafel}
                   onOverlay={wijzigOverlay}
-                  onRefresh={verversBronnen}
                   onPreview={(tafel) => setPreview(tafel)}
                 />
               ))}
