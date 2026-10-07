@@ -1,6 +1,7 @@
 const { app } = require('@azure/functions');
 const { isAdmin } = require('../admin/auth');
-const { getWedstrijdenBijMokum } = require('../mokumCompetitie');
+const { getWedstrijdenBijMokum, getWedstrijdenVandaag } = require('../mokumCompetitie');
+const { zaalDag } = require('../schedule/schedule');
 
 // GET /api/manage/competitie/wedstrijden — voedt de competitie-wizard (#120). Aankomende
 // teamwedstrijden die bij Mokum gespeeld worden, uit het mokum-competitie-project.
@@ -21,6 +22,29 @@ app.http('adminCompetitieWedstrijden', {
         context.warn(`[competitie] wedstrijden ophalen mislukt voor: ${resultaat.mislukt.join(', ')}`);
       }
       return json(200, resultaat);
+    } catch (e) {
+      context.warn(`[FOUT] [competitie] mokum-competitie onbereikbaar: ${e.message}`);
+      return json(502, { error: `mokum-competitie: ${e.message}` });
+    }
+  },
+});
+
+// GET /api/manage/competitie/vandaag — voedt de dashboardbalk "Competitie thuiswedstrijden vandaag":
+// de teamwedstrijden die vandaag bij Mokum gespeeld worden, met spelers en aanvoerder. Admin-beveiligd,
+// read-only. Zie api-contract v0.72.
+app.http('adminCompetitieVandaag', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'manage/competitie/vandaag',
+  handler: async (request, context) => {
+    if (!isAdmin(request)) return json(401, { error: 'niet geautoriseerd' });
+    try {
+      const now = new Date();
+      const resultaat = await getWedstrijdenVandaag({ now });
+      if (resultaat.mislukt.length) {
+        context.warn(`[competitie] wedstrijden ophalen mislukt voor: ${resultaat.mislukt.join(', ')}`);
+      }
+      return json(200, { datum: zaalDag(now), ...resultaat });
     } catch (e) {
       context.warn(`[FOUT] [competitie] mokum-competitie onbereikbaar: ${e.message}`);
       return json(502, { error: `mokum-competitie: ${e.message}` });

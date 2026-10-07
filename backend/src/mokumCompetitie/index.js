@@ -10,6 +10,8 @@
 // op toernooi- en tafelniveau werkt, niet op team-niveau.
 
 const { wedstrijdenBijMokum } = require('./bijMokum');
+const { vandaagUitLijst, metDetails, maakCache } = require('./vandaag');
+const { zaalDag } = require('../schedule/schedule');
 
 const API_BASE =process.env.MOKUM_COMPETITIE_API_URL || 'https://func-mokum-competitie.azurewebsites.net/api';
 const TIMEOUT_MS = 10000;
@@ -75,4 +77,36 @@ async function getWedstrijdenBijMokum() {
   return { wedstrijden: wedstrijdenBijMokum(perTeam), mislukt };
 }
 
-module.exports = { getMokumTeams, getUpcomingMatchesForTeam, getAllUpcomingMokumMatches, getWedstrijdenBijMokum };
+// Details van één wedstrijd (spelers per team, aanvoerder) — dezelfde bron als de detailpagina in de
+// competitie-agenda. teamSlug = één van de Mokum-teams in de wedstrijd.
+async function getWedstrijdDetail(teamSlug, matchId) {
+  const res = await fetch(`${API_BASE}/wedstrijd/${encodeURIComponent(teamSlug)}/${encodeURIComponent(matchId)}`, {
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error(`mokum-competitie /wedstrijd/${teamSlug}/${matchId} gaf ${res.status}`);
+  return res.json();
+}
+
+// Voor de dashboardbalk "Competitie thuiswedstrijden vandaag" (v0.72): de wedstrijden van vandaag bij
+// Mokum, elk met details. Een mislukte detail-aanroep haalt de wedstrijd niet uit de lijst; die
+// komt dan zonder spelers terug (home/away null).
+const vandaagCache = maakCache(10 * 60 * 1000);
+
+async function getWedstrijdenVandaag({ now = new Date() } = {}) {
+  return vandaagCache(zaalDag(now), now, () => haalWedstrijdenVandaag(now));
+}
+
+async function haalWedstrijdenVandaag(now) {
+  const { wedstrijden, mislukt } = await getWedstrijdenBijMokum();
+  const vandaag = vandaagUitLijst(wedstrijden, now);
+  const metDetail = await Promise.all(
+    vandaag.map(async (w) => {
+      const slug = w.teams && w.teams[0] && w.teams[0].teamSlug;
+      const detail = slug ? await getWedstrijdDetail(slug, w.matchId).catch(() => null) : null;
+      return metDetails(w, detail);
+    })
+  );
+  return { wedstrijden: metDetail, mislukt };
+}
+
+module.exports = { getWedstrijdDetail, getWedstrijdenVandaag, getMokumTeams, getUpcomingMatchesForTeam, getAllUpcomingMokumMatches, getWedstrijdenBijMokum };

@@ -83,6 +83,7 @@ GET  /api/manage/defaults            -> standaard-instellingen (één set, zie h
 POST /api/manage/defaults            -> standaard-instellingen wijzigen
 POST /api/manage/streams/start       -> body: { "tableNumber": 15, "title"?: "...", "privacy"?: "public|unlisted|private", "overlays"?: { "sponsors": true, "scoreboard": true, "jumbotron": false }, "tournamentId"?: 83049058, "streamType"?: "challenge|competitie", "spelerA"?: "...", "spelerB"?: "...", "matchId"?: 88259371, "niveau"?: "Eerste Klasse", "thuisteam"?: "...", "uitteam"?: "..." } (vrije camera; enqueuet startStream + setOverlay per overlay. Mét tournamentId = beheerd, zonder = ad-hoc)
 GET  /api/manage/competitie/wedstrijden -> aankomende teamwedstrijden die BIJ MOKUM gespeeld worden (bron: mokum-competitie-API), voor de competitie-wizard; vorm zie v0.58 in de wijzigingslog
+GET  /api/manage/competitie/vandaag  -> de teamwedstrijden die VANDAAG bij Mokum gespeeld worden, mét details (spelers per team, aanvoerder), voor de competitiebalk op het dashboard; vorm zie v0.72 in de wijzigingslog
 POST /api/manage/streams/stop        -> body: { "tableNumber": 15 }
 POST /api/manage/streams/refresh     -> body: { "tableNumber": 15 | "alle", "bronnen"?: ["scoreboard","jumbotron"] } (ververst de webpagina-overlays in OBS zonder streamherstart; enqueuet een refreshSource per tafel en bron; zonder `bronnen` allebei; antwoord { commands }. Zie v0.68)
 POST /api/manage/streams/overlay     -> body: { "tableNumber": 15, "sponsors"?: bool, "scoreboard"?: bool, "jumbotron"?: bool, "competitie"?: bool } (overlay(s) live aan/uit op een lopende stream; enqueuet setOverlay per opgegeven sleutel)
@@ -1150,3 +1151,21 @@ Regels:
      valt de pagina terug op `venue/events`.
   2. De pagina combineert beide lijsten en toont alleen toernooien die niet afgerond zijn én vandaag
      iets spelen of gepland hebben.
+
+- 2026-10-07: v0.72 — **dashboard: balk "Competitie thuiswedstrijden vandaag"**. Reden: Peter wil op het
+  dashboard in één oogopslag zien of er vandaag een teamwedstrijd bij Mokum wordt gespeeld, met de
+  details uit de competitie-agenda (spelers, aanvoerder). Achterwaarts compatibel:
+  1. **Nieuw: `GET /api/manage/competitie/vandaag`** (beheer-auth, read-only). Pakt de wedstrijden uit
+     `getWedstrijdenBijMokum` (zelfde filter als v0.58: `venueName` bevat "Mokum Pool") die op de
+     huidige zaal-dag beginnen, en haalt per wedstrijd de details op bij de mokum-competitie-API
+     (`/wedstrijd/{teamSlug}/{matchId}`). Antwoord:
+     `{ "datum": "2026-10-07", "wedstrijden": [{ "matchId", "matchUrl", "starttime", "roundName",
+     "matchStatus", "niveau", "thuisteam", "uitteam", "competitionName", "venueName", "venueAddress",
+     "agendaUrl", "home": { "name", "aanvoerder", "spelers": ["…"] }, "away": { … } | null }],
+     "mislukt": ["teamSlug", ...] }`, gesorteerd op `starttime`. `home`/`away` zijn `null` als de
+     details van die wedstrijd niet op te halen waren; de wedstrijd zelf staat er dan wel in.
+     `agendaUrl` verwijst naar de detailpagina in de competitie-agenda.
+  2. De dashboardbalk toont het aantal (`wedstrijden.length`) in een groene (≥ 1) of rode (0) cirkel.
+  3. **Zuinigheid:** de backend bewaart het antwoord per instantie 10 minuten in het geheugen (een fout wordt niet
+     bewaard, een nieuwe zaal-dag begint schoon), en het dashboard ververst de balk alleen terwijl het tabblad
+     zichtbaar is (elke 5 min.). Zo blijft het aantal aanroepen naar de competitie-API klein.

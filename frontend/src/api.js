@@ -49,6 +49,8 @@ export const stopStream = (tableNumber) =>
 // Competitie-wizard (#120): teamwedstrijden die bij Mokum gespeeld worden.
 // Antwoord { wedstrijden: [...], mislukt: [teamSlug] } — zie api-contract v0.58.
 export const getCompetitieWedstrijden = () => req('/api/manage/competitie/wedstrijden');
+// De teamwedstrijden die vandaag bij Mokum gespeeld worden, met spelers (api-contract v0.72).
+export const getCompetitieVandaag = () => req('/api/manage/competitie/vandaag');
 // Ververst de webpagina-overlays in OBS (#99). tableNumber: getal of 'alle'.
 export const refreshBronnen = (tableNumber, bronnen) =>
   req('/api/manage/streams/refresh', { method: 'POST', body: JSON.stringify({ tableNumber, ...(bronnen ? { bronnen } : {}) }) });
