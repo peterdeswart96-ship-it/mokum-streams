@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  getLive, startStream, stopStream, setOverlay, refreshBronnen, refreshPlanning, getPlanning, updatePlanning, getCompetitieWedstrijden,
+  getLive, startStream, stopStream, setOverlay, refreshBronnen, refreshPlanning, getPlanning, updatePlanning, getCompetitieWedstrijden, getCompetitieVandaag,
   getToken, setToken as saveToken, clearToken,
 } from './api.js';
 
@@ -1263,6 +1263,101 @@ function datumLabel(iso) {
   return d.toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
+// ── Competitie thuiswedstrijden vandaag (api-contract v0.72) ─────────────────
+// Inklapbare balk onderaan, in dezelfde stijl als de Toernooi planner: links de titel met de datum,
+// in het midden "Vandaag" + het aantal wedstrijden in een groene (≥ 1) of rode (0) cirkel. Uitgeklapt
+// zie je per wedstrijd dezelfde details als in de competitie-agenda (mokum-competitie.pdscloud.nl).
+function CompetitieVandaag() {
+  const [data, setData] = useState(null);   // null = laden
+  const [fout, setFout] = useState(false);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    let weg = false;
+    const laad = () => getCompetitieVandaag()
+      .then((d) => { if (!weg) { setData(d); setFout(false); } })
+      .catch(() => { if (!weg) setFout(true); });
+    // Alleen verversen terwijl het tabblad zichtbaar is (bespaart aanroepen op de backend en de
+    // competitie-API); wordt het tabblad weer zichtbaar, dan meteen één keer.
+    let timer = null;
+    const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
+    const start = () => { stop(); timer = setInterval(laad, 5 * 60 * 1000); }; // wedstrijden veranderen niet snel
+    const zichtbaarheid = () => {
+      if (document.visibilityState === 'visible') { laad(); start(); } else stop();
+    };
+    laad();
+    if (document.visibilityState === 'visible') start();
+    document.addEventListener('visibilitychange', zichtbaarheid);
+    return () => { weg = true; stop(); document.removeEventListener('visibilitychange', zichtbaarheid); };
+  }, []);
+  const aantal = data ? data.wedstrijden.length : null;
+  const vandaagTekst = new Date().toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
+  const tijd = (iso) => new Date(iso).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Amsterdam' });
+  const datumLang = (iso) => new Date(iso).toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Amsterdam' });
+  return (
+    <div className="bg-[#3b3f45] border-2 border-[#5c626a] rounded-lg shadow-lg overflow-hidden">
+      <button onClick={() => setOpen((o) => !o)} aria-expanded={open}
+              className="w-full grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 py-2 min-h-[68px] text-left text-white">
+        <span className="font-display">Competitie thuiswedstrijden vandaag <span className="text-neutral-300">({vandaagTekst})</span></span>
+        {aantal != null ? (
+          <span className="flex items-center gap-2 font-display"
+                title={aantal > 0 ? `Vandaag ${aantal === 1 ? 'wordt' : 'worden'} er ${aantal} competitiewedstrijd${aantal === 1 ? '' : 'en'} bij Mokum gespeeld` : 'Vandaag worden er geen competitiewedstrijden bij Mokum gespeeld'}>
+            Vandaag
+            <span className={`w-8 h-8 rounded-full flex items-center justify-center ${aantal > 0 ? 'bg-green-500' : 'bg-red-600'}`}>{aantal}</span>
+          </span>
+        ) : <span className="text-sm text-neutral-300">{fout ? 'niet beschikbaar' : ''}</span>}
+        {/* Competitiewedstrijden starten nog niet vanzelf (geen planning, #145): bij een wedstrijd vandaag
+            staat hier de herinnering om de stream met de hand te starten (wizard "Competitie"). */}
+        <span className="justify-self-end flex items-center gap-3">
+          {aantal > 0 && <span className="text-red-500 italic font-bold text-sm text-right">Streams handmatig starten!</span>}
+          <span className={`text-neutral-300 text-sm transition-transform ${open ? 'rotate-180' : ''}`}>▾</span>
+        </span>
+      </button>
+      {open && (
+        <div className="px-4 pt-3 pb-4 flex flex-col gap-4">
+          {fout && aantal == null && <p className="text-sm text-ink-muted">Kon de competitiewedstrijden niet laden.</p>}
+          {aantal === 0 && <p className="text-sm text-ink-muted">Vandaag worden er geen competitiewedstrijden bij Mokum gespeeld.</p>}
+          {(data ? data.wedstrijden : []).map((w) => (
+            <div key={w.matchId} className="flex flex-col gap-3">
+              <div className="bg-surface border border-line rounded-lg p-4">
+                <h3 className="font-display text-lg">{w.thuisteam} - {w.uitteam}</h3>
+                <p className="text-xs text-ink-muted mt-1">{[w.competitionName || w.niveau, w.roundName].filter(Boolean).join(' · ')}</p>
+                <p className="text-xs mt-3">📅 {datumLang(w.starttime)}, {tijd(w.starttime)} uur</p>
+                {(w.venueName || w.venueAddress) && (
+                  <p className="text-xs mt-1">📍 {[w.venueName, w.venueAddress].filter(Boolean).join(', ')}</p>
+                )}
+              </div>
+              {(w.home || w.away) ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[w.home, w.away].map((t, i) => t && (
+                    <div key={i} className="bg-surface border border-line rounded-lg p-4">
+                      <h4 className="font-medium text-sm mb-2">{t.name}</h4>
+                      <ul className="text-xs space-y-1">
+                        {t.spelers.map((n) => (
+                          <li key={n}>{n}{n === t.aanvoerder && <span className="text-brand-light"> (aanvoerder)</span>}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-ink-muted">Spelers van deze wedstrijd konden niet worden opgehaald.</p>
+              )}
+              {w.agendaUrl && (
+                <a href={w.agendaUrl} target="_blank" rel="noreferrer" className="text-xs text-brand-light underline self-start">
+                  Open in de competitie-agenda ↗
+                </a>
+              )}
+            </div>
+          ))}
+          {data && data.mislukt && data.mislukt.length > 0 && (
+            <p className="text-xs text-amber-300">Let op: de lijst kan onvolledig zijn (niet alle teams waren te laden).</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Toernooi planner (EPIC #42, fase 1: plannen + opslaan; auto start/stop volgt) ──
 // Toont de eerstvolgende ~10 Cuescore-toernooien (uit /api/manage/planning). Per
 // toernooi kies je Tafels + Zichtbaarheid + Overlays en leg je met "Plan" (na
@@ -1872,6 +1967,9 @@ export default function App() {
             <StreamPaneel tables={tables} />
             <div className="mt-4">
               <ToernooiPlanner onGepland={laad} />
+            </div>
+            <div className="mt-4">
+              <CompetitieVandaag />
             </div>
           </>
         )}
