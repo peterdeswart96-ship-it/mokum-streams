@@ -327,7 +327,7 @@ function TableCard({ table, onStop, onOverlay, onRefresh, onPreview, busy, stopt
             busy={!!pending[o.key]} onChange={(v) => schakel(o.key, v)} />
   );
   return (
-    <div className="bg-surface border border-line rounded-lg shadow-lg p-4">
+    <div className="bg-[#3b3f45] border-2 border-[#5c626a] rounded-lg shadow-lg p-4">
       <div className="flex items-center justify-between mb-2">
         <h3 className="font-display">Tafel {table.tableNumber}</h3>
         <div className="flex items-center gap-2">
@@ -376,18 +376,18 @@ function TableCard({ table, onStop, onOverlay, onRefresh, onPreview, busy, stopt
         {table.status === 'live' && table.videoId && (
           <button
             onClick={() => onPreview(table)}
-            className="flex-1 bg-brand hover:bg-brand-dark text-white rounded px-3 py-2 text-sm font-medium"
+            className="flex-1 bg-neutral-200 hover:bg-neutral-100 text-neutral-900 rounded px-3 py-2 text-sm font-medium"
           >
-            👁 Preview
+            👀 Preview
           </button>
         )}
         {actief && (
           <button
             disabled={busy || stopt}
             onClick={() => onStop(table.tableNumber)}
-            className="flex-1 bg-surface-raised hover:bg-neutral-700 text-ink border border-line rounded px-3 py-2 text-sm font-medium disabled:opacity-40"
+            className="flex-1 bg-red-200 hover:bg-red-100 text-red-900 rounded px-3 py-2 text-sm font-medium disabled:opacity-40"
           >
-            {stopt ? 'Bezig met stoppen…' : 'Stop stream'}
+            {stopt ? 'Bezig met stoppen…' : '❌ Stop stream'}
           </button>
         )}
       </div>
@@ -1474,16 +1474,16 @@ function ToernooiPlanner({ onGepland }) {
   const sel = 'bg-canvas border border-line rounded px-1.5 py-1 text-xs text-ink disabled:opacity-60';
 
   return (
-    <div className="bg-surface border-2 border-blue-900 rounded-lg shadow-lg overflow-hidden">
+    <div className="bg-[#3b3f45] border-2 border-[#5c626a] rounded-lg shadow-lg overflow-hidden">
       <button onClick={() => setOpen((o) => !o)} aria-expanded={open}
-              className="w-full flex items-center justify-between gap-3 px-4 py-2 min-h-[68px] text-left bg-blue-100 text-blue-950">
+              className="w-full flex items-center justify-between gap-3 px-4 py-2 min-h-[68px] text-left text-white">
         <span className="font-display flex items-center gap-2">
           Toernooi planner
           {aantalVandaag != null && (aantalVandaag > 0
-            ? <span className="text-sm font-bold text-green-700">Vandaag ingepland: {aantalVandaag} toernooi{aantalVandaag === 1 ? '' : 'en'}</span>
-            : <span className="text-sm font-bold text-red-600">Vandaag geen toernooien gepland</span>)}
+            ? <span className="text-sm font-bold text-green-400">Vandaag ingepland: {aantalVandaag} toernooi{aantalVandaag === 1 ? '' : 'en'}</span>
+            : <span className="text-sm font-bold text-red-400">Vandaag geen toernooien gepland</span>)}
         </span>
-        <span className={`text-blue-900 text-sm transition-transform ${open ? 'rotate-180' : ''}`}>▾</span>
+        <span className={`text-neutral-300 text-sm transition-transform ${open ? 'rotate-180' : ''}`}>▾</span>
       </button>
       {open && (
         <div className="px-4 pt-3 pb-4">
@@ -1845,7 +1845,21 @@ export default function App() {
                   className="bg-brand hover:bg-brand-dark text-white rounded-lg px-4 py-2 font-medium shadow-lg">
             + Nieuwe stream
           </button>
-          <VerversStatus lastUpdated={lastUpdated} status={status} onRefresh={laad} />
+          <div className="flex items-center gap-4 flex-wrap">
+            <button
+              disabled={busy}
+              onClick={() => { if (window.confirm('Scoreboard en Jumbotron worden op ALLE tafels herladen. Op tafels die live zijn is het scorebord even (ongeveer een seconde) uit beeld. Doorgaan?')) verversBronnen('alle'); }}
+              title={'Overlays verversen op ALLE tafels. Laadt in OBS het scorebord en de jumbotron opnieuw, zonder dat de stream stopt. Gebruik dit nadat een overlaypagina is aangepast, of als een scorebord of jumbotron vastzit. Op tafels die live zijn is het scorebord ongeveer 1 seconde uit beeld.'}
+              className="flex items-center gap-2 border border-line bg-surface hover:bg-surface-raised text-ink rounded-lg px-3 py-2 text-sm font-medium disabled:opacity-40"
+            >
+              <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M21 12a9 9 0 0 1-15.5 6.2L3 16" /><path d="M3 21v-5h5" />
+                <path d="M3 12A9 9 0 0 1 18.5 5.8L21 8" /><path d="M21 3v5h-5" />
+              </svg>
+              Overlays verversen
+            </button>
+            <VerversStatus lastUpdated={lastUpdated} status={status} onRefresh={laad} />
+          </div>
         </div>
 
         {status === 'ok' && <AgentStatus agent={agent} />}
@@ -1869,16 +1883,6 @@ export default function App() {
                 />
               ))}
             </div>
-            <p className="mt-3 text-sm text-ink-muted">
-              Pagina in een overlay gewijzigd?{' '}
-              <button
-                disabled={busy}
-                onClick={() => { if (window.confirm('Scoreboard en Jumbotron worden op ALLE tafels herladen. Op tafels die live zijn is het scorebord even (ongeveer een seconde) uit beeld. Doorgaan?')) verversBronnen('alle'); }}
-                className="underline hover:text-ink disabled:opacity-40"
-              >
-                ↻ Ververs beeldbronnen op alle tafels
-              </button>
-            </p>
             <StreamPaneel tables={tables} />
             <div className="mt-4">
               <ToernooiPlanner onGepland={laad} />
