@@ -9,6 +9,22 @@ const REFRESH_MS = 5000;
 // Na een Stop-klik: hoe vaak we verversen zolang het stoppen loopt, en hoe lang we op de
 // agent wachten voordat we melden dat het niet gelukt lijkt (#159). De agent haalt
 // commando's elke ~5s op, dus 60s is ruim genoeg voor een gezonde agent.
+// Uitleg in de bevestigingsvraag van de knop "Overlays verversen" (rechtsboven).
+const OVERLAYS_VERVERSEN_UITLEG = [
+  'Overlays verversen op ALLE tafels',
+  '',
+  'Wat doet dit?',
+  'In OBS worden het scorebord en de jumbotron van elke tafel opnieuw geladen. De stream stopt of herstart hierdoor niet.',
+  '',
+  'Wanneer gebruik je dit?',
+  '• Nadat een overlaypagina is aangepast (scorebord, jumbotron, pauzescherm of sponsors) en je de nieuwe versie wilt zien.',
+  '• Als een scorebord of jumbotron vastzit of een oude stand toont.',
+  '',
+  'Let op: op tafels die live zijn is het scorebord ongeveer 1 seconde uit beeld.',
+  '',
+  'Klik op OK om te verversen, of op Annuleren om niets te doen.',
+].join('\n');
+
 const STOP_REFRESH_MS = 2000;
 const STOP_WACHT_MAX_MS = 60000;
 
@@ -1211,19 +1227,21 @@ function StreamPaneel({ tables }) {
   const vid = t && (t.liveVideoId || t.videoId);
   return (
     <div className="bg-[#3b3f45] text-white border-2 border-[#5c626a] rounded-lg shadow-lg mt-4">
-      <div className="flex items-center justify-between gap-3 px-4 py-2 flex-wrap min-h-[68px]">
+      <div className="flex flex-wrap items-center gap-3 px-4 py-2 min-h-[68px] sm:grid sm:grid-cols-[1fr_auto_1fr]">
         <button onClick={() => zetOpen(!open)} aria-expanded={open}
-                className="flex items-center gap-2 py-1 text-left">
+                className="py-1 text-left justify-self-start">
           <span className="font-display">Nu live op YouTube</span>
-          <span className={`text-neutral-300 text-sm transition-transform ${open ? 'rotate-180' : ''}`}>▾</span>
         </button>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap justify-center">
           {tables.map((c) => (
             <TafelKnop key={c.tableNumber} nr={c.tableNumber} live={c.status === 'live'}
                        gekozen={!!t && c.tableNumber === t.tableNumber}
                        onClick={() => { setSel(c.tableNumber); zetOpen(true); }} />
           ))}
         </div>
+        {/* Pijltje uiterst rechts, op dezelfde plek als bij de Toernooi planner en de competitiebalk. */}
+        <button onClick={() => zetOpen(!open)} aria-expanded={open} aria-label={open ? 'Livestream inklappen' : 'Livestream uitklappen'}
+                className={`justify-self-end ml-auto sm:ml-0 text-neutral-300 text-sm transition-transform py-3 pl-2 ${open ? 'rotate-180' : ''}`}>▾</button>
       </div>
       {open && (
         <div className="px-4 pb-4">
@@ -1930,7 +1948,7 @@ export default function App() {
           <div className="flex items-center gap-4 flex-wrap">
             <button
               disabled={busy}
-              onClick={() => { if (window.confirm('Scoreboard en Jumbotron worden op ALLE tafels herladen. Op tafels die live zijn is het scorebord even (ongeveer een seconde) uit beeld. Doorgaan?')) verversBronnen('alle'); }}
+              onClick={() => { if (window.confirm(OVERLAYS_VERVERSEN_UITLEG)) verversBronnen('alle'); }}
               title={'Overlays verversen op ALLE tafels. Laadt in OBS het scorebord en de jumbotron opnieuw, zonder dat de stream stopt. Gebruik dit nadat een overlaypagina is aangepast, of als een scorebord of jumbotron vastzit. Op tafels die live zijn is het scorebord ongeveer 1 seconde uit beeld.'}
               className="flex items-center gap-2 border border-line bg-surface hover:bg-surface-raised text-ink rounded-lg px-3 py-2 text-sm font-medium disabled:opacity-40"
             >
