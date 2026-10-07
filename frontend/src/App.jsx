@@ -1281,11 +1281,27 @@ function datumLabel(iso) {
   return d.toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
+// Tooltip bij het "Vandaag"-getal van de Toernooi planner én de competitiebalk: één overzicht van
+// wat er vandaag op het programma staat. Beide balken geven hun lijst door aan de App (onVandaag),
+// zodat elk van de twee tooltips dezelfde twee lijsten kan tonen. null = nog niet geladen.
+function vandaagOverzicht(toernooien, competitie) {
+  const regels = (lijst, leeg) => (lijst == null ? ['  laden…'] : lijst.length ? lijst.map((x) => `• ${x}`) : [`  ${leeg}`]);
+  return [
+    'Vandaag op het programma',
+    '',
+    `Ingeplande toernooien voor vandaag${toernooien ? ` (${toernooien.length})` : ''}:`,
+    ...regels(toernooien, 'geen'),
+    '',
+    `Competitie thuiswedstrijden vandaag${competitie ? ` (${competitie.length})` : ''}:`,
+    ...regels(competitie, 'geen'),
+  ].join('\n');
+}
+
 // ── Competitie thuiswedstrijden vandaag (api-contract v0.72) ─────────────────
 // Inklapbare balk onderaan, in dezelfde stijl als de Toernooi planner: links de titel met de datum,
 // in het midden "Vandaag" + het aantal wedstrijden in een groene (≥ 1) of rode (0) cirkel. Uitgeklapt
 // zie je per wedstrijd dezelfde details als in de competitie-agenda (mokum-competitie.pdscloud.nl).
-function CompetitieVandaag() {
+function CompetitieVandaag({ onVandaag, overzicht }) {
   const [data, setData] = useState(null);   // null = laden
   const [fout, setFout] = useState(false);
   const [open, setOpen] = useState(false);
@@ -1308,6 +1324,11 @@ function CompetitieVandaag() {
     return () => { weg = true; stop(); document.removeEventListener('visibilitychange', zichtbaarheid); };
   }, []);
   const aantal = data ? data.wedstrijden.length : null;
+  // Lijst voor de tooltip doorgeven aan de App (zie vandaagOverzicht).
+  useEffect(() => {
+    if (!onVandaag) return;
+    onVandaag(data ? data.wedstrijden.map((w) => `${new Date(w.starttime).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Amsterdam' })} – ${w.thuisteam} - ${w.uitteam}${w.niveau ? ` (${w.niveau})` : ''}`) : null);
+  }, [data, onVandaag]);
   const vandaagTekst = new Date().toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
   const tijd = (iso) => new Date(iso).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Amsterdam' });
   const datumLang = (iso) => new Date(iso).toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Amsterdam' });
@@ -1318,7 +1339,7 @@ function CompetitieVandaag() {
         <span className="font-display">Competitie thuiswedstrijden vandaag <span className="text-neutral-300">({vandaagTekst})</span></span>
         {aantal != null ? (
           <span className="flex items-center gap-2 font-display"
-                title={aantal > 0 ? `Vandaag ${aantal === 1 ? 'wordt' : 'worden'} er ${aantal} competitiewedstrijd${aantal === 1 ? '' : 'en'} bij Mokum gespeeld` : 'Vandaag worden er geen competitiewedstrijden bij Mokum gespeeld'}>
+                title={overzicht}>
             Vandaag
             <span className={`w-8 h-8 rounded-full flex items-center justify-center ${aantal > 0 ? 'bg-green-500' : 'bg-red-600'}`}>{aantal}</span>
           </span>
@@ -1461,7 +1482,7 @@ function perWeek(records) {
   return [...groepen.entries()].sort((a, b) => a[0].localeCompare(b[0]));
 }
 
-function ToernooiPlanner({ onGepland }) {
+function ToernooiPlanner({ onGepland, onVandaag, overzicht }) {
   const [records, setRecords] = useState(null); // null = laden
   const [open, setOpen] = useState(false);
   const [bezig, setBezig] = useState(false);
@@ -1563,6 +1584,15 @@ function ToernooiPlanner({ onGepland }) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   })();
   const aantalVandaag = Array.isArray(records) ? records.filter((r) => r.planned && r.date === zaalVandaag).length : null;
+  // Lijst voor de tooltip doorgeven aan de App (zie vandaagOverzicht): tijd – naam (tafels).
+  useEffect(() => {
+    if (!onVandaag) return;
+    if (!Array.isArray(records)) { onVandaag(null); return; }
+    onVandaag(records
+      .filter((r) => r.planned && r.date === zaalVandaag)
+      .sort((a, b) => String(hhmm(a.startOverride) || hhmm(a.plannedStart)).localeCompare(String(hhmm(b.startOverride) || hhmm(b.plannedStart))))
+      .map((r) => `${hhmm(r.startOverride) || hhmm(r.plannedStart) || '19:00'} – ${r.name}${(r.tafels || []).length ? ` (tafel ${r.tafels.join(', ')})` : ''}`));
+  }, [records, zaalVandaag, onVandaag]);
   const cell = 'px-2 py-2 align-middle';
   const sel = 'bg-canvas border border-line rounded px-1.5 py-1 text-xs text-ink disabled:opacity-60';
 
@@ -1575,7 +1605,7 @@ function ToernooiPlanner({ onGepland }) {
             rood bij 0. Zo zie je zonder te lezen of er vandaag iets gepland is. */}
         {aantalVandaag != null ? (
           <span className="flex items-center gap-2 font-display"
-                title={aantalVandaag > 0 ? `Vandaag staan er ${aantalVandaag} toernooi${aantalVandaag === 1 ? '' : 'en'} ingepland` : 'Vandaag staat er geen toernooi ingepland'}>
+                title={overzicht}>
             Vandaag
             <span className={`w-8 h-8 rounded-full flex items-center justify-center ${aantalVandaag > 0 ? 'bg-green-500' : 'bg-red-600'}`}>{aantalVandaag}</span>
           </span>
@@ -1812,6 +1842,10 @@ export default function App() {
   const [toasts, setToasts] = useState([]);
   const [infoOpen, setInfoOpen] = useState(false);
   const [preview, setPreview] = useState(null);
+  // Lijsten voor de "Vandaag"-tooltip van de planner- en competitiebalk (komen uit die twee balken).
+  const [vandaagToernooien, setVandaagToernooien] = useState(null);
+  const [vandaagCompetitie, setVandaagCompetitie] = useState(null);
+  const overzichtVandaag = vandaagOverzicht(vandaagToernooien, vandaagCompetitie);
   const [lastUpdated, setLastUpdated] = useState(null);
   // Tafels waarvoor een stop-opdracht is verstuurd maar die nog live/gepland staan:
   // tafelnummer → tijdstip van de klik. De API antwoordt meteen (het commando staat dan
@@ -1984,10 +2018,10 @@ export default function App() {
             </div>
             <StreamPaneel tables={tables} />
             <div className="mt-4">
-              <ToernooiPlanner onGepland={laad} />
+              <ToernooiPlanner onGepland={laad} onVandaag={setVandaagToernooien} overzicht={overzichtVandaag} />
             </div>
             <div className="mt-4">
-              <CompetitieVandaag />
+              <CompetitieVandaag onVandaag={setVandaagCompetitie} overzicht={overzichtVandaag} />
             </div>
           </>
         )}
