@@ -403,6 +403,7 @@ function TableCard({ table, onStop, onOverlay, onPreview, busy, stopt }) {
 const STREAM_TYPES = {
   toernooi: {
     label: 'Cuescore-toernooi',
+    kleur: '#8fb4e3', // pastelkleur van de keuzeknop in stap 1
     uitleg: 'Een toernooi dat in Cuescore staat — ranking, qualifier, kampioenschap.',
     overlays: ['sponsors', 'scoreboard', 'jumbotron'],
     gevolgen: [
@@ -416,6 +417,7 @@ const STREAM_TYPES = {
   },
   league: {
     label: '14.1 league',
+    kleur: '#9fd1ad', // pastelkleur van de keuzeknop in stap 1
     uitleg: 'De doorlopende competitie. Spelers plannen hun partijen zelf.',
     overlays: ['sponsors', 'scoreboard', 'jumbotron'],
     gevolgen: [
@@ -428,6 +430,7 @@ const STREAM_TYPES = {
   },
   challenge: {
     label: 'Challenge',
+    kleur: '#e6c48a', // pastelkleur van de keuzeknop in stap 1
     uitleg: 'Een losse wedstrijd die je in Cuescore hebt aangemaakt via het scorebord.',
     overlays: ['sponsors', 'scoreboard', 'jumbotron'],
     gevolgen: [
@@ -439,6 +442,7 @@ const STREAM_TYPES = {
   },
   competitie: {
     label: 'Competitiewedstrijd',
+    kleur: '#c2a6e0', // pastelkleur van de keuzeknop in stap 1
     uitleg: 'Een teamwedstrijd van een Mokum-team die hier in de zaal gespeeld wordt.',
     overlays: ['sponsors', 'scoreboard', 'jumbotron'],
     gevolgen: [
@@ -452,6 +456,7 @@ const STREAM_TYPES = {
   },
   custom: {
     label: 'Custom stream',
+    kleur: '#e0a3b8', // pastelkleur van de keuzeknop in stap 1
     uitleg: 'Alles wat niet in Cuescore staat. Bijvoorbeeld een demo of een test.',
     overlays: ['sponsors'], // scorebord en jumbotron bewust weg: zonder Cuescore-wedstrijd
     gevolgen: [            // tonen die de laatst bekende wedstrijd, of blijven permanent staan
@@ -684,8 +689,15 @@ function Wizard({ onClose, onStarted, tables = [] }) {
             <p className="text-sm text-ink-muted mb-3">Wat ga je uitzenden? Hier hangt aan vast wat er daarna automatisch gebeurt.</p>
             {Object.entries(STREAM_TYPES).map(([k, s]) => (
               <button key={k} onClick={() => kiesType(k)}
-                className={`w-full text-left rounded border px-3 py-2.5 ${type === k ? 'border-brand bg-brand/10' : 'border-line hover:border-ink-muted'}`}>
-                <span className="block font-medium">{s.label}</span>
+                // Elke soort heeft een eigen zachte kleur: gekleurde balk links, een lichte tint als
+                // achtergrond (sterker bij de gekozen soort) en de titel in de pastelkleur.
+                style={{
+                  borderColor: type === k ? s.kleur : `${s.kleur}55`,
+                  borderLeftColor: s.kleur,
+                  backgroundColor: `${s.kleur}${type === k ? '33' : '1a'}`,
+                }}
+                className="w-full text-left rounded border border-l-4 px-3 py-2.5 transition hover:brightness-125">
+                <span className="block font-medium" style={{ color: s.kleur }}>{s.label}</span>
                 <span className="block text-xs text-ink-muted">{s.uitleg}</span>
               </button>
             ))}
