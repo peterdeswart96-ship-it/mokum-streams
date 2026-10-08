@@ -1,9 +1,12 @@
 const { app } = require('@azure/functions');
-const { readJson, writeJson, writeJsonAlsGewijzigd } = require('../storage/blob');
+const { readJson, writeJsonAlsGewijzigd } = require('../storage/blob');
+const { voegCommandosToe } = require('../agent/commandStore');
 const { getTodaysTournaments } = require('../cuescore');
 const { zaalDag } = require('../schedule/schedule');
-const { enqueue, OVERLAY_BRON } = require('../agent/commandQueue');
-const { tafelSpeeltNu, volgendeToestand, competitieTafels, pauzeCommandos, refreshCommandos } = require('../planning/pauze');
+const { OVERLAY_BRON } = require('../agent/commandQueue');
+const {
+  tafelSpeeltNu, volgendeToestand, competitieTafels, pauzeCommandos, refreshCommandos, afwijkendeOverlays, magHerstellen,
+} = require('../planning/pauze');
 const { isPauzeAutoOn, pauzeSchermKeys, pauzeSchermUitKeys, pauzeSchermRefreshKeys } = require('../config/automation');
 
 // Timer-Function: automatisch pauzescherm (A auto-trigger, zie docs/pauzescherm-auto.md).
@@ -87,7 +90,14 @@ async function verwerk(now, context) {
     const speeltNu = tafelSpeeltNu(tournaments, tn);
     const vorige = store[String(tn)] || null;
     const res = volgendeToestand(vorige, speeltNu, nowMs, DEBOUNCE_MS, SPELEN_DEBOUNCE_MS);
-    store[String(tn)] = { toestand: res.toestand, sinds: res.sinds, wachtSinds: res.wachtSinds };
+    // Herstelteller: na een omslag weer op nul, anders de vorige waarden meenemen.
+    store[String(tn)] = {
+      toestand: res.toestand,
+      sinds: res.sinds,
+      wachtSinds: res.wachtSinds,
+      herstelPogingen: res.veranderd ? 0 : ((vorige && vorige.herstelPogingen) || 0),
+      herstelLaatst: res.veranderd ? null : ((vorige && vorige.herstelLaatst) ?? null),
+    };
 
     if (res.veranderd) {
       const toonPauze = res.toestand === 'pauze';
@@ -105,12 +115,28 @@ async function verwerk(now, context) {
       // .log() haalt de log-omgeving niet meer — of het pauzescherm daadwerkelijk omschakelde
       // moet zichtbaar blijven, anders is dit soort klachten nooit met de logs te bevestigen.
       context.warn(`[pauzeScherm] tafel ${tn} → ${res.toestand} (pauzescherm ${toonPauze ? 'AAN' : 'uit'})`);
+    } else if (magHerstellen(store[String(tn)], nowMs)) {
+      // Herstelcontrole (07-10): meldt de agent een andere overlaystand dan de omslag bedoelde,
+      // dan is het commando blijkbaar niet aangekomen. Alleen de afwijkende overlays opnieuw.
+      const toonPauze = res.toestand === 'pauze';
+      const gemeld = ((status.tables || []).find((t) => Number(t.tableNumber) === tn) || {}).overlays;
+      const af = afwijkendeOverlays(gemeld, toonPauze, pauzeKeys, pauzeUitKeys);
+      if (af && (af.pauze.length || af.pauzeUit.length)) {
+        const rauw = [
+          ...pauzeCommandos(tn, toonPauze, OVERLAY_BRON, af.pauze),
+          ...pauzeCommandos(tn, !toonPauze, OVERLAY_BRON, af.pauzeUit),
+          ...(af.pauzeUit.length ? refreshCommandos(tn, OVERLAY_BRON, refreshKeys) : []),
+        ];
+        commands.push(...rauw.map((c) => ({ id: crypto.randomUUID(), createdAt: now.toISOString(), ...c })));
+        store[String(tn)].herstelPogingen += 1;
+        store[String(tn)].herstelLaatst = nowMs;
+        context.warn(`[pauzeScherm] HERSTEL tafel ${tn}: agent meldt ${[...af.pauze, ...af.pauzeUit].join('/')} anders dan bedoeld (${res.toestand}) → opnieuw gestuurd, poging ${store[String(tn)].herstelPogingen}`);
+      }
     }
   }
 
   if (commands.length) {
-    const bestaand = (await readJson('commands.json', [])) || [];
-    await writeJson('commands.json', enqueue(bestaand, commands));
+    await voegCommandosToe(commands);
   }
   // Toestand wegschrijven, maar alleen als er iets aan veranderd is (#101). Dit is met
   // twee tikken per minuut de vaakst schrijvende timer; tussen wedstrijden door staat de

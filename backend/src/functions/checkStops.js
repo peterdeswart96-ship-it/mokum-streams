@@ -1,8 +1,9 @@
 const { app } = require('@azure/functions');
 const { readJson, writeJson } = require('../storage/blob');
+const { voegCommandosToe } = require('../agent/commandStore');
 const { zaalDag } = require('../schedule/schedule');
 const { getTournament, getTodaysTournaments } = require('../cuescore');
-const { enqueue, competitieSchermCommando } = require('../agent/commandQueue');
+const { competitieSchermCommando } = require('../agent/commandQueue');
 const { stopReden, toernooiKlaar } = require('../planning/stop');
 const { kiesToernooiVoorTafel, anderToernooiNogOpTafel } = require('../planning/koppel');
 const { vrijTeMaken } = require('../planning/vrijmaken');
@@ -460,7 +461,6 @@ async function verwerk(now, context) {
   }
 
   if (teStoppen.length > 0 || teHerstarten.length > 0 || competitieSchermAan.length > 0) {
-    const commands = (await readJson('commands.json', [])) || [];
     const nieuw = [
       // Vóór een eventuele stop in dezelfde tik, zodat de volgorde in de wachtrij klopt.
       ...competitieSchermAan.map((tn) => ({
@@ -475,7 +475,7 @@ async function verwerk(now, context) {
         id: crypto.randomUUID(), createdAt: now.toISOString(), type: 'startStream', tableNumber: Number(tn),
       })),
     ];
-    await writeJson('commands.json', enqueue(commands, nieuw));
+    await voegCommandosToe(nieuw);
     if (teStoppen.length) context.warn(`[OK] ${teStoppen.length} stopStream-commando(s): tafels ${teStoppen.join(', ')}`);
     if (teHerstarten.length) context.warn(`[OK] ${teHerstarten.length} herstart-commando(s) (#114): tafels ${teHerstarten.join(', ')}`);
     if (competitieSchermAan.length) context.warn(`[OK] competitiescherm aan (#147): tafels ${competitieSchermAan.join(', ')}`);

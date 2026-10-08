@@ -1,7 +1,8 @@
 const { app } = require('@azure/functions');
 const { readJson, writeJson } = require('../storage/blob');
+const { voegCommandosToe } = require('../agent/commandStore');
 const { zaalDag } = require('../schedule/schedule');
-const { enqueue, isTableBusy, startCommandsFor, refreshCommandsFor, OVERLAY_BRON } = require('../agent/commandQueue');
+const { isTableBusy, startCommandsFor, refreshCommandsFor, OVERLAY_BRON } = require('../agent/commandQueue');
 const { buildBroadcastTitle, buildBroadcastDescription, createBroadcast, bindBroadcast, ruimStreamKeyOp } = require('../youtube/broadcasts');
 const { isAdmin } = require('../admin/auth');
 
@@ -107,13 +108,12 @@ app.http('adminStreamStart', {
     await writeJson(broadcastsPad, store);
 
     // startStream + setOverlay (op basis van de meegegeven overlays; standaard aan).
-    const commands = (await readJson('commands.json', [])) || [];
     const nieuwe = startCommandsFor({ overlays: body.overlays }, tafelNr).map((c) => ({
       id: crypto.randomUUID(),
       createdAt: start,
       ...c,
     }));
-    await writeJson('commands.json', enqueue(commands, nieuwe));
+    await voegCommandosToe(nieuwe);
 
     // Handmatige acties horen in de log (#125). Zonder deze regel is achteraf niet te zien
     // dat iemand een tafel bijzette: op 29-07 verscheen tafel 16 om 20:39 in de uitzending
@@ -154,8 +154,7 @@ app.http('adminStreamOverlay', {
     if (!cmds.length) return json(400, { error: `geef minimaal één overlay (${Object.keys(OVERLAY_BRON).join('/')}) als boolean op` });
 
     const withMeta = cmds.map((c) => ({ id: crypto.randomUUID(), createdAt: now, ...c }));
-    const commands = (await readJson('commands.json', [])) || [];
-    await writeJson('commands.json', enqueue(commands, withMeta));
+    await voegCommandosToe(withMeta);
 
     return json(200, { commands: withMeta });
   },
@@ -174,9 +173,8 @@ app.http('adminStreamStop', {
     const tafelNr = Number(body.tableNumber);
     if (!Number.isInteger(tafelNr)) return json(400, { error: 'tableNumber (geheel getal) is verplicht' });
 
-    const commands = (await readJson('commands.json', [])) || [];
     const cmd = { id: crypto.randomUUID(), type: 'stopStream', tableNumber: tafelNr, createdAt: new Date().toISOString() };
-    await writeJson('commands.json', enqueue(commands, cmd));
+    await voegCommandosToe(cmd);
 
     // Markeer de dag-entry als gestopt zodat de camera weer vrij is voor een nieuwe start.
     const datum = zaalDag(new Date());
@@ -226,8 +224,7 @@ app.http('adminStreamRefresh', {
 
     const now = new Date().toISOString();
     const withMeta = cmds.map((c) => ({ id: crypto.randomUUID(), createdAt: now, ...c }));
-    const commands = (await readJson('commands.json', [])) || [];
-    await writeJson('commands.json', enqueue(commands, withMeta));
+    await voegCommandosToe(withMeta);
 
     // Handmatige actie = audit-spoor (#125), op warning-niveau zodat de regel de log haalt (#110).
     context.warn(`[streams/refresh] ${alle ? 'alle tafels' : `tafel ${tafelNr}`} HANDMATIG ververst via het dashboard — ${[...new Set(cmds.map((c) => c.sourceName))].join(', ')}`);

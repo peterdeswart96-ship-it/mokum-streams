@@ -271,3 +271,34 @@ test('#155: rommel in de store levert geen tafels op', () => {
     assert.deepStrictEqual([...competitieTafels(store)], [], `verwacht leeg bij ${JSON.stringify(store)}`);
   }
 });
+
+// ── Herstelcontrole (07-10) ──
+const { afwijkendeOverlays, magHerstellen, HERSTEL } = require('../src/planning/pauze');
+
+test('afwijkendeOverlays: jumbotron aan terwijl er gespeeld wordt = afwijking (het incident van 07-10)', () => {
+  const gemeld = { sponsors: true, scoreboard: true, jumbotron: true, competitie: false };
+  assert.deepEqual(afwijkendeOverlays(gemeld, false, ['jumbotron'], ['scoreboard']), { pauze: ['jumbotron'], pauzeUit: [] });
+});
+
+test('afwijkendeOverlays: in pauze hoort de jumbotron aan en het scorebord uit', () => {
+  const gemeld = { scoreboard: true, jumbotron: false };
+  assert.deepEqual(afwijkendeOverlays(gemeld, true, ['jumbotron'], ['scoreboard']), { pauze: ['jumbotron'], pauzeUit: ['scoreboard'] });
+});
+
+test('afwijkendeOverlays: klopt alles, of meldt de agent niets, dan geen herstel', () => {
+  assert.deepEqual(afwijkendeOverlays({ jumbotron: false, scoreboard: true }, false, ['jumbotron'], ['scoreboard']), { pauze: [], pauzeUit: [] });
+  assert.equal(afwijkendeOverlays(null, false, ['jumbotron'], ['scoreboard']), null);
+  assert.deepEqual(afwijkendeOverlays({}, false, ['jumbotron'], ['scoreboard']), { pauze: [], pauzeUit: [] });
+});
+
+test('magHerstellen: alleen in het venster na de omslag, met pauze tussen pogingen en een maximum', () => {
+  const t0 = 1_000_000;
+  const staat = (extra = {}) => ({ sinds: t0, herstelPogingen: 0, herstelLaatst: null, ...extra });
+  assert.equal(magHerstellen(staat(), t0 + 10_000), false);                              // te vroeg: commando is nog onderweg
+  assert.equal(magHerstellen(staat(), t0 + HERSTEL.minNaOmslagMs), true);                // nu mag het
+  assert.equal(magHerstellen(staat(), t0 + HERSTEL.maxNaOmslagMs + 1), false);           // te laat: handmatig bedienen respecteren
+  assert.equal(magHerstellen(staat({ herstelPogingen: 1, herstelLaatst: t0 + 50_000 }), t0 + 60_000), false); // net geprobeerd
+  assert.equal(magHerstellen(staat({ herstelPogingen: 1, herstelLaatst: t0 + 50_000 }), t0 + 120_000), true);
+  assert.equal(magHerstellen(staat({ herstelPogingen: HERSTEL.maxPogingen }), t0 + 120_000), false);
+  assert.equal(magHerstellen(null, t0), false);
+});

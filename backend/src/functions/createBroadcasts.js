@@ -1,10 +1,11 @@
 const { app } = require('@azure/functions');
 const { readJson, writeJson } = require('../storage/blob');
+const { voegCommandosToe } = require('../agent/commandStore');
 const { zaalDag, tafelVrijVoor } = require('../schedule/schedule');
 const { dueRecords, effectiveStart } = require('../planning/planning');
 const { leagueDueTables, herresolveerTafels } = require('../planning/league');
 const { getTournament } = require('../cuescore');
-const { enqueue, startCommandsFor } = require('../agent/commandQueue');
+const { startCommandsFor } = require('../agent/commandQueue');
 const { buildBroadcastTitle, buildBroadcastDescription, createBroadcast, bindBroadcast, ruimStreamKeyOp } = require('../youtube/broadcasts');
 const { bouwBroadcastLimietAlert } = require('../notify/alertBericht');
 const { stuurAlert } = require('../notify/verzenden');
@@ -164,9 +165,8 @@ async function verwerk(now, context) {
 
   // Nieuwe commando's (met id + tijd) achteraan de wachtrij zetten.
   if (nieuweCommandos.length > 0) {
-    const bestaand = (await readJson('commands.json', [])) || [];
     const metId = nieuweCommandos.map((c) => ({ id: crypto.randomUUID(), createdAt: now.toISOString(), ...c }));
-    await writeJson('commands.json', enqueue(bestaand, metId));
+    await voegCommandosToe(metId);
     context.warn(`[OK] ${metId.length} commando's toegevoegd aan de wachtrij.`);
   }
 

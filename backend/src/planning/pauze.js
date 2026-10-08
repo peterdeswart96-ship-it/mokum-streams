@@ -226,4 +226,35 @@ function competitieTafels(store) {
   return uit;
 }
 
-module.exports = { tafelSpeeltNu, volgendeToestand, competitieTafels, pauzeCommandos, refreshCommandos, bouwLiveMatches, telZaalLive, bouwZaalRaster };
+// ── Herstelcontrole (07-10) ───────────────────────────────────────────────────
+// De timer stuurt de overlay-commando's maar één keer per omslag. Gaat dat commando verloren
+// (op 07-10 werd de wachtrij overschreven), dan bleef de jumbotron een half uur in beeld terwijl er
+// gespeeld werd. De agent meldt de ECHTE stand van de overlays; wijkt die kort na een omslag af
+// van wat de omslag bedoelde, dan sturen we de afwijkende overlays nog eens.
+//
+// Bewust begrensd: alleen in een venster na de omslag en met een maximum aantal pogingen. Zet
+// iemand de jumbotron later met de hand aan of uit, dan blijft dat zo.
+const HERSTEL = { minNaOmslagMs: 45000, maxNaOmslagMs: 5 * 60000, tussenPogingenMs: 60000, maxPogingen: 3 };
+
+// Welke overlays staan anders dan de omslag bedoelde? `gemeld` = overlays uit status.json
+// ({ jumbotron: true, scoreboard: false, ... }). Sleutels die de agent niet (als boolean) meldt
+// worden overgeslagen. Retour: { pauze: [sleutels], pauzeUit: [sleutels] } of null zonder melding.
+//   pauzeKeys    : horen AAN tijdens pauze (jumbotron)
+//   pauzeUitKeys : horen UIT tijdens pauze, AAN tijdens spelen (scoreboard)
+function afwijkendeOverlays(gemeld, toonPauze, pauzeKeys, pauzeUitKeys) {
+  if (!gemeld || typeof gemeld !== 'object') return null;
+  const af = (keys, gewenst) => (keys || []).filter((k) => typeof gemeld[k] === 'boolean' && gemeld[k] !== gewenst);
+  return { pauze: af(pauzeKeys, !!toonPauze), pauzeUit: af(pauzeUitKeys, !toonPauze) };
+}
+
+// Mag er nu nog een herstelpoging? `staat` = { sinds, herstelPogingen, herstelLaatst } van de tafel.
+function magHerstellen(staat, nowMs, opties = HERSTEL) {
+  if (!staat) return false;
+  const sindsOmslag = nowMs - Number(staat.sinds);
+  if (!(sindsOmslag >= opties.minNaOmslagMs && sindsOmslag <= opties.maxNaOmslagMs)) return false;
+  if ((staat.herstelPogingen || 0) >= opties.maxPogingen) return false;
+  if (staat.herstelLaatst != null && nowMs - staat.herstelLaatst < opties.tussenPogingenMs) return false;
+  return true;
+}
+
+module.exports = { afwijkendeOverlays, magHerstellen, HERSTEL, tafelSpeeltNu, volgendeToestand, competitieTafels, pauzeCommandos, refreshCommandos, bouwLiveMatches, telZaalLive, bouwZaalRaster };
