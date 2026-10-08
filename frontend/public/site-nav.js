@@ -5,23 +5,23 @@
 // pagina's als op de React-pagina (Challenge) — puur vanilla DOM, buiten React's boom om.
 //
 // Dubbelt als overzicht van ALLE Mokum-pagina's (niet alleen deze site): elke pagina heeft
-// een eigen pastelkleur, zoals de tafelknoppen op het dashboard.
+// een eigen (lichte) pastelkleur met een donkerder randje in dezelfde tint.
 // Namen komen bewust overeen met de <title> van elke pagina.
 (function () {
   if (document.getElementById('mokumnav-knop')) return; // dubbele include? niets doen
 
   var SITES = [
-    { href: '/mokumlive/', label: 'Mokum Live', omschrijving: 'Standen en livestreams', kleur: '#b8d4ff' },
-    { href: '/archief/', label: 'Mokum Archief', omschrijving: 'Zoek een eerder gespeelde partij', kleur: '#c3efc3' },
-    { href: '/challenge.html', label: 'Mokum Challenge', omschrijving: 'Zelf een challenge inplannen', kleur: '#ffe2a8' },
+    { href: '/mokumlive/', label: 'Mokum Live', omschrijving: 'Standen en livestreams', kleur: '#d3e4ff', rand: '#7fa9e8' },
+    { href: '/archief/', label: 'Mokum Archief', omschrijving: 'Zoek een eerder gespeelde partij', kleur: '#dcf5dc', rand: '#86c986' },
+    { href: '/challenge.html', label: 'Mokum Challenge', omschrijving: 'Zelf een challenge inplannen', kleur: '#fff0cc', rand: '#e0b44f' },
   ];
   // Externe links (eigen tab, ander domein) — apart van de interne pagina's hierboven,
   // die zijn wél client-side onderdeel van dit project.
   var EXTERN = [
-    { href: 'https://mokum-competitie.pdscloud.nl/', label: 'Mokum Competitie Agenda', omschrijving: 'Wedstrijdschema in je eigen agenda', kleur: '#e5ccff' },
-    { href: 'https://mokum-wachtlijst.pdscloud.nl/', label: 'Mokum Wachtlijst 🔒', omschrijving: 'Afmeldingen & wachtlijst (intern, wachtwoord)', kleur: '#ffc9d6' },
-    { href: 'https://poolen-amsterdam.nl/', label: 'Mokum-website', omschrijving: 'poolen-amsterdam.nl', kleur: '#bdeee6' },
-    { href: 'https://www.youtube.com/@MokumPoolDarts', label: 'YouTube-kanaal', omschrijving: '@MokumPoolDarts', kleur: '#ffd3c2' },
+    { href: 'https://mokum-competitie.pdscloud.nl/', label: 'Mokum Competitie Agenda', omschrijving: 'Wedstrijdschema in je eigen agenda', kleur: '#efe0ff', rand: '#b98be6' },
+    { href: 'https://mokum-wachtlijst.pdscloud.nl/', label: 'Mokum Wachtlijst 🔒', omschrijving: 'Afmeldingen & wachtlijst (intern, wachtwoord)', kleur: '#ffe0e8', rand: '#e88ea5' },
+    { href: 'https://poolen-amsterdam.nl/', label: 'Mokum-website', omschrijving: 'poolen-amsterdam.nl', kleur: '#d6f6f1', rand: '#6fc9bb' },
+    { href: 'https://www.youtube.com/@MokumPoolDarts', label: 'YouTube-kanaal', omschrijving: '@MokumPoolDarts', kleur: '#ffe4d9', rand: '#e8997a' },
   ];
 
   var stijl = document.createElement('style');
@@ -45,7 +45,7 @@
     '#mokumnav-paneel .mokumnav-lijst{max-height:70vh;overflow-y:auto;padding:8px;}',
     // Elke pagina een pastel tegel met donkere tekst; de kleur komt per rij uit --kl.
     '#mokumnav-paneel .mokumnav-rij{display:block;padding:10px 14px;margin-bottom:6px;border-radius:9px;',
-    'text-decoration:none;background:var(--kl);border:2px solid transparent;}',
+    'text-decoration:none;background:var(--kl);border:2px solid var(--rand);}',
     '#mokumnav-paneel .mokumnav-rij:last-child{margin-bottom:0;}',
     '#mokumnav-paneel a.mokumnav-rij:hover{filter:brightness(1.07);}',
     '#mokumnav-paneel .mokumnav-rij .tekst{min-width:0;}',
@@ -53,7 +53,7 @@
     'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
     '#mokumnav-paneel .mokumnav-rij .omschrijving{font-size:11.5px;color:#3d4348;margin-top:2px;',
     'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
-    '#mokumnav-paneel .mokumnav-huidig{border-color:#fff;}',
+    '#mokumnav-paneel .mokumnav-huidig{box-shadow:0 0 0 2px #fff;}',
     '#mokumnav-paneel .mokumnav-scheiding{margin-top:12px;}',
     '#mokumnav-paneel .mokumnav-rij .naam .pijl{color:#5b6168;font-weight:normal;margin-left:4px;}',
   ].join('');
@@ -100,6 +100,7 @@
     }
     el.className = 'mokumnav-rij' + (isHuidig ? ' mokumnav-huidig' : '');
     el.style.setProperty('--kl', site.kleur);
+    el.style.setProperty('--rand', site.rand);
     rijInhoud(site, isHuidig).forEach(function (node) { el.appendChild(node); });
     lijst.appendChild(el);
   });
@@ -111,6 +112,7 @@
     el.title = 'Opent ' + site.href;
     el.className = 'mokumnav-rij' + (i === 0 ? ' mokumnav-scheiding' : '');
     el.style.setProperty('--kl', site.kleur);
+    el.style.setProperty('--rand', site.rand);
     rijInhoud(site, false).forEach(function (node) { el.appendChild(node); });
     lijst.appendChild(el);
   });
