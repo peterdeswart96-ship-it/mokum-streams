@@ -237,6 +237,7 @@
   @media (prefers-reduced-motion: reduce) { .tcard .mrij.live { animation: none; box-shadow: inset 0 0 0 2px #cc0000; } }
   .tcard .mrij .mt { background: var(--tk); color: #06121f; white-space: nowrap; }
   .tcard .mrij.klaar .mt { opacity: .8; }
+  .tcard .mrij.comp .mt { color: #fff; } /* witte tekst op de niveaukleur, zoals de pil op de thumbnail */
 
 </style>
 </head>
@@ -421,11 +422,14 @@
     KLEUR = uit;
   }
   const kleurVan = (naam) => KLEUR[(naam || '').trim()] || '';
-  // Competitiewedstrijden (teamstanden, v0.73) staan samen in één kaart met een eigen vaste kleur,
-  // los van het palet hierboven. Ze hebben geen tafel: Cuescore koppelt bij een teamwedstrijd geen
-  // partijen aan tafels. Het niveau neemt de plek van het tafelnummer in.
-  const COMP_NAAM = 'Competitie';
-  const COMP_KLEUR = '#f97316';
+  // Competitiewedstrijden (teamstanden, v0.73) staan per niveau in een eigen kaart, in dezelfde kleur
+  // als de niveau-pil op de YouTube-thumbnail (docs/ontwerp/competitie/thumbnail-ontwerp.md; kopie van
+  // backend/src/mokumCompetitie/niveauKleuren.js). Ze hebben geen tafel: Cuescore koppelt bij een
+  // teamwedstrijd geen partijen aan tafels. Het niveau neemt de plek van het tafelnummer in.
+  const COMP_VOORVOEGSEL = 'Competitie · ';
+  const KLEUR_PER_NIVEAU = { 'Eredivisie': '#c98a00', 'Eerste Divisie': '#1e6fd9', 'Derde Divisie Noord-West': '#7b3fc4', 'Eerste Klasse': '#1f9d55', 'Tweede Klasse': '#e8720c', 'Derde Klasse': '#0e8f9c' };
+  const STANDAARD_NIVEAUKLEUR = '#5b6470';
+  const kaartNaamVan = (niveau) => COMP_VOORVOEGSEL + String(niveau || '').replace(/ Noord-West$/, ''); // zoals op de thumbnail: "Derde Divisie"
   const NIVEAU_KORT = { 'Eerste Klasse': '1e kl', 'Tweede Klasse': '2e kl', 'Derde Klasse': '3e kl', 'Eredivisie': 'Ere', 'Eerste Divisie': '1e div', 'Derde Divisie Noord-West': '3e div' };
 
   async function laad() {
@@ -474,7 +478,7 @@
         if (!ct || !Array.isArray(ct.matches)) return;
         for (const c of comp.filter((x) => x.toernooiId === id)) {
           const m = ct.matches.find((x) => String(x.matchId) === String(c.matchId));
-          if (m) matches.push({ ...m, _toernooi: COMP_NAAM, _comp: { niveau: c.niveau, start: c.starttime } });
+          if (m) matches.push({ ...m, _toernooi: kaartNaamVan(c.niveau), _comp: { niveau: c.niveau, start: c.starttime } });
         }
       });
       ALLE = matches;
@@ -492,8 +496,8 @@
       TOERNOOINAMEN = [...new Set(namen)];
       // Alle toernooien van vandaag (met wedstrijden op tafels) — voor de dropdown.
       TOERNOOIEN_VANDAAG = [...new Set(matches.filter((m) => heeftTafel(m) || m._comp).map(naam).filter(Boolean))].sort();
-      bouwKleuren(TOERNOOIEN_VANDAAG.filter((n) => n !== COMP_NAAM));
-      KLEUR[COMP_NAAM] = COMP_KLEUR;
+      bouwKleuren(TOERNOOIEN_VANDAAG.filter((n) => !n.startsWith(COMP_VOORVOEGSEL)));
+      for (const m of matches) { if (m._comp) KLEUR[m._toernooi] = KLEUR_PER_NIVEAU[m._comp.niveau] || STANDAARD_NIVEAUKLEUR; }
       GELADEN = true;
       document.getElementById('ts').textContent = new Date().toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
       renderToernooiOpties();
@@ -595,6 +599,7 @@
       vid ? 'live' : '',
       status === 'finished' ? 'klaar' : '',
       status === 'waiting' ? 'wacht' : '',
+      comp ? 'comp' : '',
     ].filter(Boolean).join(' ');
     const kl = kleurVan(m._toernooi);
     // Een teamwedstrijd die nog niet begonnen is toont zijn starttijd i.p.v. 0-0.

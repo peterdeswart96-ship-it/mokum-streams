@@ -1182,6 +1182,6 @@ Regels:
      `toernooiId` = geen stand te lezen). Mislukt het ophalen, dan blijft de vorige lijst staan. Ontbreekt het veld
      (oude blob), dan toont de pagina gewoon geen competitiekaart.
   2. De pagina haalt de stand zelf bij Cuescore (`tournament/?id=<toernooiId>`, zoals bij de toernooien) en zoekt
-     de wedstrijd op `matchId`. Eén kaart "Competitie" in een eigen vaste kleur; per regel: niveau, thuisteam,
-     teamstand, uitteam. 📺 + rode gloed bij de wedstrijd die wij streamen (`tables[].competitie.matchId`, alleen
+     de wedstrijd op `matchId`. Per niveau een kaart "Competitie · <niveau>" in de vaste niveaukleur van de
+     YouTube-thumbnail; per regel: niveau, thuisteam, teamstand, uitteam. 📺 + rode gloed bij de wedstrijd die wij streamen (`tables[].competitie.matchId`, alleen
      openbare streams).
