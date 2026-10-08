@@ -4,6 +4,9 @@ const { getTodaysTournaments } = require('../cuescore');
 const { bouwLiveMatches, telZaalLive, bouwZaalRaster } = require('../planning/pauze');
 const { podiumVoorZaal, podiumPerTafel } = require('../planning/podium');
 const { zaalDag } = require('../schedule/schedule');
+const { getWedstrijdenVandaag } = require('../mokumCompetitie');
+const { competitieVoorLive } = require('../mokumCompetitie/vandaag');
+const { haalTafelPartijen, koppelPartijen } = require('../mokumCompetitie/tafelPartijen');
 
 // Timer-Function: haalt periodiek de live wedstrijd-status per cameratafel op uit
 // Cuescore en schrijft die naar live-matches.json. Puur lees-werk (geen streams/
@@ -61,12 +64,32 @@ async function verwerk(now, context) {
   // De publieke Mokum Live-pagina kreeg zijn lijst uit Cuescore's venue/events, en daar ontbrak
   // het lopende toernooi (04-10: Mokum Multiball 2) terwijl oude leagues er wél in stonden.
   const toernooien = tournaments.map((t) => ({ id: t.id, name: t.name || '', status: t.status || '' }));
+  // competitie = de teamwedstrijden van vandaag bij Mokum (v0.73), zodat Mokum Live ze naast de toernooien
+  // kan tonen. getWedstrijdenVandaag is 10 min. gecachet, dus dit belast de competitie-API nauwelijks. Mislukt
+  // het, dan laten we de vorige lijst staan (zoals bij Cuescore hierboven) i.p.v. de kaart te laten verdwijnen.
+  let competitie;
+  try {
+    competitie = competitieVoorLive((await getWedstrijdenVandaag({ now })).wedstrijden);
+  } catch (e) {
+    context.warn(`[liveMatches] competitie-wedstrijden niet op te halen (${e.message}) → vorige lijst behouden.`);
+    const vorig = (await readJson('live-matches.json', {})) || {};
+    competitie = Array.isArray(vorig.competitie) ? vorig.competitie : [];
+  }
+  // Tafelscores per teamwedstrijd (v0.74): alleen op een competitieavond, anders geen enkele extra aanroep.
+  // Zonder deze stap zouden bestaande partijen uit een eerdere ronde blijven hangen, dus altijd opnieuw koppelen.
+  if (competitie.length) {
+    try {
+      competitie = koppelPartijen(competitie, await haalTafelPartijen());
+    } catch (e) {
+      context.warn(`[liveMatches] tafelpartijen niet op te halen (${e.message}) → zonder partijen.`);
+    }
+  }
   // `updatedAt` buiten de vergelijking, anders verschilt er per definitie elke ronde iets
   // en schrijven we alsnog elke minuut. Tussen twee wedstrijden in verandert er soms een
   // half uur niets — dan hoeft er ook niets naar de opslag (#101).
   const geschreven = await writeJsonAlsGewijzigd(
     'live-matches.json',
-    { updatedAt: now.toISOString(), matches, venueLive, venueTables, podium, podiumPerTafel: podiumTafels, toernooien },
+    { updatedAt: now.toISOString(), matches, venueLive, venueTables, podium, podiumPerTafel: podiumTafels, toernooien, competitie },
     { negeer: ['updatedAt'] },
   );
   const live = Object.values(matches).filter((m) => m && m.status === 'playing').length;
