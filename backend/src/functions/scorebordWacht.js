@@ -1,8 +1,9 @@
 const { app } = require('@azure/functions');
 const crypto = require('crypto');
-const { readJson, writeJson, writeJsonAlsGewijzigd } = require('../storage/blob');
+const { readJson, writeJsonAlsGewijzigd } = require('../storage/blob');
+const { voegCommandosToe } = require('../agent/commandStore');
 const { zaalDag } = require('../schedule/schedule');
-const { enqueue, OVERLAY_BRON } = require('../agent/commandQueue');
+const { OVERLAY_BRON } = require('../agent/commandQueue');
 const { vingerafdruk, volgendeRefreshToestand } = require('../planning/scorebordWacht');
 const { TAFELS } = require('../challenge/cuescore');
 const { isScorebordWachtAan, scorebordRefreshMs } = require('../config/automation');
@@ -102,8 +103,7 @@ async function verwerk(now, context, fetchData = haalOverlayData) {
   }
 
   if (commands.length) {
-    const bestaand = (await readJson('commands.json', [])) || [];
-    await writeJson('commands.json', enqueue(bestaand, commands));
+    await voegCommandosToe(commands);
   }
   await writeJsonAlsGewijzigd(pad, store);
 }

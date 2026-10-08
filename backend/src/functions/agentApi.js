@@ -1,6 +1,6 @@
 const { app } = require('@azure/functions');
 const { readJson, writeJson } = require('../storage/blob');
-const { removeProcessed } = require('../agent/commandQueue');
+const { verwijderVerwerkt } = require('../agent/commandStore');
 const { isAgent } = require('../admin/auth');
 const { statusOmslagen, omslagRegel } = require('../agent/statusOmslag');
 
@@ -39,10 +39,14 @@ app.http('agentStatus', {
       return json(400, { error: 'ongeldige JSON' });
     }
 
-    // Bevestigde commando's uit de wachtrij halen (idempotent).
-    const commands = (await readJson('commands.json', [])) || [];
-    const rest = removeProcessed(commands, body.verwerkteCommandoIds || []);
-    await writeJson('commands.json', rest);
+    // Bevestigde commando's uit de wachtrij halen (idempotent). ALLEEN schrijven als er iets te
+    // bevestigen valt: de agent post om de paar seconden, en elke onnodige schrijfactie was een
+    // kans om een net door een timer klaargezet commando te overschrijven (07-10). Het schrijven
+    // zelf loopt met botsingsbeveiliging (ETag), zie agent/commandStore.js.
+    const verwerkt = Array.isArray(body.verwerkteCommandoIds) ? body.verwerkteCommandoIds.filter(Boolean) : [];
+    const rest = verwerkt.length
+      ? await verwijderVerwerkt(verwerkt)
+      : ((await readJson('commands.json', [])) || []);
 
     // Omslagen (gaat zenden / gestopt) loggen vóór we de vorige status overschrijven (#116).
     // Op Warning-niveau, want logLevel.default staat op Warning (zie #112): een gewone .log()

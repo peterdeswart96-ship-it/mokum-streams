@@ -1,7 +1,8 @@
 const { app } = require('@azure/functions');
 const { readJson, writeJson } = require('../storage/blob');
+const { voegCommandosToe } = require('../agent/commandStore');
 const { zaalDelen, zaalDag } = require('../schedule/schedule');
-const { enqueue } = require('../agent/commandQueue');
+
 const { isNachtVenster, teStoppenNachts } = require('../planning/nachtstop');
 
 // Timer-Function: nachtelijke veiligheids-stop. Na sluitingstijd (default 03:00
@@ -41,9 +42,8 @@ async function verwerk(now, context) {
   }
 
   if (nieuweCommandos.length > 0) {
-    const commands = (await readJson('commands.json', [])) || [];
     const metId = nieuweCommandos.map((c) => ({ id: crypto.randomUUID(), createdAt: now.toISOString(), ...c }));
-    await writeJson('commands.json', enqueue(commands, metId));
+    await voegCommandosToe(metId);
     // Warning-niveau (22-08, na een 11-uursstream die 's nachts niet werd opgemerkt):
     // logLevel.default staat op Warning (#110), dus een gewone .log() haalt de log-omgeving
     // niet meer. Dit is het laatste vangnet — juist déze regel mag nooit onzichtbaar zijn.
