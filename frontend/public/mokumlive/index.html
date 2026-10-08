@@ -135,10 +135,10 @@
   .logo { height: 40px; width: auto; flex: none; }
   .zoek {
     width: 100%; box-sizing: border-box; margin: 4px 0 4px; padding: 10px 12px;
-    background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px;
+    background: #3b3f45; border: 1px solid #4a4f56; border-radius: 8px;
     color: #fff; font-size: 15px; font-family: inherit;
   }
-  .zoek::placeholder { color: #777; }
+  .zoek::placeholder { color: #aab0b8; }
 
   /* Werkbalk: filterknop links, weergave-schakelaar rechts. */
   .toolbar { display: flex; align-items: center; gap: 8px; margin: 2px 0 8px; }
@@ -159,8 +159,8 @@
   .knop.actief { border-color: #cc0000; color: #fff; }
   .knop .telpil { background: #cc0000; color: #fff; border-radius: 999px; font-size: 11px; padding: 0 6px; font-weight: bold; }
   /* Segment-schakelaar (Standaard | Minimal). */
-  .seg { display: inline-flex; border: 1px solid #2a2a2a; border-radius: 8px; overflow: hidden; }
-  .seg button { cursor: pointer; background: #1a1a1a; border: 0; color: #999; font: inherit; font-size: 13px; font-weight: bold; padding: 8px 12px; text-align: center; }
+  .seg { display: inline-flex; border: 1px solid #4a4f56; border-radius: 8px; overflow: hidden; }
+  .seg button { cursor: pointer; background: #3b3f45; border: 0; color: #ddd; font: inherit; font-size: 13px; font-weight: bold; padding: 8px 12px; text-align: center; }
   .seg button.aan { background: #cc0000; color: #fff; }
   .seg .xl-knop { display: none; } /* XL is alleen voor desktop */
 
@@ -209,23 +209,24 @@
 
   /* Toernooi-chips: één tik = alleen dat toernooi, "Alles" = alles. Kleur = toernooikleur. */
   .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 8px; }
-  .chip { cursor: pointer; display: inline-flex; align-items: center; gap: 7px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 999px; color: #ddd; font: inherit; font-size: 13px; padding: 7px 13px; }
-  .chip:hover { border-color: #3a3a3a; color: #fff; }
+  .chip { cursor: pointer; display: inline-flex; align-items: center; gap: 7px; background: #3b3f45; border: 1px solid #4a4f56; border-radius: 999px; color: #ddd; font: inherit; font-size: 13px; padding: 7px 13px; }
+  .chip:hover { border-color: #5f656d; color: #fff; }
   .chip i { width: 9px; height: 9px; border-radius: 50%; background: var(--tk, #888); flex: none; }
-  .chip.aan { border-color: var(--tk, #888); background: color-mix(in srgb, var(--tk, #888) 20%, #1a1a1a); color: #fff; font-weight: bold; }
+  .chip.aan { border-color: var(--tk, #888); background: color-mix(in srgb, var(--tk, #888) 30%, #3b3f45); color: #fff; font-weight: bold; }
   /* Aan/uit-knoppen voor de filters. */
   .toolbar { flex-wrap: wrap; justify-content: space-between; }
   .toggles { display: flex; flex-wrap: wrap; gap: 6px; }
-  .tog { cursor: pointer; background: #141414; border: 1px solid #2a2a2a; border-radius: 8px; color: #aaa; font: inherit; font-size: 13px; padding: 7px 11px; }
-  .tog:hover { color: #fff; border-color: #3a3a3a; }
+  .tog { cursor: pointer; background: #3b3f45; border: 1px solid #4a4f56; border-radius: 8px; color: #ddd; font: inherit; font-size: 13px; padding: 7px 11px; }
+  .tog:hover { color: #fff; border-color: #5f656d; }
   .tog[aria-pressed="true"] { background: #cc0000; border-color: #cc0000; color: #fff; }
-  /* Toernooikaart: gekleurde kop, daaronder de wedstrijden van dat toernooi. */
-  .tcard { background: #141414; border: 1px solid #2a2a2a; border-radius: 10px; margin-bottom: 12px; overflow: hidden; }
+  /* Alle standen en filterknoppen in licht antraciet (#3b3f45), zoals het dashboard. De kleur van het
+     toernooi/niveau zit in het label links van elke rij. Toernooikaart: kop, daaronder de wedstrijden van dat toernooi. */
+  .tcard { background: #3b3f45; border: 1px solid #4a4f56; border-radius: 10px; margin-bottom: 12px; overflow: hidden; }
   .tcard h3 { margin: 0; padding: 9px 12px; font-size: 14px; color: #fff; display: flex; justify-content: space-between; align-items: center; gap: 10px;
-    background: color-mix(in srgb, var(--tk) 22%, #141414); border-bottom: 2px solid var(--tk); }
+    background: #454a51; border-bottom: 1px solid #2f3237; }
   .tcard h3 .tn { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tcard h3 .tt { flex: none; font-weight: normal; font-size: 12px; color: #ccc; }
-  .tcard .mrij { border-radius: 0; margin: 0; border: 0; border-bottom: 1px solid #222; background: transparent; }
+  .tcard .mrij { border-radius: 0; margin: 0; border: 0; border-bottom: 1px solid #2f3237; background: transparent; }
   .tcard .mrij:last-child { border-bottom: 0; }
   /* Live op onze YouTube: rode omlijning die langzaam pulseert/gloeit. Inset, want de kaart
      knipt (overflow hidden) alles buiten de rij af. */
@@ -238,9 +239,6 @@
   .tcard .mrij .mt { background: var(--tk); color: #06121f; white-space: nowrap; }
   .tcard .mrij.klaar .mt { opacity: .8; }
   .tcard .mrij.partij .mt { color: #fff; }
-  /* Teamkaarten in licht antraciet, zoals het dashboard (#3b3f45). */
-  .tcard.team { background: #3b3f45; border-color: #4a4f56; }
-  .tcard.team .mrij { border-bottom-color: #2f3237; }
   /* Teamwedstrijd: de kop-rij is de stand van het team, de rijen eronder zijn de partijen op de tafels. */
   .tcard .mrij.comp { background: #454a51; }
   .tcard .mrij.partij { padding-left: 24px; }
@@ -251,7 +249,7 @@
   body.xl .tcard .mrij.partij .ma, body.xl .tcard .mrij.partij .mb { font-size: 17px; }
   body.xl .tcard .mrij.partij .ms { font-size: 21px; }
   body.xl .tcard .geenpartij { font-size: 15px; padding-left: 34px; }
-  .tcard .mrij.comp .mt { color: #fff; } /* witte tekst op de niveaukleur, zoals de pil op de thumbnail */ /* witte tekst op de niveaukleur, zoals de pil op de thumbnail */
+  .tcard .mrij.comp .mt { color: #fff; } /* witte tekst op de niveaukleur, zoals de pil op de thumbnail */
 
 </style>
 </head>
