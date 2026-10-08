@@ -238,9 +238,11 @@
   .tcard .mrij .mt { background: var(--tk); color: #06121f; white-space: nowrap; }
   .tcard .mrij.klaar .mt { opacity: .8; }
   .tcard .mrij.partij .mt { color: #fff; }
-  .tcard.team { border-left: 4px solid var(--tk); }
+  /* Teamkaarten in licht antraciet, zoals het dashboard (#3b3f45). */
+  .tcard.team { background: #3b3f45; border-color: #4a4f56; }
+  .tcard.team .mrij { border-bottom-color: #2f3237; }
   /* Teamwedstrijd: de kop-rij is de stand van het team, de rijen eronder zijn de partijen op de tafels. */
-  .tcard .mrij.comp { background: rgba(255,255,255,.04); }
+  .tcard .mrij.comp { background: #454a51; }
   .tcard .mrij.partij { padding-left: 24px; }
   .tcard .mrij.partij .ma, .tcard .mrij.partij .mb { font-size: 13px; color: #ddd; }
   .tcard .mrij.partij .ms { font-size: 14px; }
@@ -622,7 +624,7 @@
       : status === 'waiting' ? '<span class="sdot straks" title="Staat klaar — nog niet begonnen"></span>'
       : '';
     const soort = [
-      vid ? 'live' : '',
+      vid && !comp ? 'live' : '', // teamstand blijft neutraal; de rode gloed hoort bij de tafel die wij streamen
       status === 'finished' ? 'klaar' : '',
       status === 'waiting' ? 'wacht' : '',
       comp ? 'comp' : '',
