@@ -19,6 +19,7 @@ Antwoord:
 {
   "generatedAt": "2026-07-08T18:00:00Z",
   "toernooien": [ { "id": 90541678, "name": "Mokum Multiball 2", "status": "Active" } ],   // v0.71: toernooien van vandaag volgens onze backend (organisatiepagina); leeg tot de timer draait
+  "competitie": [ { "matchId": 88259413, "niveau": "Derde Klasse", "toernooiId": 83574403, "thuisteam": "Mokum's Running English", "uitteam": "Mokum Sixpack", "starttime": "2026-10-08T18:00:00Z" } ],   // v0.73: teamwedstrijden van vandaag bij Mokum (voor Mokum Live); leeg tot de timer draait
   "venueLive": 7 | null,          // totaal aantal lopende wedstrijden in de héle zaal (alle toernooien), los van welke tafels wij filmen; null = onbekend
   "tables": [
     {
@@ -1169,3 +1170,18 @@ Regels:
   3. **Zuinigheid:** de backend bewaart het antwoord per instantie 10 minuten in het geheugen (een fout wordt niet
      bewaard, een nieuwe zaal-dag begint schoon), en het dashboard ververst de balk alleen terwijl het tabblad
      zichtbaar is (elke 5 min.). Zo blijft het aantal aanroepen naar de competitie-API klein.
+
+- 2026-10-08: v0.73 — **Mokum Live: competitiewedstrijden met live teamstand**. Reden: op een competitieavond
+  (08-10: drie wedstrijden tegelijk bij Mokum) stond er op de pagina maar één gestreamde wedstrijd; Peter wil de
+  live standen van alle teamwedstrijden zien, gegroepeerd in een eigen kleur zoals de toernooien. Achterwaarts
+  compatibel:
+  1. `GET /api/live` krijgt een array **`competitie`**: `{ matchId, niveau, toernooiId, thuisteam, uitteam,
+     starttime }` per teamwedstrijd die vandaag (zaal-dag) bij Mokum wordt gespeeld. Bron: dezelfde lijst als de
+     dashboardbalk (v0.72, `getWedstrijdenVandaag`, 10 min. gecachet), geschreven door de timer `liveMatches` in
+     `live-matches.json`. Niveaus die niet in `mokumCompetitie/toernooien.js` staan worden weggelaten (geen
+     `toernooiId` = geen stand te lezen). Mislukt het ophalen, dan blijft de vorige lijst staan. Ontbreekt het veld
+     (oude blob), dan toont de pagina gewoon geen competitiekaart.
+  2. De pagina haalt de stand zelf bij Cuescore (`tournament/?id=<toernooiId>`, zoals bij de toernooien) en zoekt
+     de wedstrijd op `matchId`. Eén kaart "Competitie" in een eigen vaste kleur; per regel: niveau, thuisteam,
+     teamstand, uitteam. 📺 + rode gloed bij de wedstrijd die wij streamen (`tables[].competitie.matchId`, alleen
+     openbare streams).

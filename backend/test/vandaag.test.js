@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { vandaagUitLijst, metDetails } = require('../src/mokumCompetitie/vandaag');
+const { vandaagUitLijst, metDetails, competitieVoorLive } = require('../src/mokumCompetitie/vandaag');
 
 const NU = new Date('2026-10-07T12:00:00Z');
 const w = (id, starttime) => ({ matchId: id, starttime, teams: [{ teamSlug: 'moko-loco', teamName: 'Moko Loco' }], niveau: 'Derde Klasse', thuisteam: 'A', uitteam: 'B' });
@@ -55,4 +55,15 @@ test('maakCache: een nieuwe zaal-dag en een mislukte aanroep worden niet gedeeld
   assert.equal((await cache('2026-10-08', t0, async () => ({ n: 2 }))).n, 2); // andere dag = opnieuw
   await assert.rejects(cache('2026-10-09', t0, async () => { throw new Error('stuk'); }));
   assert.equal((await cache('2026-10-08', t0, async () => ({ n: 3 }))).n, 2);  // fout liet de oude staan
+});
+
+test('competitieVoorLive: toernooiId erbij, onbekend niveau valt af', () => {
+  const lijst = [
+    { matchId: 88259413, niveau: 'Derde Klasse', thuisteam: 'Running English', uitteam: 'Sixpack', starttime: '2026-10-08T18:00:00Z', extra: 'x' },
+    { matchId: 5, niveau: 'Onbekende klasse', thuisteam: 'A', uitteam: 'B' },
+  ];
+  assert.deepEqual(competitieVoorLive(lijst), [
+    { matchId: 88259413, niveau: 'Derde Klasse', toernooiId: 83574403, thuisteam: 'Running English', uitteam: 'Sixpack', starttime: '2026-10-08T18:00:00Z' },
+  ]);
+  assert.deepEqual(competitieVoorLive(null), []);
 });

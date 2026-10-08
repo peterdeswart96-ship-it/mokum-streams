@@ -3,6 +3,7 @@
 // mokum-competitie-API (spelers, aanvoerder) in een compacte vorm zetten. Géén netwerk → testbaar.
 
 const { zaalDag } = require('../schedule/schedule');
+const { toernooiVoorNiveau } = require('./toernooien');
 
 const AGENDA_BASIS = 'https://mokum-competitie.pdscloud.nl/#/wedstrijd';
 
@@ -47,7 +48,27 @@ function metDetails(wedstrijd, detail) {
   };
 }
 
-module.exports = { vandaagUitLijst, vormTeam, metDetails, AGENDA_BASIS };
+// Compacte lijst voor de publieke Mokum Live-pagina (v0.73): per wedstrijd net genoeg om de stand bij
+// Cuescore op te zoeken (toernooiId + matchId). Een niveau zonder bekend Cuescore-toernooi valt af: daar
+// is geen stand te lezen, dus ook niets te tonen.
+function competitieVoorLive(wedstrijden) {
+  const uit = [];
+  for (const w of wedstrijden || []) {
+    const toernooiId = toernooiVoorNiveau(w.niveau);
+    if (!toernooiId || w.matchId == null) continue;
+    uit.push({
+      matchId: Number(w.matchId),
+      niveau: w.niveau,
+      toernooiId,
+      thuisteam: w.thuisteam || '',
+      uitteam: w.uitteam || '',
+      starttime: w.starttime || null,
+    });
+  }
+  return uit;
+}
+
+module.exports = { vandaagUitLijst, vormTeam, metDetails, competitieVoorLive, AGENDA_BASIS };
 
 // Kleine geheugencache voor het antwoord van de dashboardbalk. Meerdere open tabbladen (of een
 // snelle ververs) starten zo niet telkens ~20 aanroepen bij de competitie-API. Per instantie en

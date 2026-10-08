@@ -235,7 +235,7 @@
   }
   .tcard .mrij.live { animation: gloedIn 2.2s ease-in-out infinite; }
   @media (prefers-reduced-motion: reduce) { .tcard .mrij.live { animation: none; box-shadow: inset 0 0 0 2px #cc0000; } }
-  .tcard .mrij .mt { background: var(--tk); color: #06121f; }
+  .tcard .mrij .mt { background: var(--tk); color: #06121f; white-space: nowrap; }
   .tcard .mrij.klaar .mt { opacity: .8; }
 
 </style>
@@ -292,6 +292,7 @@
 
   let ALLE = [];     // alle wedstrijden van vandaag (met _toernooi)
   let STREAMS = {};  // { "<tafelnr>": youtube-videoId } — welke tafels wij live streamen
+  let COMP_STREAMS = {}; // { "<matchId>": youtube-videoId } — competitiewedstrijden die wij live streamen
   let GELADEN = false;
   let TOERNOOINAMEN = [];         // gestreamde (live) toernooien vandaag — voor auto-keuze
   let TOERNOOIEN_VANDAAG = [];    // álle toernooinamen van vandaag — voor de dropdown
@@ -420,6 +421,12 @@
     KLEUR = uit;
   }
   const kleurVan = (naam) => KLEUR[(naam || '').trim()] || '';
+  // Competitiewedstrijden (teamstanden, v0.73) staan samen in één kaart met een eigen vaste kleur,
+  // los van het palet hierboven. Ze hebben geen tafel: Cuescore koppelt bij een teamwedstrijd geen
+  // partijen aan tafels. Het niveau neemt de plek van het tafelnummer in.
+  const COMP_NAAM = 'Competitie';
+  const COMP_KLEUR = '#f97316';
+  const NIVEAU_KORT = { 'Eerste Klasse': '1e kl', 'Tweede Klasse': '2e kl', 'Derde Klasse': '3e kl', 'Eredivisie': 'Ere', 'Eerste Divisie': '1e div', 'Derde Divisie Noord-West': '3e div' };
 
   async function laad() {
     try {
@@ -427,13 +434,14 @@
       // Mag falen: dan werken we met alleen Cuescore's venue/events.
       const live = await haalJson(`${APP_API}/api/live`).catch(() => null);
       if (live) {
-        const map = {};
+        const map = {}; const compMap = {};
         for (const t of (live.tables || [])) {
           // Alleen ÓPENBARE streams op de publieke pagina — verborgen/privé horen hier niet.
           const v = t.liveVisibility === 'public' ? t.liveVideoId : null;
           if (v) map[String(t.tableNumber)] = v;
+          if (v && t.competitie && t.competitie.matchId != null) compMap[String(t.competitie.matchId)] = v;
         }
-        STREAMS = map; renderStream();
+        STREAMS = map; COMP_STREAMS = compMap; renderStream();
       }
 
       // Toernooi-id's uit twee bronnen. Onze backend vindt het lopende toernooi altijd (via de
@@ -456,6 +464,19 @@
         if (!toernooiTelt(t)) continue;
         for (const m of t.matches) { if (wedstrijdTelt(m)) { m._toernooi = t.name || ''; matches.push(m); } }
       }
+      // Competitie (v0.73): de teamwedstrijden van vandaag bij Mokum, met hun live stand uit het
+      // competitietoernooi van hun niveau. Mag falen: dan ontbreekt alleen die kaart.
+      const comp = (live && Array.isArray(live.competitie)) ? live.competitie : [];
+      const compIds = [...new Set(comp.map((c) => c.toernooiId).filter((id) => id != null))];
+      const compToernooien = await Promise.all(compIds.map((id) => haalJson(`${API}/tournament/?lang=nl&id=${id}`).catch(() => null)));
+      compIds.forEach((id, i) => {
+        const ct = compToernooien[i];
+        if (!ct || !Array.isArray(ct.matches)) return;
+        for (const c of comp.filter((x) => x.toernooiId === id)) {
+          const m = ct.matches.find((x) => String(x.matchId) === String(c.matchId));
+          if (m) matches.push({ ...m, _toernooi: COMP_NAAM, _comp: { niveau: c.niveau, start: c.starttime } });
+        }
+      });
       ALLE = matches;
       // Ticker: het toernooi dat NU live is = een toernooi met een lopende (playing)
       // wedstrijd. Zo valt een parallelle league weg die vandaag wél op de cameratafels
@@ -470,8 +491,9 @@
       if (!namen.length) namen = matches.filter((m) => opCamera(m) && st(m) === 'finished').map(naam).filter(Boolean);
       TOERNOOINAMEN = [...new Set(namen)];
       // Alle toernooien van vandaag (met wedstrijden op tafels) — voor de dropdown.
-      TOERNOOIEN_VANDAAG = [...new Set(matches.filter(heeftTafel).map(naam).filter(Boolean))].sort();
-      bouwKleuren(TOERNOOIEN_VANDAAG);
+      TOERNOOIEN_VANDAAG = [...new Set(matches.filter((m) => heeftTafel(m) || m._comp).map(naam).filter(Boolean))].sort();
+      bouwKleuren(TOERNOOIEN_VANDAAG.filter((n) => n !== COMP_NAAM));
+      KLEUR[COMP_NAAM] = COMP_KLEUR;
       GELADEN = true;
       document.getElementById('ts').textContent = new Date().toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
       renderToernooiOpties();
@@ -486,7 +508,9 @@
   const heeftTafel = (m) => m.table && m.table.name != null && String(m.table.name).trim() !== '';
   // Rode gloed = deze tafel is NU live op ónze YouTube (heeft een 📺), niet zomaar
   // elke lopende Cuescore-wedstrijd.
-  const opYoutube = (m) => !!STREAMS[String(m.table && m.table.name)];
+  // Het YouTube-videoId als wij deze wedstrijd nu live streamen: een competitiewedstrijd via zijn matchId,
+  // een toernooipartij via zijn tafel.
+  const vidVan = (m) => (m._comp ? COMP_STREAMS[String(m.matchId)] : STREAMS[String(m.table && m.table.name)]);
   const tijd = (iso) => { const t = Date.parse(iso || ''); return Number.isNaN(t) ? 0 : t; };
   const opTafel = (a, b) => num(a.table && a.table.name) - num(b.table && b.table.name);
 
@@ -508,14 +532,14 @@
     };
     const filtert = (m) => {
       if (FILTERS.afgelopen && st(m) === 'finished') return false;
-      if (FILTERS.youtube && !STREAMS[String((m.table && m.table.name) || '')]) return false;
-      if (FILTERS.gepind && !isPin(num(m.table && m.table.name))) return false;
+      if (FILTERS.youtube && !vidVan(m)) return false;
+      if (FILTERS.gepind && (m._comp || !isPin(num(m.table && m.table.name)))) return false; // teamwedstrijden hebben geen tafel om te pinnen
       return true;
     };
     // Toernooi-keuze uit de dropdown (of automatisch het gestreamde toernooi).
     const actief = toonToernooiSet(); // null = alle toernooien
     const inToernooi = (m) => !actief || actief.has((m._toernooi || '').trim());
-    const basis = ALLE.filter((m) => heeftTafel(m) && inToernooi(m) && zoekt(m) && filtert(m));
+    const basis = ALLE.filter((m) => (heeftTafel(m) || m._comp) && inToernooi(m) && zoekt(m) && filtert(m));
 
     // Per toernooi een kaart; binnen de kaart eerst wat nu bezig is, dan wat straks komt, dan
     // de laatst afgelopen partijen. Toernooien met lopende wedstrijden staan bovenaan.
@@ -555,8 +579,9 @@
     const b = (m.playerB && m.playerB.name) || 'nog onbekend';
     const sa = m.scoreA != null ? m.scoreA : 0;
     const sb = m.scoreB != null ? m.scoreB : 0;
-    const tnr = (m.table && m.table.name) ? String(m.table.name) : '?';
-    const vid = STREAMS[String(m.table && m.table.name)];
+    const comp = m._comp || null;
+    const tnr = comp ? (NIVEAU_KORT[comp.niveau] || comp.niveau || '?') : (m.table && m.table.name) ? String(m.table.name) : '?';
+    const vid = vidVan(m);
     const kijk = vid
       ? `<a class="mk" title="Kijk deze tafel live" href="https://www.youtube.com/watch?v=${esc(vid)}" target="_blank" rel="noreferrer">📺</a>`
       : '';
@@ -572,9 +597,16 @@
       status === 'waiting' ? 'wacht' : '',
     ].filter(Boolean).join(' ');
     const kl = kleurVan(m._toernooi);
-    return `<div class="mrij ${soort}" ${kl ? `style="--tk:${kl}" ` : ''}title="${esc(m._toernooi || '')}">
-      <span class="helft links">${pinKnop(tnr)}<span class="mt">${esc(tnr)}</span>${dot}<span class="ma">${esc(a)}</span></span>
-      <span class="ms"><span class="sa">${esc(sa)}</span><span class="sep">-</span><span class="sb">${esc(sb)}</span></span>
+    // Een teamwedstrijd die nog niet begonnen is toont zijn starttijd i.p.v. 0-0.
+    const startTekst = comp && status === 'waiting' && comp.start && !Number.isNaN(Date.parse(comp.start))
+      ? new Date(comp.start).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Amsterdam' })
+      : '';
+    const score = startTekst
+      ? `<span class="ms"><span class="sa">${esc(startTekst)}</span></span>`
+      : `<span class="ms"><span class="sa">${esc(sa)}</span><span class="sep">-</span><span class="sb">${esc(sb)}</span></span>`;
+    return `<div class="mrij ${soort}" ${kl ? `style="--tk:${kl}" ` : ''}title="${esc(comp ? (comp.niveau || '') : (m._toernooi || ''))}">
+      <span class="helft links">${comp ? '' : pinKnop(tnr)}<span class="mt">${esc(tnr)}</span>${dot}<span class="ma">${esc(a)}</span></span>
+      ${score}
       <span class="helft rechts"><span class="mb">${esc(b)}</span>${kijk}</span>
     </div>`;
   }

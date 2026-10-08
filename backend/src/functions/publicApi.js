@@ -63,6 +63,8 @@ app.http('publicLive', {
     // toernooien = de toernooien van vandaag volgens onze backend (id/naam/status), voor de
     // toernooi-dropdown op Mokum Live. Leeg tot de liveMatches-timer het veld schrijft.
     const toernooien = Array.isArray(liveMatches.toernooien) ? liveMatches.toernooien : [];
+    // competitie = teamwedstrijden van vandaag bij Mokum (v0.73), voor de competitiekaart op Mokum Live.
+    const competitie = Array.isArray(liveMatches.competitie) ? liveMatches.competitie : [];
     // podiumPerTafel: per cameratafel welk podium DIE tafel moet tonen, ongeacht wat er op
     // een andere cameratafel speelt. { "1": {...} | null, "3": ..., ... }.
     const podiumPerTafel = liveMatches.podiumPerTafel || {};
@@ -74,6 +76,7 @@ app.http('publicLive', {
       venueLive,
       venueTables,
       toernooien,
+      competitie,
       podium,
       podiumPerTafel,
       ticker,
