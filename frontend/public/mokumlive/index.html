@@ -237,7 +237,19 @@
   @media (prefers-reduced-motion: reduce) { .tcard .mrij.live { animation: none; box-shadow: inset 0 0 0 2px #cc0000; } }
   .tcard .mrij .mt { background: var(--tk); color: #06121f; white-space: nowrap; }
   .tcard .mrij.klaar .mt { opacity: .8; }
-  .tcard .mrij.comp .mt { color: #fff; } /* witte tekst op de niveaukleur, zoals de pil op de thumbnail */
+  .tcard .mrij.partij .mt { color: #fff; }
+  .tcard.team { border-left: 4px solid var(--tk); }
+  /* Teamwedstrijd: de kop-rij is de stand van het team, de rijen eronder zijn de partijen op de tafels. */
+  .tcard .mrij.comp { background: rgba(255,255,255,.04); }
+  .tcard .mrij.partij { padding-left: 24px; }
+  .tcard .mrij.partij .ma, .tcard .mrij.partij .mb { font-size: 13px; color: #ddd; }
+  .tcard .mrij.partij .ms { font-size: 14px; }
+  .tcard .geenpartij { padding: 9px 12px 9px 24px; font-size: 12px; color: #888; }
+  body.xl .tcard .mrij.partij { padding-left: 34px; }
+  body.xl .tcard .mrij.partij .ma, body.xl .tcard .mrij.partij .mb { font-size: 17px; }
+  body.xl .tcard .mrij.partij .ms { font-size: 21px; }
+  body.xl .tcard .geenpartij { font-size: 15px; padding-left: 34px; }
+  .tcard .mrij.comp .mt { color: #fff; } /* witte tekst op de niveaukleur, zoals de pil op de thumbnail */ /* witte tekst op de niveaukleur, zoals de pil op de thumbnail */
 
 </style>
 </head>
@@ -478,7 +490,7 @@
         if (!ct || !Array.isArray(ct.matches)) return;
         for (const c of comp.filter((x) => x.toernooiId === id)) {
           const m = ct.matches.find((x) => String(x.matchId) === String(c.matchId));
-          if (m) matches.push({ ...m, _toernooi: kaartNaamVan(c.niveau), _comp: { niveau: c.niveau, start: c.starttime } });
+          if (m) matches.push({ ...m, _toernooi: kaartNaamVan(c.niveau), _comp: { niveau: c.niveau, start: c.starttime, partijen: Array.isArray(c.partijen) ? c.partijen : [] } });
         }
       });
       ALLE = matches;
@@ -532,12 +544,15 @@
       const a = ((m.playerA && m.playerA.name) || '').toLowerCase();
       const b = ((m.playerB && m.playerB.name) || '').toLowerCase();
       const tf = String((m.table && m.table.name) || '').toLowerCase();
-      return a.includes(q) || b.includes(q) || tf === q || ('tafel ' + tf).includes(q);
+      const inPartij = ((m._comp && m._comp.partijen) || []).some((p) => String(p.spelerA).toLowerCase().includes(q) || String(p.spelerB).toLowerCase().includes(q) || String(p.tafel) === q || ('tafel ' + p.tafel).includes(q));
+      return a.includes(q) || b.includes(q) || tf === q || ('tafel ' + tf).includes(q) || inPartij;
     };
     const filtert = (m) => {
       if (FILTERS.afgelopen && st(m) === 'finished') return false;
-      if (FILTERS.youtube && !vidVan(m)) return false;
-      if (FILTERS.gepind && (m._comp || !isPin(num(m.table && m.table.name)))) return false; // teamwedstrijden hebben geen tafel om te pinnen
+      const tafels = m._comp ? m._comp.partijen.map((p) => p.tafel) : [];
+      if (FILTERS.youtube && !vidVan(m) && !tafels.some((n) => STREAMS[String(n)])) return false;
+      // Een teamwedstrijd zelf heeft geen tafel; hij telt mee als een van zijn partijen op een gepinde tafel loopt.
+      if (FILTERS.gepind && !(m._comp ? tafels.some((n) => isPin(n)) : isPin(num(m.table && m.table.name)))) return false;
       return true;
     };
     // Toernooi-keuze uit de dropdown (of automatisch het gestreamde toernooi).
@@ -559,7 +574,18 @@
     return groepen.length ? toon(groepen.map(kaart).join('')) : toonLeeg(q);
   }
 
+  // Een teamwedstrijd: kop-rij met de teamstand, eronder de partijen die nu op een tafel lopen (v0.74).
+  function kaartTeam(m) {
+    const partijen = (m._comp.partijen || []).map((p) => mrij({
+      _partij: true, _toernooi: m._toernooi, matchstatus: 'playing', table: { name: String(p.tafel) },
+      playerA: { name: p.spelerA }, playerB: { name: p.spelerB }, scoreA: p.scoreA, scoreB: p.scoreB,
+    })).join('');
+    const leeg = !partijen && st(m) !== 'finished' ? '<div class="geenpartij">Geen partij bezig aan een tafel</div>' : '';
+    return `<section class="tcard team" style="--tk:${kleurVan(m._toernooi) || '#888'}">${mrij(m)}${partijen}${leeg}</section>`;
+  }
+
   function kaart(g) {
+    if (g.naamT.startsWith(COMP_VOORVOEGSEL)) return [...g.live, ...g.straks, ...g.afgelopen].map(kaartTeam).join('');
     const tellers = [g.live.length ? `${g.live.length} live` : '', g.straks.length ? `${g.straks.length} straks` : ''].filter(Boolean).join(' · ');
     return `<section class="tcard" style="--tk:${kleurVan(g.naamT) || '#888'}">
       <h3><span class="tn">${esc(g.naamT)}</span><span class="tt">${tellers}</span></h3>
@@ -600,6 +626,7 @@
       status === 'finished' ? 'klaar' : '',
       status === 'waiting' ? 'wacht' : '',
       comp ? 'comp' : '',
+      m._partij ? 'partij' : '',
     ].filter(Boolean).join(' ');
     const kl = kleurVan(m._toernooi);
     // Een teamwedstrijd die nog niet begonnen is toont zijn starttijd i.p.v. 0-0.

@@ -19,7 +19,7 @@ Antwoord:
 {
   "generatedAt": "2026-07-08T18:00:00Z",
   "toernooien": [ { "id": 90541678, "name": "Mokum Multiball 2", "status": "Active" } ],   // v0.71: toernooien van vandaag volgens onze backend (organisatiepagina); leeg tot de timer draait
-  "competitie": [ { "matchId": 88259413, "niveau": "Derde Klasse", "toernooiId": 83574403, "thuisteam": "Mokum's Running English", "uitteam": "Mokum Sixpack", "starttime": "2026-10-08T18:00:00Z" } ],   // v0.73: teamwedstrijden van vandaag bij Mokum (voor Mokum Live); leeg tot de timer draait
+  "competitie": [ { "matchId": 88259413, "niveau": "Derde Klasse", "toernooiId": 83574403, "thuisteam": "Mokum's Running English", "uitteam": "Mokum Sixpack", "starttime": "2026-10-08T18:00:00Z", "partijen": [ { "tafel": 15, "spelerA": "Vasil Savov", "spelerB": "Marieke de Boer", "scoreA": 0, "scoreB": 0, "raceTo": 4 } ] } ],   // v0.73/v0.74: teamwedstrijden van vandaag bij Mokum (voor Mokum Live); leeg tot de timer draait
   "venueLive": 7 | null,          // totaal aantal lopende wedstrijden in de héle zaal (alle toernooien), los van welke tafels wij filmen; null = onbekend
   "tables": [
     {
@@ -1185,3 +1185,18 @@ Regels:
      de wedstrijd op `matchId`. Per niveau een kaart "Competitie · <niveau>" in de vaste niveaukleur van de
      YouTube-thumbnail; per regel: niveau, thuisteam, teamstand, uitteam. 📺 + rode gloed bij de wedstrijd die wij streamen (`tables[].competitie.matchId`, alleen
      openbare streams).
+
+- 2026-10-08: v0.74 — **Mokum Live: tafelscores per teamwedstrijd**. Reden: de teamstand (v0.73) zegt niets over
+  de partijen die op dat moment op de tafels lopen; Peter wil die per spelend team gegroepeerd zien. Cuescore
+  koppelt een tafelpartij aan zijn teamwedstrijd via `match.parentId` (= `matchId` van de teamwedstrijd, gecontroleerd
+  op 08-10 voor tafel 1, 15 en 16). Achterwaarts compatibel:
+  1. Elk element van `GET /api/live` → `competitie` krijgt **`partijen`**: `{ tafel, spelerA, spelerB, scoreA,
+     scoreB, raceTo }` per partij die nú op een tafel loopt (`PLAYING`) en bij die teamwedstrijd hoort, gesorteerd op
+     tafel. Leeg als er niets loopt. Alleen de lopende partij per tafel is te zien (de overlay toont niet wat eerder
+     op die tafel gespeeld is).
+  2. Bron: dezelfde overlay-aanroep als de scorebord-bewaking (`cuescore.com/ajax/scoreboard/overlay-v2.php`, per
+     tafel 1 t/m 16). De timer `liveMatches` doet dat **alleen als er vandaag een competitiewedstrijd bij Mokum is**
+     (anders geen enkele extra aanroep) en schrijft het mee in `live-matches.json`. De browser kan dit niet zelf
+     (geen CORS). Ververssnelheid dus ~1 minuut voor de tafelscores.
+  3. De pagina toont per teamwedstrijd één kaart (niveaukleur): kop met de teams en de teamstand, daaronder per tafel
+     de lopende partij.
