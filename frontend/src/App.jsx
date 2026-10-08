@@ -1293,6 +1293,23 @@ function datumLabel(iso) {
   return d.toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
+// Kleur en korte naam van de niveau-pil (zelfde als op de competitie-thumbnails). Kopie van
+// backend/src/mokumCompetitie/niveauKleuren.js — bij een nieuw niveau of seizoen op alle plekken bijwerken
+// (zie docs/ontwerp/competitie/thumbnail-ontwerp.md). Onbekend niveau = neutraal grijs.
+const KLEUR_PER_NIVEAU = {
+  Eredivisie: '#c98a00', 'Eerste Divisie': '#1e6fd9', 'Derde Divisie Noord-West': '#7b3fc4',
+  'Eerste Klasse': '#1f9d55', 'Tweede Klasse': '#e8720c', 'Derde Klasse': '#0e8f9c',
+};
+const kleurVoorNiveau = (n) => KLEUR_PER_NIVEAU[String(n || '').trim()] || '#5b6470';
+const verkortNiveau = (n) => {
+  const t = String(n || '').trim().replace(/\s+/g, ' ');
+  const m = t.match(/^(\S+ (?:divisie|klasse))\b/i);
+  return m ? m[1] : t;
+};
+// Thuis = rood, uit = blauw (in een competitiewedstrijd is het eerste team altijd het thuisteam).
+const KLEUR_THUIS = '#ff6b6b';
+const KLEUR_UIT = '#6aa9ff';
+
 // Tooltip bij het "Vandaag"-getal van de Toernooi planner én de competitiebalk: één overzicht van
 // wat er vandaag op het programma staat. Beide balken geven hun lijst door aan de App (onVandaag),
 // zodat elk van de twee tooltips dezelfde twee lijsten kan tonen. null = nog niet geladen.
@@ -1367,24 +1384,39 @@ function CompetitieVandaag({ onVandaag, overzicht }) {
         <div className="px-4 pt-3 pb-4 flex flex-col gap-4">
           {fout && aantal == null && <p className="text-sm text-ink-muted">Kon de competitiewedstrijden niet laden.</p>}
           {aantal === 0 && <p className="text-sm text-ink-muted">Vandaag worden er geen competitiewedstrijden bij Mokum gespeeld.</p>}
+          {aantal > 0 && (
+            <p className="text-[11px] text-neutral-300 -mb-2">
+              <span style={{ color: KLEUR_THUIS }}>■</span> rood = thuis · <span style={{ color: KLEUR_UIT }}>■</span> blauw = uit
+            </p>
+          )}
           {(data ? data.wedstrijden : []).map((w) => (
             <div key={w.matchId} className="flex flex-col gap-3">
-              <div className="bg-surface border border-line rounded-lg p-4">
-                <h3 className="font-display text-lg">{w.thuisteam} - {w.uitteam}</h3>
-                <p className="text-xs text-ink-muted mt-1">{[w.competitionName || w.niveau, w.roundName].filter(Boolean).join(' · ')}</p>
-                <p className="text-xs mt-3">📅 {datumLang(w.starttime)}, {tijd(w.starttime)} uur</p>
-                {(w.venueName || w.venueAddress) && (
-                  <p className="text-xs mt-1">📍 {[w.venueName, w.venueAddress].filter(Boolean).join(', ')}</p>
+              <div className="bg-surface border border-line rounded-lg p-4 flex flex-col gap-3 sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+                <div>
+                  <h3 className="font-display text-lg">
+                    <span style={{ color: KLEUR_THUIS }}>{w.thuisteam}</span> - <span style={{ color: KLEUR_UIT }}>{w.uitteam}</span>
+                  </h3>
+                  <p className="text-xs text-ink-muted mt-1">{[w.competitionName || w.niveau, w.roundName].filter(Boolean).join(' · ')}</p>
+                  <p className="text-xs mt-3">📅 {datumLang(w.starttime)}, {tijd(w.starttime)} uur</p>
+                  {(w.venueName || w.venueAddress) && (
+                    <p className="text-xs mt-1">📍 {[w.venueName, w.venueAddress].filter(Boolean).join(', ')}</p>
+                  )}
+                </div>
+                {/* Niveau-pil, gecentreerd, in dezelfde kleur als op de YouTube-thumbnail. */}
+                {w.niveau && (
+                  <span className="justify-self-center self-center rounded-full px-5 py-2 font-display text-sm uppercase tracking-wide text-white"
+                        style={{ backgroundColor: kleurVoorNiveau(w.niveau) }}>{verkortNiveau(w.niveau)}</span>
                 )}
+                <span className="hidden sm:block" />
               </div>
               {(w.home || w.away) ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {[w.home, w.away].map((t, i) => t && (
                     <div key={i} className="bg-surface border border-line rounded-lg p-4">
-                      <h4 className="font-medium text-sm mb-2">{t.name}</h4>
+                      <h4 className="font-medium text-sm mb-2" style={{ color: i === 0 ? KLEUR_THUIS : KLEUR_UIT }}>{t.name}</h4>
                       <ul className="text-xs space-y-1">
                         {t.spelers.map((n) => (
-                          <li key={n}>{n}{n === t.aanvoerder && <span className="text-brand-light"> (aanvoerder)</span>}</li>
+                          <li key={n}>{n}{n === t.aanvoerder && <span className="text-neutral-400 italic"> (aanvoerder)</span>}</li>
                         ))}
                       </ul>
                     </div>
