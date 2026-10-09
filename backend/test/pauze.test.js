@@ -273,7 +273,7 @@ test('#155: rommel in de store levert geen tafels op', () => {
 });
 
 // ── Herstelcontrole (07-10) ──
-const { afwijkendeOverlays, magHerstellen, HERSTEL } = require('../src/planning/pauze');
+const { afwijkendeOverlays, magHerstellen, HERSTEL, adhocTafels } = require('../src/planning/pauze');
 
 test('afwijkendeOverlays: jumbotron aan terwijl er gespeeld wordt = afwijking (het incident van 07-10)', () => {
   const gemeld = { sponsors: true, scoreboard: true, jumbotron: true, competitie: false };
@@ -293,7 +293,7 @@ test('afwijkendeOverlays: klopt alles, of meldt de agent niets, dan geen herstel
 
 test('magHerstellen: alleen in het venster na de omslag, met pauze tussen pogingen en een maximum', () => {
   const t0 = 1_000_000;
-  const staat = (extra = {}) => ({ sinds: t0, herstelPogingen: 0, herstelLaatst: null, ...extra });
+  const staat = (extra = {}) => ({ sinds: t0, omslagVerstuurd: true, herstelPogingen: 0, herstelLaatst: null, ...extra });
   assert.equal(magHerstellen(staat(), t0 + 10_000), false);                              // te vroeg: commando is nog onderweg
   assert.equal(magHerstellen(staat(), t0 + HERSTEL.minNaOmslagMs), true);                // nu mag het
   assert.equal(magHerstellen(staat(), t0 + HERSTEL.maxNaOmslagMs + 1), false);           // te laat: handmatig bedienen respecteren
@@ -301,4 +301,22 @@ test('magHerstellen: alleen in het venster na de omslag, met pauze tussen poging
   assert.equal(magHerstellen(staat({ herstelPogingen: 1, herstelLaatst: t0 + 50_000 }), t0 + 120_000), true);
   assert.equal(magHerstellen(staat({ herstelPogingen: HERSTEL.maxPogingen }), t0 + 120_000), false);
   assert.equal(magHerstellen(null, t0), false);
+});
+
+test('#183: geen herstel na de neutrale start, want er is dan geen omslag met commandos geweest', () => {
+  const t0 = 1_000_000;
+  const neutraal = { sinds: t0, herstelPogingen: 0, herstelLaatst: null, omslagVerstuurd: false };
+  assert.equal(magHerstellen(neutraal, t0 + HERSTEL.minNaOmslagMs), false);
+  assert.equal(magHerstellen({ sinds: t0, herstelPogingen: 0, herstelLaatst: null }, t0 + HERSTEL.minNaOmslagMs), false); // oude state zonder veld
+});
+
+test('#183: adhocTafels vindt challenge- en custom-streams, niet gestopte of gekoppelde', () => {
+  const store = {
+    1: { tableNumber: 1, adhoc: true, streamType: 'challenge' },
+    3: { tableNumber: 3, adhoc: true },
+    15: { tableNumber: 15, adhoc: true, stopped: true },
+    16: { tableNumber: 16, adhoc: false, tournamentId: 5 },
+  };
+  assert.deepStrictEqual([...adhocTafels(store)].sort((a, b) => a - b), [1, 3]);
+  assert.deepStrictEqual([...adhocTafels(null)], []);
 });

@@ -80,7 +80,7 @@ en past beter in het brein.
 - **Tafel live zonder enig toernooi** → keuze (config): pauzescherm tonen, of niets.
 - **Meerdere toernooien in de zaal** → venue-brede data (Jumbotron dekt dit al).
 - **Cuescore traag/down** → fail-safe: huidige toestand behouden, niet flapperen.
-- **Ad-hoc stream** (dashboard-start zonder Cuescore-koppeling) → auto-pauze uit; handmatig.
+- **Ad-hoc stream** (challenge of custom, geen Cuescore-koppeling) → auto-pauze uit; handmatig. Sinds #183 doet de code dat ook echt (`adhocTafels`), en de herstelcontrole slaat de neutrale starttoestand over.
 
 ## Gefaseerd bouwen
 1. ✅ **Cuescore live-endpoint achterhalen** — gevonden (`tournament/?id=` → `matches` met

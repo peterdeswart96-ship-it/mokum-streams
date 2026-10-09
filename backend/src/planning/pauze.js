@@ -226,6 +226,21 @@ function competitieTafels(store) {
   return uit;
 }
 
+// #183: tafels met een ad-hoc stream (challenge of custom: geen Cuescore-toernooi gekoppeld) doen
+// niet mee aan het automatische pauzescherm. Cuescore zet een challenge niet op de toernooienpagina,
+// dus 'er speelt niets' is daar altijd het antwoord, ook midden in de partij. Dat staat al in
+// docs/pauzescherm-auto.md ('ad-hoc stream -> auto-pauze uit; handmatig'), maar de code deed het niet.
+// Wie zo'n stream start, bedient de overlays zelf. Een gestopte entry telt niet mee.
+function adhocTafels(store) {
+  const uit = new Set();
+  for (const entry of Object.values(store || {})) {
+    if (!entry || entry.stopped || !entry.adhoc) continue;
+    const tn = Number(entry.tableNumber);
+    if (Number.isInteger(tn)) uit.add(tn);
+  }
+  return uit;
+}
+
 // ── Herstelcontrole (07-10) ───────────────────────────────────────────────────
 // De timer stuurt de overlay-commando's maar één keer per omslag. Gaat dat commando verloren
 // (op 07-10 werd de wachtrij overschreven), dan bleef de jumbotron een half uur in beeld terwijl er
@@ -248,8 +263,11 @@ function afwijkendeOverlays(gemeld, toonPauze, pauzeKeys, pauzeUitKeys) {
 }
 
 // Mag er nu nog een herstelpoging? `staat` = { sinds, herstelPogingen, herstelLaatst } van de tafel.
+// #183: alleen na een omslag waarvoor de timer ook echt commando's heeft gestuurd. De neutrale
+// starttoestand (eerste tik, geen omslag, niets verstuurd) telt niet: daar is niets om te herstellen
+// en zou je de overlays overrulen die de gebruiker bij het starten zelf koos.
 function magHerstellen(staat, nowMs, opties = HERSTEL) {
-  if (!staat) return false;
+  if (!staat || !staat.omslagVerstuurd) return false;
   const sindsOmslag = nowMs - Number(staat.sinds);
   if (!(sindsOmslag >= opties.minNaOmslagMs && sindsOmslag <= opties.maxNaOmslagMs)) return false;
   if ((staat.herstelPogingen || 0) >= opties.maxPogingen) return false;
@@ -257,4 +275,4 @@ function magHerstellen(staat, nowMs, opties = HERSTEL) {
   return true;
 }
 
-module.exports = { afwijkendeOverlays, magHerstellen, HERSTEL, tafelSpeeltNu, volgendeToestand, competitieTafels, pauzeCommandos, refreshCommandos, bouwLiveMatches, telZaalLive, bouwZaalRaster };
+module.exports = { afwijkendeOverlays, magHerstellen, HERSTEL, tafelSpeeltNu, volgendeToestand, competitieTafels, adhocTafels, pauzeCommandos, refreshCommandos, bouwLiveMatches, telZaalLive, bouwZaalRaster };
