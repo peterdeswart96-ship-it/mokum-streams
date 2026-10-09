@@ -5,7 +5,7 @@ const { getTodaysTournaments } = require('../cuescore');
 const { zaalDag } = require('../schedule/schedule');
 const { OVERLAY_BRON } = require('../agent/commandQueue');
 const {
-  tafelSpeeltNu, volgendeToestand, competitieTafels, pauzeCommandos, refreshCommandos, afwijkendeOverlays, magHerstellen,
+  tafelSpeeltNu, volgendeToestand, competitieTafels, adhocTafels, pauzeCommandos, refreshCommandos, afwijkendeOverlays, magHerstellen,
 } = require('../planning/pauze');
 const { isPauzeAutoOn, pauzeSchermKeys, pauzeSchermUitKeys, pauzeSchermRefreshKeys } = require('../config/automation');
 
@@ -57,14 +57,15 @@ async function verwerk(now, context) {
   // #155: competitietafels overslaan - zie competitieTafels() voor het waarom. Warning-niveau
   // zodat in de log terug te zien is dat de timer een tafel bewust met rust liet.
   const broadcasts = (await readJson(`broadcasts/${zaalDag(now)}.json`, {})) || {};
-  const overslaan = competitieTafels(broadcasts);
+  // #183: ook ad-hoc streams (challenge/custom) overslaan: Cuescore meldt daar nooit 'speelt'.
+  const overslaan = new Set([...competitieTafels(broadcasts), ...adhocTafels(broadcasts)]);
   const streamend = alleStreamend.filter((tn) => !overslaan.has(tn));
   const genegeerd = alleStreamend.filter((tn) => overslaan.has(tn));
   if (genegeerd.length) {
-    context.warn(`[pauzeScherm] tafel ${genegeerd.join(', ')} overgeslagen: competitiestream (#155)`);
+    context.warn(`[pauzeScherm] tafel ${genegeerd.join(', ')} overgeslagen: competitie- of ad-hocstream (#155, #183)`);
   }
   if (!streamend.length) {
-    context.log('[pauzeScherm] alleen competitietafels streamen → niets te doen.');
+    context.log('[pauzeScherm] alleen competitie-/ad-hoctafels streamen → niets te doen.');
     return;
   }
 
@@ -97,6 +98,8 @@ async function verwerk(now, context) {
       wachtSinds: res.wachtSinds,
       herstelPogingen: res.veranderd ? 0 : ((vorige && vorige.herstelPogingen) || 0),
       herstelLaatst: res.veranderd ? null : ((vorige && vorige.herstelLaatst) ?? null),
+      // #183: herstel mag pas na een omslag waarvoor wij commando's stuurden (niet na de neutrale start).
+      omslagVerstuurd: res.veranderd ? true : !!(vorige && vorige.omslagVerstuurd),
     };
 
     if (res.veranderd) {
