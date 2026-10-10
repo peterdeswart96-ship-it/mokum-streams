@@ -103,6 +103,13 @@
 
   /* Pin-knop om een tafel vast te pinnen. Los = grijze omtrek, schuin gekanteld;
      gepind = massief rood en rechtop. SVG zodat we de kleur écht kunnen sturen. */
+  /* Ronde-icoontje (laatste 16 / kwartfinale / halve finale / finale) tussen pin en tafelnummer. */
+  .rond { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 3px; box-sizing: border-box; border-radius: 999px; background: #2a2a2a; border: 1px solid #6a6f77; color: #fff; font-family: "Arial Black", Arial, sans-serif; font-size: 10px; line-height: 1; cursor: help; }
+  .rond.f { background: #c98a00; border-color: #e8b230; color: #14100a; }
+  .tcard h3 a.tn, .tcard .mrij a.mt { text-decoration: none; }
+  .tcard h3 a.tn { color: inherit; }
+  .tcard h3 a.tn:hover { text-decoration: underline; }
+  .tcard .mrij a.mt:hover { filter: brightness(1.15); }
   .pin { flex: 0 0 auto; cursor: pointer; background: none; border: 0; padding: 3px; line-height: 0; color: #8a8a8a; transform: rotate(-30deg); transition: transform .15s ease, color .15s ease; }
   .pin svg { width: 17px; height: 17px; display: block; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .pin:hover { color: #ff6b6b; }
@@ -478,7 +485,7 @@
         // Afgeronde toernooien en oude leagues horen hier niet: alleen toernooien die niet
         // klaar zijn én vandaag iets spelen of gepland hebben (zie toernooiTelt).
         if (!toernooiTelt(t)) continue;
-        for (const m of t.matches) { if (wedstrijdTelt(m)) { m._toernooi = t.name || ''; matches.push(m); } }
+        for (const m of t.matches) { if (wedstrijdTelt(m)) { m._toernooi = t.name || ''; m._url = t.url || ''; matches.push(m); } }
       }
       // Competitie (v0.73): de teamwedstrijden van vandaag bij Mokum, met hun live stand uit het
       // competitietoernooi van hun niveau. Mag falen: dan ontbreekt alleen die kaart.
@@ -490,7 +497,7 @@
         if (!ct || !Array.isArray(ct.matches)) return;
         for (const c of comp.filter((x) => x.toernooiId === id)) {
           const m = ct.matches.find((x) => String(x.matchId) === String(c.matchId));
-          if (m) matches.push({ ...m, _toernooi: kaartNaamVan(c.niveau), _comp: { niveau: c.niveau, start: c.starttime, partijen: Array.isArray(c.partijen) ? c.partijen : [] } });
+          if (m) matches.push({ ...m, _toernooi: kaartNaamVan(c.niveau), _url: ct.url || '', _comp: { niveau: c.niveau, start: c.starttime, partijen: Array.isArray(c.partijen) ? c.partijen : [] } });
         }
       });
       ALLE = matches;
@@ -584,11 +591,33 @@
     return `<section class="tcard team" style="--tk:${kleurVan(m._toernooi) || '#888'}">${mrij(m)}${partijen}${leeg}</section>`;
   }
 
+  // Toernooititel als link naar de Cuescore-pagina (alleen https://cuescore.com/, anders gewone tekst).
+  const veiligeUrl = (u) => (/^https:\/\/cuescore\.com\//.test(u || '') ? u : '');
+  function tnKop(g) {
+    const url = veiligeUrl((g.live[0] || g.straks[0] || g.afgelopen[0] || {})._url);
+    return url
+      ? `<a class="tn" href="${esc(url)}" target="_blank" rel="noreferrer" title="Open dit toernooi op Cuescore">${esc(g.naamT)}</a>`
+      : `<span class="tn">${esc(g.naamT)}</span>`;
+  }
+
+  // Ronde-icoon voor de knock-outfase. Cuescore levert de naam in de taal van het verzoek (lang=nl).
+  const RONDEN = [
+    [/^(laatste 16|last 16|round of 16)$/i, '16', 'Laatste 16'],
+    [/^(kwartfinale|quarter[\s-]?final)$/i, 'Q', 'Quarter final (last 8)'],
+    [/^(halve finale|semi[\s-]?final)$/i, 'S', 'Semi final (last 4)'],
+    [/^(finale|final)$/i, 'F', 'Final'],
+  ];
+  function rondIcoon(m) {
+    const naam = String(m.roundName || '').trim();
+    const hit = RONDEN.find((x) => x[0].test(naam));
+    return hit ? `<span class="rond ${hit[1] === 'F' ? 'f' : ''}" title="${esc(hit[2])}" aria-label="${esc(hit[2])}">${hit[1]}</span>` : '';
+  }
+
   function kaart(g) {
     if (g.naamT.startsWith(COMP_VOORVOEGSEL)) return [...g.live, ...g.straks, ...g.afgelopen].map(kaartTeam).join('');
     const tellers = [g.live.length ? `${g.live.length} live` : '', g.straks.length ? `${g.straks.length} straks` : ''].filter(Boolean).join(' · ');
     return `<section class="tcard" style="--tk:${kleurVan(g.naamT) || '#888'}">
-      <h3><span class="tn">${esc(g.naamT)}</span><span class="tt">${tellers}</span></h3>
+      <h3>${tnKop(g)}<span class="tt">${tellers}</span></h3>
       ${[...g.live, ...g.straks, ...g.afgelopen].map(mrij).join('')}
     </section>`;
   }
@@ -637,10 +666,18 @@
       ? `<span class="ms"><span class="sa">${esc(startTekst)}</span></span>`
       : `<span class="ms"><span class="sa">${esc(sa)}</span><span class="sep">-</span><span class="sb">${esc(sb)}</span></span>`;
     return `<div class="mrij ${soort}" ${kl ? `style="--tk:${kl}" ` : ''}title="${esc(comp ? (comp.niveau || '') : (m._toernooi || ''))}">
-      <span class="helft links">${comp ? '' : pinKnop(tnr)}<span class="mt">${esc(tnr)}</span>${dot}<span class="ma">${esc(a)}</span></span>
+      <span class="helft links">${comp ? '' : pinKnop(tnr) + rondIcoon(m)}${tnLabel(m, tnr, comp)}${dot}<span class="ma">${esc(a)}</span></span>
       ${score}
       <span class="helft rechts"><span class="mb">${esc(b)}</span>${kijk}</span>
     </div>`;
+  }
+
+  // Tafelnummer/niveau-label; bij een teamwedstrijd een link naar de competitie in Cuescore.
+  function tnLabel(m, tnr, comp) {
+    const url = comp ? veiligeUrl(m._url) : '';
+    return url
+      ? `<a class="mt" href="${esc(url)}" target="_blank" rel="noreferrer" title="Open deze competitie op Cuescore">${esc(tnr)}</a>`
+      : `<span class="mt">${esc(tnr)}</span>`;
   }
 
   // De pin-knop voor een tafel. data-tafel wordt door de klik-afhandelaar gebruikt.
