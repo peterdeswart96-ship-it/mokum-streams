@@ -603,9 +603,9 @@
   // Ronde-icoon voor de knock-outfase. Cuescore levert de naam in de taal van het verzoek (lang=nl).
   const RONDEN = [
     [/^(laatste 16|last 16|round of 16)$/i, '16', 'Laatste 16'],
-    [/^(kwartfinale|quarter[\s-]?final)$/i, 'Q', 'Quarter final (last 8)'],
-    [/^(halve finale|semi[\s-]?final)$/i, 'S', 'Semi final (last 4)'],
-    [/^(finale|final)$/i, 'F', 'Final'],
+    [/^(kwartfinale|quarter[\s-]?final)$/i, 'Q', 'Kwartfinale (laatste 8)'],
+    [/^(halve finale|semi[\s-]?final)$/i, 'S', 'Halve finale (laatste 4)'],
+    [/^(finale|final)$/i, 'F', 'Finale'],
   ];
   function rondIcoon(m) {
     const naam = String(m.roundName || '').trim();
