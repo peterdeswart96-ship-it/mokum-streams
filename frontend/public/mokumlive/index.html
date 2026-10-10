@@ -104,11 +104,11 @@
   /* Pin-knop om een tafel vast te pinnen. Los = grijze omtrek, schuin gekanteld;
      gepind = massief rood en rechtop. SVG zodat we de kleur écht kunnen sturen. */
   /* Ronde-icoontje (laatste 16 / kwartfinale / halve finale / finale) tussen pin en tafelnummer. */
-  .rond { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 3px; box-sizing: border-box; border-radius: 999px; background: #2a2a2a; border: 1px solid #6a6f77; color: #fff; font-family: "Arial Black", Arial, sans-serif; font-size: 10px; line-height: 1; cursor: help; }
-  .rond.f { background: #c98a00; border-color: #e8b230; color: #14100a; }
-  .tcard h3 a.tn, .tcard .mrij a.mt { text-decoration: none; }
-  .tcard h3 a.tn { color: inherit; }
-  .tcard h3 a.tn:hover { text-decoration: underline; }
+  .rond { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; padding: 0 4px; box-sizing: border-box; border-radius: 999px; background: #fff; border: 1px solid #fff; color: #cc0000; font-family: "Arial Black", Arial, sans-serif; font-size: 14px; font-weight: bold; line-height: 1; cursor: help; }
+  .tcard .mrij a.mt { text-decoration: none; }
+  /* Link in de kleur van het tafelnummer-label van dit toernooi, met streep eronder. */
+  .tcard h3 a.tn { color: var(--tk, #fff); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+  .tcard h3 a.tn:hover { filter: brightness(1.2); }
   .tcard .mrij a.mt:hover { filter: brightness(1.15); }
   .pin { flex: 0 0 auto; cursor: pointer; background: none; border: 0; padding: 3px; line-height: 0; color: #8a8a8a; transform: rotate(-30deg); transition: transform .15s ease, color .15s ease; }
   .pin svg { width: 17px; height: 17px; display: block; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -610,7 +610,7 @@
   function rondIcoon(m) {
     const naam = String(m.roundName || '').trim();
     const hit = RONDEN.find((x) => x[0].test(naam));
-    return hit ? `<span class="rond ${hit[1] === 'F' ? 'f' : ''}" title="${esc(hit[2])}" aria-label="${esc(hit[2])}">${hit[1]}</span>` : '';
+    return hit ? `<span class="rond " title="${esc(hit[2])}" aria-label="${esc(hit[2])}">${hit[1]}</span>` : '';
   }
 
   function kaart(g) {
