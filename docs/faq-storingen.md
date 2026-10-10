@@ -74,3 +74,21 @@ zodra de jumbotron aan gaat.
 
 **Structureel opgelost?** Ja, sinds 04-10: een podium verschijnt alleen op een tafel
 waar de stream bij hetzelfde toernooi hoort. Zie [#178](https://github.com/peterdeswart96-ship-it/mokum-streams/issues/178).
+
+---
+
+## Pauzescherm in beeld bij een challenge (of custom stream)
+
+**Wat je ziet:** je start een challenge met het scorebord aan en de jumbotron uit, maar na een
+minuut of twee staat het pauzescherm in beeld en is het scorebord weg.
+
+**Wat je zelf kunt doen (als het toch nog voorkomt):**
+1. Zet in het dashboard bij die tafel de jumbotron uit en het scorebord aan.
+2. Daarna grijpt het systeem niet opnieuw in; het gebeurde maar één keer, kort na de start.
+3. Voor een challenge of custom stream bedien je de overlays altijd zelf.
+
+**Structureel opgelost?** Sinds 09-10 (deploy `4c9a9d2`): challenge- en custom-streams doen niet
+meer mee aan het automatische pauzescherm, en de herstelcontrole corrigeert niets meer vlak na
+de start. Nog te bevestigen op een echte challenge-start. Zie [#183](https://github.com/peterdeswart96-ship-it/mokum-streams/issues/183).
+
+**Incident:** 09-10-2026, challenge Richard vs Marco, tafel 1.
