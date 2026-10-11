@@ -47,6 +47,7 @@ test('templateVoorToernooi: kiest de juiste template per (Cuescore-)naam', () =>
   // NK-kwalificatie met 14.1 als discipline is GEEN Mokum-serie → geen template:
   assert.strictEqual(templateVoorToernooi('NK Pool 2026 14.1 Kwalificatieronde - Mokum'), null);
   assert.strictEqual(templateVoorToernooi('Fluke ranking 9ball #23'), 'fluke-ranking');
+  assert.strictEqual(templateVoorToernooi('Pool Regionale Ranking REGIO 2 Noord Holland #1 2026/2027'), 'knbb-regio-ranking');
   assert.strictEqual(templateVoorToernooi('Speedy Multiball Sunday'), 'speedy-multi-ball');
   assert.strictEqual(templateVoorToernooi('Handicap Madness #2'), 'handicap-madness');
   assert.strictEqual(templateVoorToernooi('Blind Double Members'), 'blind-double');

@@ -48,6 +48,9 @@ function schoneTitel(naam) {
 // prioriteit; specifieke regels (buffalo/summer) staan bewust vóór algemene.
 function templateVoorToernooi(naam) {
   const n = String(naam || '').toLowerCase();
+  // KNBB Regio Ranking ("Pool Regionale Ranking REGIO 2 Noord Holland #1 2026/2027"). Vooraan, want
+  // de naam bevat o.a. een jaartal en een nummer maar geen van de andere kernwoorden.
+  if (/regionale\s+ranking/.test(n) || (n.includes('knbb') && n.includes('ranking'))) return 'knbb-regio-ranking';
   if (n.includes('mega') && n.includes('buffalo')) return 'mega-ranking-buffalo';
   if (n.includes('mega') && n.includes('summer')) return 'mega-summer-ranking';
   if (n.includes('summer') && n.includes('ranking')) return 'mega-summer-ranking'; // ook zonder "MEGA" in de naam (typefout)
@@ -101,6 +104,7 @@ function templateVoorToernooi(naam) {
 // Cuescore-staart (#nummer, "Seizoen X", "9ball") nooit op de thumbnail — de video-titel op
 // YouTube houdt de volledige naam. Pas hier een naam aan om de thumbnail-tekst te wijzigen.
 const TEMPLATE_TEKST = {
+  'knbb-regio-ranking':        { titel: 'KNBB Regio Ranking' },        // titel staat vast in de template
   'fluke-ranking':             { titel: 'Fluke Ranking' },
   'last-minute-9ball':         { titel: 'Last Minute 9-Ball' },
   '9-ball-sunday':             { titel: '9-Ball Sunday' },
