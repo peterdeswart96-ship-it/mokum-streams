@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   getLive, startStream, stopStream, setOverlay, refreshBronnen, refreshPlanning, getPlanning, updatePlanning, getCompetitieWedstrijden, getCompetitieVandaag,
   getToken, setToken as saveToken, clearToken,
@@ -1226,6 +1226,57 @@ function TafelKnop({ nr, live, gekozen, onClick }) {
   );
 }
 
+// YouTube-API één keer per pagina laden; alle spelers wachten op dezelfde belofte.
+let ytApiBelofte = null;
+function laadYtApi() {
+  if (window.YT && window.YT.Player) return Promise.resolve(window.YT);
+  if (!ytApiBelofte) {
+    ytApiBelofte = new Promise((resolve) => {
+      const vorige = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => { if (vorige) vorige(); resolve(window.YT); };
+      const s = document.createElement('script');
+      s.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(s);
+    });
+  }
+  return ytApiBelofte;
+}
+
+// Livespeler die altijd op het LIVE-punt start. Een gewone embed hervat bij een stream met
+// DVR waar je als kijker eerder stopte (zo zag Peter beelden van 1u15 geleden). Daarom zoeken
+// we zodra het afspelen begint eenmalig naar het einde van de beschikbare stream.
+function LiveSpeler({ vid, titel }) {
+  const houder = useRef(null);
+  useEffect(() => {
+    let speler = null;
+    let weg = false;
+    let naarLive = false;
+    laadYtApi().then((YT) => {
+      if (weg || !houder.current) return;
+      const doel = document.createElement('div');
+      houder.current.appendChild(doel);
+      speler = new YT.Player(doel, {
+        videoId: vid,
+        width: '100%', height: '100%',
+        playerVars: { autoplay: 1, mute: 1, playsinline: 1 },
+        events: {
+          onStateChange: (e) => {
+            if (e.data !== YT.PlayerState.PLAYING || naarLive) return;
+            naarLive = true;
+            try { speler.seekTo(speler.getDuration(), true); } catch { /* speler al weg */ }
+          },
+        },
+      });
+    });
+    return () => {
+      weg = true;
+      try { speler && speler.destroy(); } catch { /* niets te ruimen */ }
+    };
+  }, [vid]);
+  return <div ref={houder} role="region" aria-label={titel}
+              className="absolute inset-0 w-full h-full rounded overflow-hidden [&>iframe]:w-full [&>iframe]:h-full" />;
+}
+
 function StreamPaneel({ tables }) {
   const [sel, setSel] = useState(CAMERAS[0]);
   const [open, setOpenState] = useState(() => {
@@ -1259,14 +1310,7 @@ function StreamPaneel({ tables }) {
         <div className="px-4 pb-4">
           {vid ? (
             <div className="relative w-full" style={{ paddingTop: '56.25%' }}>
-              <iframe
-                key={vid}
-                className="absolute inset-0 w-full h-full rounded"
-                src={`https://www.youtube.com/embed/${vid}?autoplay=1&mute=1`}
-                title={`Tafel ${t.tableNumber} livestream`}
-                allow="autoplay; encrypted-media; picture-in-picture"
-                allowFullScreen
-              />
+              <LiveSpeler key={vid} vid={vid} titel={`Tafel ${t.tableNumber} livestream`} />
             </div>
           ) : (
             <div className="text-ink-muted text-sm py-12 text-center border border-line rounded bg-canvas">
