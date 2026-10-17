@@ -1967,7 +1967,16 @@ export default function App() {
     if (!ingelogd) return;
     laad();
     const t = setInterval(laad, wachtOpStop ? STOP_REFRESH_MS : REFRESH_MS);
-    return () => clearInterval(t);
+    // iOS bevriest timers van een tabblad op de achtergrond (of een vergrendelde telefoon): bij
+    // terugkomen stond het dashboard dan uren stil. Zodra het tabblad weer zichtbaar is, meteen verversen.
+    const terug = () => { if (document.visibilityState === 'visible') laad(); };
+    document.addEventListener('visibilitychange', terug);
+    window.addEventListener('pageshow', terug);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener('visibilitychange', terug);
+      window.removeEventListener('pageshow', terug);
+    };
   }, [ingelogd, laad, wachtOpStop]);
 
   // Klaar met wachten: de tafel is niet meer live/gepland (gelukt), of de agent heeft er
